@@ -284,6 +284,101 @@ OpenAI's own hosting. The catalog is also not added to that host's listing:
 what a compatible provider lists is whatever its `/models` reports plus the
 models you register.
 
+### Text to Speech
+
+Speech models are referenced with `speechModel()` rather than `model()`, take
+`OpenAISpeechOptions`, and answer with a single audio media part whose `url` is
+a base64 `data:` URL:
+
+```dart
+final response = await ai.generate(
+  model: openAI.speechModel('gpt-4o-mini-tts'),
+  prompt: 'Genkit is an amazing AI framework.',
+  config: OpenAISpeechOptions(
+    voice: 'sage',
+    instructions: 'Speak in a calm, warm tone.',
+  ),
+);
+
+final media = response.media!;            // contentType: audio/mpeg
+final bytes = base64Decode(media.url.split(',').last);
+await File('speech.mp3').writeAsBytes(bytes);
+```
+
+All three accept `speed` (0.25-4.0). `instructions` is honored only by
+`gpt-4o-mini-tts`; the older two ignore it.
+
+Speech models are detected by name (`*tts*`). For an OpenAI-compatible provider
+whose speech model is named differently, declare media output when registering
+it and the plugin will route it to `/audio/speech`:
+
+```dart
+openAI(
+  name: 'voicecorp',
+  baseUrl: 'https://api.voicecorp.example/v1',
+  models: [
+    CustomModelDefinition(
+      name: 'voicebox-1',
+      info: ModelInfo(supports: {'output': ['media']}),
+    ),
+  ],
+)
+```
+
+### Speech to Text
+
+Transcription models take audio in and return text. The audio goes in through
+`promptParts` as a `MediaPart` holding a base64 `data:` URL:
+
+```dart
+final response = await ai.generate(
+  model: openAI.transcriptionModel('whisper-1'),
+  promptParts: [
+    MediaPart(
+      media: Media(contentType: 'audio/mpeg', url: 'data:audio/mpeg;base64,...'),
+    ),
+  ],
+  config: OpenAITranscriptionOptions(language: 'en'),
+);
+
+print(response.text); // 'The quick brown fox jumps over the lazy dog.'
+```
+
+`whisper-1`, `gpt-4o-transcribe` and `gpt-4o-mini-transcribe` are supported.
+Set `responseFormat: 'srt'` or `'vtt'` to get subtitle markup instead of a
+plain transcript, and `'verbose_json'` (with `timestampGranularities`) for
+timing metadata. `response.text` is the transcript either way; the decoded
+response — segments, timestamps, logprobs — is on `response.raw`. Ask for
+`outputFormat: 'json'` and the JSON object comes through whole instead, so
+`response.output` parses.
+
+`whisper-1` can also translate: `translate: true` routes the request to
+OpenAI's translation endpoint, which returns English text for audio in any
+language.
+
+```dart
+final response = await ai.generate(
+  model: openAI.transcriptionModel('whisper-1'),
+  promptParts: [MediaPart(media: spanishAudio)],
+  config: OpenAITranscriptionOptions(translate: true),
+);
+```
+
+A compatible provider whose transcription model is not named `*whisper*` or
+`*transcribe*` names the API it is served by:
+
+```dart
+CustomModelDefinition(
+  name: 'earbox-1',
+  kind: OpenAIModelKind.transcription,
+)
+```
+
+`kind` and not `info`: `supports: {'media': true}` describes a vision chat
+model just as well as a transcription one, so it cannot be the signal. Speech
+models are the exception — `output: ['media']` says the model returns audio and
+nothing else — and are still recognised from `info` as well as by name.
+
 ## Embeddings
 
 Embedders resolve the same way models do, and `OpenAIEmbedders` exposes a typed
@@ -337,6 +432,26 @@ The `OpenAIChatOptions` class supports the following options:
 - `user` (String?) - User identifier for abuse detection
 - `jsonMode` (bool?) - Forces `{"type": "json_object"}`. Only consulted when Genkit's own output config says nothing about the format; any explicit `outputFormat` wins, `'text'` included. See [JSON output](#json-output)
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
+- `version` (String?) - Model version override
+
+The `OpenAISpeechOptions` class supports the following options:
+
+- `voice` (String?) - Voice name, e.g. `'alloy'`, `'sage'`, `'coral'` (defaults to `'alloy'`). Free-form, so new OpenAI voices work without a plugin update
+- `instructions` (String?) - Tone and delivery guidance (`gpt-4o-mini-tts` only)
+- `speed` (double?, 0.25-4.0) - Playback speed
+- `responseFormat` (String?, 'mp3'|'opus'|'aac'|'flac'|'wav'|'pcm') - Audio container (defaults to `'mp3'`)
+- `version` (String?) - Model version override
+
+The `OpenAITranscriptionOptions` class supports the following options:
+
+- `language` (String?) - ISO-639-1 code of the spoken language; improves accuracy and latency
+- `prompt` (String?) - Decoding hint (vocabulary, names, style). Defaults to the request's text content
+- `temperature` (double?, 0.0-1.0) - Sampling temperature
+- `responseFormat` (String?, 'json'|'text'|'srt'|'verbose_json'|'vtt') - Transcript format (defaults to `'json'`)
+- `timestampGranularities` (List<String>?) - `'word'` and/or `'segment'`; needs `verbose_json`, `whisper-1` only
+- `chunkingStrategy` (Object?) - `'auto'` or a server-VAD map; `gpt-4o-transcribe` family only
+- `include` (List<String>?) - Extra response fields, e.g. `['logprobs']`
+- `translate` (bool?) - Translate to English instead of transcribing; `whisper-1` only
 - `version` (String?) - Model version override
 
 The `OpenAIEmbedderOptions` class supports:

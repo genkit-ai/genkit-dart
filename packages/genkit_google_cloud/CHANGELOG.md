@@ -1,3 +1,14 @@
+## 0.2.0
+
+### Breaking Changes
+
+ - move agent APIs behind experimental imports (#450)
+
+### Features
+
+ - support metadataOnly snapshot reads (#416)
+
+
 ## 0.1.4
 
  - updated internal dependencies.

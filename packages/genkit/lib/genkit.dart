@@ -22,53 +22,15 @@
 /// @docImport 'src/core/flow.dart';
 library;
 
-export 'src/ai/agents/agent.dart'
-    show
-        Agent,
-        AgentFn,
-        AgentFnOptions,
-        ClientTransform,
-        SessionRunner,
-        TurnContext,
-        TurnResult,
-        validateResumeAgainstHistory;
-export 'src/ai/agents/agent_core.dart'
-    show
-        AgentApi,
-        AgentChat,
-        AgentChunk,
-        AgentError,
-        AgentInterrupt,
-        AgentResponse,
-        AgentSnapshot,
-        AgentTransport,
-        AgentTurn,
-        CancellationController,
-        CancellationToken,
-        DetachedTask,
-        TurnStream;
-export 'src/ai/agents/json_patch.dart'
-    show JsonPatch, JsonPatchOperationMap, applyPatch, diff;
-export 'src/ai/agents/remote_agent.dart' show HeadersResolver, remoteAgent;
-export 'src/ai/agents/session.dart'
-    show
-        InMemorySessionStore,
-        Session,
-        SessionError,
-        SessionStore,
-        SnapshotChangeNotifier,
-        SnapshotMetadataReader,
-        SnapshotMutator,
-        generateUuidV4,
-        getCurrentSession,
-        reserveSnapshotId,
-        runWithSession;
+// Agent, session, and snapshot APIs are experimental and live in
+// `package:genkit/experimental.dart` (and its `_client` / `_io` variants).
+// They are intentionally excluded from this stable surface so they can evolve
+// without a major version bump.
 
 export 'src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
 
 export 'src/ai/formatters/types.dart';
-export 'src/ai/generate_bidi.dart' show GenerateBidiSession;
 export 'src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
@@ -82,8 +44,9 @@ export 'src/ai/generate_types.dart'
 export 'src/ai/interrupt.dart' show ToolInterruptException;
 export 'src/ai/middleware/retry.dart'
     show RetryMiddleware, RetryOptions, RetryPlugin, retry;
-export 'src/ai/model.dart'
-    show BidiModel, Model, ModelRef, modelMetadata, modelRef;
+// BidiModel / bidiModelRef live in the experimental surface
+// (`package:genkit/experimental.dart`) alongside generateBidi.
+export 'src/ai/model.dart' show Model, ModelRef, modelMetadata, modelRef;
 export 'src/ai/prompt.dart'
     show
         ExecutablePrompt,

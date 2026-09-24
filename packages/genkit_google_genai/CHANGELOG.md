@@ -1,3 +1,19 @@
+## 0.4.0
+
+### Breaking Changes
+
+ - add cancellation support for action calls and generate API (#397)
+
+### Features
+
+ - curate and discover Gemma models (#438)
+ - require generateContent in model discovery (#440)
+
+### Fixes
+
+ - send seed in GenerationConfig (#452)
+
+
 ## 0.3.1
 
  - updated internal dependencies.

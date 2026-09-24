@@ -27,6 +27,7 @@
 /// (`{ tasks: [{id, title, done}], nextId }`).
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 

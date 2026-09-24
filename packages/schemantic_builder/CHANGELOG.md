@@ -1,6 +1,6 @@
-## 0.1.3-wip
+## 0.1.3
 
- - Widen analyzer version constraint to '<15.0.0'.
+ - updated internal dependencies.
 
 ## 0.1.2
 

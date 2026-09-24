@@ -22,9 +22,11 @@ library;
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../core/action.dart';
+import '../../core/cancellation.dart';
 import '../../core/registry.dart';
 import '../../exception.dart';
 import '../../o11y/instrumentation.dart';
@@ -403,6 +405,7 @@ typedef OnDetach = void Function(String snapshotId);
 /// [updateCustom] delegate straight through, so a `SessionRunner<State>` exposes
 /// the same typed custom-state API. It defaults to `dynamic` for the untyped
 /// (raw-JSON) case.
+@experimental
 class SessionRunner<State> {
   SessionRunner(
     this.session,
@@ -1135,6 +1138,7 @@ final class _InProcessTransport extends AgentTransport {
 /// `loadChat`, `getSnapshot`, `abort`) - the same surface returned by
 /// `remoteAgent` on the client - plus the lower-level [action] for serving
 /// over HTTP and the snapshot/abort actions.
+@experimental
 class Agent<State> {
   Agent._({
     required this.action,
@@ -1234,6 +1238,7 @@ class Agent<State> {
 /// `Agent<State>`, and `chat().state` / `res.state` return parsed `State`
 /// instances instead of raw JSON maps. Without one, `State` defaults to
 /// `dynamic` (a bare view over the JSON).
+@experimental
 Agent<State> defineCustomAgent<State>(
   Registry registry, {
   required String name,
@@ -1783,6 +1788,7 @@ const _promptTag = 'agentPreamble';
 /// The [promptInput] supplies values for the referenced prompt's input
 /// variables, so a single prompt can be reused and customized by multiple
 /// agents.
+@experimental
 Agent<State> definePromptAgent<State>(
   Registry registry, {
   required String promptName,

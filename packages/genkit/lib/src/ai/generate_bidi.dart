@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 import '../core/action.dart';
 import '../core/cancellation.dart';
@@ -32,6 +33,8 @@ import 'tool_resolution.dart';
 
 final _logger = Logger('genkit');
 
+/// Experimental: lives behind `package:genkit/experimental.dart`.
+@experimental
 class GenerateBidiSession {
   final BidiActionStream<ModelResponseChunk, ModelResponse, ModelRequest>
   _session;

@@ -22,6 +22,8 @@ import 'src/embed.dart' as embed;
 import 'src/known_embedders.dart';
 import 'src/known_models.dart';
 import 'src/openai_plugin.dart';
+import 'src/speech.dart' as speech;
+import 'src/transcription.dart' as transcription;
 
 export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/converters.dart' show GenkitConverter;
@@ -60,6 +62,8 @@ export 'src/known_models.dart'
         supportsVision,
         textOnlyLegacySupports,
         textOnlyNoJsonSupports;
+export 'src/speech.dart' show OpenAISpeechOptions;
+export 'src/transcription.dart' show OpenAITranscriptionOptions;
 export 'src/utils.dart' show getModelType;
 
 /// Default plugin / namespace name used when no custom name is provided.
@@ -91,9 +95,33 @@ class CustomModelDefinition {
   /// if it has one, and [dynamicModelInfo] otherwise.
   final ModelInfo? info;
 
+  /// Which API this model is served by, when its name does not say.
+  ///
+  /// When `null` the name decides: `*tts*` is speech, `*whisper*` and
+  /// `*transcribe*` are transcription, everything else is chat. Set it for a
+  /// compatible provider whose model is named differently - `info` cannot
+  /// carry this, since `supports: {'media': true}` describes a vision chat
+  /// model just as well as a transcription one.
+  final OpenAIModelKind? kind;
+
   /// Creates a custom model definition with the given [name] and optional
-  /// [info].
-  const CustomModelDefinition({required this.name, this.info});
+  /// [info] and [kind].
+  const CustomModelDefinition({required this.name, this.info, this.kind});
+}
+
+/// Which OpenAI API serves a model.
+///
+/// Names it for a [CustomModelDefinition] whose own name does not follow
+/// OpenAI's conventions; discovered and curated models are classified by name.
+enum OpenAIModelKind {
+  /// Chat completions, `POST /chat/completions`.
+  chat,
+
+  /// Text to speech, `POST /audio/speech`.
+  speech,
+
+  /// Speech to text, `POST /audio/transcriptions`.
+  transcription,
 }
 
 /// Signature used to provide an API key (or bearer token) for requests.
@@ -190,6 +218,60 @@ class OpenAICompatPluginHandle {
     return embedderRef(
       '$namespace/$name',
       customOptions: embed.embedderOptionsSchema(),
+    );
+  }
+
+  /// Reference to a text-to-speech model, e.g. `tts-1` or `gpt-4o-mini-tts`.
+  ///
+  /// Separate from [model] because speech models take
+  /// `OpenAISpeechOptions` rather than `OpenAIChatOptions`, and return a
+  /// single audio media part instead of text:
+  ///
+  /// ```dart
+  /// final response = await ai.generate(
+  ///   model: openAI.speechModel('gpt-4o-mini-tts'),
+  ///   prompt: 'Genkit is an amazing AI framework.',
+  ///   config: OpenAISpeechOptions(
+  ///     voice: 'sage',
+  ///     instructions: 'Speak in a calm, warm tone.',
+  ///   ),
+  /// );
+  /// final audio = response.media; // data:audio/mpeg;base64,...
+  /// ```
+  ModelRef<speech.OpenAISpeechOptions> speechModel(
+    String name, {
+    String namespace = defaultOpenAINamespace,
+  }) {
+    return modelRef(
+      '$namespace/$name',
+      customOptions: speech.speechModelOptionsSchema(),
+    );
+  }
+
+  /// Reference to a speech-to-text model, e.g. `whisper-1` or
+  /// `gpt-4o-transcribe`.
+  ///
+  /// Transcription models read audio from the request and answer with text,
+  /// so the audio goes in through `promptParts`:
+  ///
+  /// ```dart
+  /// final response = await ai.generate(
+  ///   model: openAI.transcriptionModel('whisper-1'),
+  ///   promptParts: [MediaPart(media: recording)],
+  ///   config: OpenAITranscriptionOptions(language: 'en'),
+  /// );
+  /// print(response.text);
+  /// ```
+  ///
+  /// `whisper-1` also accepts `translate: true` to return English text for
+  /// audio in any language.
+  ModelRef<transcription.OpenAITranscriptionOptions> transcriptionModel(
+    String name, {
+    String namespace = defaultOpenAINamespace,
+  }) {
+    return modelRef(
+      '$namespace/$name',
+      customOptions: transcription.transcriptionModelOptionsSchema(),
     );
   }
 }

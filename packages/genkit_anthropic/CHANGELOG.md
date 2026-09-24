@@ -1,3 +1,14 @@
+## 0.4.0
+
+### Breaking Changes
+
+ - re-send thinking blocks on multi-turn requests (#400)
+
+### Fixes
+
+ - map 529 overloaded to UNAVAILABLE (#459)
+
+
 ## 0.3.2-wip
 
  - Raise the anthropic_sdk_dart floor to 8.0.0, for the typed thinking input blocks.

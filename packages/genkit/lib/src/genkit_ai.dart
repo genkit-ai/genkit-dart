@@ -14,11 +14,11 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'ai/embedder.dart';
 import 'ai/generate.dart';
-import 'ai/generate_bidi.dart';
 import 'ai/generate_middleware.dart';
 import 'ai/generate_types.dart';
 import 'ai/model.dart';
@@ -34,7 +34,7 @@ import 'types.dart';
 /// Encapsulates Genkit's AI APIs.
 ///
 /// [GenkitAI] exposes the model-orchestration veneer ([generate],
-/// [generateStream], [generateBidi], [embed], [embedMany], [run]) on top of a
+/// [generateStream], [embed], [embedMany], [run]) on top of a
 /// [Registry]. It only requires a registry to operate, making it cheap to
 /// create ephemeral, throwaway instances (the registry holds all the state).
 /// The full framework entry point `Genkit` extends this class to add plugin
@@ -51,59 +51,6 @@ base class GenkitAI {
       name,
       (_) => fn(),
       actionType: ActionType.flowStep.value,
-    );
-  }
-
-  /// The tool resolution logic.
-  ///
-  /// Returns a new registry with embedded tools if necessary.
-  ({Registry registry, List<String>? toolNames}) _resolveTools(
-    Registry registry, {
-    List<Tool>? tools,
-    List<String>? toolNames,
-  }) {
-    if ((tools == null || tools.isEmpty) &&
-        (toolNames == null || toolNames.isEmpty)) {
-      return (registry: registry, toolNames: null);
-    }
-
-    final resolvedToolNames = <String>[...?toolNames];
-
-    if (tools == null || tools.isEmpty) {
-      return (registry: registry, toolNames: resolvedToolNames);
-    }
-
-    final childRegistry = Registry.childOf(registry);
-    for (final tool in tools) {
-      childRegistry.register(tool);
-      if (!resolvedToolNames.contains(tool.name)) {
-        resolvedToolNames.add(tool.name);
-      }
-    }
-    return (registry: childRegistry, toolNames: resolvedToolNames);
-  }
-
-  /// Starts a bi-directional generator session.
-  Future<GenerateBidiSession> generateBidi({
-    required String model,
-    dynamic config,
-    List<Tool>? tools,
-    List<String>? toolNames,
-    String? system,
-    CancellationToken? cancel,
-  }) {
-    final resolved = _resolveTools(
-      registry,
-      tools: tools,
-      toolNames: toolNames,
-    );
-    return runGenerateBidi(
-      resolved.registry,
-      modelName: model,
-      config: config,
-      tools: resolved.toolNames,
-      system: system,
-      cancel: cancel,
     );
   }
 
@@ -179,7 +126,7 @@ base class GenkitAI {
         if (outputNoInstructions == true) 'instructions': false,
       });
     }
-    final resolved = _resolveTools(
+    final resolved = resolveInlineTools(
       registry,
       tools: tools,
       toolNames: toolNames,
@@ -368,4 +315,37 @@ base class GenkitAI {
     }
     return embedMany(embedder: embedder, documents: docs, options: options);
   }
+}
+
+/// Resolves inline [Tool] objects into a (possibly child) registry plus the
+/// combined tool-name list, so callers can pass ad-hoc tools alongside
+/// registered tool names.
+///
+/// Returns a new child registry with the inline tools registered when any are
+/// supplied; otherwise the original registry is returned unchanged.
+@internal
+({Registry registry, List<String>? toolNames}) resolveInlineTools(
+  Registry registry, {
+  List<Tool>? tools,
+  List<String>? toolNames,
+}) {
+  if ((tools == null || tools.isEmpty) &&
+      (toolNames == null || toolNames.isEmpty)) {
+    return (registry: registry, toolNames: null);
+  }
+
+  final resolvedToolNames = <String>[...?toolNames];
+
+  if (tools == null || tools.isEmpty) {
+    return (registry: registry, toolNames: resolvedToolNames);
+  }
+
+  final childRegistry = Registry.childOf(registry);
+  for (final tool in tools) {
+    childRegistry.register(tool);
+    if (!resolvedToolNames.contains(tool.name)) {
+      resolvedToolNames.add(tool.name);
+    }
+  }
+  return (registry: childRegistry, toolNames: resolvedToolNames);
 }

@@ -31,8 +31,9 @@ library;
 
 import 'dart:io';
 
+import 'package:genkit/experimental.dart';
+import 'package:genkit/experimental_io.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit/io.dart';
 import 'package:genkit_middleware/filesystem.dart';
 import 'package:genkit_middleware/skills.dart';
 import 'package:genkit_middleware/tool_approval.dart';

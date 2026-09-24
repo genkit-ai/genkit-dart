@@ -17,10 +17,6 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
-import 'ai/agents/agent.dart' as agent_lib;
-import 'ai/agents/agent.dart' show Agent, AgentFn, ClientTransform;
-import 'ai/agents/session.dart' show Session, SessionStore, getCurrentSession;
-
 import 'ai/dotprompt_registry.dart';
 import 'ai/embedder.dart';
 import 'ai/evaluator.dart';
@@ -58,7 +54,7 @@ import 'utils.dart' as utils;
 /// [definePrompt], and [defineResource].
 ///
 /// It extends [GenkitAI], inheriting the model-orchestration veneer
-/// ([generate], [generateStream], [generateBidi], [embed], [embedMany], [run]).
+/// ([generate], [generateStream], [embed], [embedMany], [run]).
 ///
 /// If `isDevEnv` is true, or `GENKIT_ENV` is set to 'dev' in the process
 /// environment or as a `--dart-define`, initializing [Genkit] also starts a
@@ -162,35 +158,6 @@ final class Genkit extends GenkitAI {
           throw ArgumentError('Flow "$name" requires a non-null input.');
         }
         return fn(input as Input, context);
-      },
-      inputSchema: inputSchema,
-      outputSchema: outputSchema,
-      streamSchema: streamSchema,
-      initSchema: initSchema,
-    );
-    registry.register(flow);
-    return flow;
-  }
-
-  /// Defines a bi-directional Genkit flow.
-  Flow<Input, Output, Chunk, Init> defineBidiFlow<Input, Output, Chunk, Init>({
-    required String name,
-    required BidiActionFn<Input, Output, Chunk, Init> fn,
-    SchemanticType<Input>? inputSchema,
-    SchemanticType<Output>? outputSchema,
-    SchemanticType<Chunk>? streamSchema,
-    SchemanticType<Init>? initSchema,
-  }) {
-    final flow = Flow(
-      name: name,
-      fn: (input, context) {
-        if (context.inputStream == null) {
-          throw GenkitException(
-            'Bidi flow $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-        return fn(context.inputStream!, context);
       },
       inputSchema: inputSchema,
       outputSchema: outputSchema,
@@ -386,133 +353,6 @@ final class Genkit extends GenkitAI {
     return lookupPrompt(registry, name, variant: variant);
   }
 
-  /// Defines and registers an agent by creating a prompt and wiring it into a
-  /// multi-turn agent in one step.
-  ///
-  /// This is a convenience shortcut for calling [definePrompt] followed by
-  /// [definePromptAgent].
-  Agent<State> defineAgent<CustomOptions, Input, State>({
-    required String name,
-    String? variant,
-    ModelRef<CustomOptions>? model,
-    CustomOptions? config,
-    String? description,
-    SchemanticType<Input>? inputSchema,
-    String? system,
-    List<Part>? systemParts,
-    String? prompt,
-    List<Part>? promptParts,
-    List<Message>? messages,
-    String? messagesTemplate,
-    GenerateActionOutputConfig? output,
-    int? maxTurns,
-    bool? returnToolRequests,
-    Map<String, dynamic>? metadata,
-    List<Tool>? tools,
-    List<String>? toolNames,
-    String? toolChoice,
-    List<GenerateMiddlewareRef>? use,
-
-    /// Supplies values for the prompt's input variables, so a single prompt
-    /// can be reused and customized by multiple agents.
-    Map<String, dynamic>? promptInput,
-
-    /// Optional schema describing the shape of the custom session state. When
-    /// provided, `chat().state` / `res.state` return parsed `State` instances.
-    SchemanticType<State>? stateSchema,
-    SessionStore? store,
-    ClientTransform? clientTransform,
-  }) {
-    // Register the prompt.
-    definePrompt<CustomOptions, Input>(
-      name: name,
-      variant: variant,
-      model: model,
-      config: config,
-      description: description,
-      inputSchema: inputSchema,
-      system: system,
-      systemParts: systemParts,
-      prompt: prompt,
-      promptParts: promptParts,
-      messages: messages,
-      messagesTemplate: messagesTemplate,
-      output: output,
-      maxTurns: maxTurns,
-      returnToolRequests: returnToolRequests,
-      metadata: metadata,
-      tools: tools,
-      toolNames: toolNames,
-      toolChoice: toolChoice,
-      use: use,
-    );
-
-    // Wire it into a prompt agent.
-    return agent_lib.definePromptAgent<State>(
-      registry,
-      promptName: variant != null ? '$name.$variant' : name,
-      promptInput: promptInput,
-      stateSchema: stateSchema,
-      store: store,
-      clientTransform: clientTransform,
-    );
-  }
-
-  /// Registers a multi-turn custom agent action capable of maintaining
-  /// persistent state.
-  ///
-  /// Use this when you need full control over the agent turn loop. For the
-  /// common prompt-driven case, use [defineAgent].
-  Agent<State> defineCustomAgent<State>({
-    required String name,
-    String? description,
-    SchemanticType<State>? stateSchema,
-    SessionStore? store,
-    ClientTransform? clientTransform,
-    required AgentFn<State> fn,
-  }) {
-    return agent_lib.defineCustomAgent<State>(
-      registry,
-      name: name,
-      description: description,
-      stateSchema: stateSchema,
-      store: store,
-      clientTransform: clientTransform,
-      fn: fn,
-    );
-  }
-
-  /// Registers an agent from an existing, previously-defined prompt.
-  Agent<State> definePromptAgent<State>({
-    required String promptName,
-
-    /// Supplies values for the prompt's input variables, so a single prompt
-    /// can be reused and customized by multiple agents.
-    Map<String, dynamic>? promptInput,
-    SchemanticType<State>? stateSchema,
-    SessionStore? store,
-    ClientTransform? clientTransform,
-  }) {
-    return agent_lib.definePromptAgent<State>(
-      registry,
-      promptName: promptName,
-      promptInput: promptInput,
-      stateSchema: stateSchema,
-      store: store,
-      clientTransform: clientTransform,
-    );
-  }
-
-  /// Returns the [Session] active in the current agent turn, or `null` when
-  /// called outside of an agent turn.
-  ///
-  /// When a `State` type argument is supplied it is applied to the returned
-  /// session so `getCustom()` / `updateCustom(...)` are typed. Because Dart
-  /// generics are reified, the requested `State` must match the one the running
-  /// agent was defined with (a mismatch throws on the cast). Defaults to the
-  /// untyped `Session<dynamic>?` view.
-  Session<State>? currentSession<State>() => getCurrentSession<State>();
-
   /// Registers a Handlebars partial template for use in prompts.
   ///
   /// Partials can be referenced in prompt templates using `{{> name}}`.
@@ -582,41 +422,21 @@ final class Genkit extends GenkitAI {
   }
 
   /// Defines an AI model interface.
+  ///
+  /// [info] declares what the model can do. `supports.constrained` is read
+  /// when the model is called, generate or otherwise: a model that does not
+  /// claim native constrained generation has it simulated for it, so a model
+  /// that does support it has to say so.
   Model defineModel({
     required String name,
     required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk, void> fn,
+    ModelInfo? info,
   }) {
     final model = Model(
       name: name,
+      metadata: info == null ? null : {'model': info.toJson()},
       fn: (input, context) {
         return fn(input!, context);
-      },
-    );
-    registry.register(model);
-    return model;
-  }
-
-  /// Defines a bi-directional AI model interface.
-  BidiModel defineBidiModel({
-    required String name,
-    required BidiActionFn<
-      ModelRequest,
-      ModelResponse,
-      ModelResponseChunk,
-      ModelRequest
-    >
-    fn,
-  }) {
-    final model = BidiModel(
-      name: name,
-      fn: (input, context) {
-        if (context.inputStream == null) {
-          throw GenkitException(
-            'Bidi model $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-        return fn(context.inputStream!, context);
       },
     );
     registry.register(model);

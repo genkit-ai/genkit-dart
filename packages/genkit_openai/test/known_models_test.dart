@@ -268,14 +268,21 @@ void main() {
       ]).list();
       final models = modelNames(metadata);
 
-      // The embedder is listed, but as an embedder; the rest are modalities
-      // this plugin does not serve at all.
+      // The embedder is listed as an embedder and whisper as a transcription
+      // model, both with their own options schema; image generation is a
+      // modality this plugin does not serve at all.
       expect(models, isNot(contains('openai/text-embedding-3-small')));
       expect(
         embedderNames(metadata),
         contains('openai/text-embedding-3-small'),
       );
-      expect(models, isNot(contains('openai/whisper-1')));
+      expect(models, contains('openai/whisper-1'));
+      expect(
+        modelMetadataOf(
+          metadata.firstWhere((m) => m.name == 'openai/whisper-1'),
+        )['supports'],
+        containsPair('media', true),
+      );
       expect(models, isNot(contains('openai/dall-e-3')));
     });
   });

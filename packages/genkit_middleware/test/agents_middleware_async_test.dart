@@ -14,6 +14,7 @@
 
 import 'dart:async';
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_middleware/agents.dart';
 import 'package:test/test.dart';

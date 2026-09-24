@@ -19,26 +19,14 @@
 /// purely client-side context (e.g. with Chrome AI).
 library;
 
-export 'src/ai/agents/agent_core.dart'
-    show
-        AgentApi,
-        AgentChat,
-        AgentChunk,
-        AgentError,
-        AgentInterrupt,
-        AgentResponse,
-        AgentSnapshot,
-        AgentTransport,
-        AgentTurn,
-        CancellationController,
-        CancellationToken,
-        DetachedTask,
-        TurnStream;
-export 'src/ai/agents/json_patch.dart'
-    show JsonPatch, JsonPatchOperationMap, applyPatch, diff;
-export 'src/ai/agents/remote_agent.dart' show HeadersResolver, remoteAgent;
+// Agent client APIs are experimental and live in
+// `package:genkit/experimental_client.dart`. They are intentionally excluded
+// from this stable surface so they can evolve without a major version bump.
+
 export 'src/client/client.dart' show RemoteAction, defineRemoteAction;
 export 'src/core/action.dart' show ActionStream;
+export 'src/core/cancellation.dart'
+    show CancellationController, CancellationToken;
 export 'src/exception.dart' show GenkitException, StatusCodes;
 export 'src/schema_extensions.dart';
 export 'src/types.dart';

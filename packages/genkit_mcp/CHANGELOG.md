@@ -1,3 +1,11 @@
+## 0.4.0
+
+### Breaking Changes
+
+ - close DAP feature gaps (traces, metadata, registry, reflection) (#432)
+ - use mcp_dart for protocol handling (#341)
+
+
 ## 0.3.1
 
  - updated internal dependencies.

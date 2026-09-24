@@ -19,8 +19,9 @@
 /// and multi-turn session threading work identically.
 library;
 
+import 'package:genkit/experimental.dart';
+import 'package:genkit/experimental_io.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit/io.dart';
 import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
