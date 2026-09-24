@@ -221,7 +221,7 @@ void main() {
 
   group('lite tools and interrupts', () {
     test('runs a tool and feeds its output back to the model', () async {
-      final weather = Tool(
+      final weather = lite.Tool(
         name: 'weather',
         description: 'Gets the weather.',
         inputSchema: .map(.string(), .dynamicSchema()),
@@ -267,7 +267,7 @@ void main() {
     });
 
     test('a tool returning .interrupt halts the generation loop', () async {
-      final needsApproval = Tool(
+      final needsApproval = lite.Tool(
         name: 'needsApproval',
         description: 'requires approval',
         inputSchema: .map(.string(), .dynamicSchema()),
@@ -306,7 +306,7 @@ void main() {
     });
 
     test('an Interrupt always interrupts with default metadata', () async {
-      final confirm = Interrupt(
+      final confirm = lite.Interrupt(
         name: 'confirmAction',
         description: 'Asks the user to confirm.',
         inputSchema: .map(.string(), .dynamicSchema()),
@@ -343,7 +343,7 @@ void main() {
     });
 
     test('an Interrupt attaches computed requestMetadata', () async {
-      final confirm = Interrupt(
+      final confirm = lite.Interrupt(
         name: 'confirmCharge',
         description: 'Asks the user to confirm a charge.',
         inputSchema: .map(.string(), .dynamicSchema()),
@@ -384,7 +384,7 @@ void main() {
 
     test('an interrupted Interrupt can be resumed with '
         'interruptRespond', () async {
-      final confirm = Interrupt(
+      final confirm = lite.Interrupt(
         name: 'confirmAction',
         description: 'Asks the user to confirm.',
         inputSchema: .map(.string(), .dynamicSchema()),
@@ -435,13 +435,37 @@ void main() {
         messages: response1.messages,
         tools: [confirm],
         interruptRespond: [
-          InterruptResponse(response1.interrupts.first, 'UserConfirmed'),
+          lite.InterruptResponse(response1.interrupts.first, 'UserConfirmed'),
         ],
       );
 
       expect(response2.finishReason, FinishReason.stop);
       expect(response2.text, 'confirmed: UserConfirmed');
       expect(modelCallCount, 2);
+    });
+
+    test('exports the tool fn and result types', () async {
+      // Names each type through the `lite.` prefix so that dropping an export
+      // from lite.dart breaks compilation (the unprefixed genkit.dart import
+      // would otherwise mask it).
+      Future<lite.ToolResult<String>> fn(
+        Map<String, dynamic> input,
+        lite.ToolFnArgs<Map<String, dynamic>> ctx,
+      ) async => .response('ok');
+      expect(fn, isA<lite.ToolFn<Map<String, dynamic>, String>>());
+
+      final tool = lite.Tool<Map<String, dynamic>, String>(
+        name: 'typed',
+        description: 'A typed tool.',
+        inputSchema: .map(.string(), .dynamicSchema()),
+        fn: fn,
+      );
+      expect(tool.name, 'typed');
+
+      final ok = lite.ToolResult<String>.response('ok');
+      final halt = lite.ToolResult<String>.interrupt({'why': 'because'});
+      expect(ok, isA<lite.ToolResponseResult<String>>());
+      expect(halt, isA<lite.ToolInterruptResult<String>>());
     });
   });
 
