@@ -45,6 +45,46 @@ void main() {
       );
     });
 
+    test(
+      'every o-series model with settable effort is marked as reasoning',
+      () {
+        // Catches an o-series entry added without `reasons`, which would then
+        // be refused a parameter it accepts. The preview pair is excluded: they
+        // reason, but predate `reasoning_effort`.
+        for (final model in KnownOpenAIModel.values) {
+          if (model.supports != reasoningSupports &&
+              model.supports != reasoningTextOnlySupports) {
+            continue;
+          }
+          expect(model.reasons, isTrue, reason: model.id);
+        }
+      },
+    );
+
+    test('the GPT-5 family reasons, bar the ChatGPT-tuned snapshot', () {
+      for (final model in KnownOpenAIModel.values) {
+        if (!model.id.startsWith('gpt-5')) continue;
+        expect(
+          model.reasons,
+          model.id != 'gpt-5-chat-latest',
+          reason: model.id,
+        );
+      }
+    });
+
+    test('no model that predates reasoning claims to reason', () {
+      for (final id in [
+        'gpt-4o',
+        'gpt-4.1',
+        'gpt-4-turbo',
+        'gpt-3.5-turbo',
+        'o1-mini',
+        'o1-preview',
+      ]) {
+        expect(knownOpenAIModelFor(id)!.reasons, isFalse, reason: id);
+      }
+    });
+
     test('no two entries claim the same name', () {
       final seen = <String, String>{};
       for (final model in KnownOpenAIModel.values) {
@@ -250,6 +290,38 @@ void main() {
       expect(info.containsKey('label'), isFalse);
       expect(info.containsKey('stage'), isFalse);
       expect(info.containsKey('versions'), isFalse);
+    });
+
+    test('OpenAI\'s own baseUrl keeps them', () async {
+      // Both spellings dial the same host, so naming it explicitly is not a
+      // compat backend and must not cost the curated catalog.
+      final metadata = await pluginListing([
+        'gpt-4o',
+      ], baseUrl: 'https://api.openai.com/v1').list();
+      final info = modelMetadataOf(
+        metadata.firstWhere((m) => m.name == 'openai/gpt-4o'),
+      );
+
+      expect(info['label'], isNotNull);
+      expect(info['stage'], isNotNull);
+      expect(info.containsKey('versions'), isTrue);
+      expect(
+        modelNames(metadata),
+        containsAll(knownChatModels.map((id) => 'openai/$id')),
+      );
+    });
+
+    test('OpenAI\'s own baseUrl keeps the audio catalogs too', () async {
+      // Same host, so the speech and transcription ids follow the chat
+      // catalog rather than being withheld as a compat backend's would be.
+      final names = modelNames(
+        await pluginListing([
+          'gpt-4o',
+        ], baseUrl: 'https://api.openai.com/v1').list(),
+      );
+
+      expect(names, contains('openai/tts-1'));
+      expect(names, contains('openai/whisper-1'));
     });
 
     test('an uncurated name on a compat backend takes the defaults', () async {

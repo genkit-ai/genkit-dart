@@ -17,16 +17,29 @@ import 'dart:convert';
 import 'package:genkit/genkit.dart';
 import 'package:logging/logging.dart';
 import 'package:openai_dart/openai_dart.dart' as sdk;
+import 'package:schemantic/schemantic.dart';
 
 final _logger = Logger('genkit_openai');
 
 /// Converter class for transforming between Genkit and OpenAI formats
 abstract final class GenkitConverter {
-  /// Convert Genkit messages to OpenAI format
+  /// Converts Genkit messages to the OpenAI wire format.
+  ///
+  /// [replayReasoning] re-sends each model turn's reasoning as
+  /// `reasoning_content`. DeepSeek requires it when the request carries
+  /// `tools` — the thinking of previous turns is concatenated into the context
+  /// and is simply lost otherwise — and ignores it the rest of the time. It is
+  /// off by default because the field is not OpenAI's: the SDK serialises it
+  /// whenever it is set, so leaving it on would put a field on the wire that
+  /// OpenAI never asked for.
+  ///
+  /// [visualDetailLevel] stays positional so the exported signature does not
+  /// break.
   static List<sdk.ChatMessage> toOpenAIMessages(
     List<Message> messages,
-    String? visualDetailLevel,
-  ) {
+    String? visualDetailLevel, {
+    bool replayReasoning = false,
+  }) {
     final result = <sdk.ChatMessage>[];
     for (final message in messages) {
       // Tool messages may contain multiple responses and need to be expanded
@@ -70,7 +83,13 @@ abstract final class GenkitConverter {
           );
         }
       } else {
-        result.add(toOpenAIMessage(message, visualDetailLevel));
+        result.add(
+          toOpenAIMessage(
+            message,
+            visualDetailLevel,
+            replayReasoning: replayReasoning,
+          ),
+        );
       }
     }
     return result;
@@ -80,8 +99,9 @@ abstract final class GenkitConverter {
   /// Note: Tool messages are handled separately in toOpenAIMessages()
   static sdk.ChatMessage toOpenAIMessage(
     Message msg,
-    String? visualDetailLevel,
-  ) {
+    String? visualDetailLevel, {
+    bool replayReasoning = false,
+  }) {
     if (msg.role == Role.system) {
       return sdk.ChatMessage.system(msg.text);
     }
@@ -93,9 +113,12 @@ abstract final class GenkitConverter {
     }
     if (msg.role == Role.model) {
       final toolCalls = _extractToolCalls(msg.content);
-      return sdk.ChatMessage.assistant(
+      // Built directly rather than through ChatMessage.assistant(), which
+      // cannot carry reasoning_content.
+      return sdk.AssistantMessage(
         content: msg.text,
         toolCalls: toolCalls.isNotEmpty ? toolCalls : null,
+        reasoningContent: replayReasoning ? _reasoningTextOf(msg) : null,
       );
     }
     if (msg.role == Role.tool) {
@@ -213,7 +236,13 @@ abstract final class GenkitConverter {
   static sdk.Tool toOpenAITool(ToolDefinition tool) {
     // OpenAI requires parameters to be a valid JSON Schema object
     // If no schema is provided, use an empty object schema
-    var parameters = tool.inputSchema;
+    // Flattened first: schemantic emits a generated class's schema as a
+    // `$ref` into `$defs`, and hosts disagree about resolving one. OpenAI
+    // accepts it; xAI answers `tool parameter root must be an object type
+    // (root schema is a $ref)`. Inlining it costs nothing and is the shape
+    // every host documents. The response format is flattened for the same
+    // reason - see `buildOpenAIResponseFormat`.
+    var parameters = _inlinedToolSchema(tool);
 
     if (parameters == null) {
       parameters = {'type': 'object', 'properties': {}};
@@ -237,6 +266,31 @@ abstract final class GenkitConverter {
     );
   }
 
+  /// [tool]'s input schema with its `$defs` inlined, or as authored when they
+  /// cannot be.
+  ///
+  /// A self-referential type - a tree node, a threaded comment - has no
+  /// inlined form at all, and `flatten` says so by throwing. Sending the
+  /// `$ref`/`$defs` shape instead is what this plugin did before inlining and
+  /// what OpenAI accepts, so the request still goes out; a host that refuses
+  /// that shape answers for itself, naming the schema it could not read.
+  /// Throwing here would refuse the tool on every host, and would report a
+  /// local schema problem as an API error, since the caller sees it wrapped
+  /// as `OpenAI API error` from the catch around the request.
+  static Map<String, dynamic>? _inlinedToolSchema(ToolDefinition tool) {
+    final schema = tool.inputSchema;
+    if (schema == null) return null;
+    try {
+      return schema.flatten().cast<String, dynamic>();
+    } on FormatException catch (e) {
+      _logger.fine(
+        'Tool "${tool.name}" has a self-referential input schema, so it is '
+        'sent with its \$refs intact: $e',
+      );
+      return schema;
+    }
+  }
+
   /// Convert OpenAI assistant message to Genkit format.
   ///
   /// This is used for converting response messages from the OpenAI API.
@@ -244,6 +298,16 @@ abstract final class GenkitConverter {
   /// optional text content, refusal, and/or tool calls.
   static Message fromOpenAIAssistantMessage(sdk.AssistantMessage msg) {
     final parts = <Part>[];
+
+    // Reasoning comes before the answer it produced, so it leads the content.
+    final reasoning = reasoningTextOf(
+      msg.reasoningContent,
+      msg.reasoning,
+      msg.reasoningDetails,
+    );
+    if (reasoning != null) {
+      parts.add(ReasoningPart(reasoning: reasoning));
+    }
 
     // Handle refusal
     if (msg.refusal != null && msg.refusal!.isNotEmpty) {
@@ -274,6 +338,64 @@ abstract final class GenkitConverter {
     }
 
     return Message(role: Role.model, content: parts);
+  }
+
+  /// Every reasoning part of [msg], joined, or null when it carries none.
+  ///
+  /// All of them, not just the last: DeepSeek's rule is that the reasoning of
+  /// all previous turns is replayed.
+  static String? _reasoningTextOf(Message msg) {
+    final reasoning = msg.content
+        .where((part) => part.isReasoning)
+        .map((part) => part.reasoning)
+        .whereType<String>()
+        .where((text) => text.isNotEmpty);
+    return reasoning.isEmpty ? null : reasoning.join('\n');
+  }
+
+  /// The reasoning text carried by an assistant message or a stream delta.
+  ///
+  /// Three spellings reach this plugin and none is OpenAI's: `reasoning` is
+  /// what OpenRouter emits, `reasoning_content` what DeepSeek R1 and vLLM do,
+  /// and `reasoning_details` is OpenRouter's structured form, which some of
+  /// its upstreams send *instead* of the flat field. OpenAI's own models never
+  /// return their chain of thought on the chat API at all - they bill it as
+  /// reasoning tokens and keep it - so this is entirely a compatible-backend
+  /// path.
+  ///
+  /// All are read because a gateway in front of several providers passes
+  /// through whichever its upstream used. When more than one is present they
+  /// are the same text under different names, so the first wins rather than
+  /// being joined; the flat fields come first because they need no assembly.
+  static String? reasoningTextOf(
+    String? reasoningContent,
+    String? reasoning, [
+    List<sdk.ReasoningDetail>? reasoningDetails,
+  ]) {
+    for (final candidate in [
+      reasoningContent,
+      reasoning,
+      _reasoningDetailsText(reasoningDetails),
+    ]) {
+      if (candidate != null && candidate.isNotEmpty) return candidate;
+    }
+    return null;
+  }
+
+  /// The readable text in a `reasoning_details` list.
+  ///
+  /// Entries arrive in order and each holds one slice, so these are joined
+  /// rather than picked between. `reasoning.encrypted` entries are skipped:
+  /// their payload is base64 the provider alone can open, and a `ReasoningPart`
+  /// is meant to be read.
+  static String? _reasoningDetailsText(List<sdk.ReasoningDetail>? details) {
+    if (details == null || details.isEmpty) return null;
+    final text = details
+        .where((d) => !d.isEncrypted)
+        .map((d) => d.text ?? d.summary ?? '')
+        .where((t) => t.isNotEmpty)
+        .join();
+    return text.isEmpty ? null : text;
   }
 
   /// Map OpenAI finish reason to Genkit FinishReason

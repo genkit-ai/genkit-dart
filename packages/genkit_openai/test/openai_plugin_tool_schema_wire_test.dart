@@ -70,6 +70,40 @@ MockClient wireClient(List<Map<String, dynamic>> capturedBodies) {
 
 void main() {
   group('tool parameter schemas on the wire', () {
+    test('a self-referential tool schema is sent as authored', () {
+      // `flatten` cannot inline a type that contains itself and throws, which
+      // failed the whole request locally - and surfaced as an OpenAI API
+      // error, with nothing having reached OpenAI. The authored `$ref`/`$defs`
+      // shape goes out instead: what this plugin sent before inlining, and
+      // what OpenAI accepts.
+      final recursive = <String, dynamic>{
+        r'$ref': r'#/$defs/Node',
+        r'$defs': {
+          'Node': {
+            'type': 'object',
+            'properties': {
+              'name': {'type': 'string'},
+              'child': {r'$ref': r'#/$defs/Node'},
+            },
+          },
+        },
+      };
+
+      final tool = GenkitConverter.toOpenAITool(
+        ToolDefinition(
+          name: 'walkTree',
+          description: 'Walks a tree of nodes',
+          inputSchema: recursive,
+        ),
+      );
+
+      final parameters = tool.function.parameters!;
+      expect(parameters, containsPair(r'$defs', isA<Map>()));
+      // A `$ref` root is not an object type, so the type guard must not have
+      // rejected it either.
+      expect(parameters[r'$ref'], r'#/$defs/Node');
+    });
+
     test('schema-less tool goes out as an empty object schema', () async {
       final captured = <Map<String, dynamic>>[];
       final ai = Genkit(

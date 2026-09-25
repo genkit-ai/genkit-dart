@@ -418,6 +418,134 @@ by passing it to `openAI.embedder()`, it is just described without a vector
 length, and behind a custom `baseUrl` only what that host's `/models` reports
 is listed.
 
+## DeepSeek
+
+DeepSeek speaks the same API, so it is the same plugin pointed at a different
+host and told whose dialect it is speaking:
+
+```dart
+final ai = Genkit(plugins: [deepSeek()]);
+
+final response = await ai.generate(
+  model: DeepSeekModels.deepseekFlash,
+  prompt: 'Hello!',
+);
+```
+
+The key comes from `DEEPSEEK_API_KEY` when it is not passed explicitly.
+`KnownDeepSeekModel` carries the catalog: `deepseek-flash` (1M context, image
+input, thinking on by default) and `deepseek-v4-pro` (text only).
+`deepseek-chat` and `deepseek-reasoner` are curated as legacy — DeepSeek
+announced their discontinuation for 2026-07-24 but still serves both, routing
+them to the non-thinking and thinking modes of Flash — so they stay listed,
+with honest capabilities, until the names stop answering.
+
+No entry claims whether a model thinks. On DeepSeek that is a request-time
+mode rather than a property of the name: `deepseek-chat` is Flash with
+thinking off by default, and it still honours a `reasoningEffort` that asks
+for it. Nothing is refused locally on that basis.
+
+Three things differ on the wire, and the plugin handles each:
+
+- The token limit goes out as `max_tokens`. DeepSeek ignores
+  `max_completion_tokens` silently rather than rejecting it, so a limit sent
+  under OpenAI's newer name would simply be lost.
+- Structured output asks for `json_object`. DeepSeek has no `json_schema`, so
+  the schema travels in the prompt instead — usually written by Genkit's own
+  simulated constrained generation, with the plugin appending an instruction
+  only when nothing in the prompt says "json", which DeepSeek requires.
+- When a request carries tools, previous turns' reasoning is replayed as
+  `reasoning_content`. DeepSeek concatenates it into the context and loses the
+  thread otherwise. Without tools it is not sent, because DeepSeek ignores it
+  and OpenAI never asked for it.
+
+`reasoningEffort` works as it does for OpenAI. DeepSeek's own settings are
+`none`, `low`, `high` and `max`, and it maps the rest onto them — `minimal`
+runs as `low`, `medium` and `xhigh` as `high` — so every level the option
+advertises is sendable and none is refused locally. The effort goes out at the
+top level where every host reads it, and alongside it a `thinking` object says
+which mode it applies to; `none` means "don't think at all", which is
+`thinking: {type: disabled}`.
+
+Two caveats the plugin does not paper over: while thinking, DeepSeek ignores
+`temperature`, `presencePenalty` and `frequencyPenalty`, and floors `topP` at
+0.95. And thinking is on by default for the models that support it, which is the
+opposite of OpenAI's behaviour.
+
+## xAI
+
+Grok speaks the same API, and of the curated providers it is the closest to
+OpenAI — same request fields, same `json_schema` structured outputs:
+
+```dart
+final ai = Genkit(plugins: [xAI()]);
+
+final response = await ai.generate(
+  model: XaiModels.grok46,
+  prompt: 'Hello!',
+);
+```
+
+The key comes from `XAI_API_KEY`. `KnownXaiModel` carries the catalog — the
+Grok 4.x line plus `grok-build-0.1`, the coding model. Every Grok text model
+takes image input, calls tools and accepts a schema, so they share one
+capability preset; the only axis they differ on is whether they reason, and
+`grok-4.20-0309-non-reasoning` is the one that does not.
+
+One difference worth knowing: xAI's reasoning levels are `none`, `low`,
+`medium`, `high` and `xhigh` — no `minimal` or `max` — and xAI documents the
+accepted set as varying per model (4.3 takes `none` and defaults to `low`, 4.6
+does neither). The plugin checks the union and leaves the model-level pairing
+to the API.
+
+The image and video models (`grok-imagine-*`) are not listed: this plugin
+serves chat generation.
+
+## Reasoning
+
+The o-series and the GPT-5 family take a `reasoningEffort`, which trades latency
+and tokens against answer quality:
+
+```dart
+final response = await ai.generate(
+  model: OpenAIModels.o4Mini,
+  prompt: 'Prove it.',
+  config: OpenAIChatOptions(reasoningEffort: 'high'),
+);
+```
+
+Which of these levels a model accepts moves with the generation — `minimal`
+arrived with GPT-5, `none` replaced it in GPT-5.1, `xhigh` came later — so
+every level is offered to every reasoning model and OpenAI decides whether the
+pair makes sense. The set of levels itself is fixed by `openai_dart`, which
+models the parameter as an enum: a level OpenAI ships after this release needs
+an SDK bump to reach. What the plugin does check is the model:
+sending an effort to one that does not reason is rejected before the request
+goes out, naming the model rather than the parameter. Behind a `baseUrl` on
+another host that check is skipped, since the catalog describes OpenAI's models
+and not that host's, and a model you registered through `models:` is left to
+the API to judge - declaring it says more about what it accepts than the
+catalog does.
+
+`verbosity` is a separate GPT-5-family knob, controlling how much the model says
+rather than how hard it thinks.
+
+When a model returns its chain of thought, it arrives as a `ReasoningPart`
+ahead of the answer, and streams as it is produced:
+
+```dart
+await for (final chunk in ai.generateStream(model: ..., prompt: ...)) {
+  for (final part in chunk.content) {
+    if (part.isReasoning) stdout.write(part.reasoning);
+  }
+}
+```
+
+OpenAI's own models never return reasoning on the chat API — they bill it as
+reasoning tokens and keep it — so in practice this is a compatible-backend
+path: DeepSeek R1 and vLLM send `reasoning_content`, OpenRouter sends
+`reasoning`, and both are read.
+
 ## Options
 
 The `OpenAIChatOptions` class supports the following options:
@@ -433,6 +561,9 @@ The `OpenAIChatOptions` class supports the following options:
 - `jsonMode` (bool?) - Forces `{"type": "json_object"}`. Only consulted when Genkit's own output config says nothing about the format; any explicit `outputFormat` wins, `'text'` included. See [JSON output](#json-output)
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
 - `version` (String?) - Model version override
+- `reasoningEffort` (String?, 'none'|'minimal'|'low'|'medium'|'high'|'xhigh'|'max') -
+  How hard a reasoning model thinks before answering
+- `verbosity` (String?, 'low'|'medium'|'high') - How much the model says in its answer
 
 The `OpenAISpeechOptions` class supports the following options:
 
