@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'package:genkit/genkit.dart';
 import 'package:logging/logging.dart';
 import 'package:openai_dart/openai_dart.dart' as sdk;
+import 'package:schemantic/schemantic.dart';
 
 final _logger = Logger('genkit_openai');
 
@@ -235,7 +236,13 @@ abstract final class GenkitConverter {
   static sdk.Tool toOpenAITool(ToolDefinition tool) {
     // OpenAI requires parameters to be a valid JSON Schema object
     // If no schema is provided, use an empty object schema
-    var parameters = tool.inputSchema;
+    // Flattened first: schemantic emits a generated class's schema as a
+    // `$ref` into `$defs`, and hosts disagree about resolving one. OpenAI
+    // accepts it; xAI answers `tool parameter root must be an object type
+    // (root schema is a $ref)`. Inlining it costs nothing and is the shape
+    // every host documents. The response format is flattened for the same
+    // reason - see `buildOpenAIResponseFormat`.
+    var parameters = _inlinedToolSchema(tool);
 
     if (parameters == null) {
       parameters = {'type': 'object', 'properties': {}};
@@ -257,6 +264,31 @@ abstract final class GenkitConverter {
       description: tool.description,
       parameters: parameters,
     );
+  }
+
+  /// [tool]'s input schema with its `$defs` inlined, or as authored when they
+  /// cannot be.
+  ///
+  /// A self-referential type - a tree node, a threaded comment - has no
+  /// inlined form at all, and `flatten` says so by throwing. Sending the
+  /// `$ref`/`$defs` shape instead is what this plugin did before inlining and
+  /// what OpenAI accepts, so the request still goes out; a host that refuses
+  /// that shape answers for itself, naming the schema it could not read.
+  /// Throwing here would refuse the tool on every host, and would report a
+  /// local schema problem as an API error, since the caller sees it wrapped
+  /// as `OpenAI API error` from the catch around the request.
+  static Map<String, dynamic>? _inlinedToolSchema(ToolDefinition tool) {
+    final schema = tool.inputSchema;
+    if (schema == null) return null;
+    try {
+      return schema.flatten().cast<String, dynamic>();
+    } on FormatException catch (e) {
+      _logger.fine(
+        'Tool "${tool.name}" has a self-referential input schema, so it is '
+        'sent with its \$refs intact: $e',
+      );
+      return schema;
+    }
   }
 
   /// Convert OpenAI assistant message to Genkit format.

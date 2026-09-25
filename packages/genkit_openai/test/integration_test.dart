@@ -464,11 +464,17 @@ void main() {
       expect(local.finishReason, FinishReason.failed);
       expect(local.error?.status, StatusCodes.INVALID_ARGUMENT.name);
 
-      // The same request with the guard bypassed. Naming OpenAI's own host as
-      // a baseUrl is the documented way to opt out of the catalog's judgement,
-      // so this reaches the API and OpenAI answers for itself.
+      // The same request with the guard bypassed. Naming OpenAI's own URL no
+      // longer does it - that is the same host, so the catalog and its checks
+      // both apply - but registering the model says more about it than the
+      // catalog does, and is left to the API to judge.
       final direct = Genkit(
-        plugins: [openAI(apiKey: apiKey, baseUrl: 'https://api.openai.com/v1')],
+        plugins: [
+          openAI(
+            apiKey: apiKey,
+            models: [CustomModelDefinition(name: 'gpt-4o')],
+          ),
+        ],
       );
       final remote = await direct.generate(
         model: openAI.model('gpt-4o'),
@@ -737,33 +743,38 @@ void main() {
       expect(subtitles.text.trim(), startsWith('1'));
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
-    test('verbose_json accepts repeated timestamp granularities', () async {
-      if (apiKey == null || apiKey.isEmpty) {
-        fail(
-          'OPENAI_API_KEY environment variable must be set to run integration tests',
+    test(
+      'verbose_json accepts repeated timestamp granularities',
+      () async {
+        if (apiKey == null || apiKey.isEmpty) {
+          fail(
+            'OPENAI_API_KEY environment variable must be set to run integration tests',
+          );
+        }
+
+        // timestamp_granularities is sent as repeated form fields. No mock can
+        // prove OpenAI accepts that encoding, so it is checked here.
+        final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+        final spoken = await ai.generate(
+          model: openAI.speechModel('tts-1'),
+          prompt: 'Genkit Dart now listens.',
         );
-      }
 
-      // timestamp_granularities is sent as repeated form fields. No mock can
-      // prove OpenAI accepts that encoding, so it is checked here.
-      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+        final verbose = await ai.generate(
+          model: openAI.transcriptionModel('whisper-1'),
+          promptParts: [MediaPart(media: spoken.media!)],
+          config: OpenAITranscriptionOptions(
+            responseFormat: 'verbose_json',
+            timestampGranularities: ['word', 'segment'],
+          ),
+        );
 
-      final spoken = await ai.generate(
-        model: openAI.speechModel('tts-1'),
-        prompt: 'Genkit Dart now listens.',
-      );
-
-      final verbose = await ai.generate(
-        model: openAI.transcriptionModel('whisper-1'),
-        promptParts: [MediaPart(media: spoken.media!)],
-        config: OpenAITranscriptionOptions(
-          responseFormat: 'verbose_json',
-          timestampGranularities: ['word', 'segment'],
-        ),
-      );
-
-      expect(verbose.text.toLowerCase(), contains('listens'));
-    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+        expect(verbose.text.toLowerCase(), contains('listens'));
+      },
+      timeout: Timeout(Duration(minutes: 2)),
+      skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
+    );
 
     test('gpt-4o-transcribe accepts chunking strategy and include', () async {
       if (apiKey == null || apiKey.isEmpty) {

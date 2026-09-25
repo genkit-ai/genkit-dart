@@ -19,6 +19,7 @@ import 'chat_body_client.dart';
 import 'known_deepseek_models.dart';
 import 'known_embedders.dart';
 import 'known_models.dart';
+import 'known_xai_models.dart';
 import 'speech.dart' show knownSpeechModels;
 import 'transcription.dart' show knownTranscriptionModels;
 
@@ -166,6 +167,23 @@ final deepSeekProvider = OpenAIProvider(
   supportsJsonSchema: false,
 );
 
+/// xAI, which is the closest of the three to OpenAI: the same request fields,
+/// the same `json_schema` structured outputs, a different host and key.
+///
+/// The reasoning vocabulary varies per model there - 4.3 takes `none` and
+/// defaults to `low`, 4.6 takes neither - and which pairing works is left to
+/// the API, as it is for every other host.
+final xaiProvider = OpenAIProvider(
+  defaultNamespace: defaultXaiNamespace,
+  defaultBaseUrl: 'https://api.x.ai/v1',
+  apiKeyEnvVar: 'XAI_API_KEY',
+  infoFor: (model, {required compat}) =>
+      compat ? compatXaiModelInfo(model) : xaiModelInfoFor(model),
+  catalogIds: knownXaiChatModels,
+  reasonsFor: (model) => knownXaiModelFor(model)?.reasons,
+);
+
+/// Moves `reasoning_effort` into the `thinking` object DeepSeek reads.
 /// Adds the `thinking` object DeepSeek derives its mode from.
 ///
 /// DeepSeek reads `reasoning_effort` where OpenAI does, at the top level, and

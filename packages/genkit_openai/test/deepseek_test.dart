@@ -19,11 +19,11 @@ import 'package:genkit_openai/genkit_openai.dart';
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/provider.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 import 'fake_openai_server.dart';
+import 'recording_client.dart';
 
 part 'deepseek_test.g.dart';
 
@@ -32,80 +32,6 @@ part 'deepseek_test.g.dart';
 abstract class $JsonOut {
   String get name;
 }
-
-/// Records every request the plugin sends and answers with a canned reply.
-MockClient recordingClient(
-  List<http.Request> requests, {
-  List<String> modelIds = const [],
-}) {
-  return MockClient((request) async {
-    requests.add(request);
-    if (request.url.path.endsWith('/models')) {
-      return http.Response(
-        jsonEncode({
-          'object': 'list',
-          'data': [
-            for (final id in modelIds)
-              {'id': id, 'object': 'model', 'created': 0, 'owned_by': 'x'},
-          ],
-        }),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-    return http.Response(
-      jsonEncode({
-        'id': 'chatcmpl-test',
-        'object': 'chat.completion',
-        'created': 0,
-        'model': 'deepseek-flash',
-        'choices': [
-          {
-            'index': 0,
-            'message': {'role': 'assistant', 'content': 'ok'},
-            'finish_reason': 'stop',
-          },
-        ],
-      }),
-      200,
-      headers: {'content-type': 'application/json'},
-    );
-  });
-}
-
-/// Answers a streaming chat request with a single SSE frame.
-MockClient streamingClient(List<http.Request> requests) {
-  return MockClient((request) async {
-    requests.add(request);
-    final frame = jsonEncode({
-      'id': 'c',
-      'object': 'chat.completion.chunk',
-      'created': 0,
-      'model': 'deepseek-flash',
-      'choices': [
-        {
-          'index': 0,
-          'delta': {'content': 'ok'},
-          'finish_reason': 'stop',
-        },
-      ],
-    });
-    return http.Response(
-      'data: $frame\n\ndata: [DONE]\n\n',
-      200,
-      headers: {'content-type': 'text/event-stream'},
-    );
-  });
-}
-
-Map<String, dynamic> chatBodyOf(List<http.Request> requests) =>
-    (jsonDecode(
-              requests
-                  .firstWhere((r) => r.url.path.endsWith('/chat/completions'))
-                  .body,
-            )
-            as Map)
-        .cast<String, dynamic>();
 
 String? noEnv(String name) => null;
 
@@ -320,6 +246,28 @@ void main() {
       expect(names, contains('deepseek/deepseek-flash'));
       expect(names, contains('deepseek/deepseek-v4-pro'));
       expect(names.any((n) => n.contains('gpt-')), isFalse);
+    });
+
+    test('another spelling of the same host is still the same host', () async {
+      // DeepSeek documents both `https://api.deepseek.com` and `.../v1`, and
+      // this repo's own sample used the second. Treating it as a foreign
+      // gateway would silently drop the catalog, the labels and the per-model
+      // checks for someone who copied the URL out of DeepSeek's docs.
+      for (final baseUrl in [
+        'https://api.deepseek.com/v1',
+        'https://api.deepseek.com/',
+        'https://API.deepseek.com',
+      ]) {
+        final plugin = OpenAIPlugin(
+          provider: deepSeekProvider,
+          apiKey: 'ds-key',
+          baseUrl: baseUrl,
+          httpClient: recordingClient([]),
+        );
+
+        final names = (await plugin.list()).map((m) => m.name).toSet();
+        expect(names, contains('deepseek/deepseek-flash'), reason: baseUrl);
+      }
     });
 
     test('a gateway keeps the capabilities but not the deployment', () async {
@@ -764,7 +712,9 @@ void main() {
       expect(prompt, contains(r'\"name\"'));
     });
 
-    test('does not second-guess a prompt that already says json', () async {
+    test('does not repeat itself when the prompt already says json', () async {
+      // With no schema the instruction exists only to satisfy DeepSeek's
+      // "the prompt must mention json" rule, which the caller already did.
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
@@ -775,10 +725,78 @@ void main() {
         model: DeepSeekModels.deepseekFlash,
         prompt: 'reply with json please',
         outputFormat: 'json',
-        outputSchema: JsonOut.$schema,
       );
 
       expect(chatBodyOf(requests)['messages'], hasLength(1));
+    });
+
+    test('adds nothing when core already wrote the instructions', () async {
+      // Core's formatter marks what it wrote with `purpose: 'output'`, and
+      // since #453 its simulated constrained generation writes exactly these
+      // instructions for a model claiming no native constraint. A second copy
+      // from here would send the schema twice.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: DeepSeekModels.deepseekFlash,
+        prompt: 'Extract the fields from this JSON log line: {"a":1}',
+        outputFormat: 'json',
+        outputSchema: JsonOut.$schema,
+      );
+
+      final messages = chatBodyOf(requests)['messages'] as List;
+      expect(messages, hasLength(1));
+      final prompt = jsonEncode(messages);
+      expect(prompt, contains(r'\"name\"'));
+      // Once, not twice.
+      expect(
+        RegExp('conform to the following').allMatches(prompt),
+        hasLength(1),
+      );
+    });
+
+    test('writes them itself when core wrote none', () async {
+      // A raw action call carrying a schema but no instruction part: nothing
+      // else will tell DeepSeek what shape to emit, and it refuses a
+      // json_object request whose prompt never says "json".
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      final model = await ai.registry.lookupAction(
+        .model,
+        'deepseek/deepseek-flash',
+      );
+      await (model! as Model)(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'describe a person')],
+            ),
+          ],
+          output: OutputConfig(
+            format: 'json',
+            constrained: false,
+            schema: {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+              },
+            },
+          ),
+        ),
+      );
+
+      final sent = (chatBodyOf(requests)['messages'] as List).last as Map;
+      expect(sent['role'], 'system');
+      expect(sent['content'], contains('"name"'));
     });
 
     test('OpenAI gets no such hint', () async {
