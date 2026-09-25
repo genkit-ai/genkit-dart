@@ -418,6 +418,60 @@ by passing it to `openAI.embedder()`, it is just described without a vector
 length, and behind a custom `baseUrl` only what that host's `/models` reports
 is listed.
 
+## DeepSeek
+
+DeepSeek speaks the same API, so it is the same plugin pointed at a different
+host and told whose dialect it is speaking:
+
+```dart
+final ai = Genkit(plugins: [deepSeek()]);
+
+final response = await ai.generate(
+  model: DeepSeekModels.deepseekFlash,
+  prompt: 'Hello!',
+);
+```
+
+The key comes from `DEEPSEEK_API_KEY` when it is not passed explicitly.
+`KnownDeepSeekModel` carries the catalog: `deepseek-flash` (1M context, image
+input, thinking on by default) and `deepseek-v4-pro` (text only).
+`deepseek-chat` and `deepseek-reasoner` are curated as legacy — DeepSeek
+announced their discontinuation for 2026-07-24 but still serves both, routing
+them to the non-thinking and thinking modes of Flash — so they stay listed,
+with honest capabilities, until the names stop answering.
+
+No entry claims whether a model thinks. On DeepSeek that is a request-time
+mode rather than a property of the name: `deepseek-chat` is Flash with
+thinking off by default, and it still honours a `reasoningEffort` that asks
+for it. Nothing is refused locally on that basis.
+
+Three things differ on the wire, and the plugin handles each:
+
+- The token limit goes out as `max_tokens`. DeepSeek ignores
+  `max_completion_tokens` silently rather than rejecting it, so a limit sent
+  under OpenAI's newer name would simply be lost.
+- Structured output asks for `json_object`. DeepSeek has no `json_schema`, so
+  the schema travels in the prompt instead — usually written by Genkit's own
+  simulated constrained generation, with the plugin appending an instruction
+  only when nothing in the prompt says "json", which DeepSeek requires.
+- When a request carries tools, previous turns' reasoning is replayed as
+  `reasoning_content`. DeepSeek concatenates it into the context and loses the
+  thread otherwise. Without tools it is not sent, because DeepSeek ignores it
+  and OpenAI never asked for it.
+
+`reasoningEffort` works as it does for OpenAI. DeepSeek's own settings are
+`none`, `low`, `high` and `max`, and it maps the rest onto them — `minimal`
+runs as `low`, `medium` and `xhigh` as `high` — so every level the option
+advertises is sendable and none is refused locally. The effort goes out at the
+top level where every host reads it, and alongside it a `thinking` object says
+which mode it applies to; `none` means "don't think at all", which is
+`thinking: {type: disabled}`.
+
+Two caveats the plugin does not paper over: while thinking, DeepSeek ignores
+`temperature`, `presencePenalty` and `frequencyPenalty`, and floors `topP` at
+0.95. And thinking is on by default for the models that support it, which is the
+opposite of OpenAI's behaviour.
+
 ## Reasoning
 
 The o-series and the GPT-5 family take a `reasoningEffort`, which trades latency

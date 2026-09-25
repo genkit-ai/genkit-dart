@@ -311,6 +311,19 @@ void main() {
       );
     });
 
+    test('OpenAI\'s own baseUrl keeps the audio catalogs too', () async {
+      // Same host, so the speech and transcription ids follow the chat
+      // catalog rather than being withheld as a compat backend's would be.
+      final names = modelNames(
+        await pluginListing([
+          'gpt-4o',
+        ], baseUrl: 'https://api.openai.com/v1').list(),
+      );
+
+      expect(names, contains('openai/tts-1'));
+      expect(names, contains('openai/whisper-1'));
+    });
+
     test('an uncurated name on a compat backend takes the defaults', () async {
       final metadata = await pluginListing([
         'llama-3.3-70b-versatile',
