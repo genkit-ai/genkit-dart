@@ -270,6 +270,34 @@ void main() {
       }
     });
 
+    test('every spelling dials the same URL', () async {
+      // The catalog is only half of it: matching the host and then sending the
+      // caller's own string would put `/chat/completions` at whatever path
+      // they wrote. The provider's own URL goes out instead.
+      for (final baseUrl in [
+        'https://api.deepseek.com/v1',
+        'https://api.deepseek.com/',
+        'https://API.deepseek.com',
+      ]) {
+        final requests = <http.Request>[];
+        final ai = Genkit(
+          plugins: [
+            deepSeek(
+              apiKey: 'ds-key',
+              baseUrl: baseUrl,
+              httpClient: recordingClient(requests),
+            ),
+          ],
+        );
+
+        await ai.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+
+        expect(requests.single.url.host, 'api.deepseek.com', reason: baseUrl);
+        expect(requests.single.url.path, '/chat/completions', reason: baseUrl);
+        await ai.shutdown();
+      }
+    });
+
     test('a gateway keeps the capabilities but not the deployment', () async {
       final plugin = OpenAIPlugin(
         provider: deepSeekProvider,
@@ -731,32 +759,60 @@ void main() {
     });
 
     test('adds nothing when core already wrote the instructions', () async {
-      // Core's formatter marks what it wrote with `purpose: 'output'`, and
-      // since #453 its simulated constrained generation writes exactly these
-      // instructions for a model claiming no native constraint. A second copy
-      // from here would send the schema twice.
+      // Core's formatter marks what it wrote with `purpose: 'output'`, and a
+      // second copy from here would send the schema twice.
+      //
+      // Through the model action directly, not `ai.generate`: since #453 core
+      // strips `output.schema` when it simulates, so on the generate path
+      // there is no schema left to duplicate and the test would pass with the
+      // marker check removed. A raw request carrying both the marked part and
+      // the schema is the only shape that exercises it.
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
       );
       addTearDown(ai.shutdown);
 
-      await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
-        prompt: 'Extract the fields from this JSON log line: {"a":1}',
-        outputFormat: 'json',
-        outputSchema: JsonOut.$schema,
+      final model = await ai.registry.lookupAction(
+        .model,
+        'deepseek/deepseek-flash',
+      );
+      await (model! as Model)(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [
+                TextPart(text: 'describe a person'),
+                TextPart(
+                  text:
+                      'Output should be in JSON format and conform to the '
+                      'following schema:\n\n```\n{"properties":{"name":{}}}\n```',
+                  metadata: {'purpose': 'output'},
+                ),
+              ],
+            ),
+          ],
+          output: OutputConfig(
+            format: 'json',
+            constrained: false,
+            schema: {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+              },
+            },
+          ),
+        ),
       );
 
-      final messages = chatBodyOf(requests)['messages'] as List;
-      expect(messages, hasLength(1));
-      final prompt = jsonEncode(messages);
-      expect(prompt, contains(r'\"name\"'));
-      // Once, not twice.
+      final prompt = jsonEncode(chatBodyOf(requests)['messages']);
+      // Once - core's copy - not twice.
       expect(
         RegExp('conform to the following').allMatches(prompt),
         hasLength(1),
       );
+      expect(chatBodyOf(requests)['messages'], hasLength(1));
     });
 
     test('writes them itself when core wrote none', () async {

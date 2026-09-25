@@ -253,6 +253,21 @@ void main() {
       expect(captured.single['reasoning_effort'], 'high');
     });
 
+    test('none is refused like any other level', () async {
+      // It was exempt for a while, so that DeepSeek's non-thinking alias could
+      // be named explicitly. OpenAI takes it nowhere: `gpt-4o` answers
+      // "Unrecognized request argument supplied: reasoning_effort", and even
+      // `o4-mini` answers "does not support 'none' with this model".
+      await expectLater(
+        genkitWith(reasoningClient([])).generate(
+          model: OpenAIModels.gpt4o,
+          prompt: 'hi',
+          config: OpenAIChatOptions(reasoningEffort: 'none'),
+        ),
+        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o')),
+      );
+    });
+
     test('a registered model outranks the catalog', () async {
       // `models:` is how a name is corrected, so declaring `gpt-4o` says more
       // about what it accepts here than the curated entry does.

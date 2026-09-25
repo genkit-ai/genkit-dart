@@ -179,6 +179,52 @@ void main() {
       expect(names.any((n) => n.contains('deepseek')), isFalse);
     });
 
+    test('the non-reasoning build refuses none too', () async {
+      // xAI answers "Model grok-4.20-0309-non-reasoning does not support
+      // parameter reasoningEffort" for it, so failing fast is the same answer
+      // sooner. A model that reasons takes `none` and never reaches the guard.
+      final ai = Genkit(
+        plugins: [xAI(apiKey: 'k', httpClient: recordingClient([]))],
+      );
+      addTearDown(ai.shutdown);
+
+      final response = await ai.generate(
+        model: XaiModels.grok420NonReasoning,
+        prompt: 'hi',
+        config: OpenAIChatOptions(reasoningEffort: 'none'),
+      );
+
+      expect(response.finishReason, FinishReason.failed);
+      expect(response.error?.message, contains('grok-4.20-0309-non-reasoning'));
+    });
+
+    test('the multi-agent model is filtered out of discovery', () async {
+      // xAI lists it, so leaving it out of the curated catalog is not enough:
+      // discovery puts it straight back, and picking it answers "Multi Agent
+      // requests are not allowed on chat completions".
+      final plugin = OpenAIPlugin(
+        provider: xaiProvider,
+        apiKey: 'x-key',
+        httpClient: recordingClient(
+          [],
+          modelIds: ['grok-4.6', 'grok-4.20-multi-agent-0309'],
+        ),
+      );
+
+      final names = (await plugin.list()).map((m) => m.name).toSet();
+
+      expect(names, contains('xai/grok-4.6'));
+      expect(names, isNot(contains('xai/grok-4.20-multi-agent-0309')));
+    });
+
+    test('a name it declines still resolves when asked for', () async {
+      // Filtering is about what the Dev UI offers, not about what a caller
+      // may name: resolve serves any id, as it does for every other host.
+      final plugin = OpenAIPlugin(provider: xaiProvider, apiKey: 'x-key');
+
+      expect(plugin.resolve(.model, 'grok-4.20-multi-agent-0309'), isNotNull);
+    });
+
     test('image and video models stay out of the model listing', () async {
       // xAI serves grok-imagine-*; nothing classified a `video` id before, so
       // the video models would have been offered as chat models.

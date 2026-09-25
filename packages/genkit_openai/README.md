@@ -2,8 +2,12 @@
 
 OpenAI plugin for Genkit Dart. Talks the OpenAI Chat Completions API, so it
 drives OpenAI's own models and any host that implements the same API — Groq,
-xAI/Grok, DeepSeek, Together AI, OpenRouter and friends — by pointing it at a
-different [`baseUrl`](#openai-compatible-apis).
+Together AI, OpenRouter and friends — by pointing it at a different
+[`baseUrl`](#openai-compatible-apis).
+
+[DeepSeek](#deepseek) and [xAI](#xai) get first-class handles of their own,
+`deepSeek()` and `xAI()`, which carry the key, catalog and request differences
+each host needs rather than leaving them to you.
 
 ## Installation
 

@@ -266,17 +266,22 @@ abstract final class GenkitConverter {
     );
   }
 
-  /// [tool]'s input schema with its `$defs` inlined, or as authored when they
-  /// cannot be.
+  /// [tool]'s input schema with its `$defs` inlined, or with the root
+  /// definition promoted when they cannot be.
   ///
   /// A self-referential type - a tree node, a threaded comment - has no
-  /// inlined form at all, and `flatten` says so by throwing. Sending the
-  /// `$ref`/`$defs` shape instead is what this plugin did before inlining and
-  /// what OpenAI accepts, so the request still goes out; a host that refuses
-  /// that shape answers for itself, naming the schema it could not read.
-  /// Throwing here would refuse the tool on every host, and would report a
-  /// local schema problem as an API error, since the caller sees it wrapped
-  /// as `OpenAI API error` from the catch around the request.
+  /// inlined form at all, and `flatten` says so by throwing. What goes out
+  /// then is the root definition's own body, with `$defs` carried alongside so
+  /// the internal `$ref`s still resolve: plain JSON Schema, and an object at
+  /// the root, which is what every host asks of a tool parameter schema.
+  ///
+  /// Sending the authored `{$ref, $defs}` shape instead does not work. xAI
+  /// answers `tool parameter root must be an object type (root schema is a
+  /// $ref)`, and a sibling `type: object` does not satisfy it.
+  ///
+  /// Throwing would be worse than either: it refuses the tool on every host,
+  /// and reports a local schema problem as an `OpenAI API error`, since the
+  /// caller sees it wrapped by the catch around the request.
   static Map<String, dynamic>? _inlinedToolSchema(ToolDefinition tool) {
     final schema = tool.inputSchema;
     if (schema == null) return null;
@@ -284,11 +289,44 @@ abstract final class GenkitConverter {
       return schema.flatten().cast<String, dynamic>();
     } on FormatException catch (e) {
       _logger.fine(
-        'Tool "${tool.name}" has a self-referential input schema, so it is '
-        'sent with its \$refs intact: $e',
+        'Tool "${tool.name}" has a self-referential input schema, so its root '
+        'definition is promoted and the \$defs sent alongside: $e',
       );
+      return _withRootDefPromoted(schema);
+    }
+  }
+
+  /// [schema] with its root `$ref` replaced by the definition it names.
+  ///
+  /// Internal `$ref`s are left exactly as they are - they are what makes the
+  /// type recursive, and they resolve against the definitions travelling with
+  /// it. Both spellings are read, `$defs` and draft-07's `definitions`, since
+  /// `flatten` resolves from either and so throws for either.
+  ///
+  /// Returns [schema] untouched when promoting would not help: a definition
+  /// that is itself a `$ref`, or one whose root is not an object. The second
+  /// matters most - `toOpenAITool` refuses a non-object root outright, so
+  /// promoting an array-rooted recursive type would turn a request that used
+  /// to go out into a local failure on every host.
+  static Map<String, dynamic> _withRootDefPromoted(
+    Map<String, dynamic> schema,
+  ) {
+    final ref = schema[r'$ref'];
+    if (ref is! String) return schema;
+
+    final defsKey = schema.containsKey(r'$defs') ? r'$defs' : 'definitions';
+    final defs = schema[defsKey];
+    if (defs is! Map) return schema;
+
+    final root = defs[ref.split('/').last];
+    if (root is! Map) return schema;
+
+    final promoted = root.cast<String, dynamic>();
+    if (promoted.containsKey(r'$ref') || promoted['type'] != 'object') {
       return schema;
     }
+
+    return {...promoted, defsKey: defs.cast<String, dynamic>()};
   }
 
   /// Convert OpenAI assistant message to Genkit format.

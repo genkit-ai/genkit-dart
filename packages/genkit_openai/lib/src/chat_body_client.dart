@@ -21,9 +21,10 @@ import 'package:http/http.dart' as http;
 /// The last resort, and used for one thing: a field the request type cannot
 /// express. `ChatCompletionCreateRequest.toJson()` is a closed literal with no
 /// extras map, and `OpenAIClient` accepts no custom interceptors, so a host
-/// that reads a shape `openai_dart` does not model — DeepSeek nests
-/// `reasoning_effort` inside a `thinking` object where OpenAI has it at the top
-/// level — can only be served after the SDK has encoded the body.
+/// that reads a shape `openai_dart` does not model — DeepSeek takes a
+/// `thinking` object beside the `reasoning_effort` every host reads, to say
+/// which mode the effort applies to — can only be served after the SDK has
+/// encoded the body.
 ///
 /// Both the buffered and the streaming chat calls build an `http.Request` and
 /// send it through this client, so one decorator covers both.

@@ -682,6 +682,11 @@ class XaiPluginHandle {
 /// hatch for models not listed here and for plugin instances registered under
 /// a custom namespace.
 abstract final class XaiModels {
+  /// xAI Grok 4.7, the newest reasoning build.
+  static final ModelRef<chat.OpenAIChatOptions> grok47 = xAI.model(
+    KnownXaiModel.grok47.id,
+  );
+
   /// xAI Grok 4.6. 500k context.
   static final ModelRef<chat.OpenAIChatOptions> grok46 = xAI.model(
     KnownXaiModel.grok46.id,
@@ -716,6 +721,7 @@ abstract final class XaiModels {
   ///
   /// Exists so the statics cannot silently fall behind [KnownXaiModel].
   static final List<ModelRef<chat.OpenAIChatOptions>> all = [
+    grok47,
     grok46,
     grok45,
     grok43,

@@ -103,6 +103,16 @@ final class OpenAIProvider {
   /// from being routed to an endpoint this host does not serve.
   final List<String> transcriptionIds;
 
+  /// Whether a discovered model id is one this plugin can actually serve.
+  ///
+  /// Discovery reports what the host lists, which is not the same as what
+  /// chat completions will accept: xAI lists `grok-4.20-multi-agent-0309` and
+  /// then answers "Multi Agent requests are not allowed on chat completions"
+  /// for it. Leaving such a name out of the curated catalog is not enough,
+  /// since discovery puts it back. Names this rejects are dropped from the
+  /// listing; `resolve` still serves any id named explicitly.
+  final bool Function(String model) servesModel;
+
   /// Whether the host can be handed a JSON *schema*, rather than only being
   /// asked for JSON.
   ///
@@ -125,8 +135,12 @@ final class OpenAIProvider {
     this.rewriteChatBody,
     this.usesLegacyMaxTokens = false,
     this.supportsJsonSchema = true,
+    this.servesModel = _servesAnyModel,
   });
 }
+
+/// Every model a host lists is servable, unless a provider says otherwise.
+bool _servesAnyModel(String model) => true;
 
 /// OpenAI itself, and the default for any host the plugin is pointed at
 /// without being told whose dialect it speaks.
@@ -181,6 +195,7 @@ final xaiProvider = OpenAIProvider(
       compat ? compatXaiModelInfo(model) : xaiModelInfoFor(model),
   catalogIds: knownXaiChatModels,
   reasonsFor: (model) => knownXaiModelFor(model)?.reasons,
+  servesModel: (model) => !model.toLowerCase().contains('multi-agent'),
 );
 
 /// Moves `reasoning_effort` into the `thinking` object DeepSeek reads.

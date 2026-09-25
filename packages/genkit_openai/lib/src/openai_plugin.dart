@@ -289,6 +289,13 @@ class OpenAIPlugin extends GenkitPlugin {
           if (modelType != 'chat' && modelType != 'unknown') {
             continue;
           }
+          // Listed by the host, but not served by chat completions - which is
+          // the only thing this plugin speaks. Only on the provider's own
+          // host: the rule describes that host's catalog, and a gateway may
+          // well serve a name matching it.
+          if (_ownHost && !provider.servesModel(modelId)) {
+            continue;
+          }
           discovered.add(modelId);
         }
       }
@@ -758,12 +765,22 @@ class OpenAIPlugin extends GenkitPlugin {
   /// a GPT-5-family parameter, but the catalog carries no flag saying so, and
   /// adding one would mean asserting per entry something less well documented
   /// than which models reason. Left to the API rather than guessed at.
+  ///
+  /// No level is exempt, `none` included. It was, briefly, so that DeepSeek's
+  /// non-thinking alias could be asked for explicitly - but DeepSeek answers
+  /// `reasonsFor` with null for every name, so the guard never reaches it
+  /// anyway, and the hosts this guard does judge reject `none` exactly where
+  /// it fires:
+  ///
+  /// - OpenAI on both halves of the question - `Unrecognized request argument
+  ///   supplied: reasoning_effort` on `gpt-4o`, and `does not support 'none'
+  ///   with this model` on `o4-mini`;
+  /// - xAI on its one non-reasoning build - `Model
+  ///   grok-4.20-0309-non-reasoning does not support parameter
+  ///   reasoningEffort` - while `grok-4.3`, which reasons, takes `none`
+  ///   happily and never reaches here.
   void _requireReasoningModel(String modelName, String? reasoningEffort) {
     if (reasoningEffort == null) return;
-    // `none` asks for no thinking, which a model that does not think is
-    // already doing. Refusing it would make the alias that means exactly that
-    // - DeepSeek's `deepseek-chat` - impossible to ask for explicitly.
-    if (reasoningEffort == 'none') return;
     // A caller who registered the model said more about it than the catalog
     // can: `models:` is how a name is corrected or extended, so a declared
     // model is left to the API to judge, as an uncurated one is.

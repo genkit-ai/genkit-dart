@@ -32,6 +32,9 @@ const String defaultXaiNamespace = 'xai';
 ///
 /// Catalog: https://docs.x.ai/docs/models
 enum KnownXaiModel {
+  /// Grok 4.7. 500k context, efforts `low` through `xhigh`.
+  grok47('grok-4.7', 'xAI Grok 4.7', reasons: true),
+
   /// Grok 4.6. 500k context, effort defaults to high.
   grok46('grok-4.6', 'xAI Grok 4.6', reasons: true),
 
