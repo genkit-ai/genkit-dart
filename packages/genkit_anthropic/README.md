@@ -20,6 +20,19 @@ void main() async {
 }
 ```
 
+To route requests through your own `http.Client` (a proxy, logging, retries,
+or a mock in tests), pass `httpClient`. The plugin never closes a client you
+provide, so close it yourself when you are done:
+
+```dart
+import 'package:http/http.dart' as http;
+
+final httpClient = http.Client();
+final ai = Genkit(plugins: [anthropic(httpClient: httpClient)]);
+// ...
+httpClient.close();
+```
+
 ### Basic Generation
 
 ```dart

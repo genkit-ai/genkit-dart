@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 import 'src/model.dart';
 import 'src/plugin_impl.dart';
 
@@ -34,17 +35,26 @@ class AnthropicPluginHandle {
   /// [apiVersion] selects the default Anthropic API surface (`'stable'` or
   /// `'beta'`) for every request; individual requests can override it via
   /// `AnthropicOptions.apiVersion`. Defaults to stable.
+  ///
+  /// [httpClient] is used for every request the plugin makes (model listing,
+  /// generation, and requests with a per-call `AnthropicOptions.apiKey`).
+  /// Useful for proxies, instrumentation, or a mock transport in tests. The
+  /// caller owns it: the plugin never closes a client it was given, so close
+  /// it yourself once you are done with the plugin. When omitted, the plugin
+  /// creates and closes its own client.
   GenkitPlugin call({
     String? apiKey,
     Map<String, String>? headers,
     String? baseUrl,
     String? apiVersion,
+    http.Client? httpClient,
   }) {
     return AnthropicPluginImpl(
       apiKey: apiKey,
       headers: headers,
       baseUrl: baseUrl,
       apiVersion: apiVersion,
+      httpClient: httpClient,
     );
   }
 

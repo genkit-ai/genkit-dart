@@ -97,6 +97,10 @@ class AnthropicPluginImpl extends GenkitPlugin {
 
   /// Optional HTTP client used for every request. Useful for proxies,
   /// instrumentation, or injecting a mock transport in tests.
+  ///
+  /// Owned by the caller and never closed by [close]. The SDK's
+  /// `AnthropicClient.close()` only closes clients it created itself, which
+  /// is what keeps this true.
   final http.Client? httpClient;
 
   /// Default Anthropic API surface (`'stable'` or `'beta'`) for every request.
