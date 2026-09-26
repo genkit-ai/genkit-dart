@@ -32,15 +32,36 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:genkit/plugin.dart';
+import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'catalog.dart';
+import 'express/decompiler.dart';
 import 'loader.dart';
 import 'parser.dart';
 import 'part.dart';
 import 'types.dart';
 
 part 'a2ui_middleware.g.dart';
+
+final _logger = Logger('genkit_a2ui.middleware');
+
+/// The surface id an envelope targets, whichever variant it is.
+String? _envelopeSurfaceIdOf(A2uiEnvelope e) {
+  for (final key in const [
+    'createSurface',
+    'updateComponents',
+    'updateDataModel',
+    'deleteSurface',
+  ]) {
+    final payload = e[key];
+    if (payload is Map) {
+      final id = payload['surfaceId'];
+      if (id is String) return id;
+    }
+  }
+  return null;
+}
 
 /// Configuration for the [a2ui] middleware.
 @Schema()
@@ -223,7 +244,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     // 0) Sanitize any inbound a2ui data parts (e.g. a surface action sent back
     //    as the next turn, or replayed history) into model-readable text, so
     //    the underlying model's converter never sees the a2ui mime type.
-    final sanitized = _sanitizeInboundA2ui(request);
+    final sanitized = _sanitizeInboundA2ui(request, catalog);
 
     // 1) Inject catalog instructions into the system prompt.
     final newRequest = _instructions == 'none'
@@ -402,7 +423,7 @@ class A2uiMiddleware extends GenerateMiddleware {
   }
 
   /// Converts inbound a2ui data parts in the request into model-readable text.
-  ModelRequest _sanitizeInboundA2ui(ModelRequest req) {
+  ModelRequest _sanitizeInboundA2ui(ModelRequest req, A2uiCatalog catalog) {
     var changed = false;
     final messages = req.messages.map((message) {
       var msgChanged = false;
@@ -410,7 +431,10 @@ class A2uiMiddleware extends GenerateMiddleware {
       for (final part in message.content) {
         if (isA2uiPart(part)) {
           msgChanged = true;
-          final text = _summarizeA2uiPart(a2uiEnvelopesFromParts([part]));
+          final text = _summarizeA2uiPart(
+            a2uiEnvelopesFromParts([part]),
+            catalog: catalog,
+          );
           if (text.isNotEmpty) content.add(TextPart(text: text));
         } else {
           content.add(part);
@@ -473,12 +497,19 @@ List<Part> _partsFromSegments(List<ParseSegment> segments) {
 /// Consecutive surface envelopes are grouped into a single block (one surface is
 /// usually several envelopes: create + update(s)). Unknown envelope shapes are
 /// dropped; the caller keeps the message non-empty when everything drops.
-String _summarizeA2uiPart(List<A2uiEnvelope> envelopes) {
+String _summarizeA2uiPart(
+  List<A2uiEnvelope> envelopes, {
+  required A2uiCatalog catalog,
+}) {
   final out = <String>[];
   final pendingSurface = <A2uiEnvelope>[];
 
   void flushSurface() {
     if (pendingSurface.isEmpty) return;
+    // Render back to Express, the same format the model is asked to produce, so
+    // replayed history reinforces the contract rather than teaching a second
+    // syntax.
+    //
     // Keep the real surface ids verbatim. The model may not reuse them for a
     // NEW surface: the parser forces a fresh id onto every `createSurface`
     // block (see `_finalizeBlock`), so a copied id can't overwrite a prior
@@ -486,16 +517,25 @@ String _summarizeA2uiPart(List<A2uiEnvelope> envelopes) {
     // (`[UI action ... on surface <id>]`) with the surface it targeted - which
     // matters when several surfaces are on screen at once.
     //
-    // Encode compactly (not pretty-printed): fewer tokens, and it collapses the
-    // payload to a single line so the block is exactly three lines (open fence,
-    // JSON, close fence). Because JSON escapes any newline inside a string as
-    // `\n`, an A2UI `Text` value containing a fenced code sample can't put a
-    // literal ``` at the start of a line, so it can never prematurely close this
-    // block (the parser's close fence is line-anchored). The block text can
-    // still contain ``` characters mid-line; a fully robust emitter would use a
-    // variable-length fence, but that also requires the parser's fixed
-    // three-backtick open fence to become count-aware, so it is deferred.
-    out.add('```a2ui\n${jsonEncode(pendingSurface)}\n```');
+    // Rendering is defensive (unknown shapes are skipped), but history may hold
+    // surfaces built against a catalog that has since changed. A throw here
+    // would be unrecoverable, since every later turn replays the same history,
+    // so degrade to a short summary instead of failing the session. Emitting
+    // JSON as a fallback would be worse than dropping detail: it teaches the
+    // model a second output format.
+    try {
+      out.add(decompileExpressBlock(pendingSurface, catalog: catalog));
+    } catch (e) {
+      _logger.warning(
+        'failed to render a replayed surface as Express, summarizing '
+        'instead: $e',
+      );
+      final ids = pendingSurface
+          .map(_envelopeSurfaceIdOf)
+          .whereType<String>()
+          .toSet();
+      out.add('[UI surface ${ids.join(', ')} rendered earlier in this turn]');
+    }
     pendingSurface.clear();
   }
 

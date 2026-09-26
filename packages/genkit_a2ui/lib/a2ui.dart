@@ -40,8 +40,7 @@ export 'src/catalog.dart'
         basicCatalog,
         basicIconNames,
         defaultCatalogId,
-        renderCatalogInstructions,
-        surfaceIdPlaceholder;
+        renderCatalogInstructions;
 export 'src/loader.dart' show loadCatalog, resolveCatalog;
 export 'src/parser.dart'
     show

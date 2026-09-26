@@ -22,11 +22,12 @@
 /// ordered, complete messages, so we never emit half-parsed JSON).
 library;
 
-import 'dart:convert';
-
 import 'package:logging/logging.dart';
 
 import 'catalog.dart';
+import 'express/compiler.dart';
+import 'express/errors.dart';
+import 'express/lexer.dart';
 import 'types.dart';
 
 final _logger = Logger('genkit_a2ui.parser');
@@ -43,18 +44,18 @@ enum A2uiValidateMode {
   off,
 }
 
-/// Opening fence, matched case-insensitively (```a2ui).
-final _openFenceRe = RegExp(r'```[ \t]*a2ui[ \t]*\r?\n', caseSensitive: false);
+/// Opening sentinel tag, matched case-insensitively. The A2UI Express spec
+/// mandates `<a2ui>` / `</a2ui>` rather than a Markdown fence.
+final _openFenceRe = RegExp(r'<a2ui>[ \t]*\r?\n?', caseSensitive: false);
 
-/// The longest prefix of an opening fence, used to hold back a partial fence.
-const _maxPartialFence = 8; // '```a2ui\n'.length
+/// The longest prefix of an opening tag, used to hold back a partial tag.
+const _maxPartialFence = 6; // '<a2ui>'.length
 
-/// Closing fence: ``` at the start of a line (optionally indented). Anchoring
-/// to line start (mirroring [_openFenceRe]) matters: A2UI `Text` values "may use
-/// inline Markdown", so the JSON payload can legitimately contain a ``` fence
-/// inside a string. A bare ``` would match that and truncate the block mid-JSON,
-/// dropping the whole surface.
-final _closeFenceRe = RegExp(r'(^|\n)[ \t]*```');
+/// Closing sentinel tag. Unlike the Markdown fence this replaced, `</a2ui>`
+/// needs no line anchoring: an Express string literal cannot contain the tag in
+/// a position that would look like a terminator, whereas a ``` could appear
+/// inside a Markdown `Text` value and truncate the block mid-payload.
+final _closeFenceRe = RegExp(r'</a2ui>', caseSensitive: false);
 
 /// Consumes an optional trailing newline after the closing fence.
 final _trailingNewlineRe = RegExp(r'^[ \t]*\r?\n');
@@ -106,8 +107,12 @@ class ParseResult {
 /// Incremental A2UI extractor. Create one per model turn, [push] text deltas as
 /// they arrive, and [flush] at the end to drain any trailing block.
 class A2uiStreamParser {
-  /// Catalog used to validate component references.
-  final A2uiCatalog? catalog;
+  /// Catalog the block is compiled and validated against.
+  ///
+  /// Required: Express is positional, so mapping arguments onto properties is
+  /// impossible without it. This is a configuration concern rather than
+  /// something [validate] can soften.
+  final A2uiCatalog catalog;
 
   /// How to finalize/validate envelopes.
   final A2uiValidateMode validate;
@@ -127,7 +132,7 @@ class A2uiStreamParser {
   /// Creates an [A2uiStreamParser].
   A2uiStreamParser({
     required this.surfaceId,
-    this.catalog,
+    required this.catalog,
     this.validate = A2uiValidateMode.strict,
     this.version = a2uiVersion,
   });
@@ -255,37 +260,57 @@ class A2uiStreamParser {
     final text = raw.trim();
     if (text.isEmpty) return null;
 
-    Object? parsed;
+    List<A2uiEnvelope> compiled;
     try {
-      parsed = jsonDecode(text);
-    } catch (e) {
-      return _reject('failed to parse envelope block as JSON: $e');
+      compiled = compileExpress(
+        text,
+        catalog: catalog,
+        surfaceId: surface,
+        version: version,
+      );
+    } on ExpressSyntaxError catch (e) {
+      return _reject(
+        'failed to parse A2UI Express block: ${e.message} '
+        '(line ${e.line})',
+      );
+    } on ExpressCompileError catch (e) {
+      return _reject('failed to compile A2UI Express block: ${e.message}');
     }
 
-    final envelopes = parsed is List ? parsed : [parsed];
     final out = <A2uiEnvelope>[];
-    for (final env in envelopes) {
+    for (final env in compiled) {
       final normalized = _normalizeEnvelope(env, surface);
       if (normalized != null) out.add(normalized);
     }
     if (out.isEmpty) return null;
 
+    // Whether the model named a surface itself. The compiler defaults to the
+    // id we passed in, so anything else came from an explicit `surface("...")`,
+    // which is how Express targets a surface from a prior turn.
+    final targeted = out
+        .map(_envelopeSurfaceId)
+        .firstWhere((id) => id != null, orElse: () => null);
+    final isExplicitTarget = targeted != null && targeted != surface;
+
     final hasCreate = out.any((e) => e['createSurface'] != null);
-    if (hasCreate) {
-      // A full-surface render. `createSurface` means "new surface" by
-      // definition, so the id the model wrote is never authoritative - force
-      // every envelope in this block onto the freshly-minted [surface] id, even
-      // if the model copied a real id from replayed history (which would
-      // otherwise reuse and overwrite that prior surface in place). This is the
-      // single chokepoint that guarantees a distinct surface per render, so
-      // history can keep real ids verbatim (needed to correlate actions with
-      // their surface) without risking id reuse.
+    if (hasCreate && !isExplicitTarget) {
+      // A fresh full-surface render. Force every envelope onto the
+      // freshly-minted [surface] id so each render gets a distinct surface,
+      // even if the model echoed an id it saw in replayed history. This is the
+      // chokepoint that lets history keep real ids verbatim (needed to
+      // correlate actions with their surface) without risking id reuse.
       for (final e in out) {
         _forceSurfaceId(e, surface);
       }
       // Enforce the "must contain a root" protocol rule.
       final err = _validateRoot(out);
       if (err != null) return _reject(err);
+      return out;
+    }
+
+    if (isExplicitTarget) {
+      // The model deliberately re-rendered a surface it already knows about.
+      // Keep its id and skip the root rule: this may be a partial patch.
       return out;
     }
 
@@ -317,7 +342,7 @@ class A2uiStreamParser {
       // fine - it resets the surface.
       out.insert(0, {
         'version': version,
-        'createSurface': {'surfaceId': surface, 'catalogId': catalog?.id ?? ''},
+        'createSurface': {'surfaceId': surface, 'catalogId': catalog.id},
       });
     }
     return out;
@@ -341,8 +366,8 @@ class A2uiStreamParser {
     }
   }
 
-  /// Validates a single envelope, substitutes the real surface id for the
-  /// placeholder, and stamps the protocol version.
+  /// Validates a single envelope, fills in a missing surface id, and stamps the
+  /// protocol version.
   A2uiEnvelope? _normalizeEnvelope(Object? env, String surface) {
     if (env is! Map) {
       return _reject('envelope must be an object.');
@@ -353,10 +378,10 @@ class A2uiStreamParser {
     void swapSurfaceId(Object? payload) {
       if (payload is! Map) return;
       final p = payload;
+      // The compiler already stamps the id it was given; this only backfills an
+      // envelope that somehow arrived without one.
       final current = p['surfaceId'];
-      if (current == null || current == surfaceIdPlaceholder || current == '') {
-        p['surfaceId'] = surface;
-      }
+      if (current == null || current == '') p['surfaceId'] = surface;
     }
 
     // Preserve any open-ended top-level keys the envelope carries (the A2UI
@@ -396,8 +421,6 @@ class A2uiStreamParser {
   /// level in [_finalizeBlock] (an incremental update to an existing surface may
   /// legitimately patch a subtree without re-declaring `root`).
   String? _validateComponents(Object? components) {
-    final catalog = this.catalog;
-    if (catalog == null) return null;
     if (components is! List) {
       return 'updateComponents.components must be an array.';
     }

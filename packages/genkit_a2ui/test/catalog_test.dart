@@ -45,8 +45,25 @@ void main() {
       }
     });
 
-    test('tells the model to use the SURFACE_ID placeholder', () {
-      expect(text, contains('SURFACE_ID'));
+    test('marks component-id slots and explains the marker', () {
+      // The mistake this prevents: `Button("Refresh", ...)`, which compiles to
+      // `"child": "Refresh"` and fails in the renderer.
+      expect(text, contains('Button(child (id)'));
+      expect(text, contains('Card(child (id))'));
+      expect(text, contains('Column(children (id)'));
+      expect(text, contains('`(id)` hold the NAME OF ANOTHER COMPONENT'));
+    });
+
+    test('demonstrates the correct Button pattern in the example', () {
+      // A worked example is worth more than the rule alone: the label is its
+      // own component and the button references it.
+      expect(text, contains('refreshLabel = Text("Refresh")'));
+      expect(text, contains('refreshBtn = Button(refreshLabel'));
+    });
+
+    test('tells the model to use the Express sentinel tags', () {
+      expect(text, contains('<a2ui>'));
+      expect(text, contains('</a2ui>'));
     });
 
     test('lists the basic icon allow-list', () {
@@ -92,7 +109,7 @@ void main() {
     });
 
     test('builds the example from a component the catalog provides', () {
-      expect(text, contains('"component": "Widget"'));
+      expect(text, contains('root = Widget()'));
     });
 
     test('still documents the custom component and catalog id', () {
@@ -109,7 +126,7 @@ void main() {
         final text = renderCatalogInstructions(empty);
         expect(text, contains('Rendering UI with A2UI'));
         // Falls back to a default root component name.
-        expect(text, contains('"component": "Text"'));
+        expect(text, contains('root = Text()'));
       },
     );
   });
