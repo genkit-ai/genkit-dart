@@ -19,15 +19,31 @@ import 'package:http/http.dart' as http;
 
 import 'src/chat.dart' as chat;
 import 'src/embed.dart' as embed;
+import 'src/known_deepseek_models.dart';
 import 'src/known_embedders.dart';
 import 'src/known_models.dart';
+import 'src/known_xai_models.dart';
 import 'src/openai_plugin.dart';
+import 'src/provider.dart';
 import 'src/speech.dart' as speech;
 import 'src/transcription.dart' as transcription;
 
 export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/converters.dart' show GenkitConverter;
 export 'src/embed.dart' show OpenAIEmbedderOptions;
+// The DeepSeek catalog is public for the same reasons the OpenAI one is; the
+// dialect that selects it is not, since which request fields a host reads is
+// policy this plugin should stay free to change.
+export 'src/known_deepseek_models.dart'
+    show
+        KnownDeepSeekModel,
+        deepSeekModelInfoFor,
+        deepSeekTextSupports,
+        deepSeekVisionSupports,
+        defaultDeepSeekNamespace,
+        knownDeepSeekChatModels,
+        knownDeepSeekModelFor,
+        knownDeepSeekModels;
 // The embedder catalog is public for the same reason the model catalog is.
 // `embedderInfoFor`, its compat variant and `knownOpenAIEmbedders` are not:
 // until core grows an `EmbedderInfo` (#327) they hand back a raw map whose
@@ -62,6 +78,14 @@ export 'src/known_models.dart'
         supportsVision,
         textOnlyLegacySupports,
         textOnlyNoJsonSupports;
+export 'src/known_xai_models.dart'
+    show
+        KnownXaiModel,
+        defaultXaiNamespace,
+        knownXaiChatModels,
+        knownXaiModelFor,
+        knownXaiModels,
+        xaiModelInfoFor;
 export 'src/speech.dart' show OpenAISpeechOptions;
 export 'src/transcription.dart' show OpenAITranscriptionOptions;
 export 'src/utils.dart' show getModelType;
@@ -480,5 +504,229 @@ abstract final class OpenAIEmbedders {
     textEmbedding3Small,
     textEmbedding3Large,
     textEmbeddingAda002,
+  ];
+}
+
+/// Public constant handle for the DeepSeek plugin.
+///
+/// DeepSeek speaks the OpenAI Chat Completions API, so this is the same plugin
+/// as [openAI] pointed at `https://api.deepseek.com` and told whose dialect it
+/// is speaking — which key to read, which models to describe, and the couple
+/// of request fields DeepSeek spells differently.
+///
+/// ```dart
+/// final ai = Genkit(plugins: [deepSeek()]);
+///
+/// final response = await ai.generate(
+///   model: DeepSeekModels.deepseekFlash,
+///   prompt: 'Hello!',
+/// );
+/// ```
+///
+/// The key falls back to the `DEEPSEEK_API_KEY` environment variable. As with
+/// [openAI], creating the plugin does no I/O and needs no key.
+const DeepSeekPluginHandle deepSeek = DeepSeekPluginHandle();
+
+/// Handle class for configuring and referencing DeepSeek models.
+///
+/// Typically accessed via the top-level [deepSeek] constant rather than
+/// instantiated directly.
+class DeepSeekPluginHandle {
+  /// Creates a new [DeepSeekPluginHandle].
+  const DeepSeekPluginHandle();
+
+  /// Create the plugin instance.
+  ///
+  /// [name] is the namespace models register under, defaulting to
+  /// [defaultDeepSeekNamespace]. [baseUrl] defaults to DeepSeek's own host;
+  /// pointing it elsewhere — a gateway, a proxy — keeps DeepSeek's
+  /// capabilities but drops its deployment details, exactly as a custom
+  /// `baseUrl` does for [openAI].
+  GenkitPlugin call({
+    String name = defaultDeepSeekNamespace,
+    String? apiKey,
+    OpenAIApiKeyProvider? apiKeyProvider,
+    String? baseUrl,
+    List<CustomModelDefinition>? models,
+    Map<String, String>? headers,
+    http.Client? httpClient,
+  }) {
+    return OpenAIPlugin(
+      name: name,
+      apiKey: apiKey,
+      apiKeyProvider: apiKeyProvider,
+      baseUrl: baseUrl,
+      customModels: models ?? const [],
+      headers: headers,
+      httpClient: httpClient,
+      provider: deepSeekProvider,
+    );
+  }
+
+  /// Reference to a DeepSeek model.
+  ModelRef<chat.OpenAIChatOptions> model(
+    String name, {
+    String namespace = defaultDeepSeekNamespace,
+  }) {
+    return modelRef(
+      '$namespace/$name',
+      customOptions: chat.chatModelOptionsSchema(),
+    );
+  }
+}
+
+/// Typed [ModelRef]s for the DeepSeek models curated by the `deepseek` plugin.
+///
+/// Each entry is equivalent to `deepSeek.model('<name>')`, which remains the
+/// escape hatch for models not listed here and for plugin instances registered
+/// under a custom namespace.
+abstract final class DeepSeekModels {
+  /// DeepSeek Flash: 1M context, image input, thinking on by default.
+  static final ModelRef<chat.OpenAIChatOptions> deepseekFlash = deepSeek.model(
+    KnownDeepSeekModel.deepseekFlash.id,
+  );
+
+  /// DeepSeek V4 Pro. Text only.
+  static final ModelRef<chat.OpenAIChatOptions> deepseekV4Pro = deepSeek.model(
+    KnownDeepSeekModel.deepseekV4Pro.id,
+  );
+
+  /// The former chat alias, now DeepSeek Flash with thinking off.
+  static final ModelRef<chat.OpenAIChatOptions> deepseekChat = deepSeek.model(
+    KnownDeepSeekModel.deepseekChat.id,
+  );
+
+  /// The former reasoning alias, now DeepSeek Flash with thinking on.
+  static final ModelRef<chat.OpenAIChatOptions> deepseekReasoner = deepSeek
+      .model(KnownDeepSeekModel.deepseekReasoner.id);
+
+  /// Every ref above, in catalog order.
+  ///
+  /// Exists so the statics cannot silently fall behind [KnownDeepSeekModel],
+  /// the same way `OpenAIModels.all` guards the OpenAI refs.
+  static final List<ModelRef<chat.OpenAIChatOptions>> all = [
+    deepseekFlash,
+    deepseekV4Pro,
+    deepseekChat,
+    deepseekReasoner,
+  ];
+}
+
+/// Public constant handle for the xAI plugin.
+///
+/// Grok speaks the OpenAI Chat Completions API, so this is the same plugin as
+/// [openAI] pointed at `https://api.x.ai/v1` with xAI's key and catalog. Of
+/// the curated providers it is the closest to OpenAI: same request fields,
+/// same `json_schema` structured outputs.
+///
+/// ```dart
+/// final ai = Genkit(plugins: [xAI()]);
+///
+/// final response = await ai.generate(
+///   model: XaiModels.grok46,
+///   prompt: 'Hello!',
+/// );
+/// ```
+///
+/// The key falls back to the `XAI_API_KEY` environment variable.
+const XaiPluginHandle xAI = XaiPluginHandle();
+
+/// Handle class for configuring and referencing xAI models.
+///
+/// Typically accessed via the top-level [xAI] constant rather than
+/// instantiated directly.
+class XaiPluginHandle {
+  /// Creates a new [XaiPluginHandle].
+  const XaiPluginHandle();
+
+  /// Create the plugin instance.
+  ///
+  /// [baseUrl] defaults to xAI's own host; pointing it elsewhere keeps Grok's
+  /// capabilities but drops xAI's deployment details, as it does for [openAI].
+  GenkitPlugin call({
+    String name = defaultXaiNamespace,
+    String? apiKey,
+    OpenAIApiKeyProvider? apiKeyProvider,
+    String? baseUrl,
+    List<CustomModelDefinition>? models,
+    Map<String, String>? headers,
+    http.Client? httpClient,
+  }) {
+    return OpenAIPlugin(
+      name: name,
+      apiKey: apiKey,
+      apiKeyProvider: apiKeyProvider,
+      baseUrl: baseUrl,
+      customModels: models ?? const [],
+      headers: headers,
+      httpClient: httpClient,
+      provider: xaiProvider,
+    );
+  }
+
+  /// Reference to an xAI model.
+  ModelRef<chat.OpenAIChatOptions> model(
+    String name, {
+    String namespace = defaultXaiNamespace,
+  }) {
+    return modelRef(
+      '$namespace/$name',
+      customOptions: chat.chatModelOptionsSchema(),
+    );
+  }
+}
+
+/// Typed [ModelRef]s for the xAI models curated by the `xai` plugin.
+///
+/// Each entry is equivalent to `xAI.model('<name>')`, which remains the escape
+/// hatch for models not listed here and for plugin instances registered under
+/// a custom namespace.
+abstract final class XaiModels {
+  /// xAI Grok 4.7, the newest reasoning build.
+  static final ModelRef<chat.OpenAIChatOptions> grok47 = xAI.model(
+    KnownXaiModel.grok47.id,
+  );
+
+  /// xAI Grok 4.6. 500k context.
+  static final ModelRef<chat.OpenAIChatOptions> grok46 = xAI.model(
+    KnownXaiModel.grok46.id,
+  );
+
+  /// xAI Grok 4.5. 500k context.
+  static final ModelRef<chat.OpenAIChatOptions> grok45 = xAI.model(
+    KnownXaiModel.grok45.id,
+  );
+
+  /// xAI Grok 4.3. 1M context.
+  static final ModelRef<chat.OpenAIChatOptions> grok43 = xAI.model(
+    KnownXaiModel.grok43.id,
+  );
+
+  /// xAI Grok 4.20, the reasoning build.
+  static final ModelRef<chat.OpenAIChatOptions> grok420Reasoning = xAI.model(
+    KnownXaiModel.grok420Reasoning.id,
+  );
+
+  /// xAI Grok 4.20, the non-reasoning build.
+  static final ModelRef<chat.OpenAIChatOptions> grok420NonReasoning = xAI.model(
+    KnownXaiModel.grok420NonReasoning.id,
+  );
+
+  /// xAI Grok Build 0.1, the coding model.
+  static final ModelRef<chat.OpenAIChatOptions> grokBuild = xAI.model(
+    KnownXaiModel.grokBuild.id,
+  );
+
+  /// Every ref above, in catalog order.
+  ///
+  /// Exists so the statics cannot silently fall behind [KnownXaiModel].
+  static final List<ModelRef<chat.OpenAIChatOptions>> all = [
+    grok47,
+    grok46,
+    grok45,
+    grok43,
+    grok420Reasoning,
+    grok420NonReasoning,
+    grokBuild,
   ];
 }
