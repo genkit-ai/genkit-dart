@@ -399,6 +399,96 @@ void main() {
       expect(response.text.toLowerCase(), contains('hello'));
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
+    test('reasoning effort reaches a reasoning model', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      // The mocks prove the parameter reaches the wire; only OpenAI can say
+      // whether it accepts the level for this model.
+      final response = await ai.generate(
+        model: OpenAIModels.o4Mini,
+        prompt: 'What is 17 * 23? Answer with the number only.',
+        config: OpenAIChatOptions(reasoningEffort: 'low'),
+      );
+
+      expect(response.text, contains('391'));
+      // Reasoning models bill their thinking separately, so a low effort
+      // still shows up in the usage breakdown.
+      expect(response.usage?.outputTokens, greaterThan(0));
+
+      await ai.shutdown();
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('verbosity reaches the GPT-5 family', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      final response = await ai.generate(
+        model: OpenAIModels.gpt5Mini,
+        prompt: 'Name the capital of France.',
+        config: OpenAIChatOptions(verbosity: 'low', reasoningEffort: 'low'),
+      );
+
+      expect(response.text.toLowerCase(), contains('paris'));
+
+      await ai.shutdown();
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
+    test('a model that does not reason rejects an effort', () async {
+      if (apiKey == null || apiKey.isEmpty) {
+        fail(
+          'OPENAI_API_KEY environment variable must be set to run integration tests',
+        );
+      }
+
+      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+      // The plugin refuses this before the request goes out. The live value
+      // of the test is the other half: that OpenAI would have refused it too,
+      // so the local check is not inventing a restriction.
+      final local = await ai.generate(
+        model: OpenAIModels.gpt4o,
+        prompt: 'hi',
+        config: OpenAIChatOptions(reasoningEffort: 'high'),
+      );
+      expect(local.finishReason, FinishReason.failed);
+      expect(local.error?.status, StatusCodes.INVALID_ARGUMENT.name);
+
+      // The same request with the guard bypassed. Naming OpenAI's own URL no
+      // longer does it - that is the same host, so the catalog and its checks
+      // both apply - but registering the model says more about it than the
+      // catalog does, and is left to the API to judge.
+      final direct = Genkit(
+        plugins: [
+          openAI(
+            apiKey: apiKey,
+            models: [CustomModelDefinition(name: 'gpt-4o')],
+          ),
+        ],
+      );
+      final remote = await direct.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'hi',
+        config: OpenAIChatOptions(reasoningEffort: 'high'),
+      );
+
+      expect(remote.finishReason, FinishReason.failed);
+      expect(remote.error?.message, contains('reasoning_effort'));
+
+      await direct.shutdown();
+      await ai.shutdown();
+    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+
     test('discovery enriches the curated catalog', () async {
       if (apiKey == null || apiKey.isEmpty) {
         fail(
@@ -653,33 +743,38 @@ void main() {
       expect(subtitles.text.trim(), startsWith('1'));
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
-    test('verbose_json accepts repeated timestamp granularities', () async {
-      if (apiKey == null || apiKey.isEmpty) {
-        fail(
-          'OPENAI_API_KEY environment variable must be set to run integration tests',
+    test(
+      'verbose_json accepts repeated timestamp granularities',
+      () async {
+        if (apiKey == null || apiKey.isEmpty) {
+          fail(
+            'OPENAI_API_KEY environment variable must be set to run integration tests',
+          );
+        }
+
+        // timestamp_granularities is sent as repeated form fields. No mock can
+        // prove OpenAI accepts that encoding, so it is checked here.
+        final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+
+        final spoken = await ai.generate(
+          model: openAI.speechModel('tts-1'),
+          prompt: 'Genkit Dart now listens.',
         );
-      }
 
-      // timestamp_granularities is sent as repeated form fields. No mock can
-      // prove OpenAI accepts that encoding, so it is checked here.
-      final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
+        final verbose = await ai.generate(
+          model: openAI.transcriptionModel('whisper-1'),
+          promptParts: [MediaPart(media: spoken.media!)],
+          config: OpenAITranscriptionOptions(
+            responseFormat: 'verbose_json',
+            timestampGranularities: ['word', 'segment'],
+          ),
+        );
 
-      final spoken = await ai.generate(
-        model: openAI.speechModel('tts-1'),
-        prompt: 'Genkit Dart now listens.',
-      );
-
-      final verbose = await ai.generate(
-        model: openAI.transcriptionModel('whisper-1'),
-        promptParts: [MediaPart(media: spoken.media!)],
-        config: OpenAITranscriptionOptions(
-          responseFormat: 'verbose_json',
-          timestampGranularities: ['word', 'segment'],
-        ),
-      );
-
-      expect(verbose.text.toLowerCase(), contains('listens'));
-    }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
+        expect(verbose.text.toLowerCase(), contains('listens'));
+      },
+      timeout: Timeout(Duration(minutes: 2)),
+      skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null,
+    );
 
     test('gpt-4o-transcribe accepts chunking strategy and include', () async {
       if (apiKey == null || apiKey.isEmpty) {

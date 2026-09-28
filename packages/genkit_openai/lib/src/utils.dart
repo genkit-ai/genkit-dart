@@ -36,8 +36,13 @@ final RegExp _gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
 String getModelType(String modelId) {
   final id = modelId.toLowerCase();
 
-  // Video generation models.
-  if (id.contains('sora')) {
+  // Video generation models: OpenAI's `sora` and xAI's `grok-imagine-video`.
+  //
+  // Matched narrowly rather than on `video` alone. This runs ahead of every
+  // chat rule, so a bare substring would also swallow a chat model that
+  // happens to mention video - a video-understanding model on some compat
+  // host, say - and drop it from the listing entirely.
+  if (id.contains('sora') || id.contains('imagine-video')) {
     return 'video';
   }
 

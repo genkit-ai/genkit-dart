@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
+import 'package:genkit/plugin.dart';
 import 'package:openai_dart/openai_dart.dart';
 import 'package:schemantic/schemantic.dart';
 
@@ -65,6 +68,22 @@ abstract class $OpenAIChatOptions {
   /// Visual detail level for images ('auto', 'low', 'high')
   @StringField(enumValues: ['auto', 'low', 'high'])
   String? get visualDetailLevel;
+
+  /// How hard a reasoning model should think before answering.
+  ///
+  /// Which levels are accepted varies by model and host. A level newer than
+  /// `openai_dart` needs an SDK bump.
+  @StringField(
+    enumValues: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+  )
+  String? get reasoningEffort;
+
+  /// How much the model should say in its answer.
+  ///
+  /// A GPT-5-family parameter, and unrelated to [reasoningEffort]: this
+  /// shortens or lengthens the reply, not the thinking behind it.
+  @StringField(enumValues: ['low', 'medium', 'high'])
+  String? get verbosity;
 }
 
 /// Alias for [OpenAIChatOptions].
@@ -91,14 +110,23 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
 /// Returning `json_object` for a schemaless JSON request is not a nicety: with
 /// no schema, Genkit's json formatter also emits no prompt instructions, so
 /// without this nothing would ask the model for JSON at all.
+///
+/// [supportsJsonSchema] is false for a host that takes `json_object` but not
+/// `json_schema` - DeepSeek, among others. There the schema cannot travel as a
+/// constraint, so the request asks for JSON and the schema reaches the model
+/// only as far as Genkit's prompt instructions carry it. Sending the schema
+/// anyway would be a 400, which is worse than an unconstrained answer.
 ResponseFormat? buildOpenAIResponseFormat({
   String? format,
   String? contentType,
   Map<String, dynamic>? schema,
   bool? jsonMode,
+  bool supportsJsonSchema = true,
 }) {
   if (isJsonStructuredOutput(format, contentType)) {
-    if (schema == null) return ResponseFormat.jsonObject();
+    if (schema == null || !supportsJsonSchema) {
+      return ResponseFormat.jsonObject();
+    }
 
     // Flattened because OpenAI needs `type` at the top level, so `$ref`/
     // `$defs` have to be resolved away first.
@@ -130,9 +158,73 @@ ResponseFormat? buildOpenAIResponseFormat({
   return null;
 }
 
+/// The JSON instruction a `json_object`-only host needs in the prompt.
+///
+/// Null when core already added one (marked `purpose: 'output'`), or when
+/// there is no schema and a message already says "json". DeepSeek rejects a
+/// `json_object` request whose prompt lacks that word, and without
+/// `json_schema` the prompt is the only place the schema can go.
+String? jsonObjectInstruction(
+  List<Message> messages,
+  Map<String, dynamic>? schema,
+) {
+  final coreWroteThem = messages.any(
+    (message) => message.content.any(
+      (part) => part.isText && part.metadata?['purpose'] == 'output',
+    ),
+  );
+  if (coreWroteThem) return null;
+
+  if (schema != null) {
+    return 'Respond with JSON only. The JSON must conform to the following '
+        'schema:\n\n```\n'
+        '${const JsonEncoder.withIndent('  ').convert(schema)}\n```';
+  }
+
+  final alreadyAsked = messages.any(
+    (message) => message.text.toLowerCase().contains('json'),
+  );
+  return alreadyAsked ? null : 'Respond with JSON only.';
+}
+
 /// Returns custom options schema for standard chat models.
 SchemanticType<ChatModelOptions> chatModelOptionsSchema() =>
     OpenAIChatOptions.$schema;
+
+/// Maps a [ChatModelOptions.reasoningEffort] string onto the SDK enum.
+///
+/// `ReasoningEffort.fromJson` answers `unknown` for a value it does not
+/// recognise, which would go on the wire as `reasoning_effort: "unknown"` and
+/// come back as a confusing 400. Better to name the value that was actually
+/// wrong — whether it is a typo or a level newer than the SDK, which is the
+/// one case where the caller is right and the plugin is behind.
+ReasoningEffort? toReasoningEffort(String? value) {
+  if (value == null) return null;
+  final effort = ReasoningEffort.fromJson(value);
+  if (effort == ReasoningEffort.unknown) {
+    throw GenkitException(
+      'Unknown reasoningEffort "$value". Known levels: '
+      '${ReasoningEffort.values.where((e) => e != ReasoningEffort.unknown).map((e) => e.toJson()).join(', ')}.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+  return effort;
+}
+
+/// Maps a [ChatModelOptions.verbosity] string onto the SDK enum, rejecting an
+/// unrecognised level for the same reason [toReasoningEffort] does.
+Verbosity? toVerbosity(String? value) {
+  if (value == null) return null;
+  final verbosity = Verbosity.fromJson(value);
+  if (verbosity == Verbosity.unknown) {
+    throw GenkitException(
+      'Unknown verbosity "$value". Known levels: '
+      '${Verbosity.values.where((v) => v != Verbosity.unknown).map((v) => v.toJson()).join(', ')}.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+  return verbosity;
+}
 
 /// Parses chat-model options from action config.
 ChatModelOptions parseChatModelOptions(Map<String, dynamic>? config) {
