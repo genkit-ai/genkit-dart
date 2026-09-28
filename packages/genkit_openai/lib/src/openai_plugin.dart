@@ -750,35 +750,11 @@ class OpenAIPlugin extends GenkitPlugin {
     );
   }
 
-  /// Rejects a `reasoningEffort` aimed at a model that does not reason.
+  /// Rejects a `reasoningEffort` aimed at a curated model that does not
+  /// accept it.
   ///
-  /// OpenAI answers one with `Unsupported parameter: 'reasoning_effort'`,
-  /// which names the parameter but not the model - and the model is the half
-  /// that is usually wrong, since an effort is typically set once in a shared
-  /// config and then inherited by whatever model the call picks.
-  ///
-  /// Only curated models are judged. An uncurated name has no claim to judge
-  /// against, and a model released after this version of the plugin must not
-  /// be refused a parameter it may well accept.
-  ///
-  /// `verbosity` gets no equivalent guard, and its 400 is just as terse. It is
-  /// a GPT-5-family parameter, but the catalog carries no flag saying so, and
-  /// adding one would mean asserting per entry something less well documented
-  /// than which models reason. Left to the API rather than guessed at.
-  ///
-  /// No level is exempt, `none` included. It was, briefly, so that DeepSeek's
-  /// non-thinking alias could be asked for explicitly - but DeepSeek answers
-  /// `reasonsFor` with null for every name, so the guard never reaches it
-  /// anyway, and the hosts this guard does judge reject `none` exactly where
-  /// it fires:
-  ///
-  /// - OpenAI on both halves of the question - `Unrecognized request argument
-  ///   supplied: reasoning_effort` on `gpt-4o`, and `does not support 'none'
-  ///   with this model` on `o4-mini`;
-  /// - xAI on its one non-reasoning build - `Model
-  ///   grok-4.20-0309-non-reasoning does not support parameter
-  ///   reasoningEffort` - while `grok-4.3`, which reasons, takes `none`
-  ///   happily and never reaches here.
+  /// OpenAI's 400 names the parameter but not the model. Uncurated and
+  /// caller-declared models are left to the API.
   void _requireReasoningModel(String modelName, String? reasoningEffort) {
     if (reasoningEffort == null) return;
     // A caller who registered the model said more about it than the catalog

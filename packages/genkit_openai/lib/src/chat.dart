@@ -71,20 +71,8 @@ abstract class $OpenAIChatOptions {
 
   /// How hard a reasoning model should think before answering.
   ///
-  /// Accepted by the o-series and the GPT-5 family; a model that does not
-  /// reason rejects the parameter outright. Which of these levels a given
-  /// model takes moves with the generation — `minimal` arrived with GPT-5,
-  /// `none` replaced it in GPT-5.1, `xhigh` came later still — so every level
-  /// is offered to every reasoning model and OpenAI decides whether the pair
-  /// makes sense.
-  ///
-  /// The set itself is closed, and not by choice: `openai_dart` models
-  /// `reasoning_effort` as an enum, so a level newer than the SDK cannot be
-  /// put on the wire as anything but `unknown`. A level OpenAI ships after
-  /// this release needs an `openai_dart` bump to reach it.
-  @StringField(
-    enumValues: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
-  )
+  /// Which levels are accepted varies by model and host. A level newer than
+  /// `openai_dart` needs an SDK bump.
   String? get reasoningEffort;
 
   /// How much the model should say in its answer.
@@ -167,31 +155,12 @@ ResponseFormat? buildOpenAIResponseFormat({
   return null;
 }
 
-/// The instruction a host that offers only `json_object` needs in the prompt,
-/// or null when the conversation already carries one.
+/// The JSON instruction a `json_object`-only host needs in the prompt.
 ///
-/// Two things make this necessary. DeepSeek rejects a `json_object` request
-/// whose prompt does not contain the literal word "json". And Genkit's own
-/// JSON formatter declares `defaultInstructions: false`
-/// (`packages/genkit/lib/src/ai/formatters/json.dart`), so unless the caller
-/// asks for instructions explicitly, nothing tells the model what shape to
-/// emit — which is fine when the schema travels as a `json_schema` constraint
-/// and useless when it cannot travel at all.
-///
-/// The two jobs are kept apart on purpose. The word "json" only has to appear
-/// somewhere, so if a message already says it there is nothing to add — but a
-/// schema has nowhere else to go, and a prompt that merely mentions JSON
-/// ("extract the fields from this JSON log line") does not carry one. Dropping
-/// the schema because the word happened to appear would hand the model a
-/// free-form JSON request and fail validation on the way back.
-///
-/// Core writing the instructions itself is the one case that does drop it.
-/// Its formatter marks what it wrote with `purpose: 'output'`
-/// (`packages/genkit/lib/src/ai/formatters/formatters.dart`), which both
-/// `injectInstructions` and core's simulated constrained generation set, so
-/// the marker — not the wording, and not the word "json" — is what says the
-/// schema is already in the prompt. Matching on it keeps the two paths from
-/// both firing and sending the schema twice.
+/// Null when core already added one (marked `purpose: 'output'`), or when
+/// there is no schema and a message already says "json". DeepSeek rejects a
+/// `json_object` request whose prompt lacks that word, and without
+/// `json_schema` the prompt is the only place the schema can go.
 String? jsonObjectInstruction(
   List<Message> messages,
   Map<String, dynamic>? schema,

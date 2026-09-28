@@ -26,17 +26,9 @@ import 'transcription.dart' show knownTranscriptionModels;
 /// The facts that differ between hosts speaking the OpenAI Chat Completions
 /// API, gathered in one value.
 ///
-/// `OpenAIPlugin` serves more than OpenAI: the same wire protocol reaches
-/// DeepSeek, Groq, OpenRouter and the rest by pointing `baseUrl` elsewhere.
-/// Most of those differences are none of the plugin's business — a compat host
-/// is left to answer for itself. The ones collected here are the differences
-/// the plugin cannot avoid having an opinion about, because it has to write the
-/// request and read the environment before anyone else gets a say.
-///
-/// One value rather than a handful of constructor flags, so that adding the
-/// next provider is a matter of describing it rather than threading another
-/// parameter through the plugin. This is the same contract `KnownOpenAIModel`
-/// states for per-model behaviour, one level up.
+/// Only the differences the plugin cannot avoid having an opinion about: it
+/// writes the request and reads the environment before anyone else gets a say.
+/// Everything else a compat host answers for itself.
 final class OpenAIProvider {
   /// Plugin name, and so the action namespace, when the caller names none.
   final String defaultNamespace;
@@ -198,7 +190,6 @@ final xaiProvider = OpenAIProvider(
   servesModel: (model) => !model.toLowerCase().contains('multi-agent'),
 );
 
-/// Moves `reasoning_effort` into the `thinking` object DeepSeek reads.
 /// Adds the `thinking` object DeepSeek derives its mode from.
 ///
 /// DeepSeek reads `reasoning_effort` where OpenAI does, at the top level, and

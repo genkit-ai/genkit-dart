@@ -61,10 +61,7 @@ enum KnownXaiModel {
 
   // `grok-4.20-multi-agent-0309` is deliberately absent: chat completions
   // refuses it - "Multi Agent requests are not allowed on chat completions" -
-  // and this plugin speaks nothing else, so curating it would put a name in
-  // the Dev UI that answers 400 the moment it is picked. Go omits it for the
-  // same reason (`xai.go`). Naming it explicitly still resolves, since any
-  // name does.
+  // and this plugin speaks nothing else.
 
   /// Grok Build, xAI's coding and agentic-workflow model. 256k context.
   grokBuild('grok-build-0.1', 'xAI Grok Build 0.1', reasons: true);

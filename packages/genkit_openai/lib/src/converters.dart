@@ -33,8 +33,6 @@ abstract final class GenkitConverter {
   /// whenever it is set, so leaving it on would put a field on the wire that
   /// OpenAI never asked for.
   ///
-  /// [visualDetailLevel] stays positional so the exported signature does not
-  /// break.
   static List<sdk.ChatMessage> toOpenAIMessages(
     List<Message> messages,
     String? visualDetailLevel, {
@@ -266,22 +264,9 @@ abstract final class GenkitConverter {
     );
   }
 
-  /// [tool]'s input schema with its `$defs` inlined, or with the root
-  /// definition promoted when they cannot be.
-  ///
-  /// A self-referential type - a tree node, a threaded comment - has no
-  /// inlined form at all, and `flatten` says so by throwing. What goes out
-  /// then is the root definition's own body, with `$defs` carried alongside so
-  /// the internal `$ref`s still resolve: plain JSON Schema, and an object at
-  /// the root, which is what every host asks of a tool parameter schema.
-  ///
-  /// Sending the authored `{$ref, $defs}` shape instead does not work. xAI
-  /// answers `tool parameter root must be an object type (root schema is a
-  /// $ref)`, and a sibling `type: object` does not satisfy it.
-  ///
-  /// Throwing would be worse than either: it refuses the tool on every host,
-  /// and reports a local schema problem as an `OpenAI API error`, since the
-  /// caller sees it wrapped by the catch around the request.
+  /// [tool]'s input schema with `$defs` inlined, or, for a self-referential
+  /// type that cannot be inlined, with the root definition promoted when that
+  /// definition is an object.
   static Map<String, dynamic>? _inlinedToolSchema(ToolDefinition tool) {
     final schema = tool.inputSchema;
     if (schema == null) return null;
@@ -298,16 +283,9 @@ abstract final class GenkitConverter {
 
   /// [schema] with its root `$ref` replaced by the definition it names.
   ///
-  /// Internal `$ref`s are left exactly as they are - they are what makes the
-  /// type recursive, and they resolve against the definitions travelling with
-  /// it. Both spellings are read, `$defs` and draft-07's `definitions`, since
-  /// `flatten` resolves from either and so throws for either.
-  ///
-  /// Returns [schema] untouched when promoting would not help: a definition
-  /// that is itself a `$ref`, or one whose root is not an object. The second
-  /// matters most - `toOpenAITool` refuses a non-object root outright, so
-  /// promoting an array-rooted recursive type would turn a request that used
-  /// to go out into a local failure on every host.
+  /// Internal `$ref`s are left as they are; they resolve against the
+  /// definitions travelling with them. Returns [schema] unchanged when the
+  /// definition is itself a `$ref` or is not an object.
   static Map<String, dynamic> _withRootDefPromoted(
     Map<String, dynamic> schema,
   ) {

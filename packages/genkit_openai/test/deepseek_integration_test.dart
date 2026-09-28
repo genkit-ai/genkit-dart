@@ -70,10 +70,12 @@ void main() {
       expect(response.text.toLowerCase(), contains('hello'));
     }, skip: skip);
 
-    test('returns its thinking, and honours the effort', () async {
-      // The whole point of the body rewrite: DeepSeek reads the effort from
-      // inside `thinking`, so if the plugin left it at the top level this
-      // would quietly run at the default instead.
+    test('returns its thinking', () async {
+      // Only that `reasoning_content` comes back and reaches the caller: the
+      // effort asked for here is DeepSeek's own default, so this would pass
+      // just the same if it were ignored. That the effort lands is pinned by
+      // 'an effort of none turns thinking off' below, where it changes what
+      // comes back, and by the wire tests for the body shape.
       final response = await newAi().generate(
         model: DeepSeekModels.deepseekFlash,
         prompt: 'Is 8051 prime? Think it through, then answer yes or no.',
