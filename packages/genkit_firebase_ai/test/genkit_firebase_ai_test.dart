@@ -296,5 +296,25 @@ void main() {
         isTrue,
       );
     });
+
+    test('toGeminiToolConfig maps the portable toolChoice', () {
+      m.FunctionCallingMode? modeFor(ToolChoice choice) => toGeminiToolConfig(
+        null,
+        toolChoice: choice,
+      )?.functionCallingConfig?.mode;
+
+      expect(modeFor(.auto), m.FunctionCallingMode.auto);
+      expect(modeFor(.required), m.FunctionCallingMode.any);
+      expect(modeFor(.none), m.FunctionCallingMode.none);
+      expect(modeFor(ToolChoice('unknown')), isNull);
+    });
+
+    test('functionCallingConfig takes precedence over toolChoice', () {
+      final config = toGeminiToolConfig(
+        FunctionCallingConfig(mode: 'ANY', allowedFunctionNames: ['foo']),
+        toolChoice: .none,
+      );
+      expect(config?.functionCallingConfig?.mode, m.FunctionCallingMode.any);
+    });
   });
 }
