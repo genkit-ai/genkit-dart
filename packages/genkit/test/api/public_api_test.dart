@@ -165,6 +165,9 @@ Iterable<Element> _referencedTypes(Element element) {
         found.add(type.element);
         type.typeArguments.forEach(visitType);
       case FunctionType():
+        for (final tp in type.typeParameters) {
+          visitType(tp.bound);
+        }
         visitType(type.returnType);
         for (final p in type.formalParameters) {
           visitType(p.type);
@@ -180,8 +183,17 @@ Iterable<Element> _referencedTypes(Element element) {
     }
   }
 
+  // Bounds are part of the signature too: `<T extends Hidden>` makes callers
+  // name `Hidden` to satisfy it.
+  void visitBounds(TypeParameterizedElement e) {
+    for (final tp in e.typeParameters) {
+      visitType(tp.bound);
+    }
+  }
+
   void visitExecutable(ExecutableElement e) {
     if (!e.isPublic || e.metadata.hasExperimental) return;
+    visitBounds(e);
     visitType(e.returnType);
     for (final p in e.formalParameters) {
       visitType(p.type);
@@ -190,6 +202,7 @@ Iterable<Element> _referencedTypes(Element element) {
 
   switch (element) {
     case InstanceElement():
+      visitBounds(element);
       if (element is InterfaceElement) {
         visitType(element.supertype);
         element.interfaces.forEach(visitType);
@@ -201,6 +214,7 @@ Iterable<Element> _referencedTypes(Element element) {
     case ExecutableElement():
       visitExecutable(element);
     case TypeAliasElement():
+      visitBounds(element);
       visitType(element.aliasedType);
     case TopLevelVariableElement():
       visitType(element.type);

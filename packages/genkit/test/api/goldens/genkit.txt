@@ -201,6 +201,7 @@ final class GenerateTurnState [src/ai/generate_middleware.dart]
   final int currentTurn
   final int messageIndex
   final GenerateActionOptions request
+  String toString()
 base class GenerationUsage [src/types.dart]
 final class Genkit extends GenkitAI [src/genkit_class.dart]
   Genkit({List<GenkitPlugin> plugins = const [], ModelRef<dynamic>? model, bool? isDevEnv, int? reflectionPort, String? promptDir = './prompts'})
