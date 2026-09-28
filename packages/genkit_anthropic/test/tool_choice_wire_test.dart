@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
 
 import 'wire_harness.dart';
@@ -52,6 +53,19 @@ void main() {
         'type': 'tool',
         'name': 'lookup',
       });
+    });
+
+    test('forceTool naming a tool not in the request is rejected', () {
+      expect(
+        toolChoiceFor(forceTool: 'missing'),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCodes.INVALID_ARGUMENT,
+          ),
+        ),
+      );
     });
 
     test('forceTool takes precedence over toolChoice', () async {
