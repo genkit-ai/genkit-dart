@@ -126,7 +126,7 @@ base class GenerateActionOptions [src/types.dart]
 base class GenerateActionOutputConfig [src/types.dart]
 final class GenerateActionOutputConfigInstructions [src/types.dart]
 abstract class GenerateMiddleware [src/ai/generate_middleware.dart]
-  Future<GenerateResponseHelper<dynamic>> generate(({int currentTurn, int messageIndex, GenerateActionOptions request}) envelope, ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, Future<GenerateResponseHelper<dynamic>> Function(({int currentTurn, int messageIndex, GenerateActionOptions request}), ActionFnArg<ModelResponseChunk, GenerateActionOptions, void>) next)
+  Future<GenerateResponseHelper<dynamic>> generate(GenerateTurnState envelope, ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, Future<GenerateResponseHelper<dynamic>> Function(GenerateTurnState, ActionFnArg<ModelResponseChunk, GenerateActionOptions, void>) next)
   Future<ModelResponse> model(ModelRequest request, ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx, Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) next)
   Future<ToolResponsePart> tool(ToolRequestPart request, ActionFnArg<void, dynamic, void> ctx, Future<ToolResponsePart> Function(ToolRequestPart, ActionFnArg<void, dynamic, void>) next)
   List<Tool<dynamic, dynamic>>? get tools
@@ -163,7 +163,12 @@ final class GenerateResponseHelper<Output> extends GenerateResponse [src/ai/gene
   String get text
   List<ToolRequest> get toolRequests
 base class GenerateResumeOptions [src/types.dart]
-typedef GenerateTurnState = ({int currentTurn, int messageIndex, GenerateActionOptions request}) [src/ai/generate_middleware.dart]
+final class GenerateTurnState [src/ai/generate_middleware.dart]
+  GenerateTurnState({required GenerateActionOptions request, int currentTurn = 0, int messageIndex = 0})
+  GenerateTurnState copyWith({GenerateActionOptions? request, int? currentTurn, int? messageIndex})
+  final int currentTurn
+  final int messageIndex
+  final GenerateActionOptions request
 base class GenerationUsage [src/types.dart]
 class GenkitException implements Exception [src/exception.dart]
   GenkitException(String message, {StatusCodes? status, String? details, Object? underlyingException, StackTrace? stackTrace})

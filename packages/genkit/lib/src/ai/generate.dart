@@ -780,11 +780,13 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   );
 
   // Recursively call composedGenerate for the next turn
-  return composedGenerate((
-    request: nextOptions,
-    currentTurn: currentTurn + 1,
-    messageIndex: messageIndex + 2,
-  ));
+  return composedGenerate(
+    GenerateTurnState(
+      request: nextOptions,
+      currentTurn: currentTurn + 1,
+      messageIndex: messageIndex + 2,
+    ),
+  );
 }
 
 Future<GenerateResponseHelper> runGenerateAction(
@@ -956,11 +958,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
         ),
       );
 
-      return composedGenerate((
-        request: opts,
-        currentTurn: currentTurn,
-        messageIndex: envelope.messageIndex,
-      ), c);
+      return composedGenerate(envelope.copyWith(request: opts), c);
     }
 
     return _runGenerateLoop(
@@ -988,11 +986,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
   // `GenerateWithRequest` tail, which synthesizes a `failurePartial` for an
   // error raised outside a turn (e.g. a WrapGenerate hook).
   try {
-    return await composedGenerate((
-      request: options,
-      currentTurn: 0,
-      messageIndex: 0,
-    ), ctx);
+    return await composedGenerate(GenerateTurnState(request: options), ctx);
   } catch (e) {
     final aborted = _abortResponseIfCancelled(
       e,

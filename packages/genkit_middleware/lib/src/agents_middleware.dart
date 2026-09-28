@@ -1077,11 +1077,7 @@ class AgentsMiddleware extends GenerateMiddleware {
       stepName: options.stepName,
     );
 
-    return next((
-      request: newOptions,
-      currentTurn: envelope.currentTurn,
-      messageIndex: envelope.messageIndex,
-    ), ctx);
+    return next(envelope.copyWith(request: newOptions), ctx);
   }
 
   /// Renders the `<sub-agents>` system prompt block, adding the async guidance

@@ -366,11 +366,10 @@ class FilesystemMiddleware extends GenerateMiddleware {
         maxTurns: options.maxTurns,
         stepName: options.stepName,
       );
-      return next((
-        request: newOptions,
-        currentTurn: envelope.currentTurn,
-        messageIndex: messageIndex,
-      ), ctx);
+      return next(
+        envelope.copyWith(request: newOptions, messageIndex: messageIndex),
+        ctx,
+      );
     }
     return next(envelope, ctx);
   }

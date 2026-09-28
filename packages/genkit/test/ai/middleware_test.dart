@@ -590,11 +590,13 @@ void main() {
             generateFn: (envelope, ctx, next) async {
               receivedIndex = envelope.messageIndex;
               receivedTurn = envelope.currentTurn;
-              return next((
-                request: envelope.request,
-                currentTurn: envelope.currentTurn + 2,
-                messageIndex: envelope.messageIndex + 5,
-              ), ctx);
+              return next(
+                envelope.copyWith(
+                  currentTurn: envelope.currentTurn + 2,
+                  messageIndex: envelope.messageIndex + 5,
+                ),
+                ctx,
+              );
             },
           ),
         );
