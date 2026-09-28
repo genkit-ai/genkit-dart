@@ -73,6 +73,9 @@ abstract class $OpenAIChatOptions {
   ///
   /// Which levels are accepted varies by model and host. A level newer than
   /// `openai_dart` needs an SDK bump.
+  @StringField(
+    enumValues: ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+  )
   String? get reasoningEffort;
 
   /// How much the model should say in its answer.
