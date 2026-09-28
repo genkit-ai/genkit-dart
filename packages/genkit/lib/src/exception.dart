@@ -213,14 +213,6 @@ ${Trace.from(stackTrace!).terse}'''
   }
 }
 
-void printError(Object error, StackTrace stack) {
-  print('''
-Error running action:
-$error
-
-${Trace.from(stack).terse}''');
-}
-
 extension on String {
   /// Indents each line of the string by the given number of spaces.
   String indent({int spaces = 4}) {
