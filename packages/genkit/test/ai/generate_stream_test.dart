@@ -258,5 +258,44 @@ void main() {
       expect(chunks.length, 1);
       expect(chunks[0].text, 'Stream Chunk');
     });
+
+    test('a partial chunk that fails the output schema does not fail the '
+        'generation', () async {
+      genkit.defineModel(
+        name: 'partialJsonModel',
+        fn: (request, context) async {
+          // Partial JSON: the value of "a" has not arrived yet, so the
+          // accumulated output is `{"a": null}`, which a map-of-strings schema
+          // rejects.
+          context.sendChunk(
+            ModelResponseChunk(index: 0, content: [TextPart(text: '{"a":')]),
+          );
+          context.sendChunk(
+            ModelResponseChunk(index: 0, content: [TextPart(text: ' "b"}')]),
+          );
+          return ModelResponse(
+            finishReason: .stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: '{"a": "b"}')],
+            ),
+          );
+        },
+      );
+
+      final stream = genkit.generateStream(
+        model: modelRef('partialJsonModel'),
+        prompt: 'go',
+        outputSchema: .map(.string(), .string()),
+      );
+      final chunks = await stream.toList();
+      final response = await stream.onResult;
+
+      expect(response.finishReason, FinishReason.stop);
+      expect(response.output, {'a': 'b'});
+      expect(chunks, hasLength(2));
+      expect(chunks.first.output, isNull);
+      expect(chunks.last.output, {'a': 'b'});
+    });
   });
 }
