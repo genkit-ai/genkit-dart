@@ -26,7 +26,6 @@ import '../../exception.dart';
 import '../../o11y/instrumentation_setup.dart'
     show enableDevInstrumentationForServer;
 import '../../schema.dart';
-import '../../utils.dart';
 import '../action.dart';
 import '../registry.dart';
 
@@ -70,6 +69,9 @@ class ReflectionServerV1 {
   final List<String> configuredEnvs;
   final String? name;
 
+  /// Overrides the pid-port id the runtime file and health check use.
+  final String runtimeId;
+
   HttpServer? _server;
   String? runtimeFilePath;
 
@@ -79,6 +81,7 @@ class ReflectionServerV1 {
     this.bodyLimit = '30mb',
     this.configuredEnvs = const ['dev'],
     this.name,
+    this.runtimeId = '',
   });
 
   Future<void> start() async {
@@ -110,10 +113,7 @@ class ReflectionServerV1 {
       request.response.headers.add('x-genkit-version', genkitVersion);
       try {
         if (request.method == 'GET' && request.uri.path == '/api/__health') {
-          await registry.listActions();
-          request.response
-            ..write('OK')
-            ..close();
+          await _handleHealth(request);
         } else if (request.method == 'POST' &&
             request.uri.path == '/api/notify') {
           await _handleNotify(request);
@@ -151,6 +151,23 @@ class ReflectionServerV1 {
     });
 
     await _writeRuntimeFile();
+  }
+
+  /// The CLI prunes a runtime file on any non-200 health response, which is
+  /// how a dead process's stale file gets removed once its port is reused.
+  Future<void> _handleHealth(HttpRequest request) async {
+    final id = request.uri.queryParameters['id'];
+    if (id != null && id.isNotEmpty && id != _advertisedRuntimeId) {
+      request.response
+        ..statusCode = HttpStatus.serviceUnavailable
+        ..write('Invalid runtime ID')
+        ..close();
+      return;
+    }
+    await registry.listActions();
+    request.response
+      ..write('OK')
+      ..close();
   }
 
   /// Applies the CLI telemetry handshake sent to `POST /api/notify`.
@@ -385,6 +402,8 @@ class ReflectionServerV1 {
 
   String get _runtimeId => '$pid${_server != null ? '-${_server!.port}' : ''}';
 
+  String get _advertisedRuntimeId => runtimeId.isEmpty ? _runtimeId : runtimeId;
+
   Future<void> _writeRuntimeFile() async {
     try {
       final rootDir = await _findProjectRoot();
@@ -398,7 +417,7 @@ class ReflectionServerV1 {
       final timestamp = date.toIso8601String();
       runtimeFilePath = p.join(runtimesDir, '$_runtimeId-$time.json');
       final fileContent = jsonEncode({
-        'id': getConfigVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
+        'id': _advertisedRuntimeId,
         'pid': pid,
         'name': name ?? pid.toString(),
         'reflectionServerUrl': 'http://localhost:${_server!.port}',

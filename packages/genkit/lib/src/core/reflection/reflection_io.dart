@@ -87,7 +87,11 @@ ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
       server.start();
       return ReflectionServerHandle(server.stop);
     case ReflectionTransport.v1:
-      final server = ReflectionServerV1(registry, port: port);
+      final server = ReflectionServerV1(
+        registry,
+        port: port,
+        runtimeId: runtimeId,
+      );
       server.start();
       return ReflectionServerHandle(server.stop);
     case ReflectionTransport.none:

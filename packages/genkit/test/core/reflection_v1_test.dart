@@ -103,6 +103,32 @@ void main() {
       await server.stop();
     });
 
+    test('GET /api/__health without id', () async {
+      final response = await http.get(Uri.parse('$url/api/__health'));
+      expect(response.statusCode, 200);
+      expect(response.body, 'OK');
+    });
+
+    test('GET /api/__health with its own pid-port id', () async {
+      final ownId = '$pid-${server.actualPort}';
+      final runtime = jsonDecode(
+        await File(server.runtimeFilePath!).readAsString(),
+      );
+      expect(runtime['id'], ownId);
+
+      final response = await http.get(Uri.parse('$url/api/__health?id=$ownId'));
+      expect(response.statusCode, 200);
+      expect(response.body, 'OK');
+    });
+
+    test('GET /api/__health with a different id', () async {
+      final response = await http.get(
+        Uri.parse('$url/api/__health?id=not-this-runtime'),
+      );
+      expect(response.statusCode, 503);
+      expect(response.body, 'Invalid runtime ID');
+    });
+
     test('GET /api/actions', () async {
       final response = await http.get(Uri.parse('$url/api/actions'));
       expect(response.statusCode, 200);
