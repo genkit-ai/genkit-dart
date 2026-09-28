@@ -22,6 +22,7 @@ dependencies:
   web_socket_channel: ^3.0.3
 
 dev_dependencies:
+  analyzer: '>=10.0.0 <15.0.0'
   async: ^2.13.0
   build_runner: ^2.10.5
   code_builder: ^4.10.0
