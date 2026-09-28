@@ -2167,7 +2167,7 @@ base class ModelRequest {
     required List<Message> messages,
     Map<String, dynamic>? config,
     List<ToolDefinition>? tools,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     OutputConfig? output,
     List<DocumentData>? docs,
   }) {
@@ -2175,7 +2175,7 @@ base class ModelRequest {
       'messages': messages.map((e) => e.toJson()).toList(),
       'config': ?config,
       'tools': ?tools?.map((e) => e.toJson()).toList(),
-      'toolChoice': ?toolChoice,
+      'toolChoice': ?toolChoice?.value,
       'output': ?output?.toJson(),
       'docs': ?docs?.map((e) => e.toJson()).toList(),
     };
@@ -2223,11 +2223,11 @@ base class ModelRequest {
     }
   }
 
-  String? get toolChoice {
-    return _json['toolChoice'] as String?;
+  ToolChoice? get toolChoice {
+    return _json['toolChoice'] as ToolChoice?;
   }
 
-  set toolChoice(String? value) {
+  set toolChoice(ToolChoice? value) {
     if (value == null) {
       _json.remove('toolChoice');
     } else {
@@ -2295,7 +2295,7 @@ base class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
             'tools': $Schema.list(
               items: $Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
             ),
-            'toolChoice': $Schema.string(),
+            'toolChoice': $Schema.any(),
             'output': $Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
             'docs': $Schema.list(
               items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
@@ -3066,7 +3066,7 @@ base class GenerateRequest {
     required List<Message> messages,
     Map<String, dynamic>? config,
     List<ToolDefinition>? tools,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     OutputConfig? output,
     List<DocumentData>? docs,
     double? candidates,
@@ -3075,7 +3075,7 @@ base class GenerateRequest {
       'messages': messages.map((e) => e.toJson()).toList(),
       'config': ?config,
       'tools': ?tools?.map((e) => e.toJson()).toList(),
-      'toolChoice': ?toolChoice,
+      'toolChoice': ?toolChoice?.value,
       'output': ?output?.toJson(),
       'docs': ?docs?.map((e) => e.toJson()).toList(),
       'candidates': ?candidates,
@@ -3124,11 +3124,11 @@ base class GenerateRequest {
     }
   }
 
-  String? get toolChoice {
-    return _json['toolChoice'] as String?;
+  ToolChoice? get toolChoice {
+    return _json['toolChoice'] as ToolChoice?;
   }
 
-  set toolChoice(String? value) {
+  set toolChoice(ToolChoice? value) {
     if (value == null) {
       _json.remove('toolChoice');
     } else {
@@ -3208,7 +3208,7 @@ base class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
             'tools': $Schema.list(
               items: $Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
             ),
-            'toolChoice': $Schema.string(),
+            'toolChoice': $Schema.any(),
             'output': $Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
             'docs': $Schema.list(
               items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
@@ -3827,7 +3827,7 @@ base class GenerateActionOptions {
     required List<Message> messages,
     List<String>? tools,
     List<String>? resources,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     Map<String, dynamic>? config,
     GenerateActionOutputConfig? output,
     GenerateResumeOptions? resume,
@@ -3842,7 +3842,7 @@ base class GenerateActionOptions {
       'messages': messages.map((e) => e.toJson()).toList(),
       'tools': ?tools,
       'resources': ?resources,
-      'toolChoice': ?toolChoice,
+      'toolChoice': ?toolChoice?.value,
       'config': ?config,
       'output': ?output?.toJson(),
       'resume': ?resume?.toJson(),
@@ -3919,11 +3919,11 @@ base class GenerateActionOptions {
     }
   }
 
-  String? get toolChoice {
-    return _json['toolChoice'] as String?;
+  ToolChoice? get toolChoice {
+    return _json['toolChoice'] as ToolChoice?;
   }
 
-  set toolChoice(String? value) {
+  set toolChoice(ToolChoice? value) {
     if (value == null) {
       _json.remove('toolChoice');
     } else {
@@ -4060,7 +4060,7 @@ base class _GenerateActionOptionsTypeFactory
             ),
             'tools': $Schema.list(items: $Schema.string()),
             'resources': $Schema.list(items: $Schema.string()),
-            'toolChoice': $Schema.string(),
+            'toolChoice': $Schema.any(),
             'config': $Schema.object(additionalProperties: $Schema.any()),
             'output': $Schema.fromMap({
               '\$ref': r'#/$defs/GenerateActionOutputConfig',

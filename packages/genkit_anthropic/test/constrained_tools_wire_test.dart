@@ -77,7 +77,7 @@ Future<Map<String, dynamic>> _wireBodyFor({
         ),
       ],
       tools: tools,
-      toolChoice: toolChoice,
+      toolChoice: toolChoice == null ? null : ToolChoice(toolChoice),
       config: forceTool == null
           ? null
           : AnthropicOptions(forceTool: forceTool).toJson(),

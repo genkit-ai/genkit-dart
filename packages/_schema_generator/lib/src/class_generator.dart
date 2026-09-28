@@ -196,7 +196,10 @@ class ClassGenerator {
     final buffer = StringBuffer();
     buffer.writeln('extension type $enumName(String value) {');
     for (final value in values) {
-      final fieldName = _sanitizeFieldName(value.toString());
+      // Not `_sanitizeFieldName`: its `required` -> `isRequired` rename exists
+      // for property getters, but `required` is only a contextual keyword and
+      // reads naturally as an enum value (`toolChoice: .required`).
+      final fieldName = value.toString().replaceAll('-', '_');
       buffer.writeln(
         "  static $enumName get $fieldName => $enumName('$value');",
       );

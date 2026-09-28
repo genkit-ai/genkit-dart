@@ -132,7 +132,7 @@ Future<Map<String, dynamic>> requestOnTheWire({
               content: [TextPart(text: 'hello')],
             ),
           ],
-      toolChoice: toolChoice,
+      toolChoice: toolChoice == null ? null : ToolChoice(toolChoice),
       tools: tools == null
           ? null
           : [

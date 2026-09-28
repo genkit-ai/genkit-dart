@@ -71,6 +71,32 @@ void main() async {
       definitions['GetSnapshotDataInput'] = definitions['GetSnapshotRequest'];
     }
 
+    // `toolChoice` is an inline string enum (`auto`/`required`/`none`) on the
+    // wire. Promote it to a named `$def` so it generates an open enum
+    // (`extension type ToolChoice(String)`) rather than a bare `String?`, and
+    // point every property that carries it at the new def.
+    if (definitions.containsKey('GenerateRequest')) {
+      final props =
+          (definitions['GenerateRequest'] as Map<String, dynamic>)['properties']
+              as Map<String, dynamic>;
+      if (props['toolChoice'] is Map) {
+        definitions['ToolChoice'] = props['toolChoice'];
+        const ref = {'\$ref': '#/\$defs/ToolChoice'};
+        for (final def in [
+          'GenerateRequest',
+          'ModelRequest',
+          'GenerateActionOptions',
+        ]) {
+          final defProps =
+              (definitions[def] as Map<String, dynamic>?)?['properties']
+                  as Map<String, dynamic>?;
+          if (defProps != null && defProps.containsKey('toolChoice')) {
+            defProps['toolChoice'] = ref;
+          }
+        }
+      }
+    }
+
     final classGenerator = ClassGenerator(definitions);
     // Stable types first: the experimental library imports them, and the
     // shared generator skips anything already emitted.
@@ -166,6 +192,7 @@ const _allowlist = {
   'Operation',
   'OutputConfig',
   'FinishReason',
+  'ToolChoice',
   'Role',
   'DocumentData',
   'GenerateActionOptions',

@@ -191,7 +191,7 @@ abstract class $ModelRequest {
   List<$Message> get messages;
   Map<String, dynamic>? get config;
   List<$ToolDefinition>? get tools;
-  String? get toolChoice;
+  ToolChoice? get toolChoice;
   $OutputConfig? get output;
   List<$DocumentData>? get docs;
 }
@@ -252,7 +252,7 @@ abstract class $GenerateRequest {
   List<$Message> get messages;
   Map<String, dynamic>? get config;
   List<$ToolDefinition>? get tools;
-  String? get toolChoice;
+  ToolChoice? get toolChoice;
   $OutputConfig? get output;
   List<$DocumentData>? get docs;
   double? get candidates;
@@ -305,6 +305,12 @@ extension type FinishReason(String value) {
   static FinishReason get unknown => FinishReason('unknown');
 }
 
+extension type ToolChoice(String value) {
+  static ToolChoice get auto => ToolChoice('auto');
+  static ToolChoice get required => ToolChoice('required');
+  static ToolChoice get none => ToolChoice('none');
+}
+
 extension type Role(String value) {
   static Role get system => Role('system');
   static Role get user => Role('user');
@@ -325,7 +331,7 @@ abstract class $GenerateActionOptions {
   List<$Message> get messages;
   List<String>? get tools;
   List<String>? get resources;
-  String? get toolChoice;
+  ToolChoice? get toolChoice;
   Map<String, dynamic>? get config;
   $GenerateActionOutputConfig? get output;
   $GenerateResumeOptions? get resume;

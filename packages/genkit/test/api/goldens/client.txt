@@ -168,6 +168,7 @@ enum StatusCodes [src/exception.dart]
   int get httpStatus
   final int value
 base class TextPart implements Part [src/types.dart]
+extension type ToolChoice(String) [src/types.dart]
 base class ToolDefinition [src/types.dart]
 base class ToolRequest [src/types.dart]
 base class ToolRequestPart implements Part [src/types.dart]

@@ -90,7 +90,7 @@ class PromptConfig<CustomOptions, Input> {
   final List<String>? toolNames;
 
   /// Tool choice strategy.
-  final String? toolChoice;
+  final ToolChoice? toolChoice;
 
   /// Middleware references.
   final List<GenerateMiddlewareRef>? use;
@@ -129,7 +129,7 @@ class PromptGenerateOptions<CustomOptions> {
   final CustomOptions? config;
   final List<Tool>? tools;
   final List<String>? toolNames;
-  final String? toolChoice;
+  final ToolChoice? toolChoice;
   final bool? returnToolRequests;
   final int? maxTurns;
   final GenerateActionOutputConfig? output;
