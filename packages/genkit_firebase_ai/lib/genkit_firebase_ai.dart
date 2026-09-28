@@ -206,9 +206,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
   @override
   Future<List<Action>> init() async {
+    // Pre-registered so they show up in the Developer UI; any other model name
+    // still resolves on demand (see [resolve]). The live (bidi) entry is the
+    // native-audio model line, which has its own naming.
     return [
       _createModel('gemini-flash-latest'),
-      _createModel('gemini-2.5-pro'),
+      _createModel('gemini-3.1-pro-preview'),
       _createBidiModel('gemini-2.5-flash-native-audio-preview-12-2025'),
     ];
   }
