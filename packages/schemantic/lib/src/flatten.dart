@@ -63,7 +63,17 @@ Map<String, dynamic> _flatten(Map<String, dynamic> schema) {
       }
 
       final newVisited = Set<String>.from(visitedRefs)..add(ref);
-      return resolve(definition, newVisited);
+      final resolved = resolve(definition, newVisited);
+
+      // Keywords beside the `$ref` apply alongside the definition and win
+      // where they overlap, so a `description` or `maxLength` on the
+      // referencing site is not lost.
+      final siblings = <String, dynamic>{
+        for (final entry in s.entries)
+          if (entry.key != '\$ref') entry.key: entry.value,
+      };
+      if (siblings.isEmpty) return resolved;
+      return {...resolved, ...resolve(siblings, visitedRefs)};
     }
 
     // Deep copy and recursive traverse children
@@ -74,7 +84,17 @@ Map<String, dynamic> _flatten(Map<String, dynamic> schema) {
       }
 
       final value = entry.value;
-      if (value is Map<String, dynamic>) {
+      if (_namedSubschemaKeywords.contains(entry.key) &&
+          value is Map<String, dynamic>) {
+        // The keys here are names chosen by the author, not keywords: a
+        // property called `definitions` is a property, not a `$defs` block.
+        result[entry.key] = <String, dynamic>{
+          for (final named in value.entries)
+            named.key: named.value is Map<String, dynamic>
+                ? resolve(named.value as Map<String, dynamic>, visitedRefs)
+                : named.value,
+        };
+      } else if (value is Map<String, dynamic>) {
         result[entry.key] = resolve(value, visitedRefs);
       } else if (value is List) {
         result[entry.key] = value.map((item) {
@@ -92,3 +112,10 @@ Map<String, dynamic> _flatten(Map<String, dynamic> schema) {
 
   return resolve(schema, {});
 }
+
+/// Keywords whose value is a map from author-chosen names to subschemas.
+const _namedSubschemaKeywords = {
+  'properties',
+  'patternProperties',
+  'dependentSchemas',
+};
