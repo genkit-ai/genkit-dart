@@ -113,7 +113,10 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             codeExecution: options.codeExecution,
             googleSearch: options.googleSearch,
           );
-          toolConfig = toGeminiToolConfig(options.functionCallingConfig);
+          toolConfig = toGeminiToolConfig(
+            options.functionCallingConfig,
+            toolChoice: req.toolChoice,
+          );
         } else {
           final options = req.config == null
               ? GeminiOptions()
@@ -131,7 +134,10 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             codeExecution: options.codeExecution,
             googleSearch: options.googleSearch,
           );
-          toolConfig = toGeminiToolConfig(options.functionCallingConfig);
+          toolConfig = toGeminiToolConfig(
+            options.functionCallingConfig,
+            toolChoice: req.toolChoice,
+          );
         }
 
         final service = await getApiClient(apiKey);
@@ -509,11 +515,28 @@ List<gcl.Tool> toGeminiTools(
   ];
 }
 
+/// Builds Gemini's `toolConfig` from the plugin-specific
+/// [functionCallingConfig] or, when that is absent, the portable Genkit
+/// [toolChoice] (`auto` / `required` / `none` map to Gemini's `AUTO` / `ANY` /
+/// `NONE`). The plugin config wins because it is strictly more expressive
+/// (allowed function names). Unknown [toolChoice] values are ignored.
 @visibleForTesting
 gcl.ToolConfig? toGeminiToolConfig(
-  FunctionCallingConfig? functionCallingConfig,
-) {
-  if (functionCallingConfig == null) return null;
+  FunctionCallingConfig? functionCallingConfig, {
+  ToolChoice? toolChoice,
+}) {
+  if (functionCallingConfig == null) {
+    final mode = switch (toolChoice?.value) {
+      'auto' => 'AUTO',
+      'required' => 'ANY',
+      'none' => 'NONE',
+      _ => null,
+    };
+    if (mode == null) return null;
+    return gcl.ToolConfig(
+      functionCallingConfig: gcl.FunctionCallingConfig(mode: mode),
+    );
+  }
   return gcl.ToolConfig(
     functionCallingConfig: gcl.FunctionCallingConfig(
       mode: functionCallingConfig.mode ?? 'MODE_UNSPECIFIED',
