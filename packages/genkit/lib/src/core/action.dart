@@ -523,6 +523,19 @@ base class Action<Input, Output, Chunk, Init>
 }
 
 /// A stream of chunks emitted by an action, which also resolves to a final response.
+///
+/// Listen to it for the chunks; read [onResult] (or [result], once the stream
+/// is done) for the final response.
+///
+/// To create one outside this package (for example a fake `RemoteAction` in
+/// tests), use [ActionStream.withResult]:
+///
+/// ```dart
+/// final stream = ActionStream.withResult(
+///   Stream.fromIterable(['Hel', 'lo']),
+///   Future.value('Hello'),
+/// );
+/// ```
 base class ActionStream<Chunk, Response> extends StreamView<Chunk> {
   bool _done = false;
   Response? _result;
@@ -558,6 +571,10 @@ base class ActionStream<Chunk, Response> extends StreamView<Chunk> {
   }
 
   /// Sets the final result of the action stream and completes the future.
+  ///
+  /// Producer-side API for the code that created this stream; consumers must
+  /// not call it.
+  @internal
   void setResult(Response result) {
     _done = true;
     _result = result;
@@ -567,6 +584,10 @@ base class ActionStream<Chunk, Response> extends StreamView<Chunk> {
   }
 
   /// Sets an error on the action stream and completes the future with an error.
+  ///
+  /// Producer-side API for the code that created this stream; consumers must
+  /// not call it.
+  @internal
   void setError(Object error, StackTrace st) {
     _done = true;
     _streamError = error;
@@ -576,8 +597,18 @@ base class ActionStream<Chunk, Response> extends StreamView<Chunk> {
     }
   }
 
-  /// Creates a new [ActionStream] from a [Stream] of chunks.
+  /// Creates an [ActionStream] over [stream] whose result is supplied later
+  /// by the producer.
+  ///
+  /// Outside this package, prefer [ActionStream.withResult]: the producer-side
+  /// setters are internal.
   ActionStream(super.stream);
+
+  /// Creates an [ActionStream] that emits [stream] and completes [onResult]
+  /// with [result] (or its error).
+  ActionStream.withResult(super.stream, Future<Response> result) {
+    result.then(setResult, onError: setError);
+  }
 }
 
 /// A bi-directional version of [ActionStream] that allows sending chunks back to the action.
