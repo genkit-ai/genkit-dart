@@ -20,11 +20,13 @@
 library;
 
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/widgets.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 
 Future<void> main() async {
-  // In a Flutter app, call `WidgetsFlutterBinding.ensureInitialized()` first.
+  // Firebase talks to the platform through the Flutter binding.
+  WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
   final ai = Genkit(plugins: [firebaseAI()]);
