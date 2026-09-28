@@ -61,10 +61,10 @@ class ToolApprovalMiddleware extends GenerateMiddleware {
     : approvedTools = options.approved;
 
   @override
-  Future<ToolResponsePart> tool(
+  Future<ToolResult> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponsePart> Function(
+    Future<ToolResult> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
@@ -79,7 +79,7 @@ class ToolApprovalMiddleware extends GenerateMiddleware {
     // Check if the tool is implicitly approved or explicitly approved via metadata
     if (!approvedTools.contains(request.toolRequest.name) &&
         !approvedByMetadata) {
-      throw ToolInterruptException('Tool not in approved list');
+      return .interrupt('Tool not in approved list');
     }
 
     return next(request, ctx);

@@ -42,7 +42,6 @@ export 'src/ai/generate_middleware.dart'
         middlewareRef;
 export 'src/ai/generate_types.dart'
     show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
-export 'src/ai/interrupt.dart' show ToolInterruptException;
 export 'src/ai/middleware/retry.dart'
     show RetryMiddleware, RetryOptions, RetryPlugin, retry;
 // BidiModel / bidiModelRef live in the experimental surface

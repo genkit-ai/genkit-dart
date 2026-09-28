@@ -139,7 +139,7 @@ final class GenerateActionOutputConfigInstructions [src/types.dart]
 abstract class GenerateMiddleware [src/ai/generate_middleware.dart]
   Future<GenerateResponseHelper<dynamic>> generate(GenerateTurnState envelope, ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, Future<GenerateResponseHelper<dynamic>> Function(GenerateTurnState, ActionFnArg<ModelResponseChunk, GenerateActionOptions, void>) next)
   Future<ModelResponse> model(ModelRequest request, ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx, Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) next)
-  Future<ToolResponsePart> tool(ToolRequestPart request, ActionFnArg<void, dynamic, void> ctx, Future<ToolResponsePart> Function(ToolRequestPart, ActionFnArg<void, dynamic, void>) next)
+  Future<ToolResult<dynamic>> tool(ToolRequestPart request, ActionFnArg<void, dynamic, void> ctx, Future<ToolResult<dynamic>> Function(ToolRequestPart, ActionFnArg<void, dynamic, void>) next)
   List<Tool<dynamic, dynamic>>? get tools
 final class GenerateMiddlewareContext [src/ai/generate_middleware.dart]
   GenerateMiddlewareContext({required GenkitAI ai})
@@ -337,9 +337,6 @@ final class ToolFnArgs<Input> [src/ai/tool.dart]
   Map<String, dynamic>? get context
   dynamic get resumed
   ToolRequestPart? get toolRequest
-class ToolInterruptException implements Exception [src/ai/interrupt.dart]
-  ToolInterruptException(dynamic interrupt)
-  final dynamic interrupt
 final class ToolInterruptResult<Output> extends ToolResult<Output> [src/ai/tool.dart]
   const ToolInterruptResult([Object? data])
   final Object? data
