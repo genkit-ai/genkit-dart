@@ -241,16 +241,11 @@ class A2uiMiddleware extends GenerateMiddleware {
         version: _version,
         surfaceId: surfaceIds.next,
       );
-      wrappedCtx = (
-        streamingRequested: ctx.streamingRequested,
+      wrappedCtx = ctx.copyWith(
         sendChunk: (chunk) {
           final transformed = _transformChunk(chunk, streamParser!);
           if (transformed != null) ctx.sendChunk(transformed);
         },
-        context: ctx.context,
-        inputStream: ctx.inputStream,
-        init: null,
-        cancel: ctx.cancel,
       );
     }
 

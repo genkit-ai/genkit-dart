@@ -1874,14 +1874,16 @@ Agent<State> definePromptAgent<State>(
         'resume': ?resume?.toJson(),
       });
 
-      final res = await runGenerateAction(registry, genOpts, (
-        streamingRequested: true,
-        sendChunk: (chunk) => sendChunk(AgentStreamChunk(modelChunk: chunk)),
-        context: options.context,
-        inputStream: null,
-        init: null,
-        cancel: options.cancel,
-      ));
+      final res = await runGenerateAction(
+        registry,
+        genOpts,
+        ActionFnArg(
+          streamingRequested: true,
+          sendChunk: (chunk) => sendChunk(AgentStreamChunk(modelChunk: chunk)),
+          context: options.context,
+          cancel: options.cancel,
+        ),
+      );
 
       final aborted = res.finishReason == FinishReason.aborted;
       final failed = res.finishReason == FinishReason.failed;

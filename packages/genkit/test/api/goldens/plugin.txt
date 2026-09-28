@@ -39,16 +39,24 @@ abstract class $ToolRequestPart implements $Part [src/types.dart]
 abstract class $ToolResponse [src/types.dart]
 abstract class $ToolResponsePart implements $Part [src/types.dart]
 class Action<Input, Output, Chunk, Init> extends ActionMetadata<Input, Output, Chunk, Init> [src/core/action.dart]
-  Action({required String name, required ActionType actionType, required Future<Output> Function(Input?, ({CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk) sendChunk, bool streamingRequested})) fn, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema, SchemanticType<Init>? initSchema, String? description, Map<String, dynamic>? metadata, String? key})
+  Action({required String name, required ActionType actionType, required Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema, SchemanticType<Init>? initSchema, String? description, Map<String, dynamic>? metadata, String? key})
   Future<Output> call(Input? input, {void Function(Chunk)? onChunk, Map<String, dynamic>? context, Stream<Input>? inputStream, Init? init, void Function({required String spanId, required String traceId})? onTraceStart, CancellationToken? cancel})
-  final Future<Output> Function(Input?, ({CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk) sendChunk, bool streamingRequested})) fn
+  final Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>) fn
   SchemanticType<dynamic>? get manifestOutputSchema
   Future<RunResult<Output>> run(Input? input, {void Function(Chunk)? onChunk, Map<String, dynamic>? context, Stream<Input>? inputStream, Init? init, void Function({required String spanId, required String traceId})? onTraceStart, CancellationToken? cancel})
   Future<RunResult<Output>> runRaw(dynamic input, {void Function(Chunk)? onChunk, Map<String, dynamic>? context, Stream<Input>? inputStream, dynamic init, void Function({required String spanId, required String traceId})? onTraceStart, CancellationToken? cancel})
   ActionStream<Chunk, Output> stream(Input? input, {Map<String, dynamic>? context, Stream<Input>? inputStream, Init? init, CancellationToken? cancel})
   @experimental BidiActionStream<Chunk, Output, Input> streamBidi({Stream<Input>? inputStream, void Function(Chunk)? onChunk, Map<String, dynamic>? context, Init? init, CancellationToken? cancel})
   String toString()
-typedef ActionFnArg<Chunk, Input, Init> = ({CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk) sendChunk, bool streamingRequested}) [src/core/action.dart]
+final class ActionFnArg<Chunk, Input, Init> [src/core/action.dart]
+  ActionFnArg({bool streamingRequested = false, void Function(Chunk)? sendChunk, Map<String, dynamic>? context, Stream<Input>? inputStream, Init? init, CancellationToken? cancel})
+  final CancellationToken? cancel
+  final Map<String, dynamic>? context
+  ActionFnArg<Chunk, Input, Init> copyWith({bool? streamingRequested, void Function(Chunk)? sendChunk, Map<String, dynamic>? context, Stream<Input>? inputStream, Init? init, CancellationToken? cancel})
+  final Init? init
+  final Stream<Input>? inputStream
+  final void Function(Chunk) sendChunk
+  final bool streamingRequested
 class ActionMetadata<Input, Output, Chunk, Init> [src/core/action.dart]
   ActionMetadata({required String name, ActionType actionType = .custom, String? description, String? key, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema, SchemanticType<Init>? initSchema, Map<String, dynamic>? metadata})
   final ActionType actionType
@@ -103,7 +111,7 @@ base class DocumentData [src/types.dart]
 base class EmbedRequest [src/types.dart]
 base class EmbedResponse [src/types.dart]
 class Embedder<CustomOptions> extends Action<EmbedRequest, EmbedResponse, void, void> implements EmbedderRef<CustomOptions> [src/ai/embedder.dart]
-  Embedder({required String name, required Future<EmbedResponse> Function(EmbedRequest?, ({CancellationToken? cancel, Map<String, dynamic>? context, void init, Stream<EmbedRequest>? inputStream, void Function(void) sendChunk, bool streamingRequested})) fn, Map<String, dynamic>? metadata, SchemanticType<CustomOptions>? customOptions})
+  Embedder({required String name, required Future<EmbedResponse> Function(EmbedRequest?, ActionFnArg<void, EmbedRequest, void>) fn, Map<String, dynamic>? metadata, SchemanticType<CustomOptions>? customOptions})
   SchemanticType<CustomOptions>? customOptions
 abstract class EmbedderRef<CustomOptions> [src/ai/embedder.dart]
   SchemanticType<CustomOptions>? get customOptions
@@ -118,9 +126,9 @@ base class GenerateActionOptions [src/types.dart]
 base class GenerateActionOutputConfig [src/types.dart]
 final class GenerateActionOutputConfigInstructions [src/types.dart]
 abstract class GenerateMiddleware [src/ai/generate_middleware.dart]
-  Future<GenerateResponseHelper<dynamic>> generate(({int currentTurn, int messageIndex, GenerateActionOptions request}) envelope, ({CancellationToken? cancel, Map<String, dynamic>? context, void init, Stream<GenerateActionOptions>? inputStream, void Function(ModelResponseChunk) sendChunk, bool streamingRequested}) ctx, Future<GenerateResponseHelper<dynamic>> Function(({int currentTurn, int messageIndex, GenerateActionOptions request}), ({CancellationToken? cancel, Map<String, dynamic>? context, void init, Stream<GenerateActionOptions>? inputStream, void Function(ModelResponseChunk) sendChunk, bool streamingRequested})) next)
-  Future<ModelResponse> model(ModelRequest request, ({CancellationToken? cancel, Map<String, dynamic>? context, void init, Stream<ModelRequest>? inputStream, void Function(ModelResponseChunk) sendChunk, bool streamingRequested}) ctx, Future<ModelResponse> Function(ModelRequest, ({CancellationToken? cancel, Map<String, dynamic>? context, void init, Stream<ModelRequest>? inputStream, void Function(ModelResponseChunk) sendChunk, bool streamingRequested})) next)
-  Future<ToolResponsePart> tool(ToolRequestPart request, ({CancellationToken? cancel, Map<String, dynamic>? context, void init, Stream<dynamic>? inputStream, void Function(void) sendChunk, bool streamingRequested}) ctx, Future<ToolResponsePart> Function(ToolRequestPart, ({CancellationToken? cancel, Map<String, dynamic>? context, void init, Stream<dynamic>? inputStream, void Function(void) sendChunk, bool streamingRequested})) next)
+  Future<GenerateResponseHelper<dynamic>> generate(({int currentTurn, int messageIndex, GenerateActionOptions request}) envelope, ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, Future<GenerateResponseHelper<dynamic>> Function(({int currentTurn, int messageIndex, GenerateActionOptions request}), ActionFnArg<ModelResponseChunk, GenerateActionOptions, void>) next)
+  Future<ModelResponse> model(ModelRequest request, ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx, Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) next)
+  Future<ToolResponsePart> tool(ToolRequestPart request, ActionFnArg<void, dynamic, void> ctx, Future<ToolResponsePart> Function(ToolRequestPart, ActionFnArg<void, dynamic, void>) next)
   List<Tool<dynamic, dynamic>>? get tools
 typedef GenerateMiddlewareContext = ({GenkitAI ai}) [src/ai/generate_middleware.dart]
 abstract interface class GenerateMiddlewareDef<CustomOptions> [src/ai/generate_middleware.dart]
@@ -191,7 +199,7 @@ extension MessageExtension on Message [src/schema_extensions.dart]
   List<ToolRequest> get toolRequests
 base class MiddlewareRef [src/types.dart]
 class Model<CustomOptions> extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void> implements ModelRef<CustomOptions> [src/ai/model.dart]
-  Model({required String name, required Future<ModelResponse> Function(ModelRequest?, ({CancellationToken? cancel, Map<String, dynamic>? context, void init, Stream<ModelRequest>? inputStream, void Function(ModelResponseChunk) sendChunk, bool streamingRequested})) fn, Map<String, dynamic>? metadata, SchemanticType<CustomOptions>? customOptions})
+  Model({required String name, required Future<ModelResponse> Function(ModelRequest?, ActionFnArg<ModelResponseChunk, ModelRequest, void>) fn, Map<String, dynamic>? metadata, SchemanticType<CustomOptions>? customOptions})
   final CustomOptions? config
   final SchemanticType<CustomOptions>? customOptions
 base class ModelInfo [src/types.dart]
@@ -289,7 +297,7 @@ class Tool<Input, Output> extends Action<Input, ToolResult<Output>, void, void> 
 base class ToolDefinition [src/types.dart]
 typedef ToolFn<Input, Output> = FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) [src/ai/tool.dart]
 class ToolFnArgs<Input> [src/ai/tool.dart]
-  ToolFnArgs(({CancellationToken? cancel, Map<String, dynamic>? context, void init, Stream<Input>? inputStream, void Function(void) sendChunk, bool streamingRequested}) _base)
+  ToolFnArgs(ActionFnArg<void, Input, void> _base)
   CancellationToken? get cancel
   Map<String, dynamic>? get context
   @deprecated Never interrupt([dynamic data])

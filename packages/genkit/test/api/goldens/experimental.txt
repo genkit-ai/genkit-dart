@@ -148,14 +148,14 @@ final class AgentTurn<State> [src/ai/agents/agent_core.dart]
   final Future<AgentResponse<State>> response
   final Stream<AgentChunk<State>> stream
 base class Artifact [src/experimental_types.dart]
-@experimental typedef BidiActionFn<Input, Output, Chunk, Init> = Future<Output> Function(Stream<Input>, ({CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk) sendChunk, bool streamingRequested})) [src/core/action.dart]
+@experimental typedef BidiActionFn<Input, Output, Chunk, Init> = Future<Output> Function(Stream<Input>, ActionFnArg<Chunk, Input, Init>) [src/core/action.dart]
 @experimental class BidiActionStream<Chunk, Response, Request> extends ActionStream<Chunk, Response> [src/core/action.dart]
   BidiActionStream(Stream<Chunk> stream, StreamSink<Request>? _inputSink)
   Future<void> close()
   bool get isClosed
   void send(Request chunk)
 @experimental class BidiModel<CustomOptions> extends Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest> implements BidiModelRef<CustomOptions> [src/ai/model.dart]
-  BidiModel({required String name, required Future<ModelResponse> Function(ModelRequest?, ({CancellationToken? cancel, Map<String, dynamic>? context, ModelRequest? init, Stream<ModelRequest>? inputStream, void Function(ModelResponseChunk) sendChunk, bool streamingRequested})) fn, Map<String, dynamic>? metadata, SchemanticType<CustomOptions>? customOptions})
+  BidiModel({required String name, required Future<ModelResponse> Function(ModelRequest?, ActionFnArg<ModelResponseChunk, ModelRequest, ModelRequest>) fn, Map<String, dynamic>? metadata, SchemanticType<CustomOptions>? customOptions})
   SchemanticType<CustomOptions>? customOptions
 @experimental abstract class BidiModelRef<CustomOptions> [src/ai/model.dart]
   SchemanticType<CustomOptions>? get customOptions
@@ -181,8 +181,8 @@ final class DetachedTask<State> [src/ai/agents/agent_core.dart]
 @experimental extension GenkitBidi on GenkitAI [src/experimental/bidi_veneer.dart]
   Future<GenerateBidiSession> generateBidi({required String model, dynamic config, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, String? system, CancellationToken? cancel})
 @experimental extension GenkitBidiModel on Genkit [src/experimental/bidi_veneer.dart]
-  Flow<Input, Output, Chunk, Init> defineBidiFlow<Input, Output, Chunk, Init>({required String name, required Future<Output> Function(Stream<Input>, ({CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk) sendChunk, bool streamingRequested})) fn, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema, SchemanticType<Init>? initSchema})
-  BidiModel<dynamic> defineBidiModel({required String name, required Future<ModelResponse> Function(Stream<ModelRequest>, ({CancellationToken? cancel, Map<String, dynamic>? context, ModelRequest? init, Stream<ModelRequest>? inputStream, void Function(ModelResponseChunk) sendChunk, bool streamingRequested})) fn})
+  Flow<Input, Output, Chunk, Init> defineBidiFlow<Input, Output, Chunk, Init>({required String name, required Future<Output> Function(Stream<Input>, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema, SchemanticType<Init>? initSchema})
+  BidiModel<dynamic> defineBidiModel({required String name, required Future<ModelResponse> Function(Stream<ModelRequest>, ActionFnArg<ModelResponseChunk, ModelRequest, ModelRequest>) fn})
 base class GetSnapshotDataInput [src/experimental_types.dart]
 typedef HeadersResolver = FutureOr<Map<String, String>?> Function() [src/ai/agents/remote_agent.dart]
 @experimental final class InMemorySessionStore implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader [src/ai/agents/session.dart]

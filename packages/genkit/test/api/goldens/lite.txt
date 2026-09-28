@@ -162,7 +162,7 @@ class Tool<Input, Output> extends Action<Input, ToolResult<Output>, void, void> 
 base class ToolDefinition [src/types.dart]
 typedef ToolFn<Input, Output> = FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) [src/ai/tool.dart]
 class ToolFnArgs<Input> [src/ai/tool.dart]
-  ToolFnArgs(({CancellationToken? cancel, Map<String, dynamic>? context, void init, Stream<Input>? inputStream, void Function(void) sendChunk, bool streamingRequested}) _base)
+  ToolFnArgs(ActionFnArg<void, Input, void> _base)
   CancellationToken? get cancel
   Map<String, dynamic>? get context
   @deprecated Never interrupt([dynamic data])

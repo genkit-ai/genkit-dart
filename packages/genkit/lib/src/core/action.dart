@@ -96,29 +96,80 @@ typedef StreamingCallback<Chunk> = void Function(Chunk chunk);
 typedef TraceStartCallback =
     void Function({required String traceId, required String spanId});
 
-typedef ActionFnArg<Chunk, Input, Init> = ({
-  bool streamingRequested,
-  StreamingCallback<Chunk> sendChunk,
-  Map<String, dynamic>? context,
+/// The per-invocation context handed to an action's implementation function.
+///
+/// A class rather than a record so fields can be added without breaking code
+/// that constructs one (middleware that wraps `ctx` to intercept chunks, tests
+/// that invoke an action function directly). Use [copyWith] to derive a
+/// context that differs in one field:
+///
+/// ```dart
+/// final wrapped = ctx.copyWith(sendChunk: (chunk) => ctx.sendChunk(tweak(chunk)));
+/// return next(request, wrapped);
+/// ```
+final class ActionFnArg<Chunk, Input, Init> {
+  /// Whether the caller is consuming streamed chunks. When `false`, chunks
+  /// passed to [sendChunk] are dropped, so an action may skip producing them.
+  final bool streamingRequested;
+
+  /// Emits a streamed chunk to the caller.
+  final StreamingCallback<Chunk> sendChunk;
+
+  /// Request-scoped context (auth, headers, etc.) supplied by the caller.
+  final Map<String, dynamic>? context;
 
   /// The input stream of a bidirectional action; `null` for unary actions.
   ///
   /// Experimental: bidirectional streaming is not covered by semver and may
   /// change in any minor release.
-  Stream<Input>? inputStream,
+  final Stream<Input>? inputStream;
 
   /// The initialization payload of a bidirectional action or agent; `null`
   /// otherwise.
   ///
   /// Experimental: bidirectional streaming is not covered by semver and may
   /// change in any minor release.
-  Init? init,
+  final Init? init;
 
   /// A read-only cancellation token the action body should observe to abort
   /// cooperatively, or `null` when the caller wired up no cancellation. Observe
   /// it with null-aware calls, e.g. `ctx.cancel?.throwIfCancelled()`.
-  CancellationToken? cancel,
-});
+  final CancellationToken? cancel;
+
+  /// Creates an action context. [sendChunk] defaults to a no-op.
+  ActionFnArg({
+    this.streamingRequested = false,
+    StreamingCallback<Chunk>? sendChunk,
+    this.context,
+    this.inputStream,
+    this.init,
+    this.cancel,
+  }) : sendChunk = sendChunk ?? _dropChunk;
+
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// Nullable fields cannot be cleared this way (passing `null` keeps the
+  /// current value); construct a new [ActionFnArg] for that.
+  ActionFnArg<Chunk, Input, Init> copyWith({
+    bool? streamingRequested,
+    StreamingCallback<Chunk>? sendChunk,
+    Map<String, dynamic>? context,
+    Stream<Input>? inputStream,
+    Init? init,
+    CancellationToken? cancel,
+  }) {
+    return ActionFnArg(
+      streamingRequested: streamingRequested ?? this.streamingRequested,
+      sendChunk: sendChunk ?? this.sendChunk,
+      context: context ?? this.context,
+      inputStream: inputStream ?? this.inputStream,
+      init: init ?? this.init,
+      cancel: cancel ?? this.cancel,
+    );
+  }
+}
+
+void _dropChunk(Object? _) {}
 
 typedef ActionFn<Input, Output, Chunk, Init> =
     Future<Output> Function(
@@ -316,7 +367,8 @@ class Action<Input, Output, Chunk, Init>
       internalInputController.close();
     }
 
-    final executionContext = context ?? Zone.current[_genkitContextKey];
+    final executionContext =
+        context ?? Zone.current[_genkitContextKey] as Map<String, dynamic>?;
     Future<RunResult<Output>> runner() async {
       var traceId = '';
       var spanId = '';
@@ -329,14 +381,17 @@ class Action<Input, Output, Chunk, Init>
             onTraceStart(traceId: traceId, spanId: spanId);
           }
           _recordContextMetadata(executionContext);
-          return await fn(input, (
-            streamingRequested: onChunk != null,
-            sendChunk: onChunk ?? (chunk) {},
-            context: executionContext,
-            inputStream: inputStream,
-            init: init,
-            cancel: cancel,
-          ));
+          return await fn(
+            input,
+            ActionFnArg(
+              streamingRequested: onChunk != null,
+              sendChunk: onChunk,
+              context: executionContext,
+              inputStream: inputStream,
+              init: init,
+              cancel: cancel,
+            ),
+          );
         },
         actionType: actionType.value,
         input: input,
