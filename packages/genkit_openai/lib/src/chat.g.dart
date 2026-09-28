@@ -239,34 +239,16 @@ base class OpenAIChatOptions {
 
   /// How hard a reasoning model should think before answering.
   ///
-  /// Accepted by the o-series and the GPT-5 family; a model that does not
-  /// reason rejects the parameter outright. Which of these levels a given
-  /// model takes moves with the generation — `minimal` arrived with GPT-5,
-  /// `none` replaced it in GPT-5.1, `xhigh` came later still — so every level
-  /// is offered to every reasoning model and OpenAI decides whether the pair
-  /// makes sense.
-  ///
-  /// The set itself is closed, and not by choice: `openai_dart` models
-  /// `reasoning_effort` as an enum, so a level newer than the SDK cannot be
-  /// put on the wire as anything but `unknown`. A level OpenAI ships after
-  /// this release needs an `openai_dart` bump to reach it.
+  /// Which levels are accepted varies by model and host. A level newer than
+  /// `openai_dart` needs an SDK bump.
   String? get reasoningEffort {
     return _json['reasoningEffort'] as String?;
   }
 
   /// How hard a reasoning model should think before answering.
   ///
-  /// Accepted by the o-series and the GPT-5 family; a model that does not
-  /// reason rejects the parameter outright. Which of these levels a given
-  /// model takes moves with the generation — `minimal` arrived with GPT-5,
-  /// `none` replaced it in GPT-5.1, `xhigh` came later still — so every level
-  /// is offered to every reasoning model and OpenAI decides whether the pair
-  /// makes sense.
-  ///
-  /// The set itself is closed, and not by choice: `openai_dart` models
-  /// `reasoning_effort` as an enum, so a level newer than the SDK cannot be
-  /// put on the wire as anything but `unknown`. A level OpenAI ships after
-  /// this release needs an `openai_dart` bump to reach it.
+  /// Which levels are accepted varies by model and host. A level newer than
+  /// `openai_dart` needs an SDK bump.
   set reasoningEffort(String? value) {
     if (value == null) {
       _json.remove('reasoningEffort');
