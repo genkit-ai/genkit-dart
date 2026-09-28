@@ -33,7 +33,8 @@ void main() {
   group('ReflectionServer lifecycle', () {
     test('should create and clean up runtime file', () async {
       final registry = Registry();
-      final server = ReflectionServerV1(registry, port: 0);
+      // The runtime file is dev-only now, and this case asserts on it.
+      final server = ReflectionServerV1(registry, port: 0, devMode: true);
       await server.start();
 
       expect(server.runtimeFilePath, isNotNull);
@@ -44,7 +45,7 @@ void main() {
       expect(content['pid'], isNotNull);
       expect(
         content['reflectionServerUrl'],
-        'http://localhost:${server.actualPort}',
+        'http://127.0.0.1:${server.actualPort}',
       );
 
       await server.stop();
@@ -66,6 +67,25 @@ void main() {
       await server1.stop();
       await server2.stop();
     });
+
+    test(
+      'rethrows the bind error when probing near the top of the port range',
+      () async {
+        // Occupy 65535 so a probe starting there has nowhere to go. The range
+        // is truncated at 65535, which must not swallow the last failure.
+        final ServerSocket blocker;
+        try {
+          blocker = await ServerSocket.bind('127.0.0.1', 65535);
+        } on SocketException {
+          markTestSkipped('port 65535 is already in use on this machine');
+          return;
+        }
+        addTearDown(blocker.close);
+
+        final server = ReflectionServerV1(Registry(), probeFrom: 65535);
+        await expectLater(server.start(), throwsA(isA<SocketException>()));
+      },
+    );
   });
 
   group('ReflectionServer API', () {

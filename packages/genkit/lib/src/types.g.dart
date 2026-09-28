@@ -4979,6 +4979,7 @@ base class ReflectionRegisterParams {
     String? genkitVersion,
     double? reflectionApiSpecVersion,
     List<String>? envs,
+    String? secret,
   }) {
     _json = {
       'id': id,
@@ -4987,6 +4988,7 @@ base class ReflectionRegisterParams {
       'genkitVersion': ?genkitVersion,
       'reflectionApiSpecVersion': ?reflectionApiSpecVersion,
       'envs': ?envs,
+      'secret': ?secret,
     };
   }
 
@@ -5060,6 +5062,18 @@ base class ReflectionRegisterParams {
     }
   }
 
+  String? get secret {
+    return _json['secret'] as String?;
+  }
+
+  set secret(String? value) {
+    if (value == null) {
+      _json.remove('secret');
+    } else {
+      _json['secret'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -5092,6 +5106,7 @@ base class _ReflectionRegisterParamsTypeFactory
             'genkitVersion': $Schema.string(),
             'reflectionApiSpecVersion': $Schema.number(),
             'envs': $Schema.list(items: $Schema.string()),
+            'secret': $Schema.string(),
           },
           required: ['id', 'pid'],
         )

@@ -20,3 +20,9 @@ ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
     'startReflectionServer not implemented on this platform',
   );
 }
+
+/// Whether the environment asks for a reflection server on this platform.
+bool reflectionConfigured({int? port}) => false;
+
+/// Whether the reflection API was explicitly switched off.
+bool reflectionDisabled() => false;

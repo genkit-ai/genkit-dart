@@ -14,23 +14,56 @@
 
 import '../reflection.dart';
 import '../registry.dart';
+import 'reflection_config.dart';
 import 'reflection_v2.dart';
 
 const _v2ServerEnvKey = 'GENKIT_REFLECTION_V2_SERVER';
 const _runtimeIdEnvKey = 'GENKIT_RUNTIME_ID';
+const _secretEnvKey = 'GENKIT_REFLECTION_SECRET_TOKEN';
+const _enabledEnvKey = 'GENKIT_REFLECTION_ENABLED';
+const _envKey = 'GENKIT_ENV';
+
+const _v2ServerUrl = String.fromEnvironment(_v2ServerEnvKey, defaultValue: '');
+const _secret = String.fromEnvironment(_secretEnvKey, defaultValue: '');
+const _enabled = String.fromEnvironment(_enabledEnvKey, defaultValue: '');
+const _env = String.fromEnvironment(_envKey, defaultValue: '');
+
+/// The web build has no process environment, so every setting comes from
+/// `--dart-define`. Host and port are irrelevant: there are no sockets to
+/// listen on, so only v2 is ever available.
+ReflectionConfig _resolve({int? port}) => resolveReflectionConfig(
+  enabled: _enabled,
+  env: _env,
+  v2ServerUrl: _v2ServerUrl,
+  secret: _secret,
+  optionPort: port,
+);
+
+/// Whether the environment asks for a reflection server.
+///
+/// Throws [ReflectionConfigException] when a setting is invalid.
+bool reflectionConfigured({int? port}) =>
+    _resolve(port: port) is ReflectionV2Config;
+
+/// Whether `GENKIT_REFLECTION_ENABLED=false` switched reflection off. Beats
+/// an explicit `Genkit(isDevEnv: true)`.
+bool reflectionDisabled() => parseReflectionEnabled(_enabled) == false;
 
 ReflectionServerHandle startReflectionServer(Registry registry, {int? port}) {
-  const v2ServerUrl = String.fromEnvironment(_v2ServerEnvKey, defaultValue: '');
   const runtimeId = String.fromEnvironment(_runtimeIdEnvKey, defaultValue: '');
-  if (v2ServerUrl == '') {
+  if (_resolve(port: port) is ReflectionDisabled) {
+    return ReflectionServerHandle(() async {});
+  }
+  if (_v2ServerUrl.isEmpty) {
     throw UnimplementedError(
-      'GENKIT_REFLECTION_V2_SERVER environment variable is not set',
+      '$_v2ServerEnvKey environment variable is not set',
     );
   }
   final server = ReflectionServerV2(
     registry,
-    url: v2ServerUrl,
+    url: _v2ServerUrl,
     runtimeId: runtimeId,
+    secret: _secret.isEmpty ? null : _secret,
   );
   server.start();
   return ReflectionServerHandle(server.stop);
