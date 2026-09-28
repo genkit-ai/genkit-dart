@@ -25,6 +25,7 @@ import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../exception.dart';
+import '../../experimental_types.dart';
 import '../../types.dart';
 import 'state_codec.dart';
 

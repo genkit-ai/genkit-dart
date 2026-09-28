@@ -34,6 +34,7 @@ library;
 
 import 'dart:io';
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_cloud/firestore_session_store.dart';
 import 'package:google_cloud_firestore/google_cloud_firestore.dart';

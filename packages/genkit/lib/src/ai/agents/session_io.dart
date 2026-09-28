@@ -26,7 +26,7 @@ import 'dart:io';
 import 'package:meta/meta.dart';
 
 import '../../exception.dart';
-import '../../types.dart';
+import '../../experimental_types.dart';
 import 'session.dart';
 
 /// Default interval for the polling fallback used by
