@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugin.dart';
 import 'package:genkit/src/ai/tool_resolution.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';

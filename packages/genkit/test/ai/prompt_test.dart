@@ -19,7 +19,6 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/dotprompt_registry.dart';
 import 'package:genkit/src/ai/prompt.dart';
 import 'package:genkit/src/ai/prompt_loader.dart';
-import 'package:genkit/src/core/registry.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 

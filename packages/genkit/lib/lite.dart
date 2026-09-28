@@ -48,6 +48,7 @@ export 'src/ai/tool.dart'
         ToolInterruptResult,
         ToolResponseResult,
         ToolResult;
+export 'src/core/action.dart' show ActionStream, StreamingCallback;
 export 'src/core/cancellation.dart'
     show CancellationController, CancellationToken;
 export 'src/schema_extensions.dart';

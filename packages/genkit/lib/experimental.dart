@@ -56,9 +56,12 @@ export 'experimental_client.dart';
 export 'src/ai/agents/agent.dart'
     show
         Agent,
+        AgentErrorDetails,
         AgentFn,
         AgentFnOptions,
         ClientTransform,
+        OnDetach,
+        OnEndTurn,
         SessionRunner,
         TurnContext,
         TurnResult,

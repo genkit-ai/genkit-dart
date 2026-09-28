@@ -27,7 +27,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugin.dart';
 
 import 'catalog.dart';
 

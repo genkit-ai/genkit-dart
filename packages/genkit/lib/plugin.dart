@@ -22,6 +22,7 @@ library;
 
 export 'package:genkit/src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
+export 'package:genkit/src/ai/evaluator.dart' show Evaluator;
 export 'package:genkit/src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
@@ -49,12 +50,23 @@ export 'package:genkit/src/ai/tool.dart'
         ToolResponseResult,
         ToolResult;
 export 'package:genkit/src/core/action.dart'
-    show Action, ActionFnArg, ActionMetadata, ActionType;
+    show
+        Action,
+        ActionFn,
+        ActionFnArg,
+        ActionMetadata,
+        ActionStream,
+        ActionType,
+        InternalActionFn,
+        RunResult,
+        StreamingCallback,
+        TraceStartCallback;
 export 'package:genkit/src/core/cancellation.dart'
     show CancellationController, CancellationToken, CancelledException;
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/src/core/registry.dart' show Registry;
 export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;
+export 'package:genkit/src/genkit_ai.dart' show GenkitAI;
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/types.dart';
 export 'package:genkit/src/utils.dart'
