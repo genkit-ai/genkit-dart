@@ -36,7 +36,8 @@ typedef ResourceFn =
       ActionFnArg<void, ResourceInput, void> ctx,
     );
 
-class ResourceAction extends Action<ResourceInput, ResourceOutput, void, void> {
+base class ResourceAction
+    extends Action<ResourceInput, ResourceOutput, void, void> {
   final bool Function(ResourceInput input) _matches;
 
   ResourceAction({

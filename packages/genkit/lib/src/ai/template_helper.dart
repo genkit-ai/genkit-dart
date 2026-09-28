@@ -32,7 +32,7 @@ import 'package:handlebars_dart/handlebars_dart.dart' as hb;
 ///   return buffer.toString();
 /// });
 /// ```
-class TemplateHelperOptions {
+final class TemplateHelperOptions {
   /// Named hash arguments: `{{helper key="value" other=123}}`.
   ///
   /// Accessed as `options.hash['key']` and `options.hash['other']`.

@@ -93,7 +93,7 @@ base class GenerateResumeOptions [src/types.dart]
 base class GenerationUsage [src/types.dart]
 final class Interrupt<Input, Output> extends Tool<Input, Output> [src/ai/tool.dart]
   Interrupt({required String name, required String description, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, Map<String, dynamic>? metadata, FutureOr<Object?> Function(Input, ToolFnArgs<Input>)? requestMetadata})
-class InterruptResponse [src/ai/generate_types.dart]
+final class InterruptResponse [src/ai/generate_types.dart]
   InterruptResponse(ToolRequestPart _part, dynamic output)
   String get name
   final dynamic output
@@ -155,13 +155,13 @@ base class RuntimeError [src/types.dart]
 base class Score [src/types.dart]
 final class ScoreScore [src/types.dart]
 base class TextPart implements Part [src/types.dart]
-class Tool<Input, Output> extends Action<Input, ToolResult<Output>, void, void> [src/ai/tool.dart]
+base class Tool<Input, Output> extends Action<Input, ToolResult<Output>, void, void> [src/ai/tool.dart]
   Tool({required String name, required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, SchemanticType<Output>? toolOutputSchema, Map<String, dynamic>? metadata})
   SchemanticType<dynamic>? get manifestOutputSchema
   final SchemanticType<Output>? toolOutputSchema
 base class ToolDefinition [src/types.dart]
 typedef ToolFn<Input, Output> = FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) [src/ai/tool.dart]
-class ToolFnArgs<Input> [src/ai/tool.dart]
+final class ToolFnArgs<Input> [src/ai/tool.dart]
   ToolFnArgs(ActionFnArg<void, Input, void> _base)
   CancellationToken? get cancel
   Map<String, dynamic>? get context

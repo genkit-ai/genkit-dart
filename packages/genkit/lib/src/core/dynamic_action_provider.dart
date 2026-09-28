@@ -88,7 +88,7 @@ class _DapCache {
 /// `dynamic-action-provider` action and the cache calls `dap.run()`).
 /// Reflection listing uses [getActionMetadataRecord], which skips the trace so
 /// the Dev UI does not create a span every time it lists actions.
-class DynamicActionProvider
+base class DynamicActionProvider
     extends Action<void, List<ActionMetadata>, void, void> {
   final FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn;
   final FutureOr<Action?> Function(ActionType actionType, String name)?

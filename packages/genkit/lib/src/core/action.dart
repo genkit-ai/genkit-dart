@@ -193,7 +193,7 @@ typedef InternalActionFn<Input, Output, Chunk, Init> =
       ActionFnArg<Chunk, Input, Init> context,
     );
 
-class RunResult<Output> {
+final class RunResult<Output> {
   final Output result;
   final String traceId;
   final String spanId;
@@ -209,7 +209,7 @@ class RunResult<Output> {
   }
 }
 
-class ActionMetadata<Input, Output, Chunk, Init> {
+base class ActionMetadata<Input, Output, Chunk, Init> {
   final String name;
   final String? description;
   final ActionType actionType;
@@ -263,7 +263,7 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   }
 }
 
-class Action<Input, Output, Chunk, Init>
+base class Action<Input, Output, Chunk, Init>
     extends ActionMetadata<Input, Output, Chunk, Init> {
   final InternalActionFn<Input, Output, Chunk, Init> fn;
 
@@ -523,7 +523,7 @@ class Action<Input, Output, Chunk, Init>
 }
 
 /// A stream of chunks emitted by an action, which also resolves to a final response.
-class ActionStream<Chunk, Response> extends StreamView<Chunk> {
+base class ActionStream<Chunk, Response> extends StreamView<Chunk> {
   bool _done = false;
   Response? _result;
   Object? _streamError;
@@ -584,7 +584,7 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
 ///
 /// Experimental: lives behind `package:genkit/experimental.dart`.
 @experimental
-class BidiActionStream<Chunk, Response, Request>
+final class BidiActionStream<Chunk, Response, Request>
     extends ActionStream<Chunk, Response> {
   final StreamSink<Request>? _inputSink;
   bool _inputClosed = false;

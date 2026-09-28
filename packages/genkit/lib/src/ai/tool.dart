@@ -31,7 +31,7 @@ String shortToolName(String fullName) => fullName.contains('/')
     : fullName;
 
 /// Arguments passed to a tool function execution.
-class ToolFnArgs<Input> {
+final class ToolFnArgs<Input> {
   final ActionFnArg<void, Input, void> _base;
 
   ToolFnArgs(this._base);
@@ -220,7 +220,7 @@ typedef ToolFn<Input, Output> =
       ToolFnArgs<Input> context,
     );
 
-class Tool<Input, Output>
+base class Tool<Input, Output>
     extends Action<Input, ToolResult<Output>, void, void> {
   /// The user-declared output schema (the schema of `Output`, not
   /// [ToolResult]). Used to build the model-facing tool definition and the

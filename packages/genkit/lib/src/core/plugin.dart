@@ -23,6 +23,11 @@ import 'action.dart';
 ///
 /// Plugin implementers can extend this class and override the methods to provide
 /// actions, models, etc.
+///
+/// Always `extend` this class; do not `implement` it. New members are added
+/// with default implementations, which is only non-breaking for subclasses.
+/// (It is not marked `base` because that would force every plugin class to
+/// repeat the modifier.)
 abstract class GenkitPlugin {
   String get name;
 
