@@ -196,10 +196,10 @@ Future<GenerateBidiSession> runGenerateBidi(
 
             // Interrupts (human-in-the-loop) require handing control back to the
             // caller, which a live bidi session cannot do: the model is waiting
-            // on a function response and there is no resume path. Both the
-            // returned `.interrupt(...)` and the deprecated throwing
-            // `ctx.interrupt(...)` forms must fail the session loudly rather
-            // than answer the model, so this throw lives OUTSIDE the try/catch
+            // on a function response and there is no resume path. Both a
+            // returned `.interrupt(...)` and a thrown `ToolInterruptException`
+            // must fail the session loudly rather than answer the model, so
+            // this throw lives OUTSIDE the try/catch
             // below (which would otherwise turn it into an `Error: ...` tool
             // response and keep the session going).
             GenkitException bidiInterruptUnsupported() => GenkitException(
@@ -217,7 +217,7 @@ Future<GenerateBidiSession> runGenerateBidi(
                 cancel: cancel,
               )).result;
             } on ToolInterruptException {
-              // Deprecated throwing interrupt form.
+              // A tool that throws the interrupt exception directly.
               throw bidiInterruptUnsupported();
             } on CancelledException {
               // A cooperative cancel tears the session down (the cancel hook

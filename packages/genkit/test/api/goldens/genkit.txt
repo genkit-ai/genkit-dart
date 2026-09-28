@@ -442,7 +442,6 @@ final class ToolFnArgs<Input> [src/ai/tool.dart]
   ToolFnArgs(ActionFnArg<void, Input, void> _base)
   CancellationToken? get cancel
   Map<String, dynamic>? get context
-  @deprecated Never interrupt([dynamic data])
   dynamic get resumed
   ToolRequestPart? get toolRequest
 class ToolInterruptException implements Exception [src/ai/interrupt.dart]
