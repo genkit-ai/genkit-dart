@@ -46,7 +46,7 @@ class Action<Input, Output, Chunk, Init> extends ActionMetadata<Input, Output, C
   Future<RunResult<Output>> run(Input? input, {void Function(Chunk)? onChunk, Map<String, dynamic>? context, Stream<Input>? inputStream, Init? init, void Function({required String spanId, required String traceId})? onTraceStart, CancellationToken? cancel})
   Future<RunResult<Output>> runRaw(dynamic input, {void Function(Chunk)? onChunk, Map<String, dynamic>? context, Stream<Input>? inputStream, dynamic init, void Function({required String spanId, required String traceId})? onTraceStart, CancellationToken? cancel})
   ActionStream<Chunk, Output> stream(Input? input, {Map<String, dynamic>? context, Stream<Input>? inputStream, Init? init, CancellationToken? cancel})
-  BidiActionStream<Chunk, Output, Input> streamBidi({Stream<Input>? inputStream, void Function(Chunk)? onChunk, Map<String, dynamic>? context, Init? init, CancellationToken? cancel})
+  @experimental BidiActionStream<Chunk, Output, Input> streamBidi({Stream<Input>? inputStream, void Function(Chunk)? onChunk, Map<String, dynamic>? context, Init? init, CancellationToken? cancel})
   String toString()
 typedef ActionFnArg<Chunk, Input, Init> = ({CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk) sendChunk, bool streamingRequested}) [src/core/action.dart]
 class ActionMetadata<Input, Output, Chunk, Init> [src/core/action.dart]

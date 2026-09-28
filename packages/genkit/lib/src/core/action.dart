@@ -14,6 +14,7 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../exception.dart';
@@ -99,7 +100,18 @@ typedef ActionFnArg<Chunk, Input, Init> = ({
   bool streamingRequested,
   StreamingCallback<Chunk> sendChunk,
   Map<String, dynamic>? context,
+
+  /// The input stream of a bidirectional action; `null` for unary actions.
+  ///
+  /// Experimental: bidirectional streaming is not covered by semver and may
+  /// change in any minor release.
   Stream<Input>? inputStream,
+
+  /// The initialization payload of a bidirectional action or agent; `null`
+  /// otherwise.
+  ///
+  /// Experimental: bidirectional streaming is not covered by semver and may
+  /// change in any minor release.
   Init? init,
 
   /// A read-only cancellation token the action body should observe to abort
@@ -114,6 +126,10 @@ typedef ActionFn<Input, Output, Chunk, Init> =
       ActionFnArg<Chunk, Input, Init> context,
     );
 
+/// The implementation function of a bidirectional action.
+///
+/// Experimental: lives behind `package:genkit/experimental.dart`.
+@experimental
 typedef BidiActionFn<Input, Output, Chunk, Init> =
     Future<Output> Function(
       Stream<Input> inputStream,
@@ -393,6 +409,12 @@ class Action<Input, Output, Chunk, Init>
     return actionStream;
   }
 
+  /// Starts a bidirectional session with this action: send inputs with
+  /// [BidiActionStream.send] while consuming output chunks.
+  ///
+  /// Experimental: bidirectional streaming is not covered by semver and may
+  /// change in any minor release.
+  @experimental
   BidiActionStream<Chunk, Output, Input> streamBidi({
     Stream<Input>? inputStream,
     StreamingCallback<Chunk>? onChunk,
@@ -504,6 +526,9 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
 }
 
 /// A bi-directional version of [ActionStream] that allows sending chunks back to the action.
+///
+/// Experimental: lives behind `package:genkit/experimental.dart`.
+@experimental
 class BidiActionStream<Chunk, Response, Request>
     extends ActionStream<Chunk, Response> {
   final StreamSink<Request>? _inputSink;
