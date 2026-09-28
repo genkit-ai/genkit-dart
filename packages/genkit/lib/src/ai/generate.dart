@@ -148,7 +148,10 @@ abstract class GenerateConfig {}
             : config;
 
         resolvedMiddleware.add(
-          def.create(parsedConfig, (ai: GenkitAI(registry))),
+          def.create(
+            parsedConfig,
+            GenerateMiddlewareContext(ai: GenkitAI(registry)),
+          ),
         );
       } else {
         throw GenkitException(
