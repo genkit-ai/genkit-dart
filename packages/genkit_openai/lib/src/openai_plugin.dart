@@ -240,14 +240,24 @@ class OpenAIPlugin extends GenkitPlugin {
     }
     return _ResolvedClientConfig(
       apiKey: configuredApiKey.trim(),
-      // The provider's own spelling once the host matches. `_ownHost` compares
-      // hosts, so `https://api.x.ai` and `https://api.x.ai/v1` both count as
-      // xAI - but the SDK sends the string as given, and xAI serves `/v1`
-      // only, so the first spelling would 404 on every request. A host we do
-      // not recognise is sent exactly as the caller wrote it.
-      baseUrl: _ownHost ? provider.defaultBaseUrl : baseUrl,
+      baseUrl: _wireBaseUrl,
       headers: headers,
     );
+  }
+
+  /// [baseUrl] as it goes on the wire.
+  ///
+  /// The provider's own host, spelt without a path, gets the provider's
+  /// documented one: `_ownHost` compares hosts, so `https://api.x.ai` counts
+  /// as xAI, but the SDK sends the string as given and xAI serves `/v1` only,
+  /// so it would 404 on every request. A spelling that names a path - `/v1`,
+  /// DeepSeek's `/beta` - is sent exactly as written, as is any host we do
+  /// not recognise: the caller may well mean that path.
+  String? get _wireBaseUrl {
+    final url = baseUrl;
+    if (!_ownHost || url == null) return url;
+    final path = Uri.tryParse(url)?.path ?? '';
+    return path.isEmpty || path == '/' ? provider.defaultBaseUrl : url;
   }
 
   /// Lists the plugin's models and embedders, enriching the curated catalogs

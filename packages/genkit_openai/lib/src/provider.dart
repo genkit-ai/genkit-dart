@@ -23,8 +23,8 @@ import 'known_xai_models.dart';
 import 'speech.dart' show knownSpeechModels;
 import 'transcription.dart' show knownTranscriptionModels;
 
-/// The facts that differ between hosts speaking the OpenAI Chat Completions
-/// API, gathered in one value.
+/// Provider-specific credentials, model metadata and request behaviour for an
+/// OpenAI-compatible API.
 ///
 /// Only the differences the plugin cannot avoid having an opinion about: it
 /// writes the request and reads the environment before anyone else gets a say.
