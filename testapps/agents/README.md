@@ -105,7 +105,7 @@ for browser access.
 
 - **Session store:** server-managed agents use `InMemorySessionStore`
   (sessions reset on server restart). A `FileSessionStore` is also available
-  via `package:genkit/io.dart` for persistence across restarts.
+  via `package:genkit/experimental_io.dart` for persistence across restarts.
 - **Middleware:** the orchestrator uses the real `agents()` delegation
   middleware (auto-injecting `delegate_to_*` tools). The JS `artifacts()`
   middleware is not in the Dart middleware suite yet, so the workspace agent
