@@ -227,7 +227,7 @@ base class BidiModel<CustomOptions>
         Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest>
     implements BidiModelRef<CustomOptions> {
   @override
-  SchemanticType<CustomOptions>? customOptions;
+  final SchemanticType<CustomOptions>? customOptions;
 
   BidiModel({
     required super.name,

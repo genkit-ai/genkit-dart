@@ -63,7 +63,8 @@ base class ActionMetadata<Input, Output, Chunk, Init> [src/core/action.dart]
   final String? description
   final SchemanticType<Init>? initSchema
   final SchemanticType<Input>? inputSchema
-  String? key
+  @internal set key(String? value)
+  String? get key
   final Map<String, dynamic> metadata
   final String name
   final SchemanticType<Output>? outputSchema
