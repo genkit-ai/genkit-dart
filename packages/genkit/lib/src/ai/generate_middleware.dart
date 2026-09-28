@@ -59,6 +59,14 @@ final class GenerateTurnState {
       messageIndex: messageIndex ?? this.messageIndex,
     );
   }
+
+  // Summarizes [request] rather than printing it: it carries the whole
+  // conversation, which would drown out the turn counters in logs.
+  @override
+  String toString() =>
+      'GenerateTurnState(currentTurn: $currentTurn, '
+      'messageIndex: $messageIndex, '
+      'messages: ${request.messages.length}, model: ${request.model})';
 }
 
 /// Middleware for the processing of a Generation request.

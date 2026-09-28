@@ -169,6 +169,7 @@ final class GenerateTurnState [src/ai/generate_middleware.dart]
   final int currentTurn
   final int messageIndex
   final GenerateActionOptions request
+  String toString()
 base class GenerationUsage [src/types.dart]
 class GenkitException implements Exception [src/exception.dart]
   GenkitException(String message, {StatusCodes? status, String? details, Object? underlyingException, StackTrace? stackTrace})

@@ -578,6 +578,27 @@ void main() {
       );
     });
 
+    test('GenerateTurnState.toString summarizes the request', () {
+      final state = GenerateTurnState(
+        request: GenerateActionOptions(
+          model: 'echo',
+          messages: [
+            Message(
+              role: .user,
+              content: [TextPart(text: 'a very long prompt')],
+            ),
+          ],
+        ),
+        currentTurn: 2,
+        messageIndex: 1,
+      );
+      expect(
+        state.toString(),
+        'GenerateTurnState(currentTurn: 2, messageIndex: 1, '
+        'messages: 1, model: echo)',
+      );
+    });
+
     test(
       'should pass and respect envelope updates in generate middleware',
       () async {
