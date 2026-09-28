@@ -381,14 +381,19 @@ class AnthropicPluginImpl extends GenkitPlugin {
       }
     }
 
-    if (req.toolChoice != null) {
-      toolChoice = switch (req.toolChoice) {
-        'auto' => sdk.ToolChoice.auto(),
-        'any' => sdk.ToolChoice.any(),
-        'none' => sdk.ToolChoice.none(),
-        final name => sdk.ToolChoice.tool(name!),
-      };
-    }
+    // `forceTool` (Anthropic-specific) wins over the portable `toolChoice`,
+    // whose values are the shared Genkit vocabulary: `auto`, `required`, and
+    // `none`. Anything else is dropped rather than guessed at: treating an
+    // unknown value as a tool name is how `required` used to force a tool
+    // literally named "required".
+    toolChoice = options.forceTool != null
+        ? sdk.ToolChoice.tool(options.forceTool!)
+        : switch (req.toolChoice) {
+            'auto' => sdk.ToolChoice.auto(),
+            'required' => sdk.ToolChoice.any(),
+            'none' => sdk.ToolChoice.none(),
+            _ => null,
+          };
 
     if (schemaInPrompt != null) {
       // Appended to the caller's own system prompt rather than replacing it,
