@@ -231,9 +231,20 @@ base class ActionMetadata<Input, Output, Chunk, Init> {
   /// Stamps [key] after construction.
   ///
   /// Only the dynamic action provider does this, for actions it resolves but
-  /// did not construct; everything else passes `key` to the constructor.
+  /// did not construct; everything else passes `key` to the constructor. A key
+  /// identifies the action in traces and tool definitions, so once set it can
+  /// only be re-stamped with the same value.
   @internal
-  set key(String? value) => _registryKey = value;
+  set key(String? value) {
+    final current = _registryKey;
+    if (current != null && value != current) {
+      throw StateError(
+        'Action "$name" already has key "$current"; cannot change it to '
+        '"$value".',
+      );
+    }
+    _registryKey = value;
+  }
 
   String? _registryKey;
 

@@ -262,6 +262,17 @@ void main() {
     });
   });
 
+  group('ActionMetadata.key', () {
+    test('can be stamped once, then only re-stamped with the same value', () {
+      final meta = ActionMetadata<void, void, void, void>(name: 'a');
+      meta.key = '/tool/a';
+      meta.key = '/tool/a';
+      expect(meta.key, '/tool/a');
+      expect(() => meta.key = '/tool/b', throwsStateError);
+      expect(meta.key, '/tool/a');
+    });
+  });
+
   group('ActionStream.withResult', () {
     test('emits the chunks and completes onResult with the result', () async {
       final stream = ActionStream.withResult(
