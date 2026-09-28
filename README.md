@@ -24,17 +24,21 @@ See the [Genkit package documentation](https://pub.dev/packages/genkit) for gett
 
 | Package | Description | Pub |
 | :--- | :--- | :--- |
-| [`genkit`](packages/genkit) | A type-safe Dart client library for calling Google Genkit flows with streaming support, authentication, and comprehensive error handling. | [![Pub](https://img.shields.io/pub/v/genkit.svg)](https://pub.dev/packages/genkit) |
+| [`genkit`](packages/genkit) | The Genkit framework: flows, tools, prompts, structured output, agents, and a client for calling deployed flows. | [![Pub](https://img.shields.io/pub/v/genkit.svg)](https://pub.dev/packages/genkit) |
 | [`genkit_google_genai`](packages/genkit_google_genai) | Google AI plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_google_genai.svg)](https://pub.dev/packages/genkit_google_genai) |
+| [`genkit_vertexai`](packages/genkit_vertexai) | Vertex AI plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_vertexai.svg)](https://pub.dev/packages/genkit_vertexai) |
 | [`genkit_anthropic`](packages/genkit_anthropic) | Anthropic plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_anthropic.svg)](https://pub.dev/packages/genkit_anthropic) |
 | [`genkit_openai`](packages/genkit_openai) | OpenAI plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_openai.svg)](https://pub.dev/packages/genkit_openai) |
 | [`genkit_chrome`](packages/genkit_chrome) | Chrome Prompt API (Gemini Nano) plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_chrome.svg)](https://pub.dev/packages/genkit_chrome) |
 | [`genkit_mcp`](packages/genkit_mcp) | Model Context Protocol (MCP) plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_mcp.svg)](https://pub.dev/packages/genkit_mcp) |
 | [`genkit_middleware`](packages/genkit_middleware) | Common middlewares (filesystem, skills, toolApproval) for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_middleware.svg)](https://pub.dev/packages/genkit_middleware) |
+| [`genkit_a2ui`](packages/genkit_a2ui) | A2UI (Agent-to-UI) streaming UI protocol support for Genkit Dart (experimental). | [![Pub](https://img.shields.io/pub/v/genkit_a2ui.svg)](https://pub.dev/packages/genkit_a2ui) |
 | [`genkit_shelf`](packages/genkit_shelf) | Shelf HTTP Server integration for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_shelf.svg)](https://pub.dev/packages/genkit_shelf) |
 | [`genkit_otel`](packages/genkit_otel) | OpenTelemetry GenAI semantic-conventions instrumentation for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_otel.svg)](https://pub.dev/packages/genkit_otel) |
 | [`genkit_firebase_ai`](packages/genkit_firebase_ai) | Firebase AI plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_firebase_ai.svg)](https://pub.dev/packages/genkit_firebase_ai) |
-| [`schemantic`](packages/schemantic) | A general-purpose builder for generating type-safe data classes and JSON schemas from abstract definitions. | [![Pub](https://img.shields.io/pub/v/schemantic.svg)](https://pub.dev/packages/schemantic) |
+| [`genkit_google_cloud`](packages/genkit_google_cloud) | Google Cloud integration for Genkit Dart (Firestore session store, experimental). | [![Pub](https://img.shields.io/pub/v/genkit_google_cloud.svg)](https://pub.dev/packages/genkit_google_cloud) |
+| [`schemantic`](packages/schemantic) | Type-safe data classes and runtime JSON Schemas, with serialization and validation. | [![Pub](https://img.shields.io/pub/v/schemantic.svg)](https://pub.dev/packages/schemantic) |
+| [`schemantic_builder`](packages/schemantic_builder) | The code generator for `schemantic`. | [![Pub](https://img.shields.io/pub/v/schemantic_builder.svg)](https://pub.dev/packages/schemantic_builder) |
 
 ---
 
