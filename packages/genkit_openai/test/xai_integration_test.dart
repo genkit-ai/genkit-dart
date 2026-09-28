@@ -118,6 +118,70 @@ void main() {
       expect(response.text, contains('8'));
     }, skip: skip);
 
+    test('accepts a self-referential tool schema', () async {
+      // `flatten` cannot inline a type that contains itself, so the plugin
+      // promotes the root definition and carries `$defs` alongside. xAI is the
+      // host that rejects the alternatives: the authored `{$ref, $defs}` shape
+      // answers "tool parameter root must be an object type (root schema is a
+      // $ref)", and a sibling `type: object` does not satisfy it either.
+      //
+      // Through the model action directly: a recursive schema has no
+      // schemantic spelling to hand to `defineTool`.
+      final ai = newAi();
+      final model =
+          await ai.registry.lookupAction(.model, 'xai/grok-4.6') as Model?;
+
+      final response = await model!(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [
+                TextPart(
+                  text:
+                      'Call saveTree once with a root node named "root" that '
+                      'has a single child named "leaf".',
+                ),
+              ],
+            ),
+          ],
+          tools: [
+            ToolDefinition(
+              name: 'saveTree',
+              description: 'Saves a tree of nodes.',
+              inputSchema: {
+                r'$ref': r'#/$defs/TreeNode',
+                r'$defs': {
+                  'TreeNode': {
+                    'type': 'object',
+                    'properties': {
+                      'name': {'type': 'string'},
+                      'children': {
+                        'type': 'array',
+                        'items': {r'$ref': r'#/$defs/TreeNode'},
+                      },
+                    },
+                    'required': ['name'],
+                  },
+                },
+              },
+            ),
+          ],
+        ),
+      );
+
+      // Reaching here at all is most of the point - a rejected schema is a 400
+      // before any generation happens.
+      final call = response.message?.content
+          .where((part) => part.toolRequest != null)
+          .map((part) => part.toolRequest!)
+          .firstOrNull;
+
+      expect(call, isNotNull, reason: 'xAI did not call the recursive tool');
+      expect(call!.name, 'saveTree');
+      expect(jsonEncode(call.input), contains('root'));
+    }, skip: skip);
+
     test('streams', () async {
       final stream = newAi().generateStream(
         model: XaiModels.grok46,
