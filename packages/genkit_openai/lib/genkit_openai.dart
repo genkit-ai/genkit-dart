@@ -29,7 +29,6 @@ import 'src/speech.dart' as speech;
 import 'src/transcription.dart' as transcription;
 
 export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
-export 'src/converters.dart' show GenkitConverter;
 export 'src/embed.dart' show OpenAIEmbedderOptions;
 // The DeepSeek catalog is public for the same reasons the OpenAI one is; the
 // dialect that selects it is not, since which request fields a host reads is
@@ -38,8 +37,6 @@ export 'src/known_deepseek_models.dart'
     show
         KnownDeepSeekModel,
         deepSeekModelInfoFor,
-        deepSeekTextSupports,
-        deepSeekVisionSupports,
         defaultDeepSeekNamespace,
         knownDeepSeekChatModels,
         knownDeepSeekModelFor,
@@ -67,17 +64,7 @@ export 'src/known_models.dart'
         knownChatModels,
         knownOpenAIModelFor,
         knownOpenAIModels,
-        modelInfoFor,
-        multimodalLegacySupports,
-        multimodalNoToolsSupports,
-        multimodalSupports,
-        reasoningPreviewSupports,
-        reasoningSupports,
-        reasoningTextOnlySupports,
-        supportsTools,
-        supportsVision,
-        textOnlyLegacySupports,
-        textOnlyNoJsonSupports;
+        modelInfoFor;
 export 'src/known_xai_models.dart'
     show
         KnownXaiModel,
@@ -88,7 +75,6 @@ export 'src/known_xai_models.dart'
         xaiModelInfoFor;
 export 'src/speech.dart' show OpenAISpeechOptions;
 export 'src/transcription.dart' show OpenAITranscriptionOptions;
-export 'src/utils.dart' show getModelType;
 
 /// Default plugin / namespace name used when no custom name is provided.
 const String defaultOpenAINamespace = 'openai';
