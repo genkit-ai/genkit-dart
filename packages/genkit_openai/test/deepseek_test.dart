@@ -270,12 +270,11 @@ void main() {
       }
     });
 
-    test('every spelling dials the same URL', () async {
+    test('the versionless spelling dials the documented URL', () async {
       // The catalog is only half of it: matching the host and then sending the
       // caller's own string would put `/chat/completions` at whatever path
-      // they wrote. The provider's own URL goes out instead.
+      // they wrote. A bare host gets the provider's own URL instead.
       for (final baseUrl in [
-        'https://api.deepseek.com/v1',
         'https://api.deepseek.com/',
         'https://API.deepseek.com',
       ]) {
@@ -294,6 +293,32 @@ void main() {
 
         expect(requests.single.url.host, 'api.deepseek.com', reason: baseUrl);
         expect(requests.single.url.path, '/chat/completions', reason: baseUrl);
+        await ai.shutdown();
+      }
+    });
+
+    test('an explicit path on the same host is kept', () async {
+      // DeepSeek serves `/v1` and `/beta` as well as the root, and a caller
+      // who wrote one of them meant it. Only the host decides the catalog;
+      // the path goes out as written.
+      for (final (baseUrl, path) in [
+        ('https://api.deepseek.com/v1', '/v1/chat/completions'),
+        ('https://api.deepseek.com/beta', '/beta/chat/completions'),
+      ]) {
+        final requests = <http.Request>[];
+        final ai = Genkit(
+          plugins: [
+            deepSeek(
+              apiKey: 'ds-key',
+              baseUrl: baseUrl,
+              httpClient: recordingClient(requests),
+            ),
+          ],
+        );
+
+        await ai.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+
+        expect(requests.single.url.path, path, reason: baseUrl);
         await ai.shutdown();
       }
     });
@@ -756,6 +781,27 @@ void main() {
       );
 
       expect(chatBodyOf(requests)['messages'], hasLength(1));
+    });
+
+    test('still says json when the caller\'s instructions do not', () async {
+      // Core marks a caller's `outputInstructions` with `purpose: 'output'`
+      // too, which only means the schema is in the prompt. DeepSeek's rule is
+      // about the word, and these instructions never use it.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: DeepSeekModels.deepseekFlash,
+        prompt: 'name a city',
+        outputFormat: 'json',
+        outputInstructions: 'Return an object with a single city property.',
+      );
+
+      final prompt = jsonEncode(chatBodyOf(requests)['messages']);
+      expect(prompt.toLowerCase(), contains('json'));
     });
 
     test('adds nothing when core already wrote the instructions', () async {

@@ -160,10 +160,11 @@ ResponseFormat? buildOpenAIResponseFormat({
 
 /// The JSON instruction a `json_object`-only host needs in the prompt.
 ///
-/// Null when core already added one (marked `purpose: 'output'`), or when
-/// there is no schema and a message already says "json". DeepSeek rejects a
-/// `json_object` request whose prompt lacks that word, and without
-/// `json_schema` the prompt is the only place the schema can go.
+/// Null when there is nothing to add. Without `json_schema` the prompt is the
+/// only place the schema can go, so it is written out unless core already
+/// added it (marked `purpose: 'output'`). Otherwise the word "json" is added
+/// unless a message already says it: DeepSeek rejects a `json_object` request
+/// whose prompt lacks it, and a caller's own instructions may not use it.
 String? jsonObjectInstruction(
   List<Message> messages,
   Map<String, dynamic>? schema,
@@ -173,9 +174,7 @@ String? jsonObjectInstruction(
       (part) => part.isText && part.metadata?['purpose'] == 'output',
     ),
   );
-  if (coreWroteThem) return null;
-
-  if (schema != null) {
+  if (schema != null && !coreWroteThem) {
     return 'Respond with JSON only. The JSON must conform to the following '
         'schema:\n\n```\n'
         '${const JsonEncoder.withIndent('  ').convert(schema)}\n```';

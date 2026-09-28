@@ -391,6 +391,56 @@ void main() {
       });
     });
 
+    test('a property named definitions is not stripped as a \$defs block', () {
+      final schema = {
+        'type': 'object',
+        'properties': {
+          'term': {'type': 'string'},
+          'definitions': {
+            'type': 'array',
+            'items': {'type': 'string'},
+          },
+        },
+        'required': ['term', 'definitions'],
+        'additionalProperties': false,
+      };
+
+      final result = GenkitConverter.toOpenAITool(
+        ToolDefinition(
+          name: 'saveGlossary',
+          description: 'Save definitions',
+          inputSchema: schema,
+        ),
+      );
+
+      expect(result.function.parameters, schema);
+    });
+
+    test('keeps the keywords beside a \$ref', () {
+      final result = GenkitConverter.toOpenAITool(
+        ToolDefinition(
+          name: 'lookup',
+          description: 'Looks up a code',
+          inputSchema: {
+            'type': 'object',
+            'properties': {
+              'code': {r'$ref': r'#/$defs/Code', 'maxLength': 3},
+            },
+            r'$defs': {
+              'Code': {'type': 'string'},
+            },
+          },
+        ),
+      );
+
+      expect(result.function.parameters, {
+        'type': 'object',
+        'properties': {
+          'code': {'type': 'string', 'maxLength': 3},
+        },
+      });
+    });
+
     test('non-object input schema throws INVALID_ARGUMENT', () {
       expect(
         () => GenkitConverter.toOpenAITool(

@@ -39,8 +39,8 @@ Flow<String, String, void, void> defineXaiFlow(Genkit ai) {
 /// Trades latency against depth with a reasoning effort.
 ///
 /// xAI's levels are `none`, `low`, `medium`, `high` and `xhigh`, and which of
-/// them a given model takes varies — the plugin rejects one the provider does
-/// not define before the request goes out.
+/// them a given model takes varies. The plugin checks only that the level is
+/// one the SDK knows; whether this model accepts it is the API's call.
 Flow<String, String, void, void> defineXaiEffortFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'xaiEffort',
