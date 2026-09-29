@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart' hide Tool;
-import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/converters.dart';
 import 'package:openai_dart/openai_dart.dart'
     show
         AssistantMessage,

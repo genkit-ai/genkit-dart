@@ -30,7 +30,8 @@ import '../ai/generate_middleware.dart' show GenerateMiddlewareRef;
 import '../ai/model.dart' show ModelRef;
 import '../ai/tool.dart' show Tool;
 import '../genkit_class.dart';
-import '../types.dart' show GenerateActionOutputConfig, Message, Part;
+import '../types.dart'
+    show GenerateActionOutputConfig, Message, Part, ToolChoice;
 
 /// Experimental agent-authoring methods on [Genkit].
 ///
@@ -63,7 +64,7 @@ extension GenkitAgents on Genkit {
     Map<String, dynamic>? metadata,
     List<Tool>? tools,
     List<String>? toolNames,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     List<GenerateMiddlewareRef>? use,
 
     /// Supplies values for the prompt's input variables, so a single prompt

@@ -14,7 +14,6 @@
 
 import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugin.dart';
 import 'package:test/test.dart';
 
 /// A middleware that acts as a "kit": it contributes a tool and appends a
@@ -80,11 +79,7 @@ class _KitMiddleware extends GenerateMiddleware {
       stepName: options.stepName,
     );
 
-    return next((
-      request: newOptions,
-      currentTurn: envelope.currentTurn,
-      messageIndex: envelope.messageIndex,
-    ), ctx);
+    return next(envelope.copyWith(request: newOptions), ctx);
   }
 }
 

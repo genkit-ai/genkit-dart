@@ -29,19 +29,19 @@ library;
 
 export 'src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
+export 'src/ai/evaluator.dart' show Evaluator;
 
-export 'src/ai/formatters/types.dart';
 export 'src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
         GenerateMiddlewareContext,
         GenerateMiddlewareDef,
         GenerateMiddlewareRef,
+        GenerateTurnState,
         defineMiddleware,
         middlewareRef;
 export 'src/ai/generate_types.dart'
     show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
-export 'src/ai/interrupt.dart' show ToolInterruptException;
 export 'src/ai/middleware/retry.dart'
     show RetryMiddleware, RetryOptions, RetryPlugin, retry;
 // BidiModel / bidiModelRef live in the experimental surface
@@ -73,11 +73,23 @@ export 'src/ai/tool.dart'
         ToolResponseResult,
         ToolResult;
 export 'src/core/action.dart'
-    show Action, ActionFnArg, ActionMetadata, ActionType;
+    show
+        Action,
+        ActionFn,
+        ActionFnArg,
+        ActionMetadata,
+        ActionStream,
+        ActionType,
+        InternalActionFn,
+        RunResult,
+        StreamingCallback,
+        TraceStartCallback;
 export 'src/core/cancellation.dart'
     show CancellationController, CancellationToken, CancelledException;
 export 'src/core/dynamic_action_provider.dart' show DynamicActionProvider;
 export 'src/core/flow.dart';
+export 'src/core/plugin.dart' show GenkitPlugin;
+export 'src/core/registry.dart' show Registry;
 export 'src/exception.dart' show GenkitException, StatusCodes;
 export 'src/genkit_ai.dart' show GenkitAI;
 export 'src/genkit_class.dart';

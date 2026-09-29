@@ -4,7 +4,8 @@ A collection of useful middleware for Genkit Dart to enhance your agent's capabi
 
 ## Features
 
-- **Agents**: Let a main agent delegate tasks to specialized sub-agents.
+- **Agents** (experimental): Let a main agent delegate tasks to specialized
+  sub-agents.
 - **Filesystem**: Give your agent read/write access to a specific directory.
 - **Skills**: Inject reusable instructions/personas from markdown files.
 - **Tool Approval**: Require human approval before executing sensitive tools.
@@ -27,6 +28,7 @@ To use these middleware, you must first register their corresponding plugins whe
 
 ```dart
 import 'package:genkit/genkit.dart';
+import 'package:genkit_middleware/agents.dart'; // experimental, see below
 import 'package:genkit_middleware/genkit_middleware.dart';
 
 void main() {
@@ -47,6 +49,11 @@ void main() {
 ## Usage
 
 ### Agents Middleware
+
+> Experimental. This middleware builds on Genkit's experimental agent API
+> (`package:genkit/experimental.dart`) and is not covered by semantic-versioning
+> guarantees. It is not exported from `package:genkit_middleware/genkit_middleware.dart`;
+> import `package:genkit_middleware/agents.dart` instead.
 
 Enables sub-agent delegation. For each configured agent the middleware injects a
 dedicated delegation tool (e.g. `delegate_to_researcher`) and appends a
@@ -123,8 +130,9 @@ A task that stopped on an interrupt cannot be continued, and a result without a
 that work.
 
 ```dart
+// `googleAI` comes from package:genkit_google_genai; any model plugin works.
 final result = await ai.generate(
-  model: modelRef('gemini-flash-latest'),
+  model: googleAI.gemini('gemini-flash-latest'),
   prompt: 'Research topics A, B, and C in parallel, then summarize.',
   use: [
     agents(
@@ -142,6 +150,7 @@ See `testapps/agents/bin/async_agent_sample.dart` for a runnable example.
 
 ```dart
 import 'package:genkit/genkit.dart';
+import 'package:genkit/experimental.dart';
 import 'package:genkit_middleware/agents.dart';
 
 final ai = Genkit(plugins: [AgentsPlugin(), /* ... */]);

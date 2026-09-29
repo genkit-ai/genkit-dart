@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugin.dart';
 import 'package:genkit/src/ai/tool_resolution.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -71,71 +70,39 @@ void main() {
       await genkit.shutdown();
     });
 
-    test('should use toolChoice to select a tool', () async {
+    test('forwards toolChoice to the model request', () async {
       const modelName = 'toolChoiceModel';
-      const tool1Name = 'tool1';
-      const tool2Name = 'tool2';
-      var tool1Called = false;
-      var tool2Called = false;
+      ToolChoice? received;
 
       genkit.defineModel(
         name: modelName,
         fn: (request, context) async {
-          if (request.messages.last.role == .tool) {
-            return ModelResponse(
-              finishReason: .stop,
-              message: Message(
-                role: .model,
-                content: [TextPart(text: 'Done')],
-              ),
-            );
-          }
+          received = request.toolChoice;
           return ModelResponse(
             finishReason: .stop,
             message: Message(
               role: .model,
-              content: [
-                ToolRequestPart(
-                  toolRequest: ToolRequest(
-                    name: tool1Name,
-                    input: {'name': 'world'},
-                  ),
-                ),
-              ],
+              content: [TextPart(text: 'Done')],
             ),
           );
         },
       );
 
       genkit.defineTool(
-        name: tool1Name,
+        name: 'tool1',
         description: 'Tool 1',
         inputSchema: TestToolInput.$schema,
-        fn: (input, context) async {
-          tool1Called = true;
-          return .response('tool 1 output');
-        },
-      );
-
-      genkit.defineTool(
-        name: tool2Name,
-        description: 'Tool 2',
-        inputSchema: TestToolInput.$schema,
-        fn: (input, context) async {
-          tool2Called = true;
-          return .response('tool 2 output');
-        },
+        fn: (input, context) async => .response('tool 1 output'),
       );
 
       await genkit.generate(
         model: modelRef(modelName),
         prompt: 'Use a tool',
-        toolNames: [tool1Name, tool2Name],
-        toolChoice: tool1Name,
+        toolNames: ['tool1'],
+        toolChoice: .required,
       );
 
-      expect(tool1Called, isTrue);
-      expect(tool2Called, isFalse);
+      expect(received, ToolChoice.required);
     });
 
     test('should allow passing Tool objects directly', () async {

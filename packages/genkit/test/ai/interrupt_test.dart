@@ -298,14 +298,7 @@ void main() {
           ],
           tools: [toolName],
         ),
-        (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          inputStream: null,
-          init: null,
-          context: null,
-          cancel: null,
-        ),
+        ActionFnArg(),
       );
 
       expect(response1.finishReason, FinishReason.interrupted);
@@ -339,14 +332,7 @@ void main() {
             ],
           ),
         ),
-        (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          inputStream: null,
-          init: null,
-          context: null,
-          cancel: null,
-        ),
+        ActionFnArg(),
       );
 
       expect(response2.text, 'Resumed via Action!');
@@ -414,14 +400,7 @@ void main() {
           ],
           tools: [toolName],
         ),
-        (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          inputStream: null,
-          init: null,
-          context: null,
-          cancel: null,
-        ),
+        ActionFnArg(),
       );
 
       expect(response1.finishReason, FinishReason.interrupted);
@@ -447,14 +426,7 @@ void main() {
             restart: [ToolRequestPart(toolRequest: toolReq.toolRequest)],
           ),
         ),
-        (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          inputStream: null,
-          init: null,
-          context: null,
-          cancel: null,
-        ),
+        ActionFnArg(),
       );
 
       expect(response2.text, 'Restarted via Action!');

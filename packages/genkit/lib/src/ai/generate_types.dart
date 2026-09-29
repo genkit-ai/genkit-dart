@@ -55,7 +55,7 @@ final class GenerateResponseChunk<Output> extends ModelResponseChunk {
 }
 
 /// A response to an interrupted tool request.
-class InterruptResponse {
+final class InterruptResponse {
   final ToolRequestPart _part;
   final dynamic output;
 

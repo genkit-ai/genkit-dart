@@ -28,7 +28,7 @@ import 'package:schemantic/schemantic.dart';
 
 import '../../client/client.dart';
 import '../../core/cancellation.dart';
-import '../../types.dart';
+import '../../experimental_types.dart';
 import 'agent_core.dart';
 
 /// Resolves request headers, either statically or per request.

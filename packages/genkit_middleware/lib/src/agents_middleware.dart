@@ -14,8 +14,7 @@
 
 import 'dart:async';
 
-import 'package:genkit/experimental.dart' show getCurrentSession;
-import 'package:genkit/genkit.dart' show GenkitAI;
+import 'package:genkit/experimental.dart';
 import 'package:genkit/plugin.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
@@ -1077,11 +1076,7 @@ class AgentsMiddleware extends GenerateMiddleware {
       stepName: options.stepName,
     );
 
-    return next((
-      request: newOptions,
-      currentTurn: envelope.currentTurn,
-      messageIndex: envelope.messageIndex,
-    ), ctx);
+    return next(envelope.copyWith(request: newOptions), ctx);
   }
 
   /// Renders the `<sub-agents>` system prompt block, adding the async guidance

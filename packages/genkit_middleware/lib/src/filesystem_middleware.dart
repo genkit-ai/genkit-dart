@@ -366,20 +366,19 @@ class FilesystemMiddleware extends GenerateMiddleware {
         maxTurns: options.maxTurns,
         stepName: options.stepName,
       );
-      return next((
-        request: newOptions,
-        currentTurn: envelope.currentTurn,
-        messageIndex: messageIndex,
-      ), ctx);
+      return next(
+        envelope.copyWith(request: newOptions, messageIndex: messageIndex),
+        ctx,
+      );
     }
     return next(envelope, ctx);
   }
 
   @override
-  Future<ToolResponsePart> tool(
+  Future<ToolResult> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponsePart> Function(
+    Future<ToolResult> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
@@ -417,13 +416,9 @@ class FilesystemMiddleware extends GenerateMiddleware {
           );
         }
 
-        // Return a response to satisfy the signature, but the model will primarily see the user message
-        return ToolResponsePart(
-          toolResponse: ToolResponse(
-            name: request.toolRequest.name,
-            output: 'Tool failed. See context for details.',
-          ),
-        );
+        // Answer the tool call too (the loop fills in the request's `ref` and
+        // `name`), but the model will primarily see the user message above.
+        return .response('Tool failed. See context for details.');
       }
       rethrow;
     }

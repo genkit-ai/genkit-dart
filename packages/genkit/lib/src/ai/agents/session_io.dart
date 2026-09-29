@@ -15,8 +15,9 @@
 /// File-system backed session snapshot storage.
 ///
 /// Ported from the Genkit JS `session-stores.ts` (`FileSessionStore`). This
-/// library depends on `dart:io`, so it lives behind the `package:genkit/io.dart`
-/// entrypoint rather than the browser-safe `package:genkit/genkit.dart`.
+/// library depends on `dart:io`, so it lives behind the
+/// `package:genkit/experimental_io.dart` entrypoint rather than the
+/// browser-safe `package:genkit/experimental.dart`.
 library;
 
 import 'dart:async';
@@ -26,7 +27,7 @@ import 'dart:io';
 import 'package:meta/meta.dart';
 
 import '../../exception.dart';
-import '../../types.dart';
+import '../../experimental_types.dart';
 import 'session.dart';
 
 /// Default interval for the polling fallback used by

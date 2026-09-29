@@ -56,9 +56,12 @@ export 'experimental_client.dart';
 export 'src/ai/agents/agent.dart'
     show
         Agent,
+        AgentErrorDetails,
         AgentFn,
         AgentFnOptions,
         ClientTransform,
+        OnDetach,
+        OnEndTurn,
         SessionRunner,
         TurnContext,
         TurnResult,
@@ -78,5 +81,8 @@ export 'src/ai/agents/session.dart'
         runWithSession;
 export 'src/ai/generate_bidi.dart' show GenerateBidiSession;
 export 'src/ai/model.dart' show BidiModel, BidiModelRef, bidiModelRef;
+// The bidi-specific pieces of the core action surface (`Action.streamBidi`
+// itself is annotated @experimental on the stable `Action` class).
+export 'src/core/action.dart' show BidiActionFn, BidiActionStream;
 export 'src/experimental/agent_veneer.dart' show GenkitAgents;
 export 'src/experimental/bidi_veneer.dart' show GenkitBidi, GenkitBidiModel;

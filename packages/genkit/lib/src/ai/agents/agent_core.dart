@@ -33,6 +33,7 @@ import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../core/cancellation.dart';
+import '../../experimental_types.dart';
 import '../../schema_extensions.dart';
 import '../../types.dart';
 import 'json_patch.dart';

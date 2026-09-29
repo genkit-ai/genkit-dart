@@ -24,6 +24,7 @@ import 'package:openai_dart/openai_dart.dart' as sdk;
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
 import 'chat_body_client.dart';
+import 'converters.dart';
 import 'embed.dart' as embed;
 // The compat variants and the embedder metadata are intentionally not part of
 // the public surface.
@@ -31,6 +32,7 @@ import 'known_embedders.dart' show compatEmbedderInfo, embedderInfoFor;
 import 'provider.dart';
 import 'speech.dart' as speech;
 import 'transcription.dart' as transcription;
+import 'utils.dart';
 
 final _logger = Logger('genkit_openai');
 
@@ -672,6 +674,10 @@ class OpenAIPlugin extends GenkitPlugin {
             messages: messages,
             // Some OpenAI-compatible providers reject an empty tools array.
             tools: (tools == null || tools.isEmpty) ? null : tools,
+            // `tool_choice` without tools is rejected, so it rides with them.
+            toolChoice: (tools == null || tools.isEmpty)
+                ? null
+                : _toOpenAIToolChoice(modelRequest.toolChoice),
             temperature: options.temperature,
             topP: options.topP,
             // OpenAI deprecated `max_tokens` for `max_completion_tokens`;
@@ -1316,3 +1322,14 @@ final class _SpeechRequestBody extends sdk.SpeechRequest {
     if (instructions != null) 'instructions': instructions,
   };
 }
+
+/// Maps the portable Genkit tool choice onto OpenAI's `tool_choice`. The
+/// values line up one to one; unknown values are left unset rather than
+/// guessed at.
+sdk.ToolChoice? _toOpenAIToolChoice(ToolChoice? choice) =>
+    switch (choice?.value) {
+      'auto' => const sdk.ToolChoiceAuto(),
+      'required' => const sdk.ToolChoiceRequired(),
+      'none' => const sdk.ToolChoiceNone(),
+      _ => null,
+    };

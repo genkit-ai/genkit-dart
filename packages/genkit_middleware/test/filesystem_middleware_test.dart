@@ -602,6 +602,56 @@ hi
       expect(result.text, 'Error caught');
     });
 
+    test('the error response keeps the tool request ref', () async {
+      // The model can issue parallel calls to the same tool; each response is
+      // matched to its request by `ref`, so the failure answer must carry it.
+      final mw = filesystem(rootDirectory: tempDir.path);
+      ToolResponse? received;
+
+      genkit.defineModel(
+        name: 'ref-model',
+        fn: (req, ctx) async {
+          final toolMessage = req.messages
+              .where((m) => m.role == Role.tool)
+              .firstOrNull;
+          if (toolMessage != null) {
+            received = toolMessage.content.first.toolResponse;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'done')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'read_file',
+                    ref: 'call-1',
+                    input: {'filePath': 'nonexistent.txt'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      await genkit.generate(
+        model: modelRef('ref-model'),
+        prompt: 'cause error',
+        use: [mw],
+      );
+
+      expect(received?.name, 'read_file');
+      expect(received?.ref, 'call-1');
+    });
+
     test(
       'should inject file contents in the same multi-turn generate loop',
       () async {

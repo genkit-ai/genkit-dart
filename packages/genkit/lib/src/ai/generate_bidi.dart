@@ -26,7 +26,6 @@ import '../schema_extensions.dart';
 import '../types.dart';
 import 'generate.dart';
 import 'generate_types.dart';
-import 'interrupt.dart';
 import 'model.dart';
 import 'tool.dart';
 import 'tool_resolution.dart';
@@ -196,10 +195,9 @@ Future<GenerateBidiSession> runGenerateBidi(
 
             // Interrupts (human-in-the-loop) require handing control back to the
             // caller, which a live bidi session cannot do: the model is waiting
-            // on a function response and there is no resume path. Both the
-            // returned `.interrupt(...)` and the deprecated throwing
-            // `ctx.interrupt(...)` forms must fail the session loudly rather
-            // than answer the model, so this throw lives OUTSIDE the try/catch
+            // on a function response and there is no resume path. A returned
+            // `.interrupt(...)` must fail the session loudly rather than
+            // answer the model, so this throw lives OUTSIDE the try/catch
             // below (which would otherwise turn it into an `Error: ...` tool
             // response and keep the session going).
             GenkitException bidiInterruptUnsupported() => GenkitException(
@@ -216,9 +214,6 @@ Future<GenerateBidiSession> runGenerateBidi(
                 toolRequest.toolRequest.input,
                 cancel: cancel,
               )).result;
-            } on ToolInterruptException {
-              // Deprecated throwing interrupt form.
-              throw bidiInterruptUnsupported();
             } on CancelledException {
               // A cooperative cancel tears the session down (the cancel hook
               // above calls `session.close()`). Propagate it rather than turn it

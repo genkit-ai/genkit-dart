@@ -38,6 +38,7 @@ base class AnthropicOptions {
     double? topP,
     int? topK,
     List<String>? stopSequences,
+    String? forceTool,
     ThinkingConfig? thinking,
     AnthropicOutputConfig? outputConfig,
   }) {
@@ -50,6 +51,7 @@ base class AnthropicOptions {
       'topP': ?topP,
       'topK': ?topK,
       'stopSequences': ?stopSequences,
+      'forceTool': ?forceTool,
       'thinking': ?thinking?.toJson(),
       'outputConfig': ?outputConfig?.toJson(),
     };
@@ -171,6 +173,28 @@ base class AnthropicOptions {
     }
   }
 
+  /// Forces the model to call the tool with this name (Anthropic's
+  /// `tool_choice: {type: tool}`).
+  ///
+  /// Takes precedence over the portable `toolChoice` generate option, which
+  /// only covers `auto`, `required`, and `none`.
+  String? get forceTool {
+    return _json['forceTool'] as String?;
+  }
+
+  /// Forces the model to call the tool with this name (Anthropic's
+  /// `tool_choice: {type: tool}`).
+  ///
+  /// Takes precedence over the portable `toolChoice` generate option, which
+  /// only covers `auto`, `required`, and `none`.
+  set forceTool(String? value) {
+    if (value == null) {
+      _json.remove('forceTool');
+    } else {
+      _json['forceTool'] = value;
+    }
+  }
+
   /// Extended thinking configuration for supported Anthropic models (like Claude 3.7 Sonnet).
   ThinkingConfig? get thinking {
     return _json['thinking'] == null
@@ -261,6 +285,7 @@ base class _AnthropicOptionsTypeFactory
               minimum: 0,
             ),
             'stopSequences': $Schema.list(items: $Schema.string()),
+            'forceTool': $Schema.string(),
             'thinking': $Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
             'outputConfig': $Schema.fromMap({
               '\$ref': r'#/$defs/AnthropicOutputConfig',

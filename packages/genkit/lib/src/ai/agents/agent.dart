@@ -29,6 +29,7 @@ import '../../core/action.dart';
 import '../../core/cancellation.dart';
 import '../../core/registry.dart';
 import '../../exception.dart';
+import '../../experimental_types.dart';
 import '../../o11y/instrumentation.dart';
 import '../../schema.dart';
 import '../../schema_extensions.dart';
@@ -1873,14 +1874,16 @@ Agent<State> definePromptAgent<State>(
         'resume': ?resume?.toJson(),
       });
 
-      final res = await runGenerateAction(registry, genOpts, (
-        streamingRequested: true,
-        sendChunk: (chunk) => sendChunk(AgentStreamChunk(modelChunk: chunk)),
-        context: options.context,
-        inputStream: null,
-        init: null,
-        cancel: options.cancel,
-      ));
+      final res = await runGenerateAction(
+        registry,
+        genOpts,
+        ActionFnArg(
+          streamingRequested: true,
+          sendChunk: (chunk) => sendChunk(AgentStreamChunk(modelChunk: chunk)),
+          context: options.context,
+          cancel: options.cancel,
+        ),
+      );
 
       final aborted = res.finishReason == FinishReason.aborted;
       final failed = res.finishReason == FinishReason.failed;

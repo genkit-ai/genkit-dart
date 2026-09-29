@@ -240,31 +240,22 @@ void main() {
       );
     });
 
-    // Interrupts are unary-only: a live bidi session has no resume path, so both
-
-    // the returned `.interrupt(...)` and the deprecated throwing
-    // `ctx.interrupt(...)` forms must fail the session (surface an error on the
-    // stream) and must NOT answer the model with a tool message.
-    for (final variant in ['returned', 'throwing']) {
-      test('interrupt ($variant form) fails the session and does not '
-          'answer the model', () async {
-        final toolName = 'confirm_$variant';
-        final modelName = 'interruptBidiModel_$variant';
+    // Interrupts are unary-only: a live bidi session has no resume path, so an
+    // interrupt must fail the session (surface an error on the stream) and must
+    // NOT answer the model with a tool message.
+    test(
+      'an interrupt fails the session and does not answer the model',
+      () async {
+        const toolName = 'confirm';
+        const modelName = 'interruptBidiModel';
         var modelSawToolMessage = false;
 
         genkit.defineTool<MyToolInput, String>(
           name: toolName,
           description: 'Requires confirmation',
           inputSchema: MyToolInput.$schema,
-          fn: (input, context) async {
-            if (variant == 'returned') {
-              return .interrupt({'requiresConfirmation': true});
-            }
-            // The deprecated throwing form (`context.interrupt(...)`) throws a
-            // ToolInterruptException; throw it directly to exercise the same
-            // code path without depending on the deprecated API.
-            throw ToolInterruptException({'requiresConfirmation': true});
-          },
+          fn: (input, context) async =>
+              .interrupt({'requiresConfirmation': true}),
         );
 
         genkit.defineBidiModel(
@@ -334,7 +325,7 @@ void main() {
           isFalse,
           reason: 'the model must not receive a tool answer for an interrupt',
         );
-      });
-    }
+      },
+    );
   });
 }

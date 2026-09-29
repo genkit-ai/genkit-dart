@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugin.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -63,10 +62,10 @@ class TestMiddleware extends GenerateMiddleware {
   }
 
   @override
-  Future<ToolResponsePart> tool(
+  Future<ToolResult> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponsePart> Function(
+    Future<ToolResult> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
@@ -578,6 +577,27 @@ void main() {
       );
     });
 
+    test('GenerateTurnState.toString summarizes the request', () {
+      final state = GenerateTurnState(
+        request: GenerateActionOptions(
+          model: 'echo',
+          messages: [
+            Message(
+              role: .user,
+              content: [TextPart(text: 'a very long prompt')],
+            ),
+          ],
+        ),
+        currentTurn: 2,
+        messageIndex: 1,
+      );
+      expect(
+        state.toString(),
+        'GenerateTurnState(currentTurn: 2, messageIndex: 1, '
+        'messages: 1, model: echo)',
+      );
+    });
+
     test(
       'should pass and respect envelope updates in generate middleware',
       () async {
@@ -590,11 +610,13 @@ void main() {
             generateFn: (envelope, ctx, next) async {
               receivedIndex = envelope.messageIndex;
               receivedTurn = envelope.currentTurn;
-              return next((
-                request: envelope.request,
-                currentTurn: envelope.currentTurn + 2,
-                messageIndex: envelope.messageIndex + 5,
-              ), ctx);
+              return next(
+                envelope.copyWith(
+                  currentTurn: envelope.currentTurn + 2,
+                  messageIndex: envelope.messageIndex + 5,
+                ),
+                ctx,
+              );
             },
           ),
         );

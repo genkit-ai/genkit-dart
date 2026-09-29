@@ -20,14 +20,63 @@ import '../types.dart';
 import 'generate_types.dart';
 import 'tool.dart';
 
-/// Envelope for the processing of a Generation request in middleware.
-typedef GenerateTurnState = ({
-  GenerateActionOptions request,
-  int currentTurn,
-  int messageIndex,
-});
+/// The state of one turn of the generate tool loop, as seen by
+/// [GenerateMiddleware.generate].
+///
+/// A class rather than a record so fields can be added without breaking
+/// middleware that constructs one. Middleware typically rewrites only the
+/// request:
+///
+/// ```dart
+/// return next(envelope.copyWith(request: newOptions), ctx);
+/// ```
+final class GenerateTurnState {
+  /// The generate request for this turn.
+  final GenerateActionOptions request;
+
+  /// Zero-based index of this turn in the tool loop.
+  final int currentTurn;
+
+  /// Index of the next message in the response stream; used to tag streamed
+  /// chunks with the message they belong to.
+  final int messageIndex;
+
+  GenerateTurnState({
+    required this.request,
+    this.currentTurn = 0,
+    this.messageIndex = 0,
+  });
+
+  /// Returns a copy with the given fields replaced.
+  GenerateTurnState copyWith({
+    GenerateActionOptions? request,
+    int? currentTurn,
+    int? messageIndex,
+  }) {
+    return GenerateTurnState(
+      request: request ?? this.request,
+      currentTurn: currentTurn ?? this.currentTurn,
+      messageIndex: messageIndex ?? this.messageIndex,
+    );
+  }
+
+  // Summarizes [request] rather than printing it: it carries the whole
+  // conversation, which would drown out the turn counters in logs.
+  @override
+  String toString() =>
+      'GenerateTurnState(currentTurn: $currentTurn, '
+      'messageIndex: $messageIndex, '
+      'messages: ${request.messages.length}, model: ${request.model})';
+}
 
 /// Middleware for the processing of a Generation request.
+///
+/// Override only the hooks you need; the defaults pass through to `next`.
+///
+/// Always `extend` this class; do not `implement` it. New hooks are added with
+/// pass-through defaults, which is only non-breaking for subclasses. (It is
+/// not marked `base` because that would force every middleware class to
+/// repeat the modifier.)
 abstract class GenerateMiddleware {
   /// Middleware can act as a "kit" by providing tools directly.
   /// These tools will be added to the tool list of the `generate` call.
@@ -67,12 +116,30 @@ abstract class GenerateMiddleware {
 
   /// Middleware for tool execution.
   ///
-  /// Wraps independent tool calls.
-  /// Input is dynamic because tools can have varied input schemas.
-  Future<ToolResponsePart> tool(
+  /// Wraps each tool call. Input is dynamic because tools can have varied
+  /// input schemas.
+  ///
+  /// Works with the same [ToolResult] a tool function returns: return
+  /// `.response(output)` to answer the model, or `.interrupt(data)` to stop
+  /// the generate loop and hand the tool request back to the caller
+  /// (human-in-the-loop). The generate loop turns the final result into the
+  /// tool response message (filling in the request's `ref` and `name`), so
+  /// middleware never builds one by hand.
+  ///
+  /// A middleware that post-processes responses must pass interrupts through:
+  ///
+  /// ```dart
+  /// final result = await next(request, ctx);
+  /// return switch (result) {
+  ///   ToolResponseResult(:final output, :final parts, :final metadata) =>
+  ///     .response(redact(output), parts: parts, metadata: metadata),
+  ///   ToolInterruptResult() => result,
+  /// };
+  /// ```
+  Future<ToolResult> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponsePart> Function(
+    Future<ToolResult> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
@@ -84,12 +151,20 @@ abstract class GenerateMiddleware {
 
 /// Ambient dependencies handed to a middleware factory at instantiation time.
 ///
-/// The `ai` field is an ephemeral [GenkitAI] instance backed by the active
-/// action registry. It lets a middleware run nested AI operations (e.g.
-/// [GenkitAI.generate], [GenkitAI.embed]) and resolve other registered actions
-/// (models, tools, agents, etc.) by name when it is created. The underlying
-/// registry is available via `ai.registry`.
-typedef GenerateMiddlewareContext = ({GenkitAI ai});
+/// A class rather than a record so more dependencies can be added without
+/// breaking code that constructs one (tests that call
+/// [GenerateMiddlewareDef.create] directly).
+final class GenerateMiddlewareContext {
+  /// An ephemeral [GenkitAI] instance backed by the active action registry.
+  ///
+  /// Lets a middleware run nested AI operations (e.g. [GenkitAI.generate],
+  /// [GenkitAI.embed]) and resolve other registered actions (models, tools,
+  /// agents, etc.) by name when it is created. The underlying registry is
+  /// available via `ai.registry`.
+  final GenkitAI ai;
+
+  GenerateMiddlewareContext({required this.ai});
+}
 
 abstract interface class GenerateMiddlewareDef<CustomOptions> {
   String get name;

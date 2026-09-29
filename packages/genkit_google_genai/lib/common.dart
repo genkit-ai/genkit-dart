@@ -12,7 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Internal exports for plugins sharing Google AI logic (like genkit_vertexai).
+/// Shared implementation for Genkit's Google model plugins.
+///
+/// **Not public API.** This library exists so `genkit_vertexai` can reuse the
+/// Gemini request/response mapping, model catalog, and API client from this
+/// package. It is not covered by this package's semantic-versioning
+/// guarantees: anything here may change or disappear in any release, including
+/// patch releases.
+///
+/// Applications should import `package:genkit_google_genai/genkit_google_genai.dart`
+/// (or `package:genkit_vertexai/genkit_vertexai.dart`) instead.
+// Kept as a public library (rather than `src/`) because a sibling package
+// needs it and `implementation_imports` forbids importing another package's
+// `src/`. Deliberately not annotated `@internal`: that annotation means
+// "this package only", so it would flag the one intended consumer. Internal
+// changes here land together with the matching change in genkit_vertexai.
 library;
 
 export 'src/api_client.dart';

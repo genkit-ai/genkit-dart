@@ -18,6 +18,29 @@
 /// `package:genkit/experimental.dart`, these APIs are NOT covered by
 /// semantic-versioning stability guarantees and may change or be removed in any
 /// MINOR release without a major version bump.
+///
+/// It is deliberately not re-exported from
+/// `package:genkit_middleware/genkit_middleware.dart`; import it directly:
+///
+/// ```dart
+/// import 'package:genkit_middleware/agents.dart';
+/// ```
+///
+/// To opt out of the analyzer warning on this import (you have accepted the
+/// instability), add to your `analysis_options.yaml`:
+///
+/// ```yaml
+/// analyzer:
+///   errors:
+///     experimental_member_use: ignore
+/// ```
+// `@experimental` on the library is what surfaces `experimental_member_use` on
+// the import directive; the annotation does not propagate to re-exported
+// symbols, which is why this library must not be re-exported from a stable
+// barrel.
+@experimental
 library;
+
+import 'package:meta/meta.dart';
 
 export 'src/agents_middleware.dart';

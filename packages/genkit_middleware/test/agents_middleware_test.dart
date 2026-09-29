@@ -401,7 +401,7 @@ void main() {
       expect(
         () => AgentsPlugin().middleware().first.create(
           AgentsOptions(agents: []),
-          (ai: ai),
+          GenerateMiddlewareContext(ai: ai),
         ),
         throwsA(
           isA<ArgumentError>().having(

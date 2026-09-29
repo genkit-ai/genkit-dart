@@ -27,18 +27,20 @@ import '../types.dart';
 import 'formatters/formatters.dart';
 import 'generate_middleware.dart';
 import 'generate_types.dart';
-import 'interrupt.dart';
 import 'model.dart';
 import 'tool.dart';
 import 'tool_resolution.dart';
 
 const _defaultMaxTurns = 5;
 
+/// Per-request outcome of a tool call within a turn. `interrupted` marks an
+/// interrupt, whose payload is `interruptData` (`true` when none was given).
 typedef _ToolStatus = ({
   Object? output,
   List<dynamic>? content,
   Map<String, dynamic>? metadata,
-  ToolInterruptException? interrupt,
+  bool interrupted,
+  Object? interruptData,
 });
 
 typedef GenerateAction =
@@ -148,7 +150,10 @@ abstract class GenerateConfig {}
             : config;
 
         resolvedMiddleware.add(
-          def.create(parsedConfig, (ai: GenkitAI(registry))),
+          def.create(
+            parsedConfig,
+            GenerateMiddlewareContext(ai: GenkitAI(registry)),
+          ),
         );
       } else {
         throw GenkitException(
@@ -589,31 +594,32 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   // we only convert when the token is actually cancelled, otherwise rethrow.
   final ModelResponse response;
   try {
-    response = await composedModel(currentRequest, (
-      streamingRequested: ctx.streamingRequested,
-      sendChunk: (chunk) {
-        final currentRole = chunk.role ?? Role.model;
-        if (currentRole != currentChunkRole && modelHasSentChunks) {
-          messageIndex++;
-        }
-        currentChunkRole = currentRole;
-        modelHasSentChunks = true;
+    response = await composedModel(
+      currentRequest,
+      ActionFnArg(
+        streamingRequested: ctx.streamingRequested,
+        sendChunk: (chunk) {
+          final currentRole = chunk.role ?? Role.model;
+          if (currentRole != currentChunkRole && modelHasSentChunks) {
+            messageIndex++;
+          }
+          currentChunkRole = currentRole;
+          modelHasSentChunks = true;
 
-        ctx.sendChunk(
-          ModelResponseChunk(
-            index: chunk.index ?? messageIndex,
-            content: chunk.content,
-            role: currentChunkRole,
-            custom: chunk.custom,
-            aggregated: chunk.aggregated,
-          ),
-        );
-      },
-      context: ctx.context,
-      inputStream: null,
-      init: null,
-      cancel: ctx.cancel,
-    ));
+          ctx.sendChunk(
+            ModelResponseChunk(
+              index: chunk.index ?? messageIndex,
+              content: chunk.content,
+              role: currentChunkRole,
+              custom: chunk.custom,
+              aggregated: chunk.aggregated,
+            ),
+          );
+        },
+        context: ctx.context,
+        cancel: ctx.cancel,
+      ),
+    );
   } catch (e) {
     // A cancel of this turn's token resolves to an aborted response carrying
     // the last-good history. A genuine model error resolves to a failed
@@ -779,11 +785,13 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   );
 
   // Recursively call composedGenerate for the next turn
-  return composedGenerate((
-    request: nextOptions,
-    currentTurn: currentTurn + 1,
-    messageIndex: messageIndex + 2,
-  ));
+  return composedGenerate(
+    GenerateTurnState(
+      request: nextOptions,
+      currentTurn: currentTurn + 1,
+      messageIndex: messageIndex + 2,
+    ),
+  );
 }
 
 Future<GenerateResponseHelper> runGenerateAction(
@@ -922,7 +930,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
       // Map outputs back to respondents
       final respond = opts.resume?.respond?.toList() ?? [];
       for (final entry in toolStatus.entries) {
-        if (entry.value.interrupt == null && entry.value.output != null) {
+        if (!entry.value.interrupted && entry.value.output != null) {
           final reqPart = resumeRestart.firstWhere((p) {
             final t = p.toolRequest;
             return (t.ref ?? t.name) == entry.key;
@@ -955,11 +963,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
         ),
       );
 
-      return composedGenerate((
-        request: opts,
-        currentTurn: currentTurn,
-        messageIndex: envelope.messageIndex,
-      ), c);
+      return composedGenerate(envelope.copyWith(request: opts), c);
     }
 
     return _runGenerateLoop(
@@ -987,11 +991,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
   // `GenerateWithRequest` tail, which synthesizes a `failurePartial` for an
   // error raised outside a turn (e.g. a WrapGenerate hook).
   try {
-    return await composedGenerate((
-      request: options,
-      currentTurn: 0,
-      messageIndex: 0,
-    ), ctx);
+    return await composedGenerate(GenerateTurnState(request: options), ctx);
   } catch (e) {
     final aborted = _abortResponseIfCancelled(
       e,
@@ -1024,7 +1024,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   ModelRef<CustomOptions>? model,
   CustomOptions? config,
   List<String>? tools,
-  String? toolChoice,
+  ToolChoice? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
   GenerateActionOutputConfig? output,
@@ -1142,7 +1142,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
           .whereType<MiddlewareRef>()
           .toList(),
     ),
-    (
+    ActionFnArg(
       streamingRequested: onChunk != null,
       sendChunk: (chunk) {
         if (onChunk != null) {
@@ -1156,8 +1156,6 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
         }
       },
       context: context,
-      inputStream: null,
-      init: null,
       cancel: cancel,
     ),
     middleware: middleware,
@@ -1312,8 +1310,8 @@ ModelResponse _buildInterruptedResponse(
       final status = toolStatus[ref];
       final meta = Map<String, dynamic>.from(part.metadata ?? {});
 
-      if (status?.interrupt != null) {
-        meta['interrupt'] = status!.interrupt!.interrupt;
+      if (status?.interrupted ?? false) {
+        meta['interrupt'] = status!.interruptData;
       } else if (status?.output != null) {
         // Preserve the completed tool's output plus any multipart content and
         // metadata so that, on resume, the tool response reaching the model is
@@ -1396,34 +1394,17 @@ _executeTools(
       );
     }
 
-    Future<ToolResponsePart> coreTool(
+    Future<ToolResult> coreTool(
       ToolRequestPart req,
       ActionFnArg<void, dynamic, void> c,
     ) async {
       _recordResumedMetadata(c.context);
       c.cancel?.throwIfCancelled();
-      final result = (await tool.runRaw(
+      return (await tool.runRaw(
         req.toolRequest.input,
         context: c.context,
         cancel: c.cancel,
       )).result;
-
-      switch (result) {
-        case ToolInterruptResult(:final data):
-          // Reuse the existing interrupt machinery: bubble the request back to
-          // the caller as a thrown interrupt.
-          throw ToolInterruptException(data ?? true);
-        case ToolResponseResult(:final output, :final parts, :final metadata):
-          return ToolResponsePart(
-            toolResponse: ToolResponse(
-              ref: req.toolRequest.ref,
-              name: req.toolRequest.name,
-              output: output,
-              content: parts?.map((p) => p.toJson()).toList(),
-            ),
-            metadata: metadata,
-          );
-      }
     }
 
     final composedTool =
@@ -1434,32 +1415,51 @@ _executeTools(
         ) ??
         coreTool;
 
+    final statusKey =
+        toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name;
     try {
-      final toolResponsePart = await runZoned(
-        () => composedTool(toolRequest, (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          context: context,
-          inputStream: null,
-          init: null,
-          cancel: cancelToken,
-        )),
+      final outcome = await runZoned(
+        () => composedTool(
+          toolRequest,
+          ActionFnArg(context: context, cancel: cancelToken),
+        ),
         zoneValues: {ToolRequestPart: toolRequest},
       );
-      toolResponses.add(toolResponsePart);
-      toolStatus[toolRequest.toolRequest.ref ??
-          toolRequest.toolRequest.name] = (
-        output: toolResponsePart.toolResponse.output,
-        content: toolResponsePart.toolResponse.content,
-        metadata: toolResponsePart.metadata,
-        interrupt: null,
-      );
-    } on ToolInterruptException catch (e) {
-      // An interrupt is a turn outcome, not a failure: mark it and let the loop
-      // bubble the request back to the caller (via `_buildInterruptedResponse`).
-      interrupted = true;
-      toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
-          (output: null, content: null, metadata: null, interrupt: e);
+      switch (outcome) {
+        case ToolResponseResult(:final output, :final parts, :final metadata):
+          // Built here, after the middleware chain, so the response always
+          // carries the request's `ref` and `name` (middleware cannot get them
+          // wrong, e.g. when the model issued parallel calls).
+          final part = ToolResponsePart(
+            toolResponse: ToolResponse(
+              ref: toolRequest.toolRequest.ref,
+              name: toolRequest.toolRequest.name,
+              output: output,
+              content: parts?.map((p) => p.toJson()).toList(),
+            ),
+            metadata: metadata,
+          );
+          toolResponses.add(part);
+          toolStatus[statusKey] = (
+            output: part.toolResponse.output,
+            content: part.toolResponse.content,
+            metadata: part.metadata,
+            interrupted: false,
+            interruptData: null,
+          );
+        case ToolInterruptResult(:final data):
+          // An interrupt is a turn outcome, not a failure: mark it and let the
+          // loop bubble the request back to the caller (via
+          // `_buildInterruptedResponse`).
+          interrupted = true;
+          toolStatus[statusKey] = (
+            output: null,
+            content: null,
+            metadata: null,
+            interrupted: true,
+            interruptData: data ?? true,
+          );
+      }
     } catch (e) {
       // A cancel tied to this turn's token is an abort, not a tool failure: let
       // the original exception propagate unchanged so the loop resolves it as

@@ -50,11 +50,22 @@ class ClassGenerator {
 
   ClassGenerator(this.definitions);
 
-  String generate(Set<String> allowlist) {
+  /// Generates one library containing the [allowlist] classes.
+  ///
+  /// [partFile] is the `part` the schemantic builder fills in. [imports] lets
+  /// a library reference classes generated into another one (the shared
+  /// `ClassGenerator` instance tracks what was already emitted, so a class
+  /// lands in exactly one library).
+  String generate(
+    Set<String> allowlist, {
+    required String partFile,
+    List<String> imports = const [],
+  }) {
     final library = Library((b) {
       b.directives.addAll([
         Directive.import('package:schemantic/schemantic.dart'),
-        Directive.part('types.g.dart'),
+        for (final import in imports) Directive.import(import),
+        Directive.part(partFile),
       ]);
       for (final className in allowlist) {
         if (definitions.containsKey(className)) {
@@ -185,7 +196,10 @@ class ClassGenerator {
     final buffer = StringBuffer();
     buffer.writeln('extension type $enumName(String value) {');
     for (final value in values) {
-      final fieldName = _sanitizeFieldName(value.toString());
+      // Not `_sanitizeFieldName`: its `required` -> `isRequired` rename exists
+      // for property getters, but `required` is only a contextual keyword and
+      // reads naturally as an enum value (`toolChoice: .required`).
+      final fieldName = value.toString().replaceAll('-', '_');
       buffer.writeln(
         "  static $enumName get $fieldName => $enumName('$value');",
       );

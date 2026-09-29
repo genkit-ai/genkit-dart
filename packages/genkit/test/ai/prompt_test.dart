@@ -19,7 +19,6 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/dotprompt_registry.dart';
 import 'package:genkit/src/ai/prompt.dart';
 import 'package:genkit/src/ai/prompt_loader.dart';
-import 'package:genkit/src/core/registry.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -49,7 +48,7 @@ void main() {
         maxTurns: 5,
         returnToolRequests: true,
         toolNames: ['tool1'],
-        toolChoice: 'auto',
+        toolChoice: .auto,
       );
 
       expect(config.name, equals('test'));
@@ -71,7 +70,7 @@ void main() {
       final opts = PromptGenerateOptions(
         model: modelRef('override-model'),
         config: {'temperature': 0.5},
-        toolChoice: 'required',
+        toolChoice: .required,
         returnToolRequests: false,
         maxTurns: 3,
         context: {'user': 'test'},
@@ -145,7 +144,7 @@ void main() {
         model: modelRef('test-model'),
         prompt: 'Hello {{name}}',
         toolNames: ['tool1'],
-        toolChoice: 'auto',
+        toolChoice: .auto,
       );
 
       definePromptAction(registry, dpRegistry, config);
@@ -337,27 +336,27 @@ void main() {
       final ep = definePromptAction(
         registry,
         dpRegistry,
-        PromptConfig(name: 'test', toolChoice: 'required', prompt: 'Hello'),
+        PromptConfig(name: 'test', toolChoice: .required, prompt: 'Hello'),
       );
 
       final options = await ep.render({});
 
-      expect(options.toolChoice, equals('required'));
+      expect(options.toolChoice, ToolChoice.required);
     });
 
     test('opts toolChoice overrides config', () async {
       final ep = definePromptAction(
         registry,
         dpRegistry,
-        PromptConfig(name: 'test', toolChoice: 'auto', prompt: 'Hello'),
+        PromptConfig(name: 'test', toolChoice: .auto, prompt: 'Hello'),
       );
 
       final options = await ep.render(
         {},
-        PromptGenerateOptions(toolChoice: 'required'),
+        PromptGenerateOptions(toolChoice: .required),
       );
 
-      expect(options.toolChoice, equals('required'));
+      expect(options.toolChoice, ToolChoice.required);
     });
 
     test('resolves maxTurns from config', () async {
@@ -1048,7 +1047,7 @@ void main() {
         model: modelRef('test/model'),
         config: {'temperature': 0.9},
         maxTurns: 3,
-        toolChoice: 'auto',
+        toolChoice: .auto,
         prompt: 'Write a story',
       );
 
@@ -1714,7 +1713,7 @@ Hello {{name}}!
         'name': 'World',
       });
 
-      expect(options.toolChoice, equals('required'));
+      expect(options.toolChoice, ToolChoice.required);
     });
 
     test('parses maxTurns and returnToolRequests from frontmatter', () async {

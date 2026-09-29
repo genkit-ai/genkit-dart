@@ -25,7 +25,7 @@ EmbedderRef<CustomOptions> embedderRef<CustomOptions>(
   return _EmbedderRef<CustomOptions>(name, customOptions);
 }
 
-abstract class EmbedderRef<CustomOptions> {
+abstract interface class EmbedderRef<CustomOptions> {
   String get name;
   SchemanticType<CustomOptions>? get customOptions;
 }
@@ -39,7 +39,7 @@ class _EmbedderRef<CustomOptions> implements EmbedderRef<CustomOptions> {
   _EmbedderRef(this.name, this.customOptions);
 }
 
-class Embedder<CustomOptions>
+base class Embedder<CustomOptions>
     extends Action<EmbedRequest, EmbedResponse, void, void>
     implements EmbedderRef<CustomOptions> {
   @override

@@ -12,10 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:logging/logging.dart';
+
 import '../ai/generate_middleware.dart';
 import './action.dart';
 import './dynamic_action_provider.dart';
 import './plugin.dart';
+
+final _logger = Logger('genkit.registry');
 
 /// The parsed components of a registry key.
 ///
@@ -194,7 +198,12 @@ class Registry {
           }
         }
       } catch (e, st) {
-        print('Failed to list actions from plugin ${plugin.name}: $e $st');
+        // One broken plugin must not hide every other plugin's actions.
+        _logger.warning(
+          'Failed to list actions from plugin ${plugin.name}',
+          e,
+          st,
+        );
       }
     }
     return allActions.values.toList();
@@ -208,7 +217,7 @@ class Registry {
   Future<Action?> lookupActionByKey(String key) async {
     final parsed = parseRegistryKey(key);
     if (parsed?.dynamicActionHost != null) {
-      return getDynamicAction(parsed!);
+      return _getDynamicAction(parsed!);
     }
     // Non-DAP key: reconstruct the full action name (including any plugin
     // prefix) from the raw key rather than the parsed name, since
@@ -222,7 +231,7 @@ class Registry {
   /// [parsedKey] whose `dynamicActionHost` is set. Returns null when the host
   /// is not a registered provider, the name is a wildcard (which addresses
   /// many actions, not one), or the provider cannot resolve it.
-  Future<Action?> getDynamicAction(ParsedRegistryKey parsedKey) async {
+  Future<Action?> _getDynamicAction(ParsedRegistryKey parsedKey) async {
     final host = parsedKey.dynamicActionHost;
     if (host == null || parsedKey.actionName.contains('*')) return null;
     final dap =
@@ -278,9 +287,11 @@ class Registry {
         try {
           resolvable.addAll(await action.getActionMetadataRecord());
         } catch (e, st) {
-          print(
-            'Error listing actions for Dynamic Action Provider '
-            '${action.name}: $e $st',
+          _logger.warning(
+            'Failed to list actions from dynamic action provider '
+            '${action.name}',
+            e,
+            st,
           );
         }
       }

@@ -75,6 +75,13 @@ abstract class $AnthropicOptions {
   /// Stop sequences to use for this generation.
   List<String>? get stopSequences;
 
+  /// Forces the model to call the tool with this name (Anthropic's
+  /// `tool_choice: {type: tool}`).
+  ///
+  /// Takes precedence over the portable `toolChoice` generate option, which
+  /// only covers `auto`, `required`, and `none`.
+  String? get forceTool;
+
   /// Extended thinking configuration for supported Anthropic models (like Claude 3.7 Sonnet).
   $ThinkingConfig? get thinking;
 

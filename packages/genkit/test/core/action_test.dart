@@ -261,4 +261,38 @@ void main() {
       expect(() => jsonEncode(list), returnsNormally);
     });
   });
+
+  group('ActionMetadata.key', () {
+    test('can be stamped once, then only re-stamped with the same value', () {
+      final meta = ActionMetadata<void, void, void, void>(name: 'a');
+      meta.key = '/tool/a';
+      meta.key = '/tool/a';
+      expect(meta.key, '/tool/a');
+      expect(() => meta.key = '/tool/b', throwsStateError);
+      expect(meta.key, '/tool/a');
+    });
+  });
+
+  group('ActionStream.withResult', () {
+    test('emits the chunks and completes onResult with the result', () async {
+      final stream = ActionStream.withResult(
+        Stream.fromIterable(['Hel', 'lo']),
+        Future.value('Hello'),
+      );
+
+      expect(await stream.toList(), ['Hel', 'lo']);
+      expect(await stream.onResult, 'Hello');
+      expect(stream.result, 'Hello');
+    });
+
+    test('surfaces an error from the result future', () async {
+      final stream = ActionStream<String, String>.withResult(
+        const Stream.empty(),
+        Future.error(StateError('boom')),
+      );
+
+      await expectLater(stream.onResult, throwsStateError);
+      expect(() => stream.result, throwsStateError);
+    });
+  });
 }

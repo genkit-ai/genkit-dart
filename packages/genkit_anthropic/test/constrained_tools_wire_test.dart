@@ -15,6 +15,7 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit_anthropic/genkit_anthropic.dart';
 import 'package:genkit_anthropic/src/plugin_impl.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -26,6 +27,7 @@ Future<Map<String, dynamic>> _wireBodyFor({
   required String model,
   required List<String> tools,
   String? toolChoice,
+  String? forceTool,
   bool constrained = true,
 }) async {
   Map<String, dynamic>? captured;
@@ -75,7 +77,10 @@ Future<Map<String, dynamic>> _wireBodyFor({
         ),
       ],
       tools: tools,
-      toolChoice: toolChoice,
+      toolChoice: toolChoice == null ? null : ToolChoice(toolChoice),
+      config: forceTool == null
+          ? null
+          : AnthropicOptions(forceTool: forceTool).toJson(),
       output: GenerateActionOutputConfig(
         format: 'json',
         constrained: constrained,
@@ -120,12 +125,12 @@ void main() {
       expect(body, isNot(contains('tool_choice')));
     });
 
-    test('an unconstrained request sends no schema and keeps the '
-        'toolChoice', () async {
+    test('an unconstrained request sends no schema and keeps the forced '
+        'tool', () async {
       final body = await _wireBodyFor(
         model: 'claude-sonnet-4-5',
         tools: ['lookup'],
-        toolChoice: 'lookup',
+        forceTool: 'lookup',
         constrained: false,
       );
 
@@ -142,7 +147,7 @@ void main() {
       final body = await _wireBodyFor(
         model: 'claude-sonnet-4-5',
         tools: [],
-        toolChoice: 'any',
+        toolChoice: 'required',
       );
 
       expect(body, isNot(contains('tools')));

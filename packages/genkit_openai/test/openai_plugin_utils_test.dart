@@ -13,7 +13,9 @@
 // limitations under the License.
 
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:genkit_openai/src/known_models.dart' show nonChatSupports;
+import 'package:genkit_openai/src/known_models.dart'
+    show multimodalSupports, nonChatSupports, supportsTools, supportsVision;
+import 'package:genkit_openai/src/utils.dart';
 import 'package:test/test.dart';
 
 void main() {

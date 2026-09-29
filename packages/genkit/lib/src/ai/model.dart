@@ -28,7 +28,7 @@ ModelRef<CustomOptions> modelRef<CustomOptions>(
   return _ModelRef<CustomOptions>(name, customOptions, config: config);
 }
 
-abstract class ModelRef<CustomOptions> {
+abstract interface class ModelRef<CustomOptions> {
   String get name;
   CustomOptions? get config;
   SchemanticType<CustomOptions>? get customOptions;
@@ -45,7 +45,7 @@ class _ModelRef<CustomOptions> implements ModelRef<CustomOptions> {
   _ModelRef(this.name, this.customOptions, {this.config});
 }
 
-class Model<CustomOptions>
+base class Model<CustomOptions>
     extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void>
     implements ModelRef<CustomOptions> {
   // For a model instance the config is always null.
@@ -206,7 +206,7 @@ BidiModelRef<CustomOptions> bidiModelRef<CustomOptions>(
 
 /// Experimental: lives behind `package:genkit/experimental.dart`.
 @experimental
-abstract class BidiModelRef<CustomOptions> {
+abstract interface class BidiModelRef<CustomOptions> {
   String get name;
   SchemanticType<CustomOptions>? get customOptions;
 }
@@ -222,12 +222,12 @@ class _BidiModelRef<CustomOptions> implements BidiModelRef<CustomOptions> {
 
 /// Experimental: lives behind `package:genkit/experimental.dart`.
 @experimental
-class BidiModel<CustomOptions>
+base class BidiModel<CustomOptions>
     extends
         Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest>
     implements BidiModelRef<CustomOptions> {
   @override
-  SchemanticType<CustomOptions>? customOptions;
+  final SchemanticType<CustomOptions>? customOptions;
 
   BidiModel({
     required super.name,

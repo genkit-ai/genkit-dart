@@ -14,6 +14,7 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../exception.dart';
@@ -95,18 +96,80 @@ typedef StreamingCallback<Chunk> = void Function(Chunk chunk);
 typedef TraceStartCallback =
     void Function({required String traceId, required String spanId});
 
-typedef ActionFnArg<Chunk, Input, Init> = ({
-  bool streamingRequested,
-  StreamingCallback<Chunk> sendChunk,
-  Map<String, dynamic>? context,
-  Stream<Input>? inputStream,
-  Init? init,
+/// The per-invocation context handed to an action's implementation function.
+///
+/// A class rather than a record so fields can be added without breaking code
+/// that constructs one (middleware that wraps `ctx` to intercept chunks, tests
+/// that invoke an action function directly). Use [copyWith] to derive a
+/// context that differs in one field:
+///
+/// ```dart
+/// final wrapped = ctx.copyWith(sendChunk: (chunk) => ctx.sendChunk(tweak(chunk)));
+/// return next(request, wrapped);
+/// ```
+final class ActionFnArg<Chunk, Input, Init> {
+  /// Whether the caller is consuming streamed chunks. When `false`, chunks
+  /// passed to [sendChunk] are dropped, so an action may skip producing them.
+  final bool streamingRequested;
+
+  /// Emits a streamed chunk to the caller.
+  final StreamingCallback<Chunk> sendChunk;
+
+  /// Request-scoped context (auth, headers, etc.) supplied by the caller.
+  final Map<String, dynamic>? context;
+
+  /// The input stream of a bidirectional action; `null` for unary actions.
+  ///
+  /// Experimental: bidirectional streaming is not covered by semver and may
+  /// change in any minor release.
+  final Stream<Input>? inputStream;
+
+  /// The initialization payload of a bidirectional action or agent; `null`
+  /// otherwise.
+  ///
+  /// Experimental: bidirectional streaming is not covered by semver and may
+  /// change in any minor release.
+  final Init? init;
 
   /// A read-only cancellation token the action body should observe to abort
   /// cooperatively, or `null` when the caller wired up no cancellation. Observe
   /// it with null-aware calls, e.g. `ctx.cancel?.throwIfCancelled()`.
-  CancellationToken? cancel,
-});
+  final CancellationToken? cancel;
+
+  /// Creates an action context. [sendChunk] defaults to a no-op.
+  ActionFnArg({
+    this.streamingRequested = false,
+    StreamingCallback<Chunk>? sendChunk,
+    this.context,
+    this.inputStream,
+    this.init,
+    this.cancel,
+  }) : sendChunk = sendChunk ?? _dropChunk;
+
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// Nullable fields cannot be cleared this way (passing `null` keeps the
+  /// current value); construct a new [ActionFnArg] for that.
+  ActionFnArg<Chunk, Input, Init> copyWith({
+    bool? streamingRequested,
+    StreamingCallback<Chunk>? sendChunk,
+    Map<String, dynamic>? context,
+    Stream<Input>? inputStream,
+    Init? init,
+    CancellationToken? cancel,
+  }) {
+    return ActionFnArg(
+      streamingRequested: streamingRequested ?? this.streamingRequested,
+      sendChunk: sendChunk ?? this.sendChunk,
+      context: context ?? this.context,
+      inputStream: inputStream ?? this.inputStream,
+      init: init ?? this.init,
+      cancel: cancel ?? this.cancel,
+    );
+  }
+}
+
+void _dropChunk(Object? _) {}
 
 typedef ActionFn<Input, Output, Chunk, Init> =
     Future<Output> Function(
@@ -114,6 +177,10 @@ typedef ActionFn<Input, Output, Chunk, Init> =
       ActionFnArg<Chunk, Input, Init> context,
     );
 
+/// The implementation function of a bidirectional action.
+///
+/// Experimental: lives behind `package:genkit/experimental.dart`.
+@experimental
 typedef BidiActionFn<Input, Output, Chunk, Init> =
     Future<Output> Function(
       Stream<Input> inputStream,
@@ -126,7 +193,7 @@ typedef InternalActionFn<Input, Output, Chunk, Init> =
       ActionFnArg<Chunk, Input, Init> context,
     );
 
-class RunResult<Output> {
+final class RunResult<Output> {
   final Output result;
   final String traceId;
   final String spanId;
@@ -142,7 +209,7 @@ class RunResult<Output> {
   }
 }
 
-class ActionMetadata<Input, Output, Chunk, Init> {
+base class ActionMetadata<Input, Output, Chunk, Init> {
   final String name;
   final String? description;
   final ActionType actionType;
@@ -159,20 +226,41 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   /// Null for locally-defined actions until stamped (a DAP stamps this onto the
   /// actions it resolves so their provenance survives into tool definitions and
   /// traces). Mirrors JS's `__action.key`.
-  String? key;
+  String? get key => _registryKey;
+
+  /// Stamps [key] after construction.
+  ///
+  /// Only the dynamic action provider does this, for actions it resolves but
+  /// did not construct; everything else passes `key` to the constructor. A key
+  /// identifies the action in traces and tool definitions, so once set it can
+  /// only be re-stamped with the same value.
+  @internal
+  set key(String? value) {
+    final current = _registryKey;
+    if (current != null && value != current) {
+      throw StateError(
+        'Action "$name" already has key "$current"; cannot change it to '
+        '"$value".',
+      );
+    }
+    _registryKey = value;
+  }
+
+  String? _registryKey;
 
   ActionMetadata({
     required this.name,
     this.actionType = .custom,
     this.description,
-    this.key,
+    String? key,
 
     this.inputSchema,
     this.outputSchema,
     this.streamSchema,
     this.initSchema,
     Map<String, dynamic>? metadata,
-  }) : metadata = metadata ?? {};
+  }) : _registryKey = key,
+       metadata = metadata ?? {};
 
   Map<String, dynamic> toJson() {
     // `jsonSchema` is a method, so it must be called; a bare tearoff would put a
@@ -196,7 +284,7 @@ class ActionMetadata<Input, Output, Chunk, Init> {
   }
 }
 
-class Action<Input, Output, Chunk, Init>
+base class Action<Input, Output, Chunk, Init>
     extends ActionMetadata<Input, Output, Chunk, Init> {
   final InternalActionFn<Input, Output, Chunk, Init> fn;
 
@@ -300,7 +388,8 @@ class Action<Input, Output, Chunk, Init>
       internalInputController.close();
     }
 
-    final executionContext = context ?? Zone.current[_genkitContextKey];
+    final executionContext =
+        context ?? Zone.current[_genkitContextKey] as Map<String, dynamic>?;
     Future<RunResult<Output>> runner() async {
       var traceId = '';
       var spanId = '';
@@ -313,14 +402,17 @@ class Action<Input, Output, Chunk, Init>
             onTraceStart(traceId: traceId, spanId: spanId);
           }
           _recordContextMetadata(executionContext);
-          return await fn(input, (
-            streamingRequested: onChunk != null,
-            sendChunk: onChunk ?? (chunk) {},
-            context: executionContext,
-            inputStream: inputStream,
-            init: init,
-            cancel: cancel,
-          ));
+          return await fn(
+            input,
+            ActionFnArg(
+              streamingRequested: onChunk != null,
+              sendChunk: onChunk,
+              context: executionContext,
+              inputStream: inputStream,
+              init: init,
+              cancel: cancel,
+            ),
+          );
         },
         actionType: actionType.value,
         input: input,
@@ -393,6 +485,12 @@ class Action<Input, Output, Chunk, Init>
     return actionStream;
   }
 
+  /// Starts a bidirectional session with this action: send inputs with
+  /// [BidiActionStream.send] while consuming output chunks.
+  ///
+  /// Experimental: bidirectional streaming is not covered by semver and may
+  /// change in any minor release.
+  @experimental
   BidiActionStream<Chunk, Output, Input> streamBidi({
     Stream<Input>? inputStream,
     StreamingCallback<Chunk>? onChunk,
@@ -446,7 +544,20 @@ class Action<Input, Output, Chunk, Init>
 }
 
 /// A stream of chunks emitted by an action, which also resolves to a final response.
-class ActionStream<Chunk, Response> extends StreamView<Chunk> {
+///
+/// Listen to it for the chunks; read [onResult] (or [result], once the stream
+/// is done) for the final response.
+///
+/// To create one outside this package (for example a fake `RemoteAction` in
+/// tests), use [ActionStream.withResult]:
+///
+/// ```dart
+/// final stream = ActionStream.withResult(
+///   Stream.fromIterable(['Hel', 'lo']),
+///   Future.value('Hello'),
+/// );
+/// ```
+base class ActionStream<Chunk, Response> extends StreamView<Chunk> {
   bool _done = false;
   Response? _result;
   Object? _streamError;
@@ -481,6 +592,10 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
   }
 
   /// Sets the final result of the action stream and completes the future.
+  ///
+  /// Producer-side API for the code that created this stream; consumers must
+  /// not call it.
+  @internal
   void setResult(Response result) {
     _done = true;
     _result = result;
@@ -490,6 +605,10 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
   }
 
   /// Sets an error on the action stream and completes the future with an error.
+  ///
+  /// Producer-side API for the code that created this stream; consumers must
+  /// not call it.
+  @internal
   void setError(Object error, StackTrace st) {
     _done = true;
     _streamError = error;
@@ -499,12 +618,25 @@ class ActionStream<Chunk, Response> extends StreamView<Chunk> {
     }
   }
 
-  /// Creates a new [ActionStream] from a [Stream] of chunks.
+  /// Creates an [ActionStream] over [stream] whose result is supplied later
+  /// by the producer.
+  ///
+  /// Outside this package, prefer [ActionStream.withResult]: the producer-side
+  /// setters are internal.
   ActionStream(super.stream);
+
+  /// Creates an [ActionStream] that emits [stream] and completes [onResult]
+  /// with [result] (or its error).
+  ActionStream.withResult(super.stream, Future<Response> result) {
+    result.then(setResult, onError: setError);
+  }
 }
 
 /// A bi-directional version of [ActionStream] that allows sending chunks back to the action.
-class BidiActionStream<Chunk, Response, Request>
+///
+/// Experimental: lives behind `package:genkit/experimental.dart`.
+@experimental
+final class BidiActionStream<Chunk, Response, Request>
     extends ActionStream<Chunk, Response> {
   final StreamSink<Request>? _inputSink;
   bool _inputClosed = false;

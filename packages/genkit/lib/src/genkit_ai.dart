@@ -64,7 +64,7 @@ base class GenkitAI {
     CustomOptions? config,
     List<Tool>? tools,
     List<String>? toolNames,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
     SchemanticType<Output>? outputSchema,
@@ -161,9 +161,7 @@ base class GenkitAI {
                   GenerateResponseChunk<Output>(
                     c.rawChunk,
                     previousChunks: List.from(c.previousChunks),
-                    output: c.output != null
-                        ? outputSchema.parse(c.output)
-                        : null,
+                    output: _parsePartial(outputSchema, c.output),
                   ),
                 );
               } else {
@@ -210,7 +208,7 @@ base class GenkitAI {
     CustomOptions? config,
     List<Tool>? tools,
     List<String>? toolNames,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
     SchemanticType<Output>? outputSchema,
@@ -314,6 +312,21 @@ base class GenkitAI {
       );
     }
     return embedMany(embedder: embedder, documents: docs, options: options);
+  }
+}
+
+/// Parses a streamed chunk's *partial* output against [schema].
+///
+/// While JSON is still arriving the partial value is often incomplete (e.g.
+/// `{"a": null}` for a map of strings), and a strict schema rejects it. That is
+/// not a generation failure: the chunk's typed output is just not available
+/// yet, so it is `null`. The final response is still parsed strictly.
+Output? _parsePartial<Output>(SchemanticType<Output> schema, Object? raw) {
+  if (raw == null) return null;
+  try {
+    return schema.parse(raw);
+  } on Object {
+    return null;
   }
 }
 
