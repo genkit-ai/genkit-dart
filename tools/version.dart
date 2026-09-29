@@ -112,7 +112,29 @@ class Package {
 class Workspace {
   final Map<String, Package> packages;
 
-  Workspace(this.packages);
+  /// Minimum versions from the `floors:` section of packages.yaml. A package
+  /// whose base version is below its floor is bumped to it (see
+  /// [VersionPlanner.planBumps]).
+  final Map<String, Version> floors;
+
+  Workspace(this.packages, {this.floors = const {}}) {
+    // Fail fast on config mistakes; a typo would otherwise silently leave a
+    // package out of a major release.
+    for (final MapEntry(key: name, value: floor) in floors.entries) {
+      final pkg = packages[name];
+      if (pkg == null) {
+        throw FormatException('floors: unknown package "$name".');
+      }
+      if (pkg.publishToNone) {
+        throw FormatException('floors: "$name" is not a publishable package.');
+      }
+      if (floor.isPreRelease) {
+        throw FormatException(
+          'floors: the floor for "$name" must be a stable version, got $floor.',
+        );
+      }
+    }
+  }
 
   static Future<Workspace> load(String packagesYamlPath) async {
     final file = File(packagesYamlPath);
@@ -163,7 +185,14 @@ class Workspace {
       }
     }
 
-    return Workspace(loadedPackages);
+    final floorsYaml = yaml['floors'];
+    final floors = <String, Version>{
+      if (floorsYaml is YamlMap)
+        for (final MapEntry(:key, :value) in floorsYaml.entries)
+          key.toString(): Version.parse(value.toString()),
+    };
+
+    return Workspace(loadedPackages, floors: floors);
   }
 
   static Map<String, String> _parseDeps(dynamic yamlDeps) {
@@ -254,19 +283,72 @@ class GitService {
   }
 }
 
+/// Thrown by [VersionPlanner.planBumps] when breaking commits would bump a
+/// >=1.0 package to a new major version and `allowMajor` is off.
+class MajorBumpException implements Exception {
+  /// One entry per offending package, e.g. `genkit 1.3.0 -> 2.0.0`, followed
+  /// by the breaking commits that caused it.
+  final List<String> details;
+
+  MajorBumpException(this.details);
+
+  @override
+  String toString() =>
+      'Refusing to release new major versions (pass --allow-major if '
+      'intended):\n${details.join('\n')}';
+}
+
 class VersionPlanner {
   final Workspace workspace;
   final GitService git;
   final String? rcTag;
   final bool graduate;
 
-  VersionPlanner(this.workspace, this.git, {this.rcTag, this.graduate = false});
+  /// Allow breaking commits to bump a >=1.0 package to a new major version.
+  /// Floor bumps are always allowed; they are an explicit, reviewed decision.
+  final bool allowMajor;
+
+  /// Packages whose planned bump comes from a floor, populated by [planBumps].
+  final Set<String> floorBumps = {};
+
+  /// Non-fatal issues found by [planBumps], meant to be printed to the user.
+  final List<String> warnings = [];
+
+  VersionPlanner(
+    this.workspace,
+    this.git, {
+    this.rcTag,
+    this.graduate = false,
+    this.allowMajor = false,
+  });
 
   Future<Map<String, Version>> planBumps() async {
     final proposedBumps = <String, Version>{};
+    final breakingCommits = <String, List<String>>{};
+    floorBumps.clear();
+    warnings.clear();
 
     for (final pkg in workspace.packages.values) {
       if (pkg.publishToNone) continue;
+
+      // Floors are compared against the base version, so a 1.0.0-rc.1 has
+      // already reached a 1.0.0 floor and later --rc runs go to rc.2 instead
+      // of resetting to rc.1. Graduate only promotes existing pre-releases.
+      final floor = workspace.floors[pkg.name];
+      if (floor != null && _base(pkg.version) < floor) {
+        if (graduate) {
+          warnings.add(
+            '${pkg.name} ${pkg.version} is below its floor $floor, but '
+            '--graduate does not apply floors. Run an --rc release first.',
+          );
+        } else {
+          proposedBumps[pkg.name] = rcTag != null
+              ? Version(floor.major, floor.minor, floor.patch, pre: '$rcTag.1')
+              : floor;
+          floorBumps.add(pkg.name);
+          continue;
+        }
+      }
 
       final currentTagName = '${pkg.name}-v${pkg.version}';
       final currentTagExists = await git.tagExists(currentTagName);
@@ -274,6 +356,10 @@ class VersionPlanner {
       final latestTag = await git.getLatestTag(pkg.name);
 
       final commitMessages = await git.getCommitsSince(latestTag, pkg.path);
+      breakingCommits[pkg.name] = [
+        for (final msg in commitMessages)
+          if (ConventionalCommit.parse(msg).isBreaking) msg,
+      ];
 
       // A pre-release that's already tagged with no new commits is exactly the
       // case `--graduate` promotes to stable, so don't short-circuit it here.
@@ -388,8 +474,59 @@ class VersionPlanner {
       }
     } while (changed);
 
+    _checkMajors(proposedBumps, breakingCommits);
+    _checkZeroXDependencies(proposedBumps);
+
     return proposedBumps;
   }
+
+  /// A mistaken major on pub.dev can't be undone, and commits are attributed
+  /// by path rather than scope (a `refactor(genkit_openai)!:` touching
+  /// packages/genkit counts for genkit), so majors on >=1.0 packages require
+  /// an explicit opt-in.
+  void _checkMajors(
+    Map<String, Version> bumps,
+    Map<String, List<String>> breakingCommits,
+  ) {
+    if (allowMajor) return;
+    final details = <String>[];
+    for (final MapEntry(key: name, value: next) in bumps.entries) {
+      if (floorBumps.contains(name)) continue;
+      final current = workspace.packages[name]!.version;
+      if (current.major >= 1 && next.major > current.major) {
+        details.add('  $name $current -> $next');
+        for (final msg in breakingCommits[name] ?? const <String>[]) {
+          details.add('    $msg');
+        }
+      }
+    }
+    if (details.isNotEmpty) throw MajorBumpException(details);
+  }
+
+  /// Warns when a >=1.0 package has a regular dependency on a 0.x workspace
+  /// package: if the stable package's public API exposes the 0.x package's
+  /// types, a breaking 0.x release forces a major on the stable one.
+  void _checkZeroXDependencies(Map<String, Version> bumps) {
+    Version finalVersion(Package pkg) => bumps[pkg.name] ?? pkg.version;
+
+    for (final pkg in workspace.packages.values) {
+      if (pkg.publishToNone || finalVersion(pkg).major < 1) continue;
+      for (final depName in pkg.dependencies.keys) {
+        final dep = workspace.packages[depName];
+        if (dep == null || dep.publishToNone) continue;
+        final depVersion = finalVersion(dep);
+        if (depVersion.major == 0) {
+          warnings.add(
+            '${pkg.name} ${finalVersion(pkg)} depends on $depName $depVersion '
+            '(0.x). Fine unless ${pkg.name} exposes $depName types in its '
+            'public API.',
+          );
+        }
+      }
+    }
+  }
+
+  static Version _base(Version v) => Version(v.major, v.minor, v.patch);
 
   Version evaluateBaseBump(Version current, BumpType bump) {
     if (bump == BumpType.none) return current;
@@ -619,9 +756,9 @@ class VersionApplier {
       }
     }
 
-    // If there is nothing user-facing to report — either there were no commits
-    // at all (a pure dependency-propagation bump) or every commit was a chore —
-    // fall back to a generic dependency note rather than emitting a bare header.
+    // If there is nothing user-facing to report (no commits at all, as in a pure
+    // dependency-propagation bump, or only chores), fall back to a generic
+    // dependency note rather than emitting a bare header.
     if (breaking.isEmpty && feats.isEmpty && fixes.isEmpty && others.isEmpty) {
       return '## $version\n\n - updated internal dependencies.\n';
     }
@@ -732,6 +869,13 @@ void main(List<String> args) async {
       negatable: false,
     )
     ..addFlag(
+      'allow-major',
+      help:
+          'Allow breaking changes to bump a >=1.0 package to a new major '
+          'version',
+      negatable: false,
+    )
+    ..addFlag(
       'dry-run',
       help: 'Preview changes without applying them',
       negatable: false,
@@ -772,7 +916,13 @@ void main(List<String> args) async {
       ? parsedArgs.rest.first
       : 'packages.yaml';
 
-  final workspace = await Workspace.load(configPath);
+  final Workspace workspace;
+  try {
+    workspace = await Workspace.load(configPath);
+  } on FormatException catch (e) {
+    print('Error in $configPath: ${e.message}');
+    exit(1);
+  }
   print('Loaded ${workspace.packages.length} packages from $configPath.');
 
   final git = GitService();
@@ -783,9 +933,20 @@ void main(List<String> args) async {
     git,
     rcTag: rcTag,
     graduate: graduate,
+    allowMajor: parsedArgs['allow-major'] as bool,
   );
 
-  final bumps = await planner.planBumps();
+  final Map<String, Version> bumps;
+  try {
+    bumps = await planner.planBumps();
+  } on MajorBumpException catch (e) {
+    print('\nError: $e');
+    exit(1);
+  }
+
+  for (final warning in planner.warnings) {
+    print('Warning: $warning');
+  }
 
   if (bumps.isEmpty) {
     print('No changes found. Nothing to bump.');
@@ -795,7 +956,8 @@ void main(List<String> args) async {
   print('\nProposed Bumps:');
   for (final entry in bumps.entries) {
     final cur = workspace.packages[entry.key]!.version;
-    print('  ${entry.key}: $cur -> ${entry.value}');
+    final reason = planner.floorBumps.contains(entry.key) ? ' (floor)' : '';
+    print('  ${entry.key}: $cur -> ${entry.value}$reason');
   }
 
   if (parsedArgs['dry-run'] == true) {
