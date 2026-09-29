@@ -24,10 +24,10 @@ import '../../ai/model.dart';
 import '../../o11y/instrumentation_setup.dart'
     show enableDevInstrumentationForServer;
 import '../../schema.dart';
-import '../../types.dart';
 import '../../utils.dart';
 import '../action.dart';
 import '../registry.dart';
+import 'reflection_types.dart';
 
 final _logger = Logger('genkit.reflection.v2');
 

@@ -88,6 +88,14 @@ void main() async {
       // No generated names here trip the lint, and `unnecessary_ignore` is on.
       ignoreNonConstantNames: false,
     );
+    await _writeLibrary(
+      'core/reflection/reflection_types.dart',
+      classGenerator.generate(
+        _reflectionAllowlist,
+        partFile: 'reflection_types.g.dart',
+      ),
+      ignoreNonConstantNames: false,
+    );
   } else {
     throw Exception('Failed to fetch schema');
   }
@@ -166,18 +174,6 @@ const _allowlist = {
   'EmbedRequest',
   'EmbedResponse',
   'Embedding',
-  'ReflectionCancelActionParams',
-  'ReflectionCancelActionResponse',
-  'ReflectionConfigureParams',
-  'ReflectionEndInputStreamParams',
-  'ReflectionListActionsResponse',
-  'ReflectionListValuesParams',
-  'ReflectionListValuesResponse',
-  'ReflectionRegisterParams',
-  'ReflectionRunActionParams',
-  'ReflectionRunActionStateParams',
-  'ReflectionSendInputStreamChunkParams',
-  'ReflectionStreamChunkParams',
 };
 
 /// Types backing the experimental agent/session API. Generated into
@@ -205,4 +201,22 @@ const _experimentalAllowlist = {
   'SessionSnapshot',
   'SessionState',
   'SnapshotStatus',
+};
+
+/// Reflection API (Dev UI protocol) payloads. Generated next to their only
+/// consumer in `src/core/reflection/` and never exported: they are an
+/// implementation detail of the reflection server, not user-facing API.
+const _reflectionAllowlist = {
+  'ReflectionCancelActionParams',
+  'ReflectionCancelActionResponse',
+  'ReflectionConfigureParams',
+  'ReflectionEndInputStreamParams',
+  'ReflectionListActionsResponse',
+  'ReflectionListValuesParams',
+  'ReflectionListValuesResponse',
+  'ReflectionRegisterParams',
+  'ReflectionRunActionParams',
+  'ReflectionRunActionStateParams',
+  'ReflectionSendInputStreamChunkParams',
+  'ReflectionStreamChunkParams',
 };
