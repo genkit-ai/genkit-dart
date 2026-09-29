@@ -172,6 +172,14 @@ void main() {
   });
 
   group('knownGeminiModels', () {
+    test('includes the curated Gemma models', () {
+      // Pin the literal ids so a typo in an enum value fails the suite.
+      expect(
+        knownGeminiModels.keys,
+        containsAll(['gemma-4-31b-it', 'gemma-4-26b-a4b-it']),
+      );
+    });
+
     test('is derived from the enums, keyed by bare model id', () {
       expect(
         knownGeminiModels.keys,
