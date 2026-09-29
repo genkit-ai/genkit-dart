@@ -40,10 +40,11 @@ abstract class $ToolResponse [src/types.dart]
 abstract class $ToolResponsePart implements $Part [src/types.dart]
 base class ActionStream<Chunk, Response> extends StreamView<Chunk> [src/core/action.dart]
   ActionStream(Stream<Chunk> stream)
+  ActionStream.withResult(Stream<Chunk> stream, Future<Response> result)
   Future<Response> get onResult
   Response get result
-  void setError(Object error, StackTrace st)
-  void setResult(Response result)
+  @internal void setError(Object error, StackTrace st)
+  @internal void setResult(Response result)
 base class BaseDataPoint [src/types.dart]
 final class CancellationController [src/core/cancellation.dart]
   void cancel([Object? reason])
