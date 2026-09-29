@@ -396,7 +396,7 @@ class ReflectionServerV1 {
     await _server?.close(force: true);
     _server = null;
     runtimeFilePath = null;
-    print('Reflection server stopped.');
+    _logger.info('Reflection server stopped.');
   }
 
   int get actualPort => _server?.port ?? 0;
@@ -409,7 +409,10 @@ class ReflectionServerV1 {
     try {
       final rootDir = await _findProjectRoot();
       if (rootDir == null) {
-        print('Could not find project root (pubspec.yaml not found)');
+        _logger.warning(
+          'Could not find project root (pubspec.yaml not found); the Genkit '
+          'tooling will not discover this runtime.',
+        );
         return;
       }
       final runtimesDir = p.join(rootDir, '.genkit', 'runtimes');
