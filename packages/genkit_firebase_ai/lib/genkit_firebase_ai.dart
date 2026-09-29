@@ -245,6 +245,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           toolConfig: toGeminiToolConfig(
             options.functionCallingConfig,
             toolChoice: req.toolChoice,
+            hasFunctionTools: req.tools?.isNotEmpty ?? false,
           ),
         );
 
@@ -808,12 +809,19 @@ fai.GenerationConfig toGeminiSettings(
 /// [toolChoice] (`auto` / `required` / `none`). The plugin config wins because
 /// it can also restrict the allowed function names. Unknown [toolChoice]
 /// values are ignored.
+///
+/// [toolChoice] only applies when [hasFunctionTools] is true, i.e. the request
+/// declares Genkit tools. Code execution doesn't count: a function-calling
+/// mode with no function declarations is contradictory (`required` would
+/// demand a call to nothing).
 @visibleForTesting
 fai.ToolConfig? toGeminiToolConfig(
   FunctionCallingConfig? functionCallingConfig, {
   ToolChoice? toolChoice,
+  bool hasFunctionTools = false,
 }) {
   if (functionCallingConfig == null) {
+    if (!hasFunctionTools) return null;
     final fromChoice = switch (toolChoice?.value) {
       'auto' => fai.FunctionCallingConfig.auto(),
       'required' => fai.FunctionCallingConfig.any({}),
