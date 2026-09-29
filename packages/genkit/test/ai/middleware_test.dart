@@ -62,10 +62,10 @@ class TestMiddleware extends GenerateMiddleware {
   }
 
   @override
-  Future<ToolResponsePart> tool(
+  Future<ToolResult> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponsePart> Function(
+    Future<ToolResult> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )

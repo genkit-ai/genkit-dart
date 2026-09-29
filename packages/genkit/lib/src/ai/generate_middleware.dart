@@ -116,12 +116,30 @@ abstract class GenerateMiddleware {
 
   /// Middleware for tool execution.
   ///
-  /// Wraps independent tool calls.
-  /// Input is dynamic because tools can have varied input schemas.
-  Future<ToolResponsePart> tool(
+  /// Wraps each tool call. Input is dynamic because tools can have varied
+  /// input schemas.
+  ///
+  /// Works with the same [ToolResult] a tool function returns: return
+  /// `.response(output)` to answer the model, or `.interrupt(data)` to stop
+  /// the generate loop and hand the tool request back to the caller
+  /// (human-in-the-loop). The generate loop turns the final result into the
+  /// tool response message (filling in the request's `ref` and `name`), so
+  /// middleware never builds one by hand.
+  ///
+  /// A middleware that post-processes responses must pass interrupts through:
+  ///
+  /// ```dart
+  /// final result = await next(request, ctx);
+  /// return switch (result) {
+  ///   ToolResponseResult(:final output, :final parts, :final metadata) =>
+  ///     .response(redact(output), parts: parts, metadata: metadata),
+  ///   ToolInterruptResult() => result,
+  /// };
+  /// ```
+  Future<ToolResult> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponsePart> Function(
+    Future<ToolResult> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )

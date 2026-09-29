@@ -24,6 +24,7 @@ import '../../core/plugin.dart';
 import '../../exception.dart';
 import '../../types.dart';
 import '../generate_middleware.dart';
+import '../tool.dart';
 
 part 'retry.g.dart';
 
@@ -167,10 +168,10 @@ class RetryMiddleware extends GenerateMiddleware {
   }
 
   @override
-  Future<ToolResponsePart> tool(
+  Future<ToolResult> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponsePart> Function(
+    Future<ToolResult> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
