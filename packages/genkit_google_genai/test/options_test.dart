@@ -283,6 +283,34 @@ void main() {
       expect(settings.temperature, 0.5);
       expect(settings.responseMimeType, 'audio/mp3');
     });
+
+    test('sends the schema only for a constrained JSON-mode request', () {
+      final schema = {'type': 'object'};
+      final options = GeminiTtsOptions();
+
+      expect(
+        toGeminiTtsSettings(
+          options,
+          schema,
+          true,
+          constrained: true,
+        ).responseJsonSchema,
+        schema,
+      );
+      expect(
+        toGeminiTtsSettings(options, schema, true).responseJsonSchema,
+        isNull,
+      );
+      expect(
+        toGeminiTtsSettings(
+          options,
+          schema,
+          false,
+          constrained: true,
+        ).responseJsonSchema,
+        isNull,
+      );
+    });
   });
 }
 

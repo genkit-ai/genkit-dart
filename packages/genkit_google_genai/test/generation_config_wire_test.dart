@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
 
@@ -24,7 +26,7 @@ const _schema = {
   },
 };
 
-Future<Map<String, dynamic>> _generationConfigOnTheWire({
+Future<Map<String, dynamic>> _requestOnTheWire({
   OutputConfig? output,
   Map<String, dynamic>? config,
   String model = 'gemini-2.0-flash',
@@ -44,7 +46,20 @@ Future<Map<String, dynamic>> _generationConfigOnTheWire({
       output: output,
     ),
   );
-  return (captured.single['generationConfig'] as Map).cast<String, dynamic>();
+  return captured.single;
+}
+
+Future<Map<String, dynamic>> _generationConfigOnTheWire({
+  OutputConfig? output,
+  Map<String, dynamic>? config,
+  String model = 'gemini-2.0-flash',
+}) async {
+  final request = await _requestOnTheWire(
+    output: output,
+    config: config,
+    model: model,
+  );
+  return (request['generationConfig'] as Map).cast<String, dynamic>();
 }
 
 void main() {
@@ -119,9 +134,9 @@ void main() {
       expect(config, isNot(contains('responseJsonSchema')));
     });
 
-    test('TTS model JSON-mode constrained request sends the '
-        'schema', () async {
-      final config = await _generationConfigOnTheWire(
+    test('TTS model JSON-mode constrained request is simulated in the '
+        'prompt', () async {
+      final request = await _requestOnTheWire(
         model: 'gemini-2.5-flash-preview-tts',
         output: OutputConfig(
           format: 'json',
@@ -129,7 +144,10 @@ void main() {
           constrained: true,
         ),
       );
-      expect(config['responseJsonSchema'], _schema);
+      final config = (request['generationConfig'] as Map)
+          .cast<String, dynamic>();
+      expect(config, isNot(contains('responseJsonSchema')));
+      expect(jsonEncode(request['contents']), contains(r'\"answer\"'));
     });
 
     test('non-JSON mode passes a user-configured responseMimeType '
