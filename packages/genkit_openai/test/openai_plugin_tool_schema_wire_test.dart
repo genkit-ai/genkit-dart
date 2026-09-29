@@ -12,61 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
-// TODO(#366): consolidate with the shared wire harness once it lands.
-/// Captures every chat-completions request body the plugin puts on the wire
-/// and serves canned OpenAI responses.
-MockClient wireClient(List<Map<String, dynamic>> capturedBodies) {
-  return MockClient((request) async {
-    if (request.url.path.endsWith('/models')) {
-      return http.Response(
-        jsonEncode({
-          'object': 'list',
-          'data': [
-            {
-              'id': 'gpt-4o',
-              'object': 'model',
-              'created': 0,
-              'owned_by': 'openai',
-            },
-          ],
-        }),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-    if (request.url.path.endsWith('/chat/completions')) {
-      capturedBodies.add(
-        (jsonDecode(request.body) as Map).cast<String, dynamic>(),
-      );
-      return http.Response(
-        jsonEncode({
-          'id': 'chatcmpl-test',
-          'object': 'chat.completion',
-          'created': 0,
-          'model': 'gpt-4o',
-          'choices': [
-            {
-              'index': 0,
-              'message': {'role': 'assistant', 'content': 'ok'},
-              'finish_reason': 'stop',
-            },
-          ],
-        }),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
-    }
-    return http.Response('not found', 404);
-  });
-}
+import 'wire_client.dart';
 
 void main() {
   group('tool parameter schemas on the wire', () {
