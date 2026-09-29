@@ -104,6 +104,7 @@ void main() {
         'name': 'models/embedding-gecko-001',
         'supportedGenerationMethods': ['embedText'],
       },
+      {'name': 'models/gemini-embedding-001'},
       {
         'name': 'models/embedding-001',
         'description': 'A deprecated embedding model.',
@@ -145,6 +146,19 @@ void main() {
       expect(embedders, contains('googleai/text-embedding-004'));
       expect(embedders, isNot(contains('googleai/embedding-gecko-001')));
       expect(models, isNot(contains('googleai/embedding-gecko-001')));
+    });
+
+    test('admits an embedder whose listing omits the methods', () async {
+      final actions = await _discoveryPlugin(discovered).list();
+
+      final embedders = actions
+          .where((a) => a.actionType == 'embedder')
+          .map((a) => a.name);
+      expect(embedders, contains('googleai/gemini-embedding-001'));
+      expect(
+        actions.where((a) => a.actionType == 'model').map((a) => a.name),
+        isNot(contains('googleai/gemini-embedding-001')),
+      );
     });
 
     test(
@@ -287,6 +301,36 @@ void main() {
         expect(captured, isEmpty);
       },
     );
+
+    test('rejects a document with an unsupported part before any request goes '
+        'out', () async {
+      final captured = <Map<String, dynamic>>[];
+      final plugin = _EmbedWirePlugin(captured, <Uri>[]);
+      final embedder =
+          plugin.resolve(ActionType.embedder, 'gemini-embedding-2')!
+              as _EmbedderAction;
+
+      await expectLater(
+        embedder.run(
+          EmbedRequest(
+            input: [
+              DocumentData(content: [TextPart(text: 'first')]),
+              DocumentData(
+                content: [
+                  DataPart(data: {'k': 'v'}),
+                ],
+              ),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.message, 'message', contains('index 1')),
+        ),
+      );
+      expect(captured, isEmpty);
+    });
 
     test('still forwards embedder options on media requests', () async {
       final captured = <Map<String, dynamic>>[];

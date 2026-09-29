@@ -69,7 +69,8 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
             final modelName = model.name;
             if (modelName == null ||
                 (!modelName.startsWith('models/gemini-') &&
-                    !modelName.startsWith('models/gemma-'))) {
+                    !modelName.startsWith('models/gemma-')) ||
+                isEmbedderModelName(modelName)) {
               return false;
             }
             // An absent list is no claim either way, so it admits the model
@@ -96,9 +97,10 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
             (model) =>
                 model.name != null &&
                 isEmbedderModelName(model.name!) &&
-                (model.supportedGenerationMethods ?? []).contains(
-                  'embedContent',
-                ) &&
+                // An absent list admits the embedder, matching the model
+                // filter above.
+                (model.supportedGenerationMethods?.contains('embedContent') ??
+                    true) &&
                 !(model.description?.toLowerCase().contains('deprecated') ??
                     false),
           )
@@ -127,20 +129,12 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
               ? TextEmbedderOptions.fromJson(req.options!)
               : null;
 
-          for (final (index, doc) in req.input.indexed) {
-            if (doc.content.isEmpty) {
-              throw GenkitException(
-                'Cannot embed the document at index $index: it has no content.',
-                status: StatusCodes.INVALID_ARGUMENT,
-              );
-            }
-          }
+          final contents = [
+            for (final (index, doc) in req.input.indexed)
+              gcl.Content(role: 'user', parts: _embedParts(index, doc)),
+          ];
 
-          final futures = req.input.map((doc) async {
-            final content = gcl.Content(
-              role: 'user',
-              parts: doc.content.map(toGeminiPart).toList(),
-            );
+          final futures = contents.map((content) async {
             final res = await service.embedContent(
               gcl.EmbedContentRequest(
                 content: content,
@@ -160,6 +154,28 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           service.client.close();
         }
       },
+    );
+  }
+}
+
+/// Converts the parts of the document at [index], failing with
+/// `INVALID_ARGUMENT` before any request goes out when it has no content or
+/// holds a part the API cannot embed.
+List<gcl.Part> _embedParts(int index, DocumentData doc) {
+  if (doc.content.isEmpty) {
+    throw GenkitException(
+      'Cannot embed the document at index $index: it has no content.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+  try {
+    return doc.content.map(toGeminiPart).toList();
+    // toGeminiPart signals an unsupported part with UnimplementedError.
+    // ignore: avoid_catching_errors
+  } on UnimplementedError catch (e) {
+    throw GenkitException(
+      'Cannot embed the document at index $index: ${e.message}',
+      status: StatusCodes.INVALID_ARGUMENT,
     );
   }
 }
