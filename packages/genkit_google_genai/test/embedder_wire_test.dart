@@ -122,10 +122,10 @@ void main() {
       final actions = await _discoveryPlugin(discovered).list();
 
       final embedders = actions
-          .where((a) => a.actionType == 'embedder')
+          .where((a) => a.actionType == ActionType.embedder)
           .map((a) => a.name);
       final models = actions
-          .where((a) => a.actionType == 'model')
+          .where((a) => a.actionType == ActionType.model)
           .map((a) => a.name);
 
       expect(embedders, contains('googleai/gemini-embedding-2'));
@@ -137,10 +137,10 @@ void main() {
       final actions = await _discoveryPlugin(discovered).list();
 
       final embedders = actions
-          .where((a) => a.actionType == 'embedder')
+          .where((a) => a.actionType == ActionType.embedder)
           .map((a) => a.name);
       final models = actions
-          .where((a) => a.actionType == 'model')
+          .where((a) => a.actionType == ActionType.model)
           .map((a) => a.name);
 
       expect(embedders, contains('googleai/text-embedding-004'));
@@ -152,11 +152,13 @@ void main() {
       final actions = await _discoveryPlugin(discovered).list();
 
       final embedders = actions
-          .where((a) => a.actionType == 'embedder')
+          .where((a) => a.actionType == ActionType.embedder)
           .map((a) => a.name);
       expect(embedders, contains('googleai/gemini-embedding-001'));
       expect(
-        actions.where((a) => a.actionType == 'model').map((a) => a.name),
+        actions
+            .where((a) => a.actionType == ActionType.model)
+            .map((a) => a.name),
         isNot(contains('googleai/gemini-embedding-001')),
       );
     });
@@ -167,7 +169,7 @@ void main() {
         final actions = await _discoveryPlugin(discovered).list();
 
         final embedders = actions
-            .where((a) => a.actionType == 'embedder')
+            .where((a) => a.actionType == ActionType.embedder)
             .map((a) => a.name);
         expect(embedders, isNot(contains('googleai/embedding-001')));
         expect(embedders, isNot(contains('googleai/text-embedding-003')));
