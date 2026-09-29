@@ -137,7 +137,7 @@ final getWeather = ai.defineTool(
 /// to pass a session id (handled for it by `remoteAgent`).
 final uiAgent = ai.defineAgent(
   name: 'uiAgent',
-  model: googleAI.gemini('gemini-flash-latest'),
+  model: googleAI.gemini('gemini-3.6-flash'),
   system:
       'You are a helpful assistant that can render rich UI. Prefer rendering '
       'an A2UI surface whenever a result is clearer shown than told - for '

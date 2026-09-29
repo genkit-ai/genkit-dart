@@ -27,8 +27,20 @@ class ExpressCompileError implements Exception {
   /// 1-based source line, when the compiler knows it.
   final int? line;
 
+  /// Whether rewriting the block could plausibly fix this.
+  ///
+  /// True for mistakes in what the model wrote (a literal in an id slot, a bad
+  /// argument count). False for configuration problems - a component the
+  /// catalog does not define, a missing catalog - where a retry cannot help and
+  /// would only cost a call.
+  final bool isModelFixable;
+
   /// Creates an [ExpressCompileError].
-  const ExpressCompileError(this.message, [this.line]);
+  const ExpressCompileError(
+    this.message, [
+    this.line,
+    this.isModelFixable = true,
+  ]);
 
   /// A component referenced a prop its catalog schema does not declare.
   factory ExpressCompileError.unknownProperty(
@@ -96,6 +108,10 @@ class ExpressCompileError implements Exception {
       );
 
   /// A component name that is not in the catalog.
+  ///
+  /// Not model-fixable: the component genuinely does not exist, so the block
+  /// cannot be rewritten into something valid. Either the catalog is wrong or
+  /// the model invented a component.
   factory ExpressCompileError.unknownComponent(
     String component,
     String catalogId, [
@@ -103,6 +119,7 @@ class ExpressCompileError implements Exception {
   ]) => ExpressCompileError(
     'component "$component" is not in catalog "$catalogId".',
     line,
+    false,
   );
 
   @override

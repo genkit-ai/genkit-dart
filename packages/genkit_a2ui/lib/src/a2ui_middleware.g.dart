@@ -34,6 +34,7 @@ base class A2uiOptions {
     String? validate,
     String? surfaceId,
     String? version,
+    bool? repair,
   }) {
     _json = {
       'catalog': ?catalog,
@@ -41,6 +42,7 @@ base class A2uiOptions {
       'validate': ?validate,
       'surfaceId': ?surfaceId,
       'version': ?version,
+      'repair': ?repair,
     };
   }
 
@@ -135,6 +137,34 @@ base class A2uiOptions {
     }
   }
 
+  /// Whether to ask the model to fix a block that failed to compile. Defaults
+  /// to `true`.
+  ///
+  /// On a failure the middleware sends one small follow-up call containing the
+  /// error, the relevant signatures, and the failed block, then compiles the
+  /// reply. This costs an extra model call on the failure path only, and never
+  /// runs for errors a rewrite cannot fix (an unknown component, say). Set
+  /// `false` to disable it and drop bad blocks outright.
+  bool? get repair {
+    return _json['repair'] as bool?;
+  }
+
+  /// Whether to ask the model to fix a block that failed to compile. Defaults
+  /// to `true`.
+  ///
+  /// On a failure the middleware sends one small follow-up call containing the
+  /// error, the relevant signatures, and the failed block, then compiles the
+  /// reply. This costs an extra model call on the failure path only, and never
+  /// runs for errors a rewrite cannot fix (an unknown component, say). Set
+  /// `false` to disable it and drop bad blocks outright.
+  set repair(bool? value) {
+    if (value == null) {
+      _json.remove('repair');
+    } else {
+      _json['repair'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -165,6 +195,7 @@ base class _A2uiOptionsTypeFactory extends SchemanticType<A2uiOptions> {
             'validate': $Schema.string(),
             'surfaceId': $Schema.string(),
             'version': $Schema.string(),
+            'repair': $Schema.boolean(),
           },
         )
         .value,

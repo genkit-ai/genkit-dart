@@ -85,6 +85,27 @@ class EnvelopeSegment extends ParseSegment {
   const EnvelopeSegment(this.envelopes);
 }
 
+/// An Express block that failed to compile, kept for a possible repair.
+class FailedBlock {
+  /// The block's source, without the sentinel tags.
+  final String source;
+
+  /// Why it failed, phrased for both a log and a repair prompt.
+  final String error;
+
+  /// Whether a model could plausibly fix this. Configuration problems (an
+  /// unknown component, a missing catalog) cannot be fixed by rewriting the
+  /// block, so retrying them only burns a call.
+  final bool isModelFixable;
+
+  /// Creates a [FailedBlock].
+  const FailedBlock({
+    required this.source,
+    required this.error,
+    required this.isModelFixable,
+  });
+}
+
 /// Result of feeding text to [A2uiStreamParser.push].
 class ParseResult {
   /// Ordered prose/envelope segments exactly as they appear in the source text.
@@ -123,6 +144,19 @@ class A2uiStreamParser {
   /// Produces the surface id substituted for the model's placeholder.
   final String Function() surfaceId;
 
+  /// Repaired sources, keyed by the original block text.
+  ///
+  /// Set on the second pass when a repair succeeded, so the block compiles from
+  /// the corrected source while everything else about the turn is unchanged.
+  final Map<String, String> repairs;
+
+  /// Blocks that failed to compile, in source order, paired with the reason.
+  ///
+  /// Recorded rather than acted on so the middleware can attempt a repair after
+  /// the turn completes. Parsing is synchronous (and the streaming callback
+  /// cannot await), so the retry cannot happen here.
+  final List<FailedBlock> failedBlocks = [];
+
   String _buffer = '';
   bool _inBlock = false;
 
@@ -135,6 +169,7 @@ class A2uiStreamParser {
     required this.catalog,
     this.validate = A2uiValidateMode.strict,
     this.version = a2uiVersion,
+    this.repairs = const {},
   });
 
   /// Feeds a chunk of model text, returning prose + any completed blocks.
@@ -257,8 +292,11 @@ class A2uiStreamParser {
     final surface = _currentSurfaceId ?? surfaceId();
     _currentSurfaceId = null;
 
-    final text = raw.trim();
-    if (text.isEmpty) return null;
+    final original = raw.trim();
+    if (original.isEmpty) return null;
+
+    // Use the repaired source when this block failed on a previous pass.
+    final text = repairs[original] ?? original;
 
     List<A2uiEnvelope> compiled;
     try {
@@ -269,11 +307,20 @@ class A2uiStreamParser {
         version: version,
       );
     } on ExpressSyntaxError catch (e) {
-      return _reject(
-        'failed to parse A2UI Express block: ${e.message} '
-        '(line ${e.line})',
+      final reason = '${e.message} (line ${e.line})';
+      // Malformed syntax is exactly what a model can rewrite.
+      failedBlocks.add(
+        FailedBlock(source: original, error: reason, isModelFixable: true),
       );
+      return _reject('failed to parse A2UI Express block: $reason');
     } on ExpressCompileError catch (e) {
+      failedBlocks.add(
+        FailedBlock(
+          source: original,
+          error: e.message,
+          isModelFixable: e.isModelFixable,
+        ),
+      );
       return _reject('failed to compile A2UI Express block: ${e.message}');
     }
 

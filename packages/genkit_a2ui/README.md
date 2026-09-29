@@ -117,6 +117,7 @@ validation:
 | `validate`     | `'warn'`   | Validate emitted envelopes against the catalog. `'warn'` logs and drops bad blocks; `'strict'` throws; `'off'` skips checking. |
 | `surfaceId`    | fresh UUID | Surface id policy. Defaults to a new UUID per surface; pass a fixed string to reuse one id for every surface.                  |
 | `version`      | `'v0.9'`   | Protocol version stamped on envelopes.                                                                                         |
+| `repair`       | `true`     | Ask the model once to fix a block that failed to compile. Costs an extra call on the failure path only; see [Self-repair](#self-repair). |
 
 ## Handling user actions
 
@@ -320,6 +321,33 @@ so a model that does not understand the a2ui mime type can still reason about
 prior surfaces and user actions. Surfaces are rendered back into Express (the
 same format the model is asked to produce, which reinforces the contract);
 actions become a short text summary.
+
+### Self-repair
+
+Models occasionally emit a block that does not compile, most often by putting a
+label where a component id belongs:
+
+```
+refreshBtn = Button("Refresh", "primary", Event("refresh"))
+```
+
+`Button.child` is an id, so that would render nothing useful. When a block fails
+to compile the middleware sends one small follow-up call containing the error,
+the signatures of the components involved, and the failed block, then compiles
+the reply. If it works the surface renders; if not, the block is dropped as
+before.
+
+This costs an extra model call **on the failure path only**, and is skipped for
+errors a rewrite cannot fix (a component the catalog does not define, say).
+Disable it with:
+
+```dart
+use: [a2ui(repair: false)]
+```
+
+Repair runs after the turn completes rather than mid-stream, because the
+streaming callback is synchronous and cannot await. A repaired surface therefore
+arrives at the end of the turn instead of incrementally.
 
 ### Why Express rather than JSON
 
