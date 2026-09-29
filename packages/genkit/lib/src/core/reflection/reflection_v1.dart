@@ -31,7 +31,6 @@ import '../registry.dart';
 
 final _logger = Logger('genkit.reflection.v1');
 
-const genkitVersion = '0.1.0';
 const genkitReflectionApiSpecVersion = '1';
 
 class Status {

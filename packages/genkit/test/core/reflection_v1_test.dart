@@ -26,6 +26,7 @@ import 'package:genkit/src/o11y/direct_http_instrumentation.dart';
 import 'package:genkit/src/o11y/instrumentation.dart'
     show configureInstrumentation, resetInstrumentation;
 import 'package:genkit/src/o11y/telemetry/span_data.dart';
+import 'package:genkit/src/version.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
@@ -46,6 +47,9 @@ void main() {
         content['reflectionServerUrl'],
         'http://localhost:${server.actualPort}',
       );
+      // The CLI / Dev UI reads this to check compatibility; it must be the
+      // package's real version, not a stale hardcoded one.
+      expect(content['genkitVersion'], 'dart/$genkitVersion');
 
       await server.stop();
 
