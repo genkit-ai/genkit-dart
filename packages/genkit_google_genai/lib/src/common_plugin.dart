@@ -116,6 +116,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           toolConfig = toGeminiToolConfig(
             options.functionCallingConfig,
             toolChoice: req.toolChoice,
+            hasFunctionTools: req.tools?.isNotEmpty ?? false,
           );
         } else {
           final options = req.config == null
@@ -137,6 +138,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           toolConfig = toGeminiToolConfig(
             options.functionCallingConfig,
             toolChoice: req.toolChoice,
+            hasFunctionTools: req.tools?.isNotEmpty ?? false,
           );
         }
 
@@ -520,12 +522,19 @@ List<gcl.Tool> toGeminiTools(
 /// [toolChoice] (`auto` / `required` / `none` map to Gemini's `AUTO` / `ANY` /
 /// `NONE`). The plugin config wins because it is strictly more expressive
 /// (allowed function names). Unknown [toolChoice] values are ignored.
+///
+/// [toolChoice] only applies when [hasFunctionTools] is true, i.e. the request
+/// declares Genkit tools. Built-in tools (Google Search, code execution) don't
+/// count: a function-calling mode with no function declarations is
+/// contradictory (`required` would demand a call to nothing).
 @visibleForTesting
 gcl.ToolConfig? toGeminiToolConfig(
   FunctionCallingConfig? functionCallingConfig, {
   ToolChoice? toolChoice,
+  bool hasFunctionTools = false,
 }) {
   if (functionCallingConfig == null) {
+    if (!hasFunctionTools) return null;
     final mode = switch (toolChoice?.value) {
       'auto' => 'AUTO',
       'required' => 'ANY',
