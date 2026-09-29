@@ -251,6 +251,41 @@ void main() {
       expect(config?.functionCallingConfig?.mode, 'ANY');
       expect(config?.functionCallingConfig?.allowedFunctionNames, ['foo']);
     });
+
+    test('maps the portable toolChoice when no config is given', () {
+      String? modeFor(ToolChoice choice) => toGeminiToolConfig(
+        null,
+        toolChoice: choice,
+        hasFunctionTools: true,
+      )?.functionCallingConfig?.mode;
+
+      expect(modeFor(.auto), 'AUTO');
+      expect(modeFor(.required), 'ANY');
+      expect(modeFor(.none), 'NONE');
+      expect(modeFor(ToolChoice('unknown')), isNull);
+      expect(toGeminiToolConfig(null, hasFunctionTools: true), isNull);
+    });
+
+    test('ignores toolChoice when there are no function tools', () {
+      expect(toGeminiToolConfig(null, toolChoice: .required), isNull);
+    });
+
+    test('functionCallingConfig takes precedence over toolChoice', () {
+      final config = toGeminiToolConfig(
+        FunctionCallingConfig(mode: 'ANY', allowedFunctionNames: ['foo']),
+        toolChoice: .none,
+        hasFunctionTools: true,
+      );
+
+      expect(config?.functionCallingConfig?.mode, 'ANY');
+      expect(config?.functionCallingConfig?.allowedFunctionNames, ['foo']);
+    });
+
+    test('an explicit functionCallingConfig applies without tools', () {
+      final config = toGeminiToolConfig(FunctionCallingConfig(mode: 'NONE'));
+
+      expect(config?.functionCallingConfig?.mode, 'NONE');
+    });
   });
 
   group('toGeminiTtsSettings', () {
