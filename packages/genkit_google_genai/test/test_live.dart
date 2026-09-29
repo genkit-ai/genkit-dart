@@ -34,6 +34,12 @@ abstract class $CalculatorInput {
   int get b;
 }
 
+/// A 32x32 solid red PNG.
+const _redSquarePng =
+    'data:image/png;base64,'
+    'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAJ0lEQVR42u3NsQkAAAjAsP7/'
+    'tF7hIASyp6lTCQQCgUAgEAgEgi/BAjLD/C5w/SM9AAAAAElFTkSuQmCC';
+
 void main() {
   // Check if API key is available
   final apiKey =
@@ -101,6 +107,64 @@ void main() {
 
       expect(embeddings.length, 1);
       expect(embeddings.first.embedding.length, 256);
+    });
+
+    test('should discover gemini-embedding-* as embedders only', () async {
+      final actions = await ai.registry.listActions();
+      bool isGeminiEmbedding(ActionMetadata a) =>
+          a.name.startsWith('googleai/gemini-embedding-');
+
+      expect(
+        actions.where((a) => a.actionType == .embedder && isGeminiEmbedding(a)),
+        isNotEmpty,
+      );
+      expect(
+        actions.where((a) => a.actionType == .model && isGeminiEmbedding(a)),
+        isEmpty,
+      );
+    });
+
+    test('should embed text with gemini-embedding-2', () async {
+      final embeddings = await ai.embedMany(
+        embedder: googleAI.textEmbedding('gemini-embedding-2'),
+        documents: [
+          DocumentData(content: [TextPart(text: 'Hello world')]),
+        ],
+      );
+
+      expect(embeddings.length, 1);
+      expect(embeddings.first.embedding, isNotEmpty);
+    });
+
+    test('should embed an image with gemini-embedding-2', () async {
+      final embeddings = await ai.embedMany(
+        embedder: googleAI.textEmbedding('gemini-embedding-2'),
+        documents: [
+          DocumentData(
+            content: [MediaPart(media: Media(url: _redSquarePng))],
+          ),
+        ],
+      );
+
+      expect(embeddings.length, 1);
+      expect(embeddings.first.embedding, isNotEmpty);
+    });
+
+    test('should embed mixed text and image with gemini-embedding-2', () async {
+      final embeddings = await ai.embedMany(
+        embedder: googleAI.textEmbedding('gemini-embedding-2'),
+        documents: [
+          DocumentData(
+            content: [
+              TextPart(text: 'A red square'),
+              MediaPart(media: Media(url: _redSquarePng)),
+            ],
+          ),
+        ],
+      );
+
+      expect(embeddings.length, 1);
+      expect(embeddings.first.embedding, isNotEmpty);
     });
   });
 
