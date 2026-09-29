@@ -589,31 +589,32 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   // we only convert when the token is actually cancelled, otherwise rethrow.
   final ModelResponse response;
   try {
-    response = await composedModel(currentRequest, (
-      streamingRequested: ctx.streamingRequested,
-      sendChunk: (chunk) {
-        final currentRole = chunk.role ?? Role.model;
-        if (currentRole != currentChunkRole && modelHasSentChunks) {
-          messageIndex++;
-        }
-        currentChunkRole = currentRole;
-        modelHasSentChunks = true;
+    response = await composedModel(
+      currentRequest,
+      ActionFnArg(
+        streamingRequested: ctx.streamingRequested,
+        sendChunk: (chunk) {
+          final currentRole = chunk.role ?? Role.model;
+          if (currentRole != currentChunkRole && modelHasSentChunks) {
+            messageIndex++;
+          }
+          currentChunkRole = currentRole;
+          modelHasSentChunks = true;
 
-        ctx.sendChunk(
-          ModelResponseChunk(
-            index: chunk.index ?? messageIndex,
-            content: chunk.content,
-            role: currentChunkRole,
-            custom: chunk.custom,
-            aggregated: chunk.aggregated,
-          ),
-        );
-      },
-      context: ctx.context,
-      inputStream: null,
-      init: null,
-      cancel: ctx.cancel,
-    ));
+          ctx.sendChunk(
+            ModelResponseChunk(
+              index: chunk.index ?? messageIndex,
+              content: chunk.content,
+              role: currentChunkRole,
+              custom: chunk.custom,
+              aggregated: chunk.aggregated,
+            ),
+          );
+        },
+        context: ctx.context,
+        cancel: ctx.cancel,
+      ),
+    );
   } catch (e) {
     // A cancel of this turn's token resolves to an aborted response carrying
     // the last-good history. A genuine model error resolves to a failed
@@ -1142,7 +1143,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
           .whereType<MiddlewareRef>()
           .toList(),
     ),
-    (
+    ActionFnArg(
       streamingRequested: onChunk != null,
       sendChunk: (chunk) {
         if (onChunk != null) {
@@ -1156,8 +1157,6 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
         }
       },
       context: context,
-      inputStream: null,
-      init: null,
       cancel: cancel,
     ),
     middleware: middleware,
@@ -1436,14 +1435,10 @@ _executeTools(
 
     try {
       final toolResponsePart = await runZoned(
-        () => composedTool(toolRequest, (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          context: context,
-          inputStream: null,
-          init: null,
-          cancel: cancelToken,
-        )),
+        () => composedTool(
+          toolRequest,
+          ActionFnArg(context: context, cancel: cancelToken),
+        ),
         zoneValues: {ToolRequestPart: toolRequest},
       );
       toolResponses.add(toolResponsePart);
