@@ -276,80 +276,78 @@ void main() {
       expect(response.result.embeddings, hasLength(2));
     });
 
-    test(
-      'rejects a document with no content before any request goes out',
-      () async {
-        final captured = <Map<String, dynamic>>[];
-        final plugin = _EmbedWirePlugin(captured, <Uri>[]);
-        final embedder =
-            plugin.resolve(ActionType.embedder, 'gemini-embedding-2')!
-                as _EmbedderAction;
-
-        await expectLater(
-          embedder.run(
-            EmbedRequest(
-              input: [
-                DocumentData(content: [TextPart(text: 'first')]),
-                DocumentData(content: []),
-              ],
-            ),
-          ),
-          throwsA(
-            isA<GenkitException>()
-                .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
-                .having((e) => e.message, 'message', contains('index 1')),
-          ),
-        );
-        expect(captured, isEmpty);
-      },
-    );
-
-    test('rejects a document with an unsupported part before any request goes '
-        'out', () async {
+    test('sends empty text for an empty document', () async {
       final captured = <Map<String, dynamic>>[];
       final plugin = _EmbedWirePlugin(captured, <Uri>[]);
       final embedder =
           plugin.resolve(ActionType.embedder, 'gemini-embedding-2')!
               as _EmbedderAction;
 
-      await expectLater(
-        embedder.run(
-          EmbedRequest(
-            input: [
-              DocumentData(content: [TextPart(text: 'first')]),
-              DocumentData(
-                content: [
-                  Part.fromJson({
-                    'data': {'ssn': 'private-unsupported-part-payload'},
-                    'metadata': {'note': 'private-unsupported-part-metadata'},
-                  }),
-                ],
-              ),
-            ],
-          ),
-        ),
-        throwsA(
-          isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
-              .having((e) => e.message, 'message', contains('index 1'))
-              .having(
-                (e) => e.message,
-                'part kind',
-                contains('Unsupported part type: data'),
-              )
-              .having(
-                (e) => e.message,
-                'payload absent',
-                isNot(contains('private-unsupported-part-payload')),
-              )
-              .having(
-                (e) => e.message,
-                'metadata absent',
-                isNot(contains('private-unsupported-part-metadata')),
-              ),
+      await embedder.run(EmbedRequest(input: [DocumentData(content: [])]));
+
+      expect((captured.single['content'] as Map)['parts'], [
+        {'text': ''},
+      ]);
+    });
+
+    test('ignores unsupported parts and keeps legacy text joining', () async {
+      final captured = <Map<String, dynamic>>[];
+      final plugin = _EmbedWirePlugin(captured, <Uri>[]);
+      final embedder =
+          plugin.resolve(ActionType.embedder, 'gemini-embedding-2')!
+              as _EmbedderAction;
+      final unsupported = [
+        Part.fromJson({
+          'data': {'secret': 'private-unsupported-payload'},
+        }),
+        Part.fromJson({'reasoning': 'private reasoning'}),
+        Part.fromJson({
+          'toolRequest': {'name': 'tool', 'input': {}},
+        }),
+        Part.fromJson({
+          'toolResponse': {'name': 'tool', 'output': {}},
+        }),
+        Part.fromJson({
+          'custom': {
+            'executableCode': {'code': 'private code'},
+          },
+        }),
+      ];
+
+      final response = await embedder.run(
+        EmbedRequest(
+          input: [
+            DocumentData(
+              content: [
+                TextPart(text: 'first'),
+                ...unsupported,
+                TextPart(text: 'second'),
+              ],
+            ),
+            DocumentData(content: unsupported),
+            DocumentData(
+              content: [
+                ...unsupported,
+                MediaPart(media: Media(url: 'data:image/png;base64,AAAA')),
+              ],
+            ),
+          ],
         ),
       );
-      expect(captured, isEmpty);
+
+      expect(captured, hasLength(3));
+      expect((captured[0]['content'] as Map)['parts'], [
+        {'text': 'first\nsecond'},
+      ]);
+      expect((captured[1]['content'] as Map)['parts'], [
+        {'text': ''},
+      ]);
+      expect((captured[2]['content'] as Map)['parts'], [
+        {
+          'inlineData': {'mimeType': 'image/png', 'data': 'AAAA'},
+        },
+      ]);
+      expect(response.result.embeddings, hasLength(3));
     });
 
     test('rejects malformed media before any request goes out', () async {

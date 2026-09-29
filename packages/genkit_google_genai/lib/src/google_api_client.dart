@@ -158,25 +158,16 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   }
 }
 
-/// Converts the parts of the document at [index], failing with
-/// `INVALID_ARGUMENT` before any request goes out when it has no content,
-/// holds a part [toGeminiPart] cannot convert, or holds malformed media.
+/// Converts text and media, ignoring other parts for backward compatibility.
+/// Text-only and empty documents retain the legacy single-text-part shape.
+/// Malformed media fails before any request is sent, without leaking its source.
 List<gcl.Part> _embedParts(int index, DocumentData doc) {
-  if (doc.content.isEmpty) {
-    throw GenkitException(
-      'Cannot embed the document at index $index: it has no content.',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
+  final parts = doc.content.where((p) => p.isText || p.isMedia).toList();
+  if (!parts.any((p) => p.isMedia)) {
+    return [gcl.Part(text: parts.map((p) => p.text).join('\n'))];
   }
   try {
-    return doc.content.map(toGeminiPart).toList();
-    // toGeminiPart signals an unsupported part with UnimplementedError.
-    // ignore: avoid_catching_errors
-  } on UnimplementedError catch (e) {
-    throw GenkitException(
-      'Cannot embed the document at index $index: ${e.message}',
-      status: StatusCodes.INVALID_ARGUMENT,
-    );
+    return parts.map(toGeminiPart).toList();
   } on FormatException catch (e) {
     // The parser's source can contain media payloads; keep only its message.
     throw GenkitException(
