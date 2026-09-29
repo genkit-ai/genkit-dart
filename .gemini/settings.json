@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "AfterTool": [
+      {
+        "matcher": "write_file|replace",
+        "hooks": [
+          {
+            "name": "format",
+            "type": "command",
+            "command": "dart run tools/hooks/format.dart",
+            "description": "Code formatting, organize imports, etc."
+          }
+        ]
+      }
+    ]
+  }
+}
