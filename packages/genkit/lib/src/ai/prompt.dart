@@ -162,7 +162,7 @@ class PromptGenerateOptions<CustomOptions> {
 ///
 /// It acts as a callable that invokes `generate` with the rendered prompt
 /// template, and also provides `.render()` and `.stream()` methods.
-class ExecutablePrompt<Input> {
+final class ExecutablePrompt<Input> {
   /// A reference to the prompt (name + optional metadata).
   final ({String name, Map<String, dynamic>? metadata}) ref;
 
@@ -514,7 +514,7 @@ Map<String, dynamic> _buildPromptMetadata<CustomOptions, Input>(
 ///
 /// When invoked, it renders the prompt template and returns
 /// [GenerateActionOptions] (i.e., the generate request).
-class PromptAction<Input>
+base class PromptAction<Input>
     extends Action<Input, GenerateActionOptions, void, void> {
   final ExecutablePrompt<Input>? _executablePrompt;
 

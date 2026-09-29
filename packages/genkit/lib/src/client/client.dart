@@ -236,7 +236,7 @@ defineRemoteAction<Input, Output, Chunk, Init>({
 ///          or the type of the final response from a streaming flow.
 ///   - `Chunk`: The type of the data chunks streamed from the flow.
 /// {@endtemplate}
-class RemoteAction<Input, Output, Chunk, Init> {
+interface class RemoteAction<Input, Output, Chunk, Init> {
   final String _url;
   final Map<String, String>? _defaultHeaders;
   final http.Client _httpClient;

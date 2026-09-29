@@ -38,7 +38,7 @@ abstract class $ToolRequest [src/types.dart]
 abstract class $ToolRequestPart implements $Part [src/types.dart]
 abstract class $ToolResponse [src/types.dart]
 abstract class $ToolResponsePart implements $Part [src/types.dart]
-class Action<Input, Output, Chunk, Init> extends ActionMetadata<Input, Output, Chunk, Init> [src/core/action.dart]
+base class Action<Input, Output, Chunk, Init> extends ActionMetadata<Input, Output, Chunk, Init> [src/core/action.dart]
   Action({required String name, required ActionType actionType, required Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema, SchemanticType<Init>? initSchema, String? description, Map<String, dynamic>? metadata, String? key})
   Future<Output> call(Input? input, {void Function(Chunk)? onChunk, Map<String, dynamic>? context, Stream<Input>? inputStream, Init? init, void Function({required String spanId, required String traceId})? onTraceStart, CancellationToken? cancel})
   final Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>) fn
@@ -57,7 +57,7 @@ final class ActionFnArg<Chunk, Input, Init> [src/core/action.dart]
   final Stream<Input>? inputStream
   final void Function(Chunk) sendChunk
   final bool streamingRequested
-class ActionMetadata<Input, Output, Chunk, Init> [src/core/action.dart]
+base class ActionMetadata<Input, Output, Chunk, Init> [src/core/action.dart]
   ActionMetadata({required String name, ActionType actionType = .custom, String? description, String? key, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema, SchemanticType<Init>? initSchema, Map<String, dynamic>? metadata})
   final ActionType actionType
   final String? description
@@ -110,10 +110,10 @@ base class DataPart implements Part [src/types.dart]
 base class DocumentData [src/types.dart]
 base class EmbedRequest [src/types.dart]
 base class EmbedResponse [src/types.dart]
-class Embedder<CustomOptions> extends Action<EmbedRequest, EmbedResponse, void, void> implements EmbedderRef<CustomOptions> [src/ai/embedder.dart]
+base class Embedder<CustomOptions> extends Action<EmbedRequest, EmbedResponse, void, void> implements EmbedderRef<CustomOptions> [src/ai/embedder.dart]
   Embedder({required String name, required Future<EmbedResponse> Function(EmbedRequest?, ActionFnArg<void, EmbedRequest, void>) fn, Map<String, dynamic>? metadata, SchemanticType<CustomOptions>? customOptions})
   SchemanticType<CustomOptions>? customOptions
-abstract class EmbedderRef<CustomOptions> [src/ai/embedder.dart]
+abstract interface class EmbedderRef<CustomOptions> [src/ai/embedder.dart]
   SchemanticType<CustomOptions>? get customOptions
   String get name
 base class Embedding [src/types.dart]
@@ -191,7 +191,7 @@ abstract class GenkitPlugin [src/core/plugin.dart]
   Action<dynamic, dynamic, dynamic, dynamic>? resolve(ActionType actionType, String name)
 final class Interrupt<Input, Output> extends Tool<Input, Output> [src/ai/tool.dart]
   Interrupt({required String name, required String description, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, Map<String, dynamic>? metadata, FutureOr<Object?> Function(Input, ToolFnArgs<Input>)? requestMetadata})
-class InterruptResponse [src/ai/generate_types.dart]
+final class InterruptResponse [src/ai/generate_types.dart]
   InterruptResponse(ToolRequestPart _part, dynamic output)
   String get name
   final dynamic output
@@ -206,12 +206,12 @@ extension MessageExtension on Message [src/schema_extensions.dart]
   String get text
   List<ToolRequest> get toolRequests
 base class MiddlewareRef [src/types.dart]
-class Model<CustomOptions> extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void> implements ModelRef<CustomOptions> [src/ai/model.dart]
+base class Model<CustomOptions> extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void> implements ModelRef<CustomOptions> [src/ai/model.dart]
   Model({required String name, required Future<ModelResponse> Function(ModelRequest?, ActionFnArg<ModelResponseChunk, ModelRequest, void>) fn, Map<String, dynamic>? metadata, SchemanticType<CustomOptions>? customOptions})
   final CustomOptions? config
   final SchemanticType<CustomOptions>? customOptions
 base class ModelInfo [src/types.dart]
-abstract class ModelRef<CustomOptions> [src/ai/model.dart]
+abstract interface class ModelRef<CustomOptions> [src/ai/model.dart]
   CustomOptions? get config
   SchemanticType<CustomOptions>? get customOptions
   String get name
@@ -298,13 +298,13 @@ enum StatusCodes [src/exception.dart]
   int get httpStatus
   final int value
 base class TextPart implements Part [src/types.dart]
-class Tool<Input, Output> extends Action<Input, ToolResult<Output>, void, void> [src/ai/tool.dart]
+base class Tool<Input, Output> extends Action<Input, ToolResult<Output>, void, void> [src/ai/tool.dart]
   Tool({required String name, required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, SchemanticType<Output>? toolOutputSchema, Map<String, dynamic>? metadata})
   SchemanticType<dynamic>? get manifestOutputSchema
   final SchemanticType<Output>? toolOutputSchema
 base class ToolDefinition [src/types.dart]
 typedef ToolFn<Input, Output> = FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) [src/ai/tool.dart]
-class ToolFnArgs<Input> [src/ai/tool.dart]
+final class ToolFnArgs<Input> [src/ai/tool.dart]
   ToolFnArgs(ActionFnArg<void, Input, void> _base)
   CancellationToken? get cancel
   Map<String, dynamic>? get context

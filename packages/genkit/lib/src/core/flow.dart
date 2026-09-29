@@ -14,7 +14,7 @@
 
 import 'action.dart';
 
-class Flow<Input, Output, Chunk, Init>
+base class Flow<Input, Output, Chunk, Init>
     extends Action<Input, Output, Chunk, Init> {
   Flow({
     required super.name,

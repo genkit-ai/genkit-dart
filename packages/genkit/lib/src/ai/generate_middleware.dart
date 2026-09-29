@@ -70,6 +70,13 @@ final class GenerateTurnState {
 }
 
 /// Middleware for the processing of a Generation request.
+///
+/// Override only the hooks you need; the defaults pass through to `next`.
+///
+/// Always `extend` this class; do not `implement` it. New hooks are added with
+/// pass-through defaults, which is only non-breaking for subclasses. (It is
+/// not marked `base` because that would force every middleware class to
+/// repeat the modifier.)
 abstract class GenerateMiddleware {
   /// Middleware can act as a "kit" by providing tools directly.
   /// These tools will be added to the tool list of the `generate` call.

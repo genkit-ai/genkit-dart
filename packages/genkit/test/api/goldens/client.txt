@@ -38,7 +38,7 @@ abstract class $ToolRequest [src/types.dart]
 abstract class $ToolRequestPart implements $Part [src/types.dart]
 abstract class $ToolResponse [src/types.dart]
 abstract class $ToolResponsePart implements $Part [src/types.dart]
-class ActionStream<Chunk, Response> extends StreamView<Chunk> [src/core/action.dart]
+base class ActionStream<Chunk, Response> extends StreamView<Chunk> [src/core/action.dart]
   ActionStream(Stream<Chunk> stream)
   Future<Response> get onResult
   Response get result
@@ -134,7 +134,7 @@ extension PartExtension on Part [src/schema_extensions.dart]
   ToolResponse? get toolResponse
   ToolResponsePart? get toolResponsePart
 base class ReasoningPart implements Part [src/types.dart]
-class RemoteAction<Input, Output, Chunk, Init> [src/client/client.dart]
+interface class RemoteAction<Input, Output, Chunk, Init> [src/client/client.dart]
   RemoteAction({required String url, Map<String, String>? defaultHeaders, Client? httpClient, required Output Function(dynamic) fromResponse, required Chunk Function(dynamic)? fromStreamChunk})
   Future<Output> call({required Input input, Init? init, Map<String, String>? headers})
   void dispose()

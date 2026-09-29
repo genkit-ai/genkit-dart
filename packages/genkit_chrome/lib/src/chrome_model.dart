@@ -32,7 +32,7 @@ final chromeModelInfo = ModelInfo(
   },
 );
 
-class ChromeModel extends Model<LanguageModelOptions> {
+final class ChromeModel extends Model<LanguageModelOptions> {
   ChromeModel({
     super.name = 'chrome/gemini-nano',
     LanguageModelOptions? options,
