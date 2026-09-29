@@ -79,6 +79,7 @@ Future<Map<String, dynamic>> requestOnTheWire({
   bool constrained = true,
   List<String>? tools,
   String? toolChoice,
+  String? forceTool,
   bool streaming = false,
 }) async {
   Map<String, dynamic>? captured;
@@ -154,6 +155,7 @@ Future<Map<String, dynamic>> requestOnTheWire({
         outputConfig: outputConfig,
         apiVersion: apiVersion,
         betas: betas,
+        forceTool: forceTool,
       ).toJson(),
     ),
     onChunk: streaming ? (_) {} : null,

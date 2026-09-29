@@ -546,7 +546,7 @@ void main() {
           model: model,
           apiVersion: 'beta',
           outputSchema: schema,
-          toolChoice: 'any',
+          toolChoice: 'required',
         );
         expect(body['tools'], isNull, reason: model);
         expect(body['tool_choice'], isNull, reason: model);
