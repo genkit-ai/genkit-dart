@@ -226,20 +226,41 @@ base class ActionMetadata<Input, Output, Chunk, Init> {
   /// Null for locally-defined actions until stamped (a DAP stamps this onto the
   /// actions it resolves so their provenance survives into tool definitions and
   /// traces). Mirrors JS's `__action.key`.
-  String? key;
+  String? get key => _registryKey;
+
+  /// Stamps [key] after construction.
+  ///
+  /// Only the dynamic action provider does this, for actions it resolves but
+  /// did not construct; everything else passes `key` to the constructor. A key
+  /// identifies the action in traces and tool definitions, so once set it can
+  /// only be re-stamped with the same value.
+  @internal
+  set key(String? value) {
+    final current = _registryKey;
+    if (current != null && value != current) {
+      throw StateError(
+        'Action "$name" already has key "$current"; cannot change it to '
+        '"$value".',
+      );
+    }
+    _registryKey = value;
+  }
+
+  String? _registryKey;
 
   ActionMetadata({
     required this.name,
     this.actionType = .custom,
     this.description,
-    this.key,
+    String? key,
 
     this.inputSchema,
     this.outputSchema,
     this.streamSchema,
     this.initSchema,
     Map<String, dynamic>? metadata,
-  }) : metadata = metadata ?? {};
+  }) : _registryKey = key,
+       metadata = metadata ?? {};
 
   Map<String, dynamic> toJson() {
     // `jsonSchema` is a method, so it must be called; a bare tearoff would put a
