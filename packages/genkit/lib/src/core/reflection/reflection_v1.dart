@@ -26,13 +26,13 @@ import '../../exception.dart';
 import '../../o11y/instrumentation_setup.dart'
     show enableDevInstrumentationForServer;
 import '../../schema.dart';
-import '../../utils.dart';
+import '../../utils.dart' hide genkitVersion;
+import '../../version.dart';
 import '../action.dart';
 import '../registry.dart';
 
 final _logger = Logger('genkit.reflection.v1');
 
-const genkitVersion = '0.1.0';
 const genkitReflectionApiSpecVersion = '1';
 
 class Status {
