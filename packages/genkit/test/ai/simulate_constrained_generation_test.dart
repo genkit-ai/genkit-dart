@@ -13,7 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/src/ai/middleware/simulate_constrained_generation.dart';
+import 'package:genkit/lite.dart' as lite;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -25,7 +25,7 @@ abstract class $Person {
   int get age;
 }
 
-/// The instruction part `injectInstructions` writes, if the model got one.
+/// The instruction part the middleware writes, if the model got one.
 String? outputInstructionOf(ModelRequest request) {
   for (final message in request.messages) {
     for (final part in message.content) {
@@ -37,51 +37,27 @@ String? outputInstructionOf(ModelRequest request) {
   return null;
 }
 
+ModelResponse _personResponse(String text) => ModelResponse(
+  finishReason: FinishReason.stop,
+  message: Message(
+    role: Role.model,
+    content: [TextPart(text: text)],
+  ),
+);
+
 void main() {
   late Genkit genkit;
   late ModelRequest captured;
 
-  /// Registers a model recording the request it was handed, declaring
-  /// [supports] (verbatim, so a test can omit `constrained` entirely).
-  void defineCapturingModel(String name, {Map<String, dynamic>? supports}) {
+  /// Registers a model recording the request it was handed. [info] is
+  /// optional: the middleware must not care what the model declares.
+  void defineCapturingModel(String name, {ModelInfo? info}) {
     genkit.defineModel(
       name: name,
-      info: supports == null ? null : ModelInfo(supports: supports),
+      info: info,
       fn: (req, ctx) async {
         captured = req;
-        return ModelResponse(
-          finishReason: FinishReason.stop,
-          message: Message(
-            role: Role.model,
-            content: [TextPart(text: '{"name": "Ada", "age": 36}')],
-          ),
-        );
-      },
-    );
-  }
-
-  /// Registers a model that streams [chunks] before returning their
-  /// concatenation, recording the request it was handed.
-  void defineStreamingModel(
-    String name,
-    List<String> chunks, {
-    Map<String, dynamic>? supports,
-  }) {
-    genkit.defineModel(
-      name: name,
-      info: supports == null ? null : ModelInfo(supports: supports),
-      fn: (req, ctx) async {
-        captured = req;
-        for (final chunk in chunks) {
-          ctx.sendChunk(ModelResponseChunk(content: [TextPart(text: chunk)]));
-        }
-        return ModelResponse(
-          finishReason: FinishReason.stop,
-          message: Message(
-            role: Role.model,
-            content: [TextPart(text: chunks.join())],
-          ),
-        );
+        return _personResponse('{"name": "Ada", "age": 36}');
       },
     );
   }
@@ -94,173 +70,184 @@ void main() {
     await genkit.shutdown();
   });
 
-  group('needsConstrainedSimulation', () {
-    test('a model making no claim is simulated for', () {
-      expect(needsConstrainedSimulation(null, hasTools: false), isTrue);
+  group('without the middleware', () {
+    test('a model that declares nothing gets the schema natively', () async {
+      defineCapturingModel('undeclared');
+
+      await genkit.generate(
+        model: modelRef('undeclared'),
+        prompt: 'Describe a person.',
+        outputSchema: Person.$schema,
+      );
+
+      // Core adds no fallback of its own: what happens to the schema is up
+      // to the plugin.
+      expect(captured.output?.schema, isNotNull);
+      expect(captured.output?.constrained, isTrue);
+      expect(outputInstructionOf(captured), isNull);
     });
 
-    test('false and "none" are simulated for', () {
-      expect(needsConstrainedSimulation(false, hasTools: false), isTrue);
-      expect(needsConstrainedSimulation('none', hasTools: false), isTrue);
+    test('a model declaring no support is not simulated for either', () async {
+      defineCapturingModel(
+        'declaresNone',
+        info: ModelInfo(supports: {'constrained': 'none'}),
+      );
+
+      await genkit.generate(
+        model: modelRef('declaresNone'),
+        prompt: 'Describe a person.',
+        outputSchema: Person.$schema,
+      );
+
+      expect(captured.output?.schema, isNotNull);
+      expect(outputInstructionOf(captured), isNull);
     });
 
-    test('true is left alone', () {
-      expect(needsConstrainedSimulation(true, hasTools: false), isFalse);
-      expect(needsConstrainedSimulation(true, hasTools: true), isFalse);
-    });
+    test('a direct model call is untouched', () async {
+      defineCapturingModel('direct');
 
-    test('"no-tools" is simulated for only when the request carries '
-        'tools', () {
-      expect(needsConstrainedSimulation('no-tools', hasTools: false), isFalse);
-      expect(needsConstrainedSimulation('no-tools', hasTools: true), isTrue);
-    });
+      final model =
+          await genkit.registry.lookupAction(.model, 'direct') as Model?;
+      await model!(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'Describe a person.')],
+            ),
+          ],
+          output: OutputConfig(
+            constrained: true,
+            format: 'json',
+            schema: Person.$schema.jsonSchema(),
+          ),
+        ),
+      );
 
-    test("JS's 'all' is a claim of support", () {
-      expect(needsConstrainedSimulation('all', hasTools: false), isFalse);
-      expect(needsConstrainedSimulation('all', hasTools: true), isFalse);
-    });
-
-    test('an unrecognised value is simulated for', () {
-      // Only a recognised claim counts as one. Reading a typo as support
-      // earns a provider rejection; reading it as a gap costs a longer
-      // prompt.
-      expect(needsConstrainedSimulation('sometimes', hasTools: false), isTrue);
-      expect(needsConstrainedSimulation('noTools', hasTools: false), isTrue);
+      expect(captured.output?.schema, isNotNull);
+      expect(outputInstructionOf(captured), isNull);
     });
   });
 
-  group('a model without native constrained generation', () {
-    test('is sent the schema as instructions', () async {
-      defineCapturingModel('noClaim');
+  group('with the middleware', () {
+    test('the schema goes in the prompt instead of the request', () async {
+      defineCapturingModel('simulated');
 
       await genkit.generate(
-        model: modelRef('noClaim'),
+        model: modelRef('simulated'),
         prompt: 'Describe a person.',
         outputSchema: Person.$schema,
+        use: [simulateConstrainedGeneration()],
       );
 
       expect(outputInstructionOf(captured), contains('"name"'));
       expect(outputInstructionOf(captured), contains('JSON'));
-    });
-
-    test('is not sent the schema or the constrained flag', () async {
-      defineCapturingModel('noClaim');
-
-      await genkit.generate(
-        model: modelRef('noClaim'),
-        prompt: 'Describe a person.',
-        outputSchema: Person.$schema,
-      );
-
       // `schema` matters as much as `constrained`: several plugins send a
-      // native schema whenever `output.schema` is set and never read
-      // `output.constrained`.
+      // native schema whenever `output.schema` is set.
       expect(captured.output?.schema, isNull);
       expect(captured.output?.constrained, isFalse);
     });
 
-    test('keeps the signal plugins turn native JSON mode on with', () async {
-      defineCapturingModel('noClaim');
-
-      await genkit.generate(
-        model: modelRef('noClaim'),
-        prompt: 'Describe a person.',
-        outputSchema: Person.$schema,
+    test('applies whatever the model declares', () async {
+      defineCapturingModel(
+        'claimsNative',
+        info: ModelInfo(supports: {'constrained': true}),
       );
 
-      // Deliberately unlike JS, which clears these too. Plugins read them to
-      // enable JSON mode, which guarantees the response parses and is
-      // independent of schema constraint. `genkit_google_genai` computes
-      // `isJsonMode` from exactly this pair.
+      await genkit.generate(
+        model: modelRef('claimsNative'),
+        prompt: 'Describe a person.',
+        outputSchema: Person.$schema,
+        use: [simulateConstrainedGeneration()],
+      );
+
+      expect(captured.output?.schema, isNull);
+      expect(outputInstructionOf(captured), isNotNull);
+    });
+
+    test('keeps the signal plugins turn native JSON mode on with', () async {
+      defineCapturingModel('jsonMode');
+
+      await genkit.generate(
+        model: modelRef('jsonMode'),
+        prompt: 'Describe a person.',
+        outputSchema: Person.$schema,
+        use: [simulateConstrainedGeneration()],
+      );
+
+      // Deliberately unlike JS, which clears these too: JSON mode guarantees
+      // the response parses and is independent of schema constraint.
       expect(captured.output?.format, 'json');
       expect(captured.output?.contentType, 'application/json');
     });
 
     test('still parses into typed output', () async {
-      defineCapturingModel('noClaim');
+      defineCapturingModel('typed');
 
       final response = await genkit.generate(
-        model: modelRef('noClaim'),
+        model: modelRef('typed'),
         prompt: 'Describe a person.',
         outputSchema: Person.$schema,
+        use: [simulateConstrainedGeneration()],
       );
 
       expect(response.output?.name, 'Ada');
       expect(response.output?.age, 36);
     });
 
-    test('is left alone when the request carries no schema', () async {
-      defineCapturingModel('noClaim');
+    test('leaves a request with no schema alone', () async {
+      defineCapturingModel('noSchema');
 
-      await genkit.generate(model: modelRef('noClaim'), prompt: 'Hello');
+      await genkit.generate(
+        model: modelRef('noSchema'),
+        prompt: 'Hello',
+        use: [simulateConstrainedGeneration()],
+      );
 
       expect(outputInstructionOf(captured), isNull);
       expect(captured.output?.constrained, isNull);
     });
-  });
 
-  group('a model declaring constrained support', () {
-    test('receives the schema and the flag untouched', () async {
-      defineCapturingModel('native', supports: {'constrained': true});
+    test('leaves an unconstrained request alone', () async {
+      defineCapturingModel('unconstrained');
 
       await genkit.generate(
-        model: modelRef('native'),
+        model: modelRef('unconstrained'),
         prompt: 'Describe a person.',
         outputSchema: Person.$schema,
+        outputConstrained: false,
+        use: [simulateConstrainedGeneration()],
       );
 
-      expect(captured.output?.schema, isNotNull);
-      expect(captured.output?.constrained, isTrue);
-      expect(captured.output?.format, 'json');
       expect(outputInstructionOf(captured), isNull);
+      expect(captured.output?.schema, isNotNull);
+      expect(captured.output?.constrained, isFalse);
     });
-  });
 
-  group('a model declaring "none"', () {
-    test('is simulated for', () async {
-      defineCapturingModel('none', supports: {'constrained': 'none'});
+    test('works as an instance with the lite API', () async {
+      ModelRequest? liteCaptured;
+      final model = Model<void>(
+        name: 'liteModel',
+        fn: (req, ctx) async {
+          liteCaptured = req;
+          return _personResponse('{"name": "Ada", "age": 36}');
+        },
+      );
 
-      await genkit.generate(
-        model: modelRef('none'),
+      final response = await lite.generate(
+        model: model,
         prompt: 'Describe a person.',
         outputSchema: Person.$schema,
+        use: [SimulateConstrainedGenerationMiddleware()],
       );
 
-      expect(outputInstructionOf(captured), isNotNull);
-      expect(captured.output?.schema, isNull);
-      expect(captured.output?.format, 'json');
+      expect(outputInstructionOf(liteCaptured!), contains('"name"'));
+      expect(liteCaptured!.output?.schema, isNull);
+      expect(response.output?.name, 'Ada');
     });
   });
 
-  group('middleware added by caller middleware', () {
-    test('a schema added on the way down is still simulated for', () async {
-      genkit = Genkit(
-        plugins: [
-          _MiddlewarePlugin([
-            defineMiddleware(
-              name: 'lateSchema',
-              create: (c, ctx) => _LateSchemaMiddleware(),
-            ),
-          ]),
-        ],
-      );
-      defineCapturingModel('lateSchemaModel');
-
-      // The decision is made against the request the middleware receives, not
-      // the one `generate` first built, so a caller middleware that turns an
-      // unconstrained request into a constrained one is not skipped.
-      await genkit.generate(
-        model: modelRef('lateSchemaModel'),
-        prompt: 'Describe a person.',
-        use: [middlewareRef(name: 'lateSchema')],
-      );
-
-      expect(captured.output?.schema, isNull);
-      expect(outputInstructionOf(captured), contains('"name"'));
-    });
-  });
-
-  group('instructions the middleware cannot place', () {
+  group('where the middleware puts the instructions', () {
     test("a caller's own instructions do not suppress the schema", () async {
       defineCapturingModel('customInstructions');
 
@@ -269,11 +256,9 @@ void main() {
         prompt: 'Describe a person.',
         outputSchema: Person.$schema,
         outputInstructions: 'Answer tersely.',
+        use: [simulateConstrainedGeneration()],
       );
 
-      // `injectInstructions` no-ops once any output part exists, so routing
-      // through it stripped the schema and injected nothing: the model was
-      // left with the caller's wording and no description of the shape.
       final texts = captured.messages
           .expand((m) => m.content)
           .where((p) => p.isText)
@@ -304,18 +289,17 @@ void main() {
           ),
         ],
         outputSchema: Person.$schema,
+        use: [simulateConstrainedGeneration()],
       );
 
-      // A provider that folds system messages into one field can keep only
-      // the first - genkit_anthropic does - so instructions on a later one
-      // would vanish after the schema had already been stripped.
+      // A provider that folds system messages into one field may keep only
+      // the first.
       final first = captured.messages.first;
       expect(first.content.first.text, 'first system');
       expect(
         first.content.any((p) => p.metadata?['purpose'] == 'output'),
         isTrue,
       );
-      expect(captured.output?.schema, isNull);
     });
 
     test('a request with nowhere to put them is left alone', () async {
@@ -330,126 +314,52 @@ void main() {
           ),
         ],
         outputSchema: Person.$schema,
+        use: [simulateConstrainedGeneration()],
       );
 
-      // Instructions attach to the last system or user message, and there is
-      // neither. Stripping the schema here would leave the model with nothing
-      // at all, so the native request goes through untouched instead.
+      // No system or user message. Stripping the schema would leave the
+      // model with nothing, so the request goes through untouched.
       expect(captured.output?.schema, isNotNull);
       expect(captured.output?.constrained, isTrue);
       expect(outputInstructionOf(captured), isNull);
     });
   });
 
-  group('a model called directly, bypassing generate', () {
-    test('still gets the schema simulated', () async {
-      defineCapturingModel('directCall');
-
-      final model =
-          await genkit.registry.lookupAction(.model, 'directCall') as Model?;
-      await model!(
-        ModelRequest(
-          messages: [
-            Message(
-              role: Role.user,
-              content: [TextPart(text: 'Describe a person.')],
-            ),
-          ],
-          output: OutputConfig(
-            constrained: true,
-            format: 'json',
-            schema: {
-              'type': 'object',
-              'properties': {
-                'name': {'type': 'string'},
-              },
-            },
-          ),
-        ),
-      );
-
-      // `registry.lookupAction` (and the Dev UI's `runAction`, the same
-      // route) calls the action's `fn` straight, never touching `generate`.
-      // The model claimed no `supports.constrained`, so this still has to
-      // come out simulated.
-      expect(captured.output?.schema, isNull);
-      expect(captured.output?.constrained, isFalse);
-      expect(outputInstructionOf(captured), contains('"name"'));
-    });
-  });
-
   group('streaming', () {
-    test('a simulated request is stripped on the streaming path too', () async {
-      defineStreamingModel('streamingNoClaim', [
-        '{"name": ',
-        '"Ada", ',
-        '"age": 36}',
-      ]);
-
-      final stream = genkit.generateStream(
-        model: modelRef('streamingNoClaim'),
-        prompt: 'Describe a person.',
-        outputSchema: Person.$schema,
+    test('the request is rewritten and chunks parse as they arrive', () async {
+      genkit.defineModel(
+        name: 'streaming',
+        fn: (req, ctx) async {
+          captured = req;
+          const chunks = ['{"name": ', '"Ada", ', '"age": 36}'];
+          for (final chunk in chunks) {
+            ctx.sendChunk(ModelResponseChunk(content: [TextPart(text: chunk)]));
+          }
+          return _personResponse(chunks.join());
+        },
       );
-      await stream.toList();
-
-      // Streaming takes the same middleware chain, but nothing else covered
-      // it: the composed model is built once and used for both paths.
-      expect(outputInstructionOf(captured), contains('"name"'));
-      expect(captured.output?.schema, isNull);
-      expect(captured.output?.constrained, isFalse);
-      expect(captured.output?.format, 'json');
-    });
-
-    test('partial chunks still parse as they arrive', () async {
-      defineStreamingModel('streamingPartial', [
-        '{"name": ',
-        '"Ada", ',
-        '"age": 36}',
-      ]);
 
       final stream = genkit.generateStream(
-        model: modelRef('streamingPartial'),
+        model: modelRef('streaming'),
         prompt: 'Describe a person.',
-        outputFormat: 'json',
         outputSchema: Person.$schema,
+        use: [simulateConstrainedGeneration()],
       );
       final chunks = await stream.toList();
+      final result = await stream.onResult;
 
-      // The json formatter repairs truncated JSON, so a simulated model's
-      // half-written object is readable mid-stream exactly as a natively
-      // constrained one's is.
-      final outputs = chunks.map((c) => c.jsonOutput?.toJson()).toList();
-      expect(outputs, [
+      expect(outputInstructionOf(captured), contains('"name"'));
+      expect(captured.output?.schema, isNull);
+      expect(chunks.map((c) => c.jsonOutput?.toJson()).toList(), [
         {'name': null},
         {'name': 'Ada'},
         {'name': 'Ada', 'age': 36},
       ]);
-    });
-
-    test('the final streamed result is typed', () async {
-      defineStreamingModel('streamingTyped', [
-        '{"name": ',
-        '"Ada", ',
-        '"age": 36}',
-      ]);
-
-      final stream = genkit.generateStream(
-        model: modelRef('streamingTyped'),
-        prompt: 'Describe a person.',
-        outputSchema: Person.$schema,
-      );
-      await stream.toList();
-      final result = await stream.onResult;
-
-      expect(result.output?.name, 'Ada');
       expect(result.output?.age, 36);
     });
   });
 
   group('tools', () {
-    /// A tool the model can be offered; never actually called by these tests
-    /// unless the model asks for it.
     void defineLookupTool() {
       genkit.defineTool(
         name: 'lookupPerson',
@@ -458,58 +368,18 @@ void main() {
       );
     }
 
-    test('"no-tools" takes the native path when no tool is offered', () async {
-      defineCapturingModel(
-        'noToolsModel',
-        supports: {'constrained': 'no-tools'},
-      );
-
-      await genkit.generate(
-        model: modelRef('noToolsModel'),
-        prompt: 'Describe a person.',
-        outputSchema: Person.$schema,
-      );
-
-      expect(captured.output?.schema, isNotNull);
-      expect(captured.output?.constrained, isTrue);
-      expect(outputInstructionOf(captured), isNull);
-    });
-
-    test('"no-tools" is simulated for once a tool is offered', () async {
+    test('the tools survive the rewritten request', () async {
       defineLookupTool();
-      defineCapturingModel(
-        'noToolsWithTools',
-        supports: {'constrained': 'no-tools'},
-      );
+      defineCapturingModel('withTools');
 
       await genkit.generate(
-        model: modelRef('noToolsWithTools'),
+        model: modelRef('withTools'),
         prompt: 'Describe a person.',
         outputSchema: Person.$schema,
         toolNames: ['lookupPerson'],
+        use: [simulateConstrainedGeneration()],
       );
 
-      // The model's native constraint is mutually exclusive with tool calling,
-      // so offering a tool is what tips it into simulation.
-      expect(captured.output?.schema, isNull);
-      expect(outputInstructionOf(captured), isNotNull);
-      expect(captured.tools, isNotEmpty);
-    });
-
-    test('the tools survive the stripped request', () async {
-      defineLookupTool();
-      defineCapturingModel('toolsNoClaim');
-
-      await genkit.generate(
-        model: modelRef('toolsNoClaim'),
-        prompt: 'Describe a person.',
-        outputSchema: Person.$schema,
-        toolNames: ['lookupPerson'],
-      );
-
-      // Only the output config is rewritten. Dropping the tools while
-      // rebuilding the request would silently disable tool calling for every
-      // simulated model.
       expect(captured.tools?.single.name, 'lookupPerson');
       expect(captured.output?.schema, isNull);
     });
@@ -518,7 +388,7 @@ void main() {
       defineLookupTool();
       var turn = 0;
       genkit.defineModel(
-        name: 'toolLoopModel',
+        name: 'toolLoop',
         fn: (req, ctx) async {
           captured = req;
           turn++;
@@ -538,25 +408,18 @@ void main() {
               ),
             );
           }
-          return ModelResponse(
-            finishReason: FinishReason.stop,
-            message: Message(
-              role: Role.model,
-              content: [TextPart(text: '{"name": "Ada", "age": 36}')],
-            ),
-          );
+          return _personResponse('{"name": "Ada", "age": 36}');
         },
       );
 
       final response = await genkit.generate(
-        model: modelRef('toolLoopModel'),
+        model: modelRef('toolLoop'),
         prompt: 'Describe a person.',
         outputSchema: Person.$schema,
         toolNames: ['lookupPerson'],
+        use: [simulateConstrainedGeneration()],
       );
 
-      // `injectInstructions` is a no-op once the conversation carries an
-      // output part, so the second turn must not accumulate a copy.
       final instructionParts = captured.messages
           .expand((m) => m.content)
           .where((p) => p.isText && p.metadata?['purpose'] == 'output');
@@ -565,50 +428,4 @@ void main() {
       expect(response.output?.name, 'Ada');
     });
   });
-}
-
-/// Turns an unconstrained request into a constrained one on the way down, the
-/// way a structured-output kit would.
-class _LateSchemaMiddleware extends GenerateMiddleware {
-  @override
-  Future<ModelResponse> model(
-    ModelRequest request,
-    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
-    Future<ModelResponse> Function(
-      ModelRequest request,
-      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
-    )
-    next,
-  ) {
-    return next(
-      ModelRequest(
-        messages: request.messages,
-        config: request.config,
-        output: OutputConfig(
-          constrained: true,
-          format: 'json',
-          contentType: 'application/json',
-          schema: {
-            'type': 'object',
-            'properties': {
-              'name': {'type': 'string'},
-            },
-          },
-        ),
-      ),
-      ctx,
-    );
-  }
-}
-
-class _MiddlewarePlugin extends GenkitPlugin {
-  @override
-  String name = 'mw-plugin';
-
-  final List<GenerateMiddlewareDef> _middleware;
-
-  _MiddlewarePlugin(this._middleware);
-
-  @override
-  List<GenerateMiddlewareDef> middleware() => _middleware;
 }

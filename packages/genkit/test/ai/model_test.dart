@@ -57,15 +57,12 @@ void main() {
   });
 
   group('modelMetadata', () {
-    test('withholds constrained when the model declares nothing', () {
+    test('describes an undeclared model as an ordinary chat model', () {
       final supports =
           modelMetadata('undeclared').metadata['model']['supports']
               as Map<String, dynamic>;
 
-      // `generate` simulates constrained generation for any model that does
-      // not claim it, so a default claiming it would opt every undeclared
-      // model out of the fallback on nobody's authority.
-      expect(supports.containsKey('constrained'), isFalse);
+      expect(supports['constrained'], isTrue);
       expect(supports['multiturn'], isTrue);
       expect(supports['tools'], isTrue);
     });

@@ -335,6 +335,31 @@ final response = await ai.generate(
 );
 ```
 
+#### Simulated Constrained Generation
+
+With an `outputSchema`, Genkit asks the model for native constrained output:
+the plugin sends the schema to the provider (Gemini's `responseJsonSchema`,
+OpenAI's `json_schema`, Anthropic's structured outputs, and so on). Genkit
+does not add a fallback on its own.
+
+For a model or provider without native support, `simulateConstrainedGeneration`
+puts the schema in the prompt instead and leaves the native constraint off.
+It is built in, so no plugin is needed:
+
+```dart
+final response = await ai.generate(
+  model: myModel,
+  prompt: 'Generate a person named John Doe, age 30',
+  outputSchema: Person.$schema,
+  use: [simulateConstrainedGeneration()],
+);
+
+final person = response.output; // Still typed and parsed
+```
+
+The model is asked for JSON matching the schema, but nothing enforces it, so
+expect the occasional malformed or incomplete reply.
+
 ---
 
 ## Development Tools

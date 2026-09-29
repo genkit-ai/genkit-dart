@@ -745,10 +745,7 @@ void main() {
     test('carries the schema in the prompt, since the wire cannot', () async {
       // The schema cannot travel as a constraint here, so it has to reach the
       // model as text - and DeepSeek refuses a JSON request whose prompt never
-      // says "json". Since #453 core's own simulation writes those
-      // instructions for a model that claims no constrained generation, which
-      // is why the plugin's `jsonObjectInstruction` stands down rather than
-      // repeating them; the assertion is on the prompt, not on who wrote it.
+      // says "json". The plugin's `jsonObjectInstruction` writes both.
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
@@ -807,14 +804,13 @@ void main() {
     });
 
     test('adds nothing when core already wrote the instructions', () async {
-      // Core's formatter marks what it wrote with `purpose: 'output'`, and a
-      // second copy from here would send the schema twice.
+      // Core marks what it wrote with `purpose: 'output'`, and a second copy
+      // from here would send the schema twice.
       //
-      // Through the model action directly, not `ai.generate`: since #453 core
-      // strips `output.schema` when it simulates, so on the generate path
-      // there is no schema left to duplicate and the test would pass with the
-      // marker check removed. A raw request carrying both the marked part and
-      // the schema is the only shape that exercises it.
+      // Through the model action directly, with both the marked part and the
+      // schema: the `simulateConstrainedGeneration` middleware strips the
+      // schema when it writes the part, so the generate path never produces
+      // this shape.
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],

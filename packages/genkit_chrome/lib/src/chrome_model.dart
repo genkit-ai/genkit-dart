@@ -18,11 +18,10 @@ import 'chrome_interop.dart';
 
 /// Capabilities of Chrome's built-in Gemini Nano.
 ///
-/// No `constrained`: the Prompt API takes a plain prompt and returns prose, and
-/// this plugin ignores `output` entirely. Withholding the claim is what makes
-/// core simulate constrained generation for it — the schema goes into the
-/// prompt as instructions and the response is parsed client-side, which is the
-/// only structured output this model can give.
+/// No `constrained`: this plugin ignores `output`, so an output schema never
+/// reaches the Prompt API. Pass `responseConstraint` in the config for a
+/// native constraint, or add the `simulateConstrainedGeneration` middleware
+/// to put the schema in the prompt.
 final chromeModelInfo = ModelInfo(
   supports: {
     'multiturn': true,

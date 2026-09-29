@@ -113,8 +113,8 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
 ///
 /// [supportsJsonSchema] is false for a host that takes `json_object` but not
 /// `json_schema` - DeepSeek, among others. There the schema cannot travel as a
-/// constraint, so the request asks for JSON and the schema reaches the model
-/// only as far as Genkit's prompt instructions carry it. Sending the schema
+/// constraint, so the request asks for JSON and the plugin writes the schema
+/// into the prompt instead (see [jsonObjectInstruction]). Sending the schema
 /// anyway would be a 400, which is worse than an unconstrained answer.
 ResponseFormat? buildOpenAIResponseFormat({
   String? format,
@@ -161,10 +161,12 @@ ResponseFormat? buildOpenAIResponseFormat({
 /// The JSON instruction a `json_object`-only host needs in the prompt.
 ///
 /// Null when there is nothing to add. Without `json_schema` the prompt is the
-/// only place the schema can go, so it is written out unless core already
-/// added it (marked `purpose: 'output'`). Otherwise the word "json" is added
-/// unless a message already says it: DeepSeek rejects a `json_object` request
-/// whose prompt lacks it, and a caller's own instructions may not use it.
+/// only place the schema can go, so it is written out unless the prompt
+/// already carries output instructions (marked `purpose: 'output'`, as core's
+/// format instructions and the `simulateConstrainedGeneration` middleware
+/// write them). Otherwise the word "json" is added unless a message already
+/// says it: DeepSeek rejects a `json_object` request whose prompt lacks it,
+/// and a caller's own instructions may not use it.
 String? jsonObjectInstruction(
   List<Message> messages,
   Map<String, dynamic>? schema,

@@ -41,13 +41,6 @@ final _logger = Logger('genkit_firebase_ai');
 /// name on demand, so there is no per-model catalog to key this off; these are
 /// the Gemini family's capabilities, matching `genkit_google_genai`'s
 /// `commonModelInfo`.
-///
-/// `constrained` has to be claimed. A model that does not claim it has
-/// constrained generation simulated for it by core, which injects the schema
-/// as prompt instructions and strips `output.schema` before this plugin sees
-/// the request — so an undeclared Gemini model would never reach
-/// [toGeminiSettings] with a schema and would lose the native `responseSchema`
-/// it is perfectly capable of honouring.
 final firebaseAiModelInfo = ModelInfo(
   supports: {
     'multiturn': true,
@@ -762,10 +755,9 @@ fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
 /// request, matching `genkit_google_genai`. A caller asking for a schema
 /// without constraint wants it enforced by nothing rather than by Gemini
 /// specifically - core does not inject textual instructions for it either
-/// (`jsonFormatter` sets `defaultInstructions: false`, and the simulated-path
-/// middleware only acts when `constrained: true`), so honouring that choice
-/// here means the model sees no description of the shape at all, native or
-/// textual, unless the caller supplied their own. Gemini only honours
+/// (`jsonFormatter` sets `defaultInstructions: false`), so honouring that
+/// choice here means the model sees no description of the shape at all,
+/// native or textual, unless the caller supplied their own. Gemini only honours
 /// `responseSchema` alongside an `application/json` response mime type, so
 /// the JSON-mode half of the condition is the provider's rule, not a
 /// preference.

@@ -58,11 +58,6 @@ void main() {
     ModelRequest? captured;
     final model = Model<void>(
       name: 'constrainedTestModel',
-      // Without this the model makes no claim, and the constrained request
-      // this test is about never reaches it.
-      metadata: {
-        'model': ModelInfo(supports: {'constrained': true}).toJson(),
-      },
       fn: (request, context) async {
         captured = request;
         return ModelResponse(
