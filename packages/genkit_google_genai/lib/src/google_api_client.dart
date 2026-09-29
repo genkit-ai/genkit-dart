@@ -159,8 +159,8 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
 }
 
 /// Converts the parts of the document at [index], failing with
-/// `INVALID_ARGUMENT` before any request goes out when it has no content or
-/// holds a part the API cannot embed.
+/// `INVALID_ARGUMENT` before any request goes out when it has no content,
+/// holds a part [toGeminiPart] cannot convert, or holds malformed media.
 List<gcl.Part> _embedParts(int index, DocumentData doc) {
   if (doc.content.isEmpty) {
     throw GenkitException(
@@ -176,6 +176,12 @@ List<gcl.Part> _embedParts(int index, DocumentData doc) {
     throw GenkitException(
       'Cannot embed the document at index $index: ${e.message}',
       status: StatusCodes.INVALID_ARGUMENT,
+    );
+  } on FormatException catch (e) {
+    throw GenkitException(
+      'Cannot embed the document at index $index: ${e.message}',
+      status: StatusCodes.INVALID_ARGUMENT,
+      underlyingException: e,
     );
   }
 }

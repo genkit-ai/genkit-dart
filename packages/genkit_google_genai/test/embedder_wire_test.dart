@@ -334,6 +334,34 @@ void main() {
       expect(captured, isEmpty);
     });
 
+    test('rejects malformed media before any request goes out', () async {
+      final captured = <Map<String, dynamic>>[];
+      final plugin = _EmbedWirePlugin(captured, <Uri>[]);
+      final embedder =
+          plugin.resolve(ActionType.embedder, 'gemini-embedding-2')!
+              as _EmbedderAction;
+
+      await expectLater(
+        embedder.run(
+          EmbedRequest(
+            input: [
+              DocumentData(
+                content: [
+                  MediaPart(media: Media(url: 'data:image/png;base64,!!!')),
+                ],
+              ),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.message, 'message', contains('index 0')),
+        ),
+      );
+      expect(captured, isEmpty);
+    });
+
     test('still forwards embedder options on media requests', () async {
       final captured = <Map<String, dynamic>>[];
       final plugin = _EmbedWirePlugin(captured, <Uri>[]);
