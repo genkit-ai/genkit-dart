@@ -99,7 +99,14 @@ final class Genkit extends GenkitAI {
     // Register default formats
     configureFormats(registry);
 
-    if (isDevEnv ?? utils.isDevEnv) {
+    // The reflection API runs under GENKIT_ENV=dev (or an explicit
+    // isDevEnv: true, which tests and embedders use), or in any environment
+    // with GENKIT_REFLECTION_ENABLED=true. GENKIT_REFLECTION_ENABLED=false is a
+    // kill switch that beats isDevEnv. Resolving here keeps an invalid setting
+    // a constructor-time error.
+    final reflectionRequested = reflectionConfigured(port: reflectionPort);
+    if (!reflectionDisabled() &&
+        ((isDevEnv ?? utils.isDevEnv) || reflectionRequested)) {
       // In the dev environment, auto-inject the built-in telemetry
       // instrumentation (unless already configured) so the Developer UI
       // receives traces. It posts Genkit's spans directly to the Genkit

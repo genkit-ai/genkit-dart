@@ -28,6 +28,7 @@ import '../../types.dart';
 import '../../utils.dart';
 import '../action.dart';
 import '../registry.dart';
+import 'reflection_config.dart';
 
 final _logger = Logger('genkit.reflection.v2');
 
@@ -46,12 +47,16 @@ class ReflectionServerV2 {
   final int _apiIndex = reflectionInstanceCount++;
   final Map<dynamic, StreamController> _inputStreams = {};
 
+  /// Presented in `register`. The CLI rejects the connection on a mismatch.
+  final String? secret;
+
   ReflectionServerV2(
     this.registry, {
     required this.url,
     this.configuredEnvs = const [],
     this.name,
     required this.runtimeId,
+    this.secret,
   });
 
   Future<void> start() async {
@@ -126,6 +131,7 @@ class ReflectionServerV2 {
       genkitVersion: genkitVersion,
       reflectionApiSpecVersion: genkitReflectionApiSpecVersion.toDouble(),
       envs: configuredEnvs,
+      secret: secret,
     );
     _send({
       'jsonrpc': '2.0',
@@ -155,6 +161,15 @@ class ReflectionServerV2 {
 
     if (id == '$_runtimeId-register') {
       if (error != null) {
+        // Auth failures are terminal: the secret will not change.
+        if (error is Map && error['code'] == reflectionAuthErrorCode) {
+          _logger.severe(
+            'Reflection API rejected this runtime: ${error['message']} '
+            'Closing the connection.',
+          );
+          unawaited(stop());
+          return;
+        }
         _logger.severe('Failed to register with Manager: $error');
       } else {
         _logger.info('Successfully registered with Manager. Config: $result');

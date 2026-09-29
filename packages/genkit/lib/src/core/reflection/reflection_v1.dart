@@ -29,6 +29,7 @@ import '../../schema.dart';
 import '../../utils.dart';
 import '../action.dart';
 import '../registry.dart';
+import 'reflection_config.dart';
 
 final _logger = Logger('genkit.reflection.v1');
 
@@ -65,7 +66,21 @@ class RunActionResponse {
 
 class ReflectionServerV1 {
   final Registry registry;
+
+  /// Bound exactly when set, with no fallback to another port.
   final int? port;
+
+  /// First port of an upward probe, used when [port] is null.
+  final int probeFrom;
+  final String host;
+
+  /// When set, every call but `/api/__health` must present it.
+  final String? secret;
+
+  /// Whether to write the runtime discovery file and serve
+  /// `/api/__quitquitquit`. Defaults to the ambient dev setting; injectable so
+  /// tests can exercise both paths.
+  final bool devMode;
   final String bodyLimit;
   final List<String> configuredEnvs;
   final String? name;
@@ -76,43 +91,58 @@ class ReflectionServerV1 {
   ReflectionServerV1(
     this.registry, {
     this.port,
+    this.probeFrom = defaultReflectionPort,
+    this.host = defaultReflectionHost,
+    this.secret,
+    bool? devMode,
     this.bodyLimit = '30mb',
     this.configuredEnvs = const ['dev'],
     this.name,
-  });
+  }) : devMode = devMode ?? isDevEnv;
+
+  /// Whether a request carries the configured secret. Always true when no
+  /// secret is configured.
+  bool _authorized(HttpRequest request) {
+    final expected = secret;
+    if (expected == null) return true;
+    final provided = request.headers.value(reflectionSecretHeader);
+    return provided != null && secretsEqual(provided, expected);
+  }
 
   Future<void> start() async {
     if (port != null) {
-      _server = await HttpServer.bind(
-        InternetAddress.loopbackIPv4,
-        port!,
-        shared: false,
-      );
+      // A pinned port is a contract with whoever published it: bind exactly
+      // that port or fail. Shifting to the next free one would leave them
+      // talking to a dead port.
+      _server = await HttpServer.bind(host, port!, shared: false);
     } else {
-      for (var p = 3100; p < 3200; p++) {
+      // Capped at 65535, so the last attempt (which rethrows) is computed up
+      // front rather than assumed to be probeFrom + 99.
+      final maxPort = probeFrom + 99 < 65535 ? probeFrom + 99 : 65535;
+      for (var p = probeFrom; p <= maxPort; p++) {
         try {
-          _server = await HttpServer.bind(
-            InternetAddress.loopbackIPv4,
-            p,
-            shared: false,
-          );
+          _server = await HttpServer.bind(host, p, shared: false);
           break;
         } on SocketException catch (_) {
-          if (p == 3199) rethrow;
+          if (p == maxPort) rethrow;
         }
       }
     }
-    _logger.fine(
-      'Reflection server running on http://localhost:${_server!.port}',
-    );
+    _logger.fine('Reflection server running on $_url');
 
     _server!.listen((HttpRequest request) async {
       request.response.headers.add('x-genkit-version', genkitVersion);
       try {
         if (request.method == 'GET' && request.uri.path == '/api/__health') {
+          // Exempt from auth: it carries no registry content and is what
+          // orchestrators and the CLI probe before they know a secret.
           await registry.listActions();
           request.response
             ..write('OK')
+            ..close();
+        } else if (!_authorized(request)) {
+          request.response
+            ..statusCode = HttpStatus.unauthorized
             ..close();
         } else if (request.method == 'POST' &&
             request.uri.path == '/api/notify') {
@@ -121,7 +151,10 @@ class ReflectionServerV1 {
             ..write('OK')
             ..close();
         } else if (request.method == 'GET' &&
-            request.uri.path == '/api/__quitquitquit') {
+            request.uri.path == '/api/__quitquitquit' &&
+            devMode) {
+          // Dev only: it stops the server and answers GET, so any page that
+          // can cause a request to it could take the process down.
           request.response
             ..write('OK')
             ..close();
@@ -150,7 +183,12 @@ class ReflectionServerV1 {
       }
     });
 
-    await _writeRuntimeFile();
+    // Dev only: the file exists so a local CLI watching the same filesystem
+    // can discover this runtime. Nothing is watching in a container, and the
+    // working directory is frequently read-only.
+    if (devMode) {
+      await _writeRuntimeFile();
+    }
   }
 
   /// Applies the CLI telemetry handshake sent to `POST /api/notify`.
@@ -383,6 +421,11 @@ class ReflectionServerV1 {
 
   int get actualPort => _server?.port ?? 0;
 
+  /// URL the CLI should use: the real bind host (not `localhost`, which may
+  /// resolve to `::1` first) and the port actually bound.
+  String get _url =>
+      'http://${advertisedReflectionHost(host)}:${_server!.port}';
+
   String get _runtimeId => '$pid${_server != null ? '-${_server!.port}' : ''}';
 
   Future<void> _writeRuntimeFile() async {
@@ -401,10 +444,13 @@ class ReflectionServerV1 {
         'id': getConfigVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
         'pid': pid,
         'name': name ?? pid.toString(),
-        'reflectionServerUrl': 'http://localhost:${_server!.port}',
+        'reflectionServerUrl': _url,
         'timestamp': timestamp,
         'genkitVersion': 'dart/$genkitVersion',
         'reflectionApiSpecVersion': genkitReflectionApiSpecVersion,
+        // Advertised so a CLI process that did not spawn this runtime can
+        // still authenticate to it.
+        if (secret != null) 'reflectionSecret': secret,
       });
       await Directory(runtimesDir).create(recursive: true);
       await File(runtimeFilePath!).writeAsString(fileContent);
