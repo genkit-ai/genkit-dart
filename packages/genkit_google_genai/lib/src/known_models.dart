@@ -90,89 +90,53 @@ enum GeminiModelFamily {
 /// for.
 ///
 /// Each value pairs a bare model [id] (no plugin prefix) with a display
-/// [label], a [family] and a [stage]; [info] builds the capability preset for
+/// [label] and a [family]; [info] builds the capability preset for
 /// that family. Other model names still resolve dynamically via the plugin's
 /// `modelInfoFor` fallback, so this enum only enriches the names listed here.
 enum KnownGeminiModel {
-  gemini25Pro('gemini-2.5-pro', 'Gemini 2.5 Pro', stage: 'unstable'),
-  gemini25Flash('gemini-2.5-flash', 'Gemini 2.5 Flash', stage: 'unstable'),
-  gemini25FlashLite(
-    'gemini-2.5-flash-lite',
-    'Gemini 2.5 Flash Lite',
-    stage: 'unstable',
-  ),
-  gemini31ProPreview(
-    'gemini-3.1-pro-preview',
-    'Gemini 3.1 Pro Preview',
-    stage: 'unstable',
-  ),
-  gemini3FlashPreview(
-    'gemini-3-flash-preview',
-    'Gemini 3 Flash Preview',
-    stage: 'unstable',
-  ),
-  gemini37Flash('gemini-3.7-flash', 'Gemini 3.7 Flash', stage: 'unstable'),
-  gemini36Flash('gemini-3.6-flash', 'Gemini 3.6 Flash', stage: 'unstable'),
-  gemini35Flash('gemini-3.5-flash', 'Gemini 3.5 Flash', stage: 'stable'),
-  gemini35FlashLite(
-    'gemini-3.5-flash-lite',
-    'Gemini 3.5 Flash Lite',
-    stage: 'unstable',
-  ),
-  gemini31FlashLite(
-    'gemini-3.1-flash-lite',
-    'Gemini 3.1 Flash Lite',
-    stage: 'stable',
-  ),
+  gemini25Pro('gemini-2.5-pro', 'Gemini 2.5 Pro'),
+  gemini25Flash('gemini-2.5-flash', 'Gemini 2.5 Flash'),
+  gemini25FlashLite('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite'),
+  gemini31ProPreview('gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview'),
+  gemini3FlashPreview('gemini-3-flash-preview', 'Gemini 3 Flash Preview'),
+  gemini37Flash('gemini-3.7-flash', 'Gemini 3.7 Flash'),
+  gemini36Flash('gemini-3.6-flash', 'Gemini 3.6 Flash'),
+  gemini35Flash('gemini-3.5-flash', 'Gemini 3.5 Flash'),
+  gemini35FlashLite('gemini-3.5-flash-lite', 'Gemini 3.5 Flash Lite'),
+  gemini31FlashLite('gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite'),
   gemini25FlashImage(
     'gemini-2.5-flash-image',
     'Gemini 2.5 Flash Image',
     family: .image,
-    stage: 'unstable',
   ),
   gemini31FlashImage(
     'gemini-3.1-flash-image',
     'Gemini 3.1 Flash Image',
     family: .image,
-    stage: 'stable',
   ),
   gemini31FlashLiteImage(
     'gemini-3.1-flash-lite-image',
     'Gemini 3.1 Flash Lite Image',
     family: .image,
-    stage: 'unstable',
   ),
-  gemini3ProImage(
-    'gemini-3-pro-image',
-    'Gemini 3 Pro Image',
-    family: .image,
-    stage: 'stable',
-  ),
+  gemini3ProImage('gemini-3-pro-image', 'Gemini 3 Pro Image', family: .image),
   gemini25FlashPreviewTts(
     'gemini-2.5-flash-preview-tts',
     'Gemini 2.5 Flash Preview TTS',
     family: .tts,
-    stage: 'unstable',
   ),
   gemini25ProPreviewTts(
     'gemini-2.5-pro-preview-tts',
     'Gemini 2.5 Pro Preview TTS',
     family: .tts,
-    stage: 'unstable',
   ),
   gemini31FlashTtsPreview(
     'gemini-3.1-flash-tts-preview',
     'Gemini 3.1 Flash TTS Preview',
     family: .tts,
-    stage: 'unstable',
   );
 
-  const KnownGeminiModel(
-    this.id,
-    this.label, {
-    this.family = .text,
-    required this.stage,
-  });
+  const KnownGeminiModel(this.id, this.label, {this.family = .text});
 
   /// Bare model name (no plugin prefix).
   final String id;
@@ -183,15 +147,9 @@ enum KnownGeminiModel {
   /// The modality this model generates in.
   final GeminiModelFamily family;
 
-  /// Lifecycle stage surfaced in listings.
-  ///
-  /// `stable` is only claimed for names a live `ListModels` probe has served;
-  /// every other curated name is `unstable`.
-  final String stage;
-
   /// The capability profile for this model.
   ModelInfo get info =>
-      ModelInfo(label: label, supports: family.supports, stage: stage);
+      ModelInfo(label: label, supports: family.supports, stage: 'stable');
 }
 
 /// Gemma models the Gemini API serves, curated the same way as

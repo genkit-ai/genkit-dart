@@ -38,7 +38,7 @@ void main() {
         expect(action, isNotNull);
         final info = modelInfoOf(action!);
         expect(info['label'], model.label);
-        expect(info['stage'], model.stage);
+        expect(info['stage'], 'stable');
         expect(
           (info['supports'] as Map).cast<String, dynamic>(),
           model.info.supports,

@@ -105,12 +105,15 @@ void main() {
 
   group('KnownGeminiModel', () {
     for (final model in KnownGeminiModel.values) {
-      test('${model.id} info carries its label, stage and family profile', () {
-        final info = model.info;
-        expect(info.label, model.label);
-        expect(info.stage, model.stage);
-        expect(info.supports, model.family.supports);
-      });
+      test(
+        '${model.id} info carries its label, stable stage and family profile',
+        () {
+          final info = model.info;
+          expect(info.label, model.label);
+          expect(info.stage, 'stable');
+          expect(info.supports, model.family.supports);
+        },
+      );
 
       test('${model.id} family agrees with the classifier', () {
         expect(GeminiModelFamily.of(model.id), model.family);
@@ -161,21 +164,9 @@ void main() {
       );
     });
 
-    test('claims stable only for names a live probe has served', () {
-      expect(
-        {
-          for (final model in KnownGeminiModel.values)
-            if (model.stage == 'stable') model.id,
-        },
-        {
-          'gemini-3.5-flash',
-          'gemini-3.1-flash-lite',
-          'gemini-3.1-flash-image',
-          'gemini-3-pro-image',
-        },
-      );
+    test('every curated model is stable', () {
       for (final model in KnownGeminiModel.values) {
-        expect(model.stage, anyOf('stable', 'unstable'));
+        expect(model.info.stage, 'stable', reason: model.id);
       }
     });
   });
