@@ -130,11 +130,13 @@ abstract class GenerateMiddleware [src/ai/generate_middleware.dart]
   Future<ModelResponse> model(ModelRequest request, ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx, Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) next)
   Future<ToolResponsePart> tool(ToolRequestPart request, ActionFnArg<void, dynamic, void> ctx, Future<ToolResponsePart> Function(ToolRequestPart, ActionFnArg<void, dynamic, void>) next)
   List<Tool<dynamic, dynamic>>? get tools
-typedef GenerateMiddlewareContext = ({GenkitAI ai}) [src/ai/generate_middleware.dart]
+final class GenerateMiddlewareContext [src/ai/generate_middleware.dart]
+  GenerateMiddlewareContext({required GenkitAI ai})
+  final GenkitAI ai
 abstract interface class GenerateMiddlewareDef<CustomOptions> [src/ai/generate_middleware.dart]
   Map<String, Object?>? get configJsonSchema
   SchemanticType<CustomOptions>? get configSchema
-  GenerateMiddleware create(CustomOptions? config, ({GenkitAI ai}) ctx)
+  GenerateMiddleware create(CustomOptions? config, GenerateMiddlewareContext ctx)
   String get name
 abstract interface class GenerateMiddlewareRef<CustomOptions> [src/ai/generate_middleware.dart]
   CustomOptions? get config
@@ -338,7 +340,7 @@ sealed class ToolResult<Output> [src/ai/tool.dart]
   Object? get interruptData
   Output get output
   Map<String, dynamic> toJson()
-function GenerateMiddlewareDef<CustomOptions> defineMiddleware<CustomOptions>({required String name, required GenerateMiddleware Function(CustomOptions?, ({GenkitAI ai})) create, SchemanticType<CustomOptions>? configSchema}) [src/ai/generate_middleware.dart]
+function GenerateMiddlewareDef<CustomOptions> defineMiddleware<CustomOptions>({required String name, required GenerateMiddleware Function(CustomOptions?, GenerateMiddlewareContext) create, SchemanticType<CustomOptions>? configSchema}) [src/ai/generate_middleware.dart]
 function ActionMetadata<dynamic, dynamic, dynamic, dynamic> embedderMetadata(String name, {SchemanticType<dynamic>? customOptions}) [src/ai/embedder.dart]
 function EmbedderRef<CustomOptions> embedderRef<CustomOptions>(String name, {SchemanticType<CustomOptions>? customOptions}) [src/ai/embedder.dart]
 getter String get genkitVersion [src/version.dart]

@@ -126,12 +126,20 @@ abstract class GenerateMiddleware {
 
 /// Ambient dependencies handed to a middleware factory at instantiation time.
 ///
-/// The `ai` field is an ephemeral [GenkitAI] instance backed by the active
-/// action registry. It lets a middleware run nested AI operations (e.g.
-/// [GenkitAI.generate], [GenkitAI.embed]) and resolve other registered actions
-/// (models, tools, agents, etc.) by name when it is created. The underlying
-/// registry is available via `ai.registry`.
-typedef GenerateMiddlewareContext = ({GenkitAI ai});
+/// A class rather than a record so more dependencies can be added without
+/// breaking code that constructs one (tests that call
+/// [GenerateMiddlewareDef.create] directly).
+final class GenerateMiddlewareContext {
+  /// An ephemeral [GenkitAI] instance backed by the active action registry.
+  ///
+  /// Lets a middleware run nested AI operations (e.g. [GenkitAI.generate],
+  /// [GenkitAI.embed]) and resolve other registered actions (models, tools,
+  /// agents, etc.) by name when it is created. The underlying registry is
+  /// available via `ai.registry`.
+  final GenkitAI ai;
+
+  GenerateMiddlewareContext({required this.ai});
+}
 
 abstract interface class GenerateMiddlewareDef<CustomOptions> {
   String get name;
