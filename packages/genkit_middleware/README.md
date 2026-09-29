@@ -130,8 +130,9 @@ A task that stopped on an interrupt cannot be continued, and a result without a
 that work.
 
 ```dart
+// `googleAI` comes from package:genkit_google_genai; any model plugin works.
 final result = await ai.generate(
-  model: modelRef('gemini-flash-latest'),
+  model: googleAI.gemini('gemini-flash-latest'),
   prompt: 'Research topics A, B, and C in parallel, then summarize.',
   use: [
     agents(

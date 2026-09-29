@@ -1,5 +1,5 @@
 name: genkit_middleware
-description: Middleware for Genkit Dart to inject skills.
+description: Common Genkit Dart middleware (filesystem access, skills, tool approval, and experimental sub-agent delegation).
 version: 0.7.0
 resolution: workspace
 repository: https://github.com/genkit-ai/genkit-dart
