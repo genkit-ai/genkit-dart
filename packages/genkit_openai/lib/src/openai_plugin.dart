@@ -24,6 +24,7 @@ import 'package:openai_dart/openai_dart.dart' as sdk;
 import '../genkit_openai.dart';
 import 'chat.dart' as chat;
 import 'chat_body_client.dart';
+import 'converters.dart';
 import 'embed.dart' as embed;
 // The compat variants and the embedder metadata are intentionally not part of
 // the public surface.
@@ -31,6 +32,7 @@ import 'known_embedders.dart' show compatEmbedderInfo, embedderInfoFor;
 import 'provider.dart';
 import 'speech.dart' as speech;
 import 'transcription.dart' as transcription;
+import 'utils.dart';
 
 final _logger = Logger('genkit_openai');
 

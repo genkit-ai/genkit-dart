@@ -15,8 +15,17 @@
 import 'package:genkit/plugin.dart';
 import 'package:genkit_openai/genkit_openai.dart';
 import 'package:genkit_openai/src/known_models.dart'
-    show openAIModelAlias, openAIModelSpelling;
+    show
+        multimodalSupports,
+        openAIModelAlias,
+        openAIModelSpelling,
+        reasoningPreviewSupports,
+        reasoningSupports,
+        reasoningTextOnlySupports,
+        supportsVision,
+        textOnlyLegacySupports;
 import 'package:genkit_openai/src/openai_plugin.dart';
+import 'package:genkit_openai/src/utils.dart';
 import 'package:test/test.dart';
 
 import 'discovery_client.dart';
