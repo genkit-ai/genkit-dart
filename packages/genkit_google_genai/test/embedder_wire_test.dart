@@ -365,7 +365,11 @@ void main() {
             input: [
               DocumentData(
                 content: [
-                  MediaPart(media: Media(url: 'data:image/png;base64,!!!')),
+                  MediaPart(
+                    media: Media(
+                      url: 'data:image/png;base64,PRIVATE_IMAGE_SECRET!!!',
+                    ),
+                  ),
                 ],
               ),
             ],
@@ -374,7 +378,12 @@ void main() {
         throwsA(
           isA<GenkitException>()
               .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
-              .having((e) => e.message, 'message', contains('index 0')),
+              .having((e) => e.message, 'message', contains('index 0'))
+              .having(
+                (e) => e.toString(),
+                'payload absent from exception text',
+                isNot(contains('PRIVATE_IMAGE_SECRET')),
+              ),
         ),
       );
       expect(captured, isEmpty);
