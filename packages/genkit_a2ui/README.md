@@ -179,42 +179,25 @@ register it with `loadCatalog`, and reference it by id.
 
 ### Catalog format
 
-An A2UI catalog describes the components the model is allowed to emit:
+A catalog is stored in the A2UI specification's [`catalog.json`](https://a2ui.org/specification/v0.9.1-a2ui/)
+format, so a published catalog file loads unmodified and a catalog you author
+here stays portable to any other A2UI host:
 
-- `id`: A globally unique URI identifying the catalog (used as `catalogId` on
-  `createSurface`).
-- `components`: An array of components, where each has:
-  - `name`: The component type name, matching the renderer type (for example
-    `CustomCard`, `Text`).
-  - `description`: A clear, one-line summary of what the component is and when to
-    use it.
-  - `props`: A compact, model-facing text description of its properties (kept as
-    a simple, human-readable string to minimize system prompt token usage).
+- `catalogId`: A globally unique URI identifying the catalog (used as
+  `catalogId` on `createSurface`).
+- `components`: An object keyed by component name, whose values are JSON
+  Schemas declaring each component's props.
+- `functions`: An object keyed by function name, for client-side validation and
+  helpers (`required`, `regex`, `openUrl`, ...). Optional.
+
+Property **order matters**: it is the positional argument order the model is
+prompted with, and the order the compiler maps arguments onto. Reordering two
+properties in a published catalog silently rebinds every Express statement
+written against it.
 
 ### Option A: load from a JSON file
 
-Create a JSON file (for example `./my-catalog.json`) following this format:
-
-```json
-{
-  "id": "https://my-app.org/catalogs/custom.json",
-  "components": [
-    {
-      "name": "Banner",
-      "description": "Displays a prominent alert banner at the top of a section.",
-      "props": "title: string (required); severity?: info|warning|error."
-    },
-    {
-      "name": "Text",
-      "description": "Displays a plain or inline-markdown text run.",
-      "props": "text: string (required); variant?: body|caption."
-    }
-  ]
-}
-```
-
-Then register it under a lookup identifier (for example `'my-catalog'`) on the
-server:
+Any spec-format `catalog.json` works, including the official ones:
 
 ```dart
 import 'package:genkit_a2ui/a2ui.dart';
@@ -228,33 +211,37 @@ await loadCatalog(
 
 ### Option B: in-memory definition
 
-You can construct and register an `A2uiCatalog` directly in pure Dart:
+`A2uiCatalogComponent.simple` builds the spec schema for you, so authoring in
+Dart does not mean hand-writing JSON Schema. Use `basicCatalog.extend` to add
+components to the bundled basic catalog:
 
 ```dart
 import 'package:genkit_a2ui/a2ui.dart';
 
-final myCatalog = A2uiCatalog(
+final myCatalog = basicCatalog.extend(
   id: 'https://my-app.org/catalogs/custom.json',
   components: [
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Banner',
-      description: 'Displays a prominent alert banner at the top of a section.',
-      props: 'title: string (required); severity?: info|warning|error.',
-    ),
-    const A2uiCatalogComponent(
-      name: 'Text',
-      description: 'Displays a plain or inline-markdown text run.',
-      props: 'text: string (required); variant?: body|caption.',
+      description: 'A prominent alert banner at the top of a section.',
+      params: [
+        // Accepts a literal or a `$/path` binding.
+        const A2uiParam.dynamicValue('title', required: true),
+        // Literal-only, so it renders as `(static)` in the prompt.
+        const A2uiParam.string(
+          'severity',
+          enumValues: ['info', 'warning', 'error'],
+        ),
+      ],
     ),
   ],
 );
 
-await loadCatalog(
-  ai,
-  id: 'my-catalog',
-  catalog: myCatalog,
-);
+await loadCatalog(ai, id: 'my-catalog', catalog: myCatalog);
 ```
+
+The model is then prompted with the derived signature, and can write
+`Banner("Disk almost full", "warning")`.
 
 ### Using a registered catalog
 
@@ -322,14 +309,40 @@ On each model call inside the agent's tool loop, `a2ui()`:
    what UI it may render (unless `instructions: 'none'`).
 2. Intercepts the model's output, both the streamed chunks and the final
    aggregated message.
-3. Extracts `a2ui` fenced code blocks from the model's text.
-4. Validates them against the catalog (per the `validate` option).
+3. Extracts `<a2ui>` blocks from the model's text.
+4. Compiles the Express source into envelopes, validating against the catalog
+   (per the `validate` option).
 5. Rewrites them into canonical a2ui data parts.
 
 Inbound a2ui parts (for example, a surface action sent back as the next turn, or
-replayed history) are summarized into plain text before the underlying model sees
-them, so a model that does not understand the a2ui mime type can still reason
-about prior surfaces and user actions.
+replayed history) are converted to text before the underlying model sees them,
+so a model that does not understand the a2ui mime type can still reason about
+prior surfaces and user actions. Surfaces are rendered back into Express (the
+same format the model is asked to produce, which reinforces the contract);
+actions become a short text summary.
+
+### Why Express rather than JSON
+
+The model writes A2UI Express, a compact DSL defined by the
+[spec](https://a2ui.org/specification/proposals/express/a2ui_express/), and the
+middleware compiles it into protocol envelopes. Generating the JSON envelopes
+directly is verbose and error-prone; Express cuts output tokens by roughly 55%
+to 70%, and gives the model far less structural bookkeeping to get wrong:
+
+```
+<a2ui>
+$/temp = "18°C"
+root = Card(body)
+body = Column([title, temp])
+title = Text("Weather in Tokyo", "h3")
+temp = Text($/temp)
+</a2ui>
+```
+
+Arguments are positional, in the order the catalog schema declares its
+properties, so the model never writes a property name. The host compiles this
+into `createSurface` + `updateComponents` + `updateDataModel`. Clients and the
+wire format are unchanged.
 
 ## License
 
