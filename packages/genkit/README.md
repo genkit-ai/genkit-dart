@@ -704,7 +704,7 @@ the bidi surface (`generateBidi`, `defineBidiModel`, `BidiModel`,
 `defineBidiFlow`).
 
 **Stable surface** (covered by SemVer): `package:genkit/genkit.dart`,
-`client.dart`, `io.dart`, `lite.dart`, `plugin.dart`, and `telemetry.dart`.
+`client.dart`, `lite.dart`, `plugin.dart`, and `telemetry.dart`.
 
 ---
 

@@ -44,7 +44,6 @@ const _libraries = [
   'lite',
   'plugin',
   'telemetry',
-  'io',
   'experimental',
   'experimental_client',
   'experimental_io',
