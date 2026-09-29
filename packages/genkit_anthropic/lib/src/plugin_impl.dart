@@ -399,7 +399,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
     }
     toolChoice = forceTool != null
         ? sdk.ToolChoice.tool(forceTool)
-        : switch (req.toolChoice) {
+        : switch (req.toolChoice?.value) {
             'auto' => sdk.ToolChoice.auto(),
             'required' => sdk.ToolChoice.any(),
             'none' => sdk.ToolChoice.none(),

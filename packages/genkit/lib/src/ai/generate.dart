@@ -1022,7 +1022,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   ModelRef<CustomOptions>? model,
   CustomOptions? config,
   List<String>? tools,
-  String? toolChoice,
+  ToolChoice? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
   GenerateActionOutputConfig? output,

@@ -21,7 +21,7 @@ import 'package:schemantic/schemantic.dart';
 
 import '../core/registry.dart';
 import '../exception.dart';
-import '../types.dart' show GenerateActionOutputConfig;
+import '../types.dart' show GenerateActionOutputConfig, ToolChoice;
 import 'dotprompt_registry.dart';
 import 'generate_middleware.dart';
 import 'model.dart';
@@ -202,7 +202,7 @@ void _loadPrompt(
     config: config,
     inputSchema: inputSchema,
     toolNames: tools,
-    toolChoice: toolChoice,
+    toolChoice: toolChoice == null ? null : ToolChoice(toolChoice),
     maxTurns: maxTurns,
     returnToolRequests: returnToolRequests,
     messagesTemplate: parsedPrompt.template,

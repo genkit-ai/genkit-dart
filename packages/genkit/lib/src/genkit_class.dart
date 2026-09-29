@@ -269,7 +269,7 @@ final class Genkit extends GenkitAI {
     Map<String, dynamic>? metadata,
     List<Tool>? tools,
     List<String>? toolNames,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     List<GenerateMiddlewareRef>? use,
   }) {
     final promptConfig = PromptConfig<CustomOptions, Input>(

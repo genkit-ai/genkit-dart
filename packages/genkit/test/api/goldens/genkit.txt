@@ -211,7 +211,7 @@ final class Genkit extends GenkitAI [src/genkit_class.dart]
   Interrupt<Input, Output> defineInterrupt<Input, Output>({required String name, required String description, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, Map<String, dynamic>? metadata, FutureOr<Object?> Function(Input, ToolFnArgs<Input>)? requestMetadata})
   Model<dynamic> defineModel({required String name, required Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) fn, ModelInfo? info})
   void definePartial(String name, String source)
-  ExecutablePrompt<Input> definePrompt<CustomOptions, Input>({required String name, String? variant, ModelRef<CustomOptions>? model, CustomOptions? config, String? description, SchemanticType<Input>? inputSchema, String? system, List<Part>? systemParts, String? prompt, List<Part>? promptParts, List<Message>? messages, String? messagesTemplate, GenerateActionOutputConfig? output, int? maxTurns, bool? returnToolRequests, Map<String, dynamic>? metadata, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, String? toolChoice, List<GenerateMiddlewareRef<dynamic>>? use})
+  ExecutablePrompt<Input> definePrompt<CustomOptions, Input>({required String name, String? variant, ModelRef<CustomOptions>? model, CustomOptions? config, String? description, SchemanticType<Input>? inputSchema, String? system, List<Part>? systemParts, String? prompt, List<Part>? promptParts, List<Message>? messages, String? messagesTemplate, GenerateActionOutputConfig? output, int? maxTurns, bool? returnToolRequests, Map<String, dynamic>? metadata, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, ToolChoice? toolChoice, List<GenerateMiddlewareRef<dynamic>>? use})
   Model<dynamic> defineRemoteModel({required String name, required String url, FutureOr<Map<String, String>?> Function(Map<String, dynamic>)? headers, ModelInfo? modelInfo, Client? httpClient})
   ResourceAction defineResource({String? name, String? uri, String? template, String? description, Map<String, dynamic>? metadata, required Future<ResourceOutput> Function(ResourceInput, ActionFnArg<void, ResourceInput, void>) fn})
   void defineSchema(String name, Map<String, dynamic> jsonSchema)
@@ -222,8 +222,8 @@ base class GenkitAI [src/genkit_ai.dart]
   GenkitAI(Registry registry)
   Future<List<Embedding>> embed<CustomOptions>({required EmbedderRef<CustomOptions> embedder, DocumentData? document, List<DocumentData>? documents, CustomOptions? options})
   Future<List<Embedding>> embedMany<CustomOptions>({required EmbedderRef<CustomOptions> embedder, required List<DocumentData> documents, CustomOptions? options})
-  Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({String? system, String? prompt, List<Part>? promptParts, List<Message>? messages, ModelRef<CustomOptions>? model, CustomOptions? config, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, String? toolChoice, bool? returnToolRequests, int? maxTurns, SchemanticType<Output>? outputSchema, String? outputFormat, bool? outputConstrained, String? outputInstructions, bool? outputNoInstructions, String? outputContentType, Map<String, dynamic>? context, void Function(GenerateResponseChunk<Output>)? onChunk, List<GenerateMiddlewareRef<dynamic>>? use, CancellationToken? cancel, List<InterruptResponse>? interruptRespond, List<ToolRequestPart>? interruptRestart})
-  ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>> generateStream<CustomOptions, Output>({String? system, String? prompt, List<Part>? promptParts, List<Message>? messages, ModelRef<CustomOptions>? model, CustomOptions? config, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, String? toolChoice, bool? returnToolRequests, int? maxTurns, SchemanticType<Output>? outputSchema, String? outputFormat, bool? outputConstrained, String? outputInstructions, bool? outputNoInstructions, String? outputContentType, Map<String, dynamic>? context, List<GenerateMiddlewareRef<dynamic>>? use, CancellationToken? cancel, List<InterruptResponse>? interruptRespond, List<ToolRequestPart>? interruptRestart})
+  Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({String? system, String? prompt, List<Part>? promptParts, List<Message>? messages, ModelRef<CustomOptions>? model, CustomOptions? config, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, ToolChoice? toolChoice, bool? returnToolRequests, int? maxTurns, SchemanticType<Output>? outputSchema, String? outputFormat, bool? outputConstrained, String? outputInstructions, bool? outputNoInstructions, String? outputContentType, Map<String, dynamic>? context, void Function(GenerateResponseChunk<Output>)? onChunk, List<GenerateMiddlewareRef<dynamic>>? use, CancellationToken? cancel, List<InterruptResponse>? interruptRespond, List<ToolRequestPart>? interruptRestart})
+  ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>> generateStream<CustomOptions, Output>({String? system, String? prompt, List<Part>? promptParts, List<Message>? messages, ModelRef<CustomOptions>? model, CustomOptions? config, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, ToolChoice? toolChoice, bool? returnToolRequests, int? maxTurns, SchemanticType<Output>? outputSchema, String? outputFormat, bool? outputConstrained, String? outputInstructions, bool? outputNoInstructions, String? outputContentType, Map<String, dynamic>? context, List<GenerateMiddlewareRef<dynamic>>? use, CancellationToken? cancel, List<InterruptResponse>? interruptRespond, List<ToolRequestPart>? interruptRestart})
   final Registry registry
   Future<Output> run<Output>(String name, Future<Output> Function() fn)
 class GenkitException implements Exception [src/exception.dart]
@@ -312,7 +312,7 @@ base class PromptAction<Input> extends Action<Input, GenerateActionOptions, void
   PromptAction({required String name, ExecutablePrompt<Input>? executablePrompt, Future<GenerateActionOptions> Function(Input, ActionFnArg<void, Input, void>)? fn, SchemanticType<Input>? inputSchema, String? description, Map<String, dynamic>? metadata})
   ExecutablePrompt<Input>? get executablePrompt
 class PromptConfig<CustomOptions, Input> [src/ai/prompt.dart]
-  PromptConfig({required String name, String? variant, ModelRef<CustomOptions>? model, CustomOptions? config, String? description, SchemanticType<Input>? inputSchema, String? system, List<Part>? systemParts, String? prompt, List<Part>? promptParts, List<Message>? messages, String? messagesTemplate, GenerateActionOutputConfig? output, int? maxTurns, bool? returnToolRequests, Map<String, dynamic>? metadata, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, String? toolChoice, List<GenerateMiddlewareRef<dynamic>>? use})
+  PromptConfig({required String name, String? variant, ModelRef<CustomOptions>? model, CustomOptions? config, String? description, SchemanticType<Input>? inputSchema, String? system, List<Part>? systemParts, String? prompt, List<Part>? promptParts, List<Message>? messages, String? messagesTemplate, GenerateActionOutputConfig? output, int? maxTurns, bool? returnToolRequests, Map<String, dynamic>? metadata, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, ToolChoice? toolChoice, List<GenerateMiddlewareRef<dynamic>>? use})
   final CustomOptions? config
   final String? description
   String get fullName
@@ -329,14 +329,14 @@ class PromptConfig<CustomOptions, Input> [src/ai/prompt.dart]
   final bool? returnToolRequests
   final String? system
   final List<Part>? systemParts
-  final String? toolChoice
+  final ToolChoice? toolChoice
   final List<String>? toolNames
   final List<Tool<dynamic, dynamic>>? tools
   final List<GenerateMiddlewareRef<dynamic>>? use
   final String? variant
 typedef PromptFn<Input> = Future<GenerateActionOptions> Function(Input, ActionFnArg<void, Input, void>) [src/ai/prompt.dart]
 class PromptGenerateOptions<CustomOptions> [src/ai/prompt.dart]
-  PromptGenerateOptions({ModelRef<CustomOptions>? model, CustomOptions? config, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, String? toolChoice, bool? returnToolRequests, int? maxTurns, GenerateActionOutputConfig? output, Map<String, dynamic>? context, List<GenerateMiddlewareRef<dynamic>>? use, List<Message>? messages, CancellationToken? cancel})
+  PromptGenerateOptions({ModelRef<CustomOptions>? model, CustomOptions? config, List<Tool<dynamic, dynamic>>? tools, List<String>? toolNames, ToolChoice? toolChoice, bool? returnToolRequests, int? maxTurns, GenerateActionOutputConfig? output, Map<String, dynamic>? context, List<GenerateMiddlewareRef<dynamic>>? use, List<Message>? messages, CancellationToken? cancel})
   final CancellationToken? cancel
   final CustomOptions? config
   final Map<String, dynamic>? context
@@ -345,7 +345,7 @@ class PromptGenerateOptions<CustomOptions> [src/ai/prompt.dart]
   final ModelRef<CustomOptions>? model
   final GenerateActionOutputConfig? output
   final bool? returnToolRequests
-  final String? toolChoice
+  final ToolChoice? toolChoice
   final List<String>? toolNames
   final List<Tool<dynamic, dynamic>>? tools
   final List<GenerateMiddlewareRef<dynamic>>? use
@@ -435,6 +435,7 @@ base class Tool<Input, Output> extends Action<Input, ToolResult<Output>, void, v
   Tool({required String name, required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, SchemanticType<Output>? toolOutputSchema, Map<String, dynamic>? metadata})
   SchemanticType<dynamic>? get manifestOutputSchema
   final SchemanticType<Output>? toolOutputSchema
+extension type ToolChoice(String) [src/types.dart]
 base class ToolDefinition [src/types.dart]
 typedef ToolFn<Input, Output> = FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) [src/ai/tool.dart]
 final class ToolFnArgs<Input> [src/ai/tool.dart]
