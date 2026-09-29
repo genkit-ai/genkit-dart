@@ -21,6 +21,31 @@ import 'package:test/test.dart';
 
 void main() {
   group('toGeminiPart', () {
+    test('unsupported part errors omit payload and metadata values', () {
+      final part = Part.fromJson({
+        'data': {'ssn': 'private-unsupported-part-payload'},
+        'metadata': {'note': 'private-unsupported-part-metadata'},
+      });
+
+      expect(
+        () => toGeminiPart(part),
+        throwsA(
+          isA<UnimplementedError>()
+              .having((e) => e.message, 'kind', 'Unsupported part type: data')
+              .having(
+                (e) => e.toString(),
+                'payload absent',
+                isNot(contains('private-unsupported-part-payload')),
+              )
+              .having(
+                (e) => e.toString(),
+                'metadata absent',
+                isNot(contains('private-unsupported-part-metadata')),
+              ),
+        ),
+      );
+    });
+
     test('converts text part', () {
       final part = TextPart(text: 'hello');
       final geminiPart = toGeminiPart(part);

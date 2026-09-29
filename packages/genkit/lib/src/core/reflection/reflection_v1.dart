@@ -26,6 +26,7 @@ import '../../exception.dart';
 import '../../o11y/instrumentation_setup.dart'
     show enableDevInstrumentationForServer;
 import '../../schema.dart';
+import '../../version.dart';
 import '../action.dart';
 import '../registry.dart';
 

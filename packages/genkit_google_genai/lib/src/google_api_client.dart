@@ -69,7 +69,8 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
             final modelName = model.name;
             if (modelName == null ||
                 (!modelName.startsWith('models/gemini-') &&
-                    !modelName.startsWith('models/gemma-'))) {
+                    !modelName.startsWith('models/gemma-')) ||
+                isEmbedderModelName(modelName)) {
               return false;
             }
             // An absent list is no claim either way, so it admits the model
@@ -95,8 +96,13 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           .where(
             (model) =>
                 model.name != null &&
-                (model.name!.startsWith('models/text-embedding-') ||
-                    model.name!.startsWith('models/embedding-')),
+                isEmbedderModelName(model.name!) &&
+                // An absent list admits the embedder, matching the model
+                // filter above.
+                (model.supportedGenerationMethods?.contains('embedContent') ??
+                    true) &&
+                !(model.description?.toLowerCase().contains('deprecated') ??
+                    false),
           )
           .map((model) {
             return embedderMetadata('$name/${model.name!.split('/').last}');
@@ -123,13 +129,12 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
               ? TextEmbedderOptions.fromJson(req.options!)
               : null;
 
-          if (req.input.length == 1) {
-            final doc = req.input.first;
-            final text = doc.content
-                .where((p) => p.isText)
-                .map((p) => p.text)
-                .join('\n');
-            final content = gcl.Content(parts: [gcl.Part(text: text)]);
+          final contents = [
+            for (final (index, doc) in req.input.indexed)
+              gcl.Content(role: 'user', parts: _embedParts(index, doc)),
+          ];
+
+          final futures = contents.map((content) async {
             final res = await service.embedContent(
               gcl.EmbedContentRequest(
                 content: content,
@@ -139,36 +144,35 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
               ),
               model: 'models/$embedderName',
             );
-            return EmbedResponse(
-              embeddings: [Embedding(embedding: res.embedding?.values ?? [])],
-            );
-          } else {
-            final futures = req.input.map((doc) async {
-              final text = doc.content
-                  .where((p) => p.isText)
-                  .map((p) => p.text)
-                  .join('\n');
-              final content = gcl.Content(parts: [gcl.Part(text: text)]);
-              final res = await service.embedContent(
-                gcl.EmbedContentRequest(
-                  content: content,
-                  outputDimensionality: options?.outputDimensionality,
-                  taskType: options?.taskType,
-                  title: options?.title,
-                ),
-                model: 'models/$embedderName',
-              );
-              return Embedding(embedding: res.embedding?.values ?? []);
-            });
-            final embeddings = await Future.wait(futures);
-            return EmbedResponse(embeddings: embeddings);
-          }
+            return Embedding(embedding: res.embedding?.values ?? []);
+          });
+          final embeddings = await Future.wait(futures);
+          return EmbedResponse(embeddings: embeddings);
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
           service.client.close();
         }
       },
+    );
+  }
+}
+
+/// Converts text and media, ignoring other parts for backward compatibility.
+/// Text-only and empty documents retain the legacy single-text-part shape.
+/// Malformed media fails before any request is sent, without leaking its source.
+List<gcl.Part> _embedParts(int index, DocumentData doc) {
+  final parts = doc.content.where((p) => p.isText || p.isMedia).toList();
+  if (!parts.any((p) => p.isMedia)) {
+    return [gcl.Part(text: parts.map((p) => p.text).join('\n'))];
+  }
+  try {
+    return parts.map(toGeminiPart).toList();
+  } on FormatException catch (e) {
+    // The parser's source can contain media payloads; keep only its message.
+    throw GenkitException(
+      'Cannot embed the document at index $index: ${e.message}',
+      status: StatusCodes.INVALID_ARGUMENT,
     );
   }
 }
