@@ -66,6 +66,34 @@ void main() {
       await server1.stop();
       await server2.stop();
     });
+
+    test('GET /api/__health with an overridden runtime id', () async {
+      final server = ReflectionServerV1(
+        Registry(),
+        port: 0,
+        runtimeId: 'probe-runtime',
+      );
+      await server.start();
+      addTearDown(server.stop);
+
+      final url = 'http://localhost:${server.actualPort}';
+      final runtime = jsonDecode(
+        await File(server.runtimeFilePath!).readAsString(),
+      );
+      expect(runtime['id'], 'probe-runtime');
+
+      final overridden = await http.get(
+        Uri.parse('$url/api/__health?id=probe-runtime'),
+      );
+      expect(overridden.statusCode, 200);
+      expect(overridden.body, 'OK');
+
+      final pidPort = await http.get(
+        Uri.parse('$url/api/__health?id=$pid-${server.actualPort}'),
+      );
+      expect(pidPort.statusCode, 503);
+      expect(pidPort.body, 'Invalid runtime ID');
+    });
   });
 
   group('ReflectionServer API', () {

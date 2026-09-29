@@ -69,7 +69,9 @@ class ReflectionServerV1 {
   final List<String> configuredEnvs;
   final String? name;
 
-  /// Overrides the pid-port id the runtime file and health check use.
+  /// Id advertised in the runtime file and required by the health check.
+  ///
+  /// Empty uses `<pid>-<port>`.
   final String runtimeId;
 
   HttpServer? _server;
@@ -400,9 +402,9 @@ class ReflectionServerV1 {
 
   int get actualPort => _server?.port ?? 0;
 
-  String get _runtimeId => '$pid${_server != null ? '-${_server!.port}' : ''}';
+  String get _pidPortId => '$pid${_server != null ? '-${_server!.port}' : ''}';
 
-  String get _advertisedRuntimeId => runtimeId.isEmpty ? _runtimeId : runtimeId;
+  String get _advertisedRuntimeId => runtimeId.isEmpty ? _pidPortId : runtimeId;
 
   Future<void> _writeRuntimeFile() async {
     try {
@@ -415,7 +417,7 @@ class ReflectionServerV1 {
       final date = DateTime.now();
       final time = date.millisecondsSinceEpoch;
       final timestamp = date.toIso8601String();
-      runtimeFilePath = p.join(runtimesDir, '$_runtimeId-$time.json');
+      runtimeFilePath = p.join(runtimesDir, '$_pidPortId-$time.json');
       final fileContent = jsonEncode({
         'id': _advertisedRuntimeId,
         'pid': pid,
