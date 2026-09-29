@@ -55,7 +55,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
 
   /// Returns action metadata for every [knownModels] entry whose bare name is
   /// not in [discoveredNames], so a curated model stays listed when model
-  /// discovery omits it or fails outright.
+  /// discovery omits it.
   Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>
   curatedModelMetadata({Set<String> discoveredNames = const {}}) {
     return knownModels.entries
