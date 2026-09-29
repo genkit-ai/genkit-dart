@@ -136,39 +136,54 @@ final person = response.output; // Typed Person object
 print('Name: ${person.name}, Age: ${person.age}');
 ```
 
-A curated model is sent the schema natively, as `output_config.format`, on
-either API surface — Anthropic serves the field on stable too, and its docs no
-longer require a beta header for it. Nothing is added to the request and no
-`tool_choice` is pinned, so structured output composes with extended thinking
-and with your own tools. Those models advertise `constrained: true`.
+Every Claude model is sent the schema natively, as Anthropic's
+[structured outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs)
+(`output_config.format`), on either API surface and with no beta header. That
+includes model names the plugin does not curate: every active Claude model
+supports it. Nothing is added to the request and no `tool_choice` is pinned, so
+structured output composes with extended thinking and with your own tools.
 
-A model the plugin does not curate advertises nothing, since whether a model
-is on Anthropic's Structured Outputs list is per-model and this plugin has only
-checked the names it curates. Genkit simulates for those instead, putting the
-schema in the prompt, which works everywhere.
+To opt out of the constraint, pass `outputConstrained: false`. The plugin then
+sends no schema at all, so describe the shape yourself if you still want it:
 
-Two things Anthropic's schema validator will not accept, which the plugin
-rewrites rather than forwarding:
+```dart
+final response = await ai.generate(
+  model: anthropic.model('claude-sonnet-4-5'),
+  prompt: 'Generate a person named John Doe, age 30',
+  outputSchema: Person.$schema,
+  outputConstrained: false,
+  outputInstructions: 'Reply with JSON: {"name": string, "age": integer}.',
+);
+```
+
+Anthropic accepts a subset of JSON Schema, so the plugin rewrites what it can:
 
 - `oneOf` is rejected, so it is rewritten to `anyOf`. `SchemanticType.nullable()`
   emits `oneOf`, which would otherwise make every optional field a 400.
+- Validation keywords (`minimum`, `maxLength`, `pattern`, ...) are stripped,
+  since the validator rejects them on a constrained schema.
 
-Validation keywords (`minimum`, `maxLength`, `pattern`, …) are stripped, since
-the validator rejects them on a constrained schema.
-
-Two shapes cannot be constrained at all, and the plugin puts the schema in the
-prompt for those requests rather than sending a constraint that would change
-what the schema means:
+Three shapes cannot be constrained at all, and the plugin puts the schema in
+the system prompt for those requests rather than sending a constraint that
+would change what the schema means:
 
 - a `dynamic` or `Object?` field, which compiles to an empty schema. Anthropic
   rejects it outright, and every concrete stand-in it does accept turns an
   object value into a string of JSON.
 - a `Map<String, T>` field. `additionalProperties` may only be `false`, which
   would close the map and leave the model able to answer only `{}`.
+- a recursive type, such as `class Node { List<Node> children; }`. Anthropic
+  does not support recursive schemas.
 
 Those requests still go out and still return the right shape; they are simply
-not enforced by the API — which is also true of the forced tool this replaced,
-whose `input_schema` was never `strict`.
+not enforced by the API.
+
+Anthropic also limits schema complexity per request: at most 24 optional
+properties and 16 properties with union types, counted across the output
+schema and any `strict` tools. A nullable field counts as a union, so a type
+with many nullable fields can hit the limit and get a 400 ("Schema is too
+complex for compilation"). Making fields required where you can is the usual
+fix.
 
 ### Stable and beta APIs
 

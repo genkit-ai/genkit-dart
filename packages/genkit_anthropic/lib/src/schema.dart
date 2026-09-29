@@ -160,7 +160,7 @@ Object? _asSchema(Object? value) => switch (value) {
 /// Whether Anthropic's structured-output validator can express [schema]
 /// without changing what it means.
 ///
-/// Two shapes it cannot, both of which schemantic emits routinely:
+/// Three shapes it cannot, all of which schemantic emits for ordinary types:
 ///
 /// - an empty schema, which it rejects outright - "Empty schema ({}) that
 ///   accepts any JSON value is not supported. Please specify a concrete type."
@@ -168,18 +168,19 @@ Object? _asSchema(Object? value) => switch (value) {
 /// - an open map. `additionalProperties` may only be `false` here, so a
 ///   `Map<String, T>` field - which schemantic emits as
 ///   `additionalProperties: {...}` - would be closed to an object with no
-///   properties at all, and the model answers `{}`. Checked live.
+///   properties at all, and the model answers `{}`. Checked live;
+/// - a recursive type (`class Node { List<Node> children; }`), whose `$defs`
+///   entry refers back to itself. Anthropic does not support recursive
+///   schemas and answers with a 400.
 ///
-/// Neither has a faithful rewrite. A union of every concrete type is accepted
-/// in place of `{}`, but its object branch must carry
+/// None has a faithful rewrite. A union of every concrete type is accepted in
+/// place of `{}`, but its object branch must carry
 /// `additionalProperties: false`, and the model then answers an object value
 /// as a *string* of JSON. Silently changing or dropping a field's value is
 /// worse than not constraining it, so a schema this returns false for is sent
-/// through the prompt instead - unenforced, but intact, which is what the
-/// forced `return_output` tool did before it (`input_schema` was never
-/// `strict`, so these fields were not API-enforced there either).
+/// through the prompt instead: unenforced, but intact.
 bool isNativelyExpressible(Map<String, dynamic> schema) =>
-    !_isBeyondTheValidator(schema);
+    !_isBeyondTheValidator(schema) && !_isRecursive(schema);
 
 bool _isBeyondTheValidator(Object? node) {
   if (node is! Map) return false;
@@ -208,11 +209,54 @@ bool _isBeyondTheValidator(Object? node) {
   return false;
 }
 
+/// Whether any local `$ref` in [schema] can reach itself again, either as `#`
+/// (the document root) or through the document's `$defs` (or legacy
+/// `definitions`).
+///
+/// Refs that point outside the document, or at a definition that does not
+/// exist, are left to Anthropic's validator to judge.
+bool _isRecursive(Map<String, dynamic> schema) {
+  if (_refsIn(schema).contains('#')) return true;
+  final defs = <String, Object?>{
+    for (final key in const [r'$defs', 'definitions'])
+      if (schema[key] case final Map<dynamic, dynamic> map)
+        for (final entry in map.entries) '#/$key/${entry.key}': entry.value,
+  };
+  if (defs.isEmpty) return false;
+
+  // Refs each definition mentions directly, then a depth-first search for a
+  // cycle over that graph. `done` marks definitions already proven acyclic.
+  final edges = {
+    for (final entry in defs.entries) entry.key: _refsIn(entry.value),
+  };
+  final done = <String>{};
+  bool reachesCycle(String ref, Set<String> path) {
+    if (path.contains(ref)) return true;
+    if (done.contains(ref) || !edges.containsKey(ref)) return false;
+    path.add(ref);
+    final cyclic = edges[ref]!.any((next) => reachesCycle(next, path));
+    path.remove(ref);
+    if (!cyclic) done.add(ref);
+    return cyclic;
+  }
+
+  return edges.keys.any((ref) => reachesCycle(ref, <String>{}));
+}
+
+/// Every `$ref` string anywhere under [node].
+Set<String> _refsIn(Object? node) => switch (node) {
+  final Map<dynamic, dynamic> map => {
+    if (map[r'$ref'] case final String ref) ref,
+    for (final value in map.values) ..._refsIn(value),
+  },
+  final List<dynamic> list => {for (final item in list) ..._refsIn(item)},
+  _ => const <String>{},
+};
+
 /// The schema, rendered for a prompt, when it cannot travel as a constraint.
 ///
-/// Mirrors what core's own simulated constrained generation writes, so a model
-/// that falls back to this reads the same thing it would have read had it
-/// never claimed native support.
+/// Worded like core's JSON format instructions, so a model reads the same
+/// text whichever path put it there.
 String schemaInstructions(Map<String, dynamic> schema) =>
     'Output should be in JSON format and conform to the following schema:\n\n'
     '```\n${const JsonEncoder.withIndent('  ').convert(schema)}\n```\n';
