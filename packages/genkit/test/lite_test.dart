@@ -43,10 +43,14 @@ void main() {
     final response = await lite.generate(
       model: model,
       prompt: 'Hello',
-      outputSchema: .string(),
+      outputSchema: .map(.string(), .string()),
     );
 
     expect(response.text, '{"result": "success"}');
+    // `Output` is inferred from the schema: `response.output` is statically a
+    // `Map<String, String>?`, not `dynamic`.
+    expect(response, isA<GenerateResponseHelper<Map<String, String>>>());
+    expect(response.output, {'result': 'success'});
   });
 
   test('lite generate with outputSchema delivers constrained json request '
@@ -71,7 +75,11 @@ void main() {
       },
     );
 
-    await lite.generate(model: model, prompt: 'Hello', outputSchema: .string());
+    await lite.generate(
+      model: model,
+      prompt: 'Hello',
+      outputSchema: .map(.string(), .string()),
+    );
 
     expect(captured, isNotNull);
     expect(captured!.output?.format, 'json');
@@ -99,7 +107,7 @@ void main() {
     await lite.generate(
       model: model,
       prompt: 'Hello',
-      outputSchema: .string(),
+      outputSchema: .map(.string(), .string()),
       outputInstructions: 'Respond in JSON matching the schema.',
     );
 
@@ -207,7 +215,7 @@ void main() {
     final stream = lite.generateStream(
       model: model,
       prompt: 'Hello',
-      outputSchema: .string(),
+      outputSchema: .map(.string(), .string()),
     );
 
     final chunks = await stream.toList();
@@ -217,6 +225,9 @@ void main() {
 
     final response = await stream.onResult;
     expect(response.text, '{"result": "success"}');
+    expect(response.output, {'result': 'success'});
+    // Streamed chunks carry the partial output parsed into `Output` too.
+    expect(chunks.last.output, {'result': 'success'});
   });
 
   group('lite tools and interrupts', () {
