@@ -20,7 +20,6 @@ import '../core/action.dart';
 import '../core/cancellation.dart';
 import '../o11y/instrumentation.dart';
 import '../types.dart';
-import 'interrupt.dart';
 
 /// Returns the wire (short) name for [fullName]: its last path segment. The
 /// model sees this name and echoes it back on a tool request, so tool
@@ -78,16 +77,6 @@ final class ToolFnArgs<Input> {
   /// `Map<String, dynamic>` supplied via `restart(...)`. Null when the tool was
   /// not resumed.
   dynamic get resumed => toolRequest?.metadata?['resumed'];
-
-  /// Interrupts the generation loop with optional [data].
-  @Deprecated(
-    'Return `.interrupt(data)` from your tool function instead. '
-    'This throwing form will be removed in a future release.',
-  )
-  Never interrupt([dynamic data]) {
-    setCustomMetadataAttributes({'interrupt': data ?? true});
-    throw ToolInterruptException(data ?? true);
-  }
 }
 
 /// The result returned by a tool's implementation function.
@@ -250,8 +239,7 @@ base class Tool<Input, Output>
              throw ArgumentError('Tool "$name" requires a non-null input.');
            }
            final result = await fn(input as Input, ToolFnArgs(ctx));
-           // Record the interrupt on the tool's telemetry span so traces match
-           // the (deprecated) throwing `ToolFnArgs.interrupt` form. This runs
+           // Record the interrupt on the tool's telemetry span. This runs
            // inside the tool's span (see `Action.run` -> `runInNewSpan`).
            if (result is ToolInterruptResult<Output>) {
              setCustomMetadataAttributes({'interrupt': result.data ?? true});

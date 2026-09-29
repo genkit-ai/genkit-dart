@@ -242,9 +242,9 @@ void main() {
 
     // Interrupts are unary-only: a live bidi session has no resume path, so both
 
-    // the returned `.interrupt(...)` and the deprecated throwing
-    // `ctx.interrupt(...)` forms must fail the session (surface an error on the
-    // stream) and must NOT answer the model with a tool message.
+    // a returned `.interrupt(...)` and a thrown `ToolInterruptException` must
+    // fail the session (surface an error on the stream) and must NOT answer the
+    // model with a tool message.
     for (final variant in ['returned', 'throwing']) {
       test('interrupt ($variant form) fails the session and does not '
           'answer the model', () async {
@@ -260,9 +260,6 @@ void main() {
             if (variant == 'returned') {
               return .interrupt({'requiresConfirmation': true});
             }
-            // The deprecated throwing form (`context.interrupt(...)`) throws a
-            // ToolInterruptException; throw it directly to exercise the same
-            // code path without depending on the deprecated API.
             throw ToolInterruptException({'requiresConfirmation': true});
           },
         );
