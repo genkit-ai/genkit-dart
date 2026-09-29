@@ -205,9 +205,16 @@ abstract class SchemanticType<T> {
   Future<List<ValidationError>> validate(
     Object? data, {
     bool useRefs = false,
-  }) async => (await jsb.Schema.fromMap(
-    jsonSchema(useRefs: useRefs),
-  ).validate(data)).map(ValidationError._).toList();
+  }) async {
+    final schemaMap = Map<String, Object?>.from(jsonSchema(useRefs: useRefs));
+    // json_schema_builder resolves `$schema` over the network. Instance
+    // validation does not need the meta-schema document, and fetching it
+    // breaks offline tests and devices without internet (#339).
+    schemaMap.remove(r'$schema');
+    return (await jsb.Schema.fromMap(
+      schemaMap,
+    ).validate(data)).map(ValidationError._).toList();
+  }
 
   /// Returns the schema for this type.
   ///
