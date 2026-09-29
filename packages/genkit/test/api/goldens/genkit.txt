@@ -145,7 +145,7 @@ base class GenerateActionOptions [src/types.dart]
 base class GenerateActionOutputConfig [src/types.dart]
 final class GenerateActionOutputConfigInstructions [src/types.dart]
 abstract class GenerateMiddleware [src/ai/generate_middleware.dart]
-  Future<GenerateResponseHelper<dynamic>> generate(({int currentTurn, int messageIndex, GenerateActionOptions request}) envelope, ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, Future<GenerateResponseHelper<dynamic>> Function(({int currentTurn, int messageIndex, GenerateActionOptions request}), ActionFnArg<ModelResponseChunk, GenerateActionOptions, void>) next)
+  Future<GenerateResponseHelper<dynamic>> generate(GenerateTurnState envelope, ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, Future<GenerateResponseHelper<dynamic>> Function(GenerateTurnState, ActionFnArg<ModelResponseChunk, GenerateActionOptions, void>) next)
   Future<ModelResponse> model(ModelRequest request, ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx, Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) next)
   Future<ToolResponsePart> tool(ToolRequestPart request, ActionFnArg<void, dynamic, void> ctx, Future<ToolResponsePart> Function(ToolRequestPart, ActionFnArg<void, dynamic, void>) next)
   List<Tool<dynamic, dynamic>>? get tools

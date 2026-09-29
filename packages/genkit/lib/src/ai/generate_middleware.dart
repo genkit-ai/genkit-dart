@@ -20,12 +20,54 @@ import '../types.dart';
 import 'generate_types.dart';
 import 'tool.dart';
 
-/// Envelope for the processing of a Generation request in middleware.
-typedef GenerateTurnState = ({
-  GenerateActionOptions request,
-  int currentTurn,
-  int messageIndex,
-});
+/// The state of one turn of the generate tool loop, as seen by
+/// [GenerateMiddleware.generate].
+///
+/// A class rather than a record so fields can be added without breaking
+/// middleware that constructs one. Middleware typically rewrites only the
+/// request:
+///
+/// ```dart
+/// return next(envelope.copyWith(request: newOptions), ctx);
+/// ```
+final class GenerateTurnState {
+  /// The generate request for this turn.
+  final GenerateActionOptions request;
+
+  /// Zero-based index of this turn in the tool loop.
+  final int currentTurn;
+
+  /// Index of the next message in the response stream; used to tag streamed
+  /// chunks with the message they belong to.
+  final int messageIndex;
+
+  GenerateTurnState({
+    required this.request,
+    this.currentTurn = 0,
+    this.messageIndex = 0,
+  });
+
+  /// Returns a copy with the given fields replaced.
+  GenerateTurnState copyWith({
+    GenerateActionOptions? request,
+    int? currentTurn,
+    int? messageIndex,
+  }) {
+    return GenerateTurnState(
+      request: request ?? this.request,
+      currentTurn: currentTurn ?? this.currentTurn,
+      messageIndex: messageIndex ?? this.messageIndex,
+    );
+  }
+
+  // Summarizes [request] rather than printing it: it carries the whole
+  // conversation, which would drown out the turn counters in logs.
+  @override
+  String toString() =>
+      'GenerateTurnState(currentTurn: $currentTurn, '
+      'messageIndex: $messageIndex, '
+      'messages: ${request.messages.length}, model: ${request.model})';
+}
 
 /// Middleware for the processing of a Generation request.
 abstract class GenerateMiddleware {

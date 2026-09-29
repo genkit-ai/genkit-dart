@@ -294,11 +294,7 @@ class SkillsMiddleware extends GenerateMiddleware {
         stepName: options.stepName,
       );
 
-      return next((
-        request: newOptions,
-        currentTurn: envelope.currentTurn,
-        messageIndex: envelope.messageIndex,
-      ), ctx);
+      return next(envelope.copyWith(request: newOptions), ctx);
     }
 
     return next(envelope, ctx);
