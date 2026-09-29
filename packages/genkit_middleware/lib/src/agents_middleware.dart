@@ -14,7 +14,7 @@
 
 import 'dart:async';
 
-import 'package:genkit/experimental.dart' show getCurrentSession;
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart' show GenkitAI;
 import 'package:genkit/plugin.dart';
 import 'package:meta/meta.dart';

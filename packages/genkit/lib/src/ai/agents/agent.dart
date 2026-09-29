@@ -29,6 +29,7 @@ import '../../core/action.dart';
 import '../../core/cancellation.dart';
 import '../../core/registry.dart';
 import '../../exception.dart';
+import '../../experimental_types.dart';
 import '../../o11y/instrumentation.dart';
 import '../../schema.dart';
 import '../../schema_extensions.dart';

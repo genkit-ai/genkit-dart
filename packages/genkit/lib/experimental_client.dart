@@ -77,3 +77,6 @@ export 'src/ai/agents/agent_core.dart'
 export 'src/ai/agents/json_patch.dart'
     show JsonPatch, JsonPatchOperationMap, applyPatch, diff;
 export 'src/ai/agents/remote_agent.dart' show HeadersResolver, remoteAgent;
+// Agent / session wire types (AgentOutput, SessionSnapshot, ...). Generated
+// separately from `src/types.dart` so they stay out of the stable surface.
+export 'src/experimental_types.dart';
