@@ -60,6 +60,7 @@ Future<A2uiCatalog> loadCatalog(
   final registered = A2uiCatalog(
     id: resolved.id.isNotEmpty ? resolved.id : id,
     components: resolved.components,
+    functions: resolved.functions,
   );
   ai.registry.registerValue(a2uiCatalogValueType, id, registered);
   return registered;
@@ -81,9 +82,12 @@ Future<A2uiCatalog> _readCatalogFile(String file) async {
       'loadCatalog(): catalog file "$file" is not valid JSON: $e',
     );
   }
-  if (json is! Map || json['components'] is! List) {
+  // The spec's `catalog.json` keys `components` by name, so this accepts a
+  // published catalog file unmodified.
+  if (json is! Map || json['components'] is! Map) {
     throw StateError(
-      'loadCatalog(): catalog file "$file" must have a "components" array.',
+      'loadCatalog(): catalog file "$file" must have a "components" object '
+      'keyed by component name (the A2UI catalog.json shape).',
     );
   }
   return A2uiCatalog.fromJson(json.cast<String, dynamic>());
