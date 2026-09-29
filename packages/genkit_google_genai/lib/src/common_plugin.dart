@@ -177,6 +177,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
                 );
               }
             }
+            ctx.cancel?.throwIfCancelled();
             final aggregated = aggregateResponses(chunks);
             if (aggregated.candidates?.isEmpty ?? true) {
               final blockReason = aggregated.promptFeedback?.blockReason;
@@ -198,6 +199,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
               generateRequest,
               model: 'models/$modelName',
             );
+            ctx.cancel?.throwIfCancelled();
             if (response.candidates?.isEmpty ?? true) {
               final blockReason = response.promptFeedback?.blockReason;
               throw Exception(
