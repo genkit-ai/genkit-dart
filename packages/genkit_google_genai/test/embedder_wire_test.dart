@@ -167,7 +167,8 @@ void main() {
       final urls = <Uri>[];
       final plugin = _EmbedWirePlugin(captured, urls);
       final embedder =
-          plugin.resolve('embedder', 'gemini-embedding-2')! as _EmbedderAction;
+          plugin.resolve(ActionType.embedder, 'gemini-embedding-2')!
+              as _EmbedderAction;
 
       final response = await embedder.run(
         EmbedRequest(
@@ -202,7 +203,8 @@ void main() {
       final captured = <Map<String, dynamic>>[];
       final plugin = _EmbedWirePlugin(captured, <Uri>[]);
       final embedder =
-          plugin.resolve('embedder', 'gemini-embedding-2')! as _EmbedderAction;
+          plugin.resolve(ActionType.embedder, 'gemini-embedding-2')!
+              as _EmbedderAction;
 
       await embedder.run(
         EmbedRequest(
@@ -231,7 +233,8 @@ void main() {
       final captured = <Map<String, dynamic>>[];
       final plugin = _EmbedWirePlugin(captured, <Uri>[]);
       final embedder =
-          plugin.resolve('embedder', 'gemini-embedding-2')! as _EmbedderAction;
+          plugin.resolve(ActionType.embedder, 'gemini-embedding-2')!
+              as _EmbedderAction;
 
       final response = await embedder.run(
         EmbedRequest(
@@ -263,7 +266,7 @@ void main() {
         final captured = <Map<String, dynamic>>[];
         final plugin = _EmbedWirePlugin(captured, <Uri>[]);
         final embedder =
-            plugin.resolve('embedder', 'gemini-embedding-2')!
+            plugin.resolve(ActionType.embedder, 'gemini-embedding-2')!
                 as _EmbedderAction;
 
         await expectLater(
@@ -289,7 +292,8 @@ void main() {
       final captured = <Map<String, dynamic>>[];
       final plugin = _EmbedWirePlugin(captured, <Uri>[]);
       final embedder =
-          plugin.resolve('embedder', 'gemini-embedding-2')! as _EmbedderAction;
+          plugin.resolve(ActionType.embedder, 'gemini-embedding-2')!
+              as _EmbedderAction;
 
       await embedder.run(
         EmbedRequest(
