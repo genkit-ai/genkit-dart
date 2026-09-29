@@ -12,10 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/common.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_google_genai/src/google_api_client.dart';
+import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
 import 'test_harness.dart';
@@ -165,6 +168,106 @@ void main() {
     });
   });
 
+  group('injected client lifecycle', () {
+    test('list does not close the injected client', () async {
+      final client = ListingClient();
+
+      await plugin(client: client).list();
+
+      expect(client.closed, isFalse);
+    });
+
+    test('generate does not close the injected client', () async {
+      final client = ListingClient();
+      final model = plugin(client: client).resolve(.model, 'gemini-2.0-flash')!;
+
+      await model.run(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
+        ),
+      );
+
+      expect(client.closed, isFalse);
+    });
+
+    test(
+      'generate cancelled mid-request throws once the request returns',
+      () async {
+        final controller = CancellationController();
+        final client = _CancellingClient(controller);
+        final model = plugin(
+          client: client,
+        ).resolve(.model, 'gemini-2.0-flash')!;
+
+        await expectLater(
+          model.run(
+            ModelRequest(
+              messages: [
+                Message(
+                  role: Role.user,
+                  content: [TextPart(text: 'hello')],
+                ),
+              ],
+            ),
+            cancel: controller.token,
+          ),
+          throwsA(isA<CancelledException>()),
+        );
+        expect(client.closed, isFalse);
+      },
+    );
+
+    test(
+      'stream cancelled after the last chunk throws once the stream ends',
+      () async {
+        final controller = CancellationController();
+        final client = _CancellingClient(controller);
+        final model = plugin(
+          client: client,
+        ).resolve(.model, 'gemini-2.0-flash')!;
+
+        await expectLater(
+          model.run(
+            ModelRequest(
+              messages: [
+                Message(
+                  role: Role.user,
+                  content: [TextPart(text: 'hello')],
+                ),
+              ],
+            ),
+            onChunk: (_) => controller.cancel(),
+            cancel: controller.token,
+          ),
+          throwsA(isA<CancelledException>()),
+        );
+        expect(client.closed, isFalse);
+      },
+    );
+
+    test('embedder does not close the injected client', () async {
+      final client = ListingClient();
+      final embedder =
+          plugin(client: client).resolve(.embedder, 'text-embedding-004')!
+              as Action<EmbedRequest, EmbedResponse, void, void>;
+
+      await embedder.run(
+        EmbedRequest(
+          input: [
+            DocumentData(content: [TextPart(text: 'hello')]),
+          ],
+        ),
+      );
+
+      expect(client.closed, isFalse);
+    });
+  });
+
   group('GoogleAiModels', () {
     test('refs point at the curated action names', () {
       expect(
@@ -198,4 +301,32 @@ void main() {
       });
     });
   });
+}
+
+/// Cancels [controller] while serving a generateContent request, and serves
+/// streamGenerateContent as a single SSE chunk.
+class _CancellingClient extends ListingClient {
+  _CancellingClient(this.controller);
+
+  final CancellationController controller;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    if (request.url.path.endsWith(':streamGenerateContent')) {
+      return Future.value(
+        http.StreamedResponse(
+          Stream.value(
+            utf8.encode(
+              'data: {"candidates": [{"content": {"parts": [{"text": "hi"}], '
+              '"role": "model"}, "finishReason": "STOP"}]}\n\n',
+            ),
+          ),
+          200,
+          headers: {'content-type': 'text/event-stream'},
+        ),
+      );
+    }
+    if (request.url.path.endsWith(':generateContent')) controller.cancel();
+    return super.send(request);
+  }
 }

@@ -56,7 +56,6 @@ Embedder createVertexEmbedder({
   required String embedderName,
   required Future<google.GenerativeLanguageBaseClient> Function() getApiClient,
   required GenkitException Function(Object, StackTrace) handleException,
-  required bool closeService,
 }) {
   return Embedder(
     name: '$pluginName/$embedderName',
@@ -90,9 +89,7 @@ Embedder createVertexEmbedder({
       } catch (e, stack) {
         throw handleException(e, stack);
       } finally {
-        if (closeService) {
-          service.client.close();
-        }
+        service.client.close();
       }
     },
   );

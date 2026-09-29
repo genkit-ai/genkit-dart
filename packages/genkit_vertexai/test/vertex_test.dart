@@ -14,6 +14,7 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
+import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
 import 'test_http_client.dart';
@@ -74,4 +75,94 @@ void main() {
       );
     });
   });
+
+  group('injected client lifecycle', () {
+    VertexAiPluginImpl pluginWith(MockHttpClient client) => VertexAiPluginImpl(
+      projectId: 'my-project',
+      location: 'us-central1',
+      authClient: client,
+    );
+
+    test('list does not close the injected client', () async {
+      final mockClient = MockHttpClient();
+
+      await pluginWith(mockClient).list();
+
+      expect(mockClient.closed, isFalse);
+    });
+
+    test('generate does not close the injected client', () async {
+      final mockClient = MockHttpClient();
+      final model = pluginWith(mockClient).resolve(.model, 'gemini-2.5-pro')!;
+
+      await model.run(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
+        ),
+      );
+
+      expect(mockClient.closed, isFalse);
+    });
+
+    test(
+      'generate cancelled mid-request throws once the request returns',
+      () async {
+        final controller = CancellationController();
+        final mockClient = _CancelOnGenerateClient(controller);
+        final model = pluginWith(mockClient).resolve(.model, 'gemini-2.5-pro')!;
+
+        await expectLater(
+          model.run(
+            ModelRequest(
+              messages: [
+                Message(
+                  role: Role.user,
+                  content: [TextPart(text: 'hello')],
+                ),
+              ],
+            ),
+            cancel: controller.token,
+          ),
+          throwsA(isA<CancelledException>()),
+        );
+        expect(mockClient.closed, isFalse);
+      },
+    );
+
+    test('embedder does not close the injected client', () async {
+      final mockClient = MockHttpClient();
+      final embedder =
+          pluginWith(mockClient).resolve(.embedder, 'text-embedding-005')!
+              as Action<EmbedRequest, EmbedResponse, void, void>;
+
+      await embedder.run(
+        EmbedRequest(
+          input: [
+            DocumentData(content: [TextPart(text: 'hello')]),
+          ],
+        ),
+      );
+
+      expect(mockClient.closed, isFalse);
+    });
+  });
+}
+
+/// Cancels [controller] while serving a generateContent request, standing in
+/// for a user cancelling while the request is in flight.
+class _CancelOnGenerateClient extends MockHttpClient {
+  _CancelOnGenerateClient(this.controller);
+
+  final CancellationController controller;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) {
+    if (request.url.path.endsWith(':generateContent')) controller.cancel();
+    return super.send(request);
+  }
 }
