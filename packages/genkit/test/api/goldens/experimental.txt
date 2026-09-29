@@ -148,6 +148,12 @@ final class AgentTurn<State> [src/ai/agents/agent_core.dart]
   final Future<AgentResponse<State>> response
   final Stream<AgentChunk<State>> stream
 base class Artifact [src/experimental_types.dart]
+@experimental typedef BidiActionFn<Input, Output, Chunk, Init> = Future<Output> Function(Stream<Input>, ({CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk) sendChunk, bool streamingRequested})) [src/core/action.dart]
+@experimental class BidiActionStream<Chunk, Response, Request> extends ActionStream<Chunk, Response> [src/core/action.dart]
+  BidiActionStream(Stream<Chunk> stream, StreamSink<Request>? _inputSink)
+  Future<void> close()
+  bool get isClosed
+  void send(Request chunk)
 @experimental class BidiModel<CustomOptions> extends Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest> implements BidiModelRef<CustomOptions> [src/ai/model.dart]
   BidiModel({required String name, required Future<ModelResponse> Function(ModelRequest?, ({CancellationToken? cancel, Map<String, dynamic>? context, ModelRequest? init, Stream<ModelRequest>? inputStream, void Function(ModelResponseChunk) sendChunk, bool streamingRequested})) fn, Map<String, dynamic>? metadata, SchemanticType<CustomOptions>? customOptions})
   SchemanticType<CustomOptions>? customOptions
