@@ -27,8 +27,13 @@ final Map<String, Map<String, dynamic>> schemaOverrides = {
       'type': 'array',
       'items': {'type': 'string'},
     },
+    'imageConfig': {'\$ref': 'ImageConfig'},
     'speechConfig': {'\$ref': 'SpeechConfig'},
     'thinkingConfig': {'\$ref': 'ThinkingConfig'},
+  },
+  'ImageConfig': {
+    'aspectRatio': {'type': 'string'},
+    'imageSize': {'type': 'string'},
   },
   'SpeechConfig': {
     'voiceConfig': {'\$ref': 'VoiceConfig'},
