@@ -38,6 +38,13 @@ abstract class $ToolRequest [src/types.dart]
 abstract class $ToolRequestPart implements $Part [src/types.dart]
 abstract class $ToolResponse [src/types.dart]
 abstract class $ToolResponsePart implements $Part [src/types.dart]
+base class ActionStream<Chunk, Response> extends StreamView<Chunk> [src/core/action.dart]
+  ActionStream(Stream<Chunk> stream)
+  ActionStream.withResult(Stream<Chunk> stream, Future<Response> result)
+  Future<Response> get onResult
+  Response get result
+  @internal void setError(Object error, StackTrace st)
+  @internal void setResult(Response result)
 base class BaseDataPoint [src/types.dart]
 final class CancellationController [src/core/cancellation.dart]
   void cancel([Object? reason])
@@ -154,6 +161,7 @@ extension type Role(String) [src/types.dart]
 base class RuntimeError [src/types.dart]
 base class Score [src/types.dart]
 final class ScoreScore [src/types.dart]
+typedef StreamingCallback<Chunk> = void Function(Chunk) [src/core/action.dart]
 base class TextPart implements Part [src/types.dart]
 base class Tool<Input, Output> extends Action<Input, ToolResult<Output>, void, void> [src/ai/tool.dart]
   Tool({required String name, required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, SchemanticType<Output>? toolOutputSchema, Map<String, dynamic>? metadata})

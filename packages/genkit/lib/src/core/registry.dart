@@ -208,7 +208,7 @@ class Registry {
   Future<Action?> lookupActionByKey(String key) async {
     final parsed = parseRegistryKey(key);
     if (parsed?.dynamicActionHost != null) {
-      return getDynamicAction(parsed!);
+      return _getDynamicAction(parsed!);
     }
     // Non-DAP key: reconstruct the full action name (including any plugin
     // prefix) from the raw key rather than the parsed name, since
@@ -222,7 +222,7 @@ class Registry {
   /// [parsedKey] whose `dynamicActionHost` is set. Returns null when the host
   /// is not a registered provider, the name is a wildcard (which addresses
   /// many actions, not one), or the provider cannot resolve it.
-  Future<Action?> getDynamicAction(ParsedRegistryKey parsedKey) async {
+  Future<Action?> _getDynamicAction(ParsedRegistryKey parsedKey) async {
     final host = parsedKey.dynamicActionHost;
     if (host == null || parsedKey.actionName.contains('*')) return null;
     final dap =

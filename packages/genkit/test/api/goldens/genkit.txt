@@ -48,6 +48,7 @@ base class Action<Input, Output, Chunk, Init> extends ActionMetadata<Input, Outp
   ActionStream<Chunk, Output> stream(Input? input, {Map<String, dynamic>? context, Stream<Input>? inputStream, Init? init, CancellationToken? cancel})
   @experimental BidiActionStream<Chunk, Output, Input> streamBidi({Stream<Input>? inputStream, void Function(Chunk)? onChunk, Map<String, dynamic>? context, Init? init, CancellationToken? cancel})
   String toString()
+typedef ActionFn<Input, Output, Chunk, Init> = Future<Output> Function(Input, ActionFnArg<Chunk, Input, Init>) [src/core/action.dart]
 final class ActionFnArg<Chunk, Input, Init> [src/core/action.dart]
   ActionFnArg({bool streamingRequested = false, void Function(Chunk)? sendChunk, Map<String, dynamic>? context, Stream<Input>? inputStream, Init? init, CancellationToken? cancel})
   final CancellationToken? cancel
@@ -70,6 +71,13 @@ base class ActionMetadata<Input, Output, Chunk, Init> [src/core/action.dart]
   final SchemanticType<Output>? outputSchema
   final SchemanticType<Chunk>? streamSchema
   Map<String, dynamic> toJson()
+base class ActionStream<Chunk, Response> extends StreamView<Chunk> [src/core/action.dart]
+  ActionStream(Stream<Chunk> stream)
+  ActionStream.withResult(Stream<Chunk> stream, Future<Response> result)
+  Future<Response> get onResult
+  Response get result
+  @internal void setError(Object error, StackTrace st)
+  @internal void setResult(Response result)
 extension type ActionType(String) [src/core/action.dart]
   const ActionType(String value)
   static const ActionType agent
@@ -132,6 +140,8 @@ base class EvalFnResponse [src/types.dart]
 final class EvalFnResponseEvaluation [src/types.dart]
 base class EvalRequest [src/types.dart]
 extension type EvalStatusEnum(String) [src/types.dart]
+base class Evaluator<CustomOptions> extends Action<EvalRequest, List<EvalFnResponse>, void, void> [src/ai/evaluator.dart]
+  Evaluator({required String name, required Future<List<EvalFnResponse>> Function(EvalRequest?, ActionFnArg<void, EvalRequest, void>) fn, Map<String, dynamic>? metadata, required String description})
 final class ExecutablePrompt<Input> [src/ai/prompt.dart]
   Future<GenerateResponseHelper<dynamic>> call(Input? input, [PromptGenerateOptions<dynamic>? opts])
   final ({Map<String, dynamic>? metadata, String name}) ref
@@ -185,6 +195,13 @@ final class GenerateResponseHelper<Output> extends GenerateResponse [src/ai/gene
   String get text
   List<ToolRequest> get toolRequests
 base class GenerateResumeOptions [src/types.dart]
+final class GenerateTurnState [src/ai/generate_middleware.dart]
+  GenerateTurnState({required GenerateActionOptions request, int currentTurn = 0, int messageIndex = 0})
+  GenerateTurnState copyWith({GenerateActionOptions? request, int? currentTurn, int? messageIndex})
+  final int currentTurn
+  final int messageIndex
+  final GenerateActionOptions request
+  String toString()
 base class GenerationUsage [src/types.dart]
 final class Genkit extends GenkitAI [src/genkit_class.dart]
   Genkit({List<GenkitPlugin> plugins = const [], ModelRef<dynamic>? model, bool? isDevEnv, int? reflectionPort, String? promptDir = './prompts'})
@@ -221,6 +238,14 @@ class GenkitException implements Exception [src/exception.dart]
   int get statusCode
   String toString()
   final Object? underlyingException
+abstract class GenkitPlugin [src/core/plugin.dart]
+  Future<List<Action<dynamic, dynamic, dynamic, dynamic>>> init()
+  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> list()
+  List<GenerateMiddlewareDef<dynamic>> middleware()
+  Model<dynamic> model(String name)
+  String get name
+  Action<dynamic, dynamic, dynamic, dynamic>? resolve(ActionType actionType, String name)
+typedef InternalActionFn<Input, Output, Chunk, Init> = Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>) [src/core/action.dart]
 final class Interrupt<Input, Output> extends Tool<Input, Output> [src/ai/tool.dart]
   Interrupt({required String name, required String description, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, Map<String, dynamic>? metadata, FutureOr<Object?> Function(Input, ToolFnArgs<Input>)? requestMetadata})
 final class InterruptResponse [src/ai/generate_types.dart]
@@ -329,6 +354,20 @@ class PromptGenerateOptions<CustomOptions> [src/ai/prompt.dart]
   final List<Tool<dynamic, dynamic>>? tools
   final List<GenerateMiddlewareRef<dynamic>>? use
 base class ReasoningPart implements Part [src/types.dart]
+class Registry [src/core/registry.dart]
+  factory Registry.childOf(Registry parent)
+  Registry({Registry? parent})
+  Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> listActions()
+  Future<Map<String, ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> listResolvableActions()
+  Map<String, T> listValues<T>(String type)
+  Future<Action<dynamic, dynamic, dynamic, dynamic>?> lookupAction(ActionType actionType, String name)
+  Future<Action<dynamic, dynamic, dynamic, dynamic>?> lookupActionByKey(String key)
+  T? lookupValue<T>(String type, String name)
+  final Registry? parent
+  void register(Action<dynamic, dynamic, dynamic, dynamic> action)
+  void registerPlugin(GenkitPlugin plugin)
+  void registerValue(String type, String name, dynamic value)
+  Future<List<String>> resolveActionNames(String key)
 base class ResourceAction extends Action<ResourceInput, ResourceOutput, void, void> [src/ai/resource.dart]
   ResourceAction({required String name, required Future<ResourceOutput> Function(ResourceInput, ActionFnArg<void, ResourceInput, void>) fn, required bool Function(ResourceInput) matches, String? description, Map<String, dynamic>? metadata})
   bool matches(ResourceInput input)
@@ -355,6 +394,12 @@ class RetryPlugin extends GenkitPlugin [src/ai/middleware/retry.dart]
   List<GenerateMiddlewareDef<dynamic>> middleware()
   String get name
 extension type Role(String) [src/types.dart]
+final class RunResult<Output> [src/core/action.dart]
+  RunResult({required Output result, required String traceId, required String spanId})
+  final Output result
+  final String spanId
+  Map<String, dynamic> toJson()
+  final String traceId
 base class RuntimeError [src/types.dart]
 base class Score [src/types.dart]
 final class ScoreScore [src/types.dart]
@@ -380,6 +425,7 @@ enum StatusCodes [src/exception.dart]
   static StatusCodes fromHttpStatus(int code)
   int get httpStatus
   final int value
+typedef StreamingCallback<Chunk> = void Function(Chunk) [src/core/action.dart]
 typedef TemplateHelperFn = dynamic Function(List<dynamic>, TemplateHelperOptions) [src/ai/template_helper.dart]
 final class TemplateHelperOptions [src/ai/template_helper.dart]
   TemplateHelperOptions({required Map<String, dynamic> hash, required String Function(dynamic) fn, required String Function(dynamic) inverse, required Map<String, dynamic> data, required dynamic context})
@@ -431,6 +477,7 @@ sealed class ToolResult<Output> [src/ai/tool.dart]
   Object? get interruptData
   Output get output
   Map<String, dynamic> toJson()
+typedef TraceStartCallback = void Function({required String spanId, required String traceId}) [src/core/action.dart]
 function bool Function(ResourceInput) createResourceMatcher({required String? uri, required String? template}) [src/ai/resource.dart]
 function GenerateMiddlewareDef<CustomOptions> defineMiddleware<CustomOptions>({required String name, required GenerateMiddleware Function(CustomOptions?, GenerateMiddlewareContext) create, SchemanticType<CustomOptions>? configSchema}) [src/ai/generate_middleware.dart]
 function ActionMetadata<dynamic, dynamic, dynamic, dynamic> embedderMetadata(String name, {SchemanticType<dynamic>? customOptions}) [src/ai/embedder.dart]

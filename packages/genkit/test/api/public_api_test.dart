@@ -33,6 +33,7 @@ import 'dart:io';
 import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
 import 'package:analyzer/dart/analysis/results.dart';
 import 'package:analyzer/dart/element/element.dart';
+import 'package:analyzer/dart/element/type.dart';
 import 'package:path/path.dart' as p;
 import 'package:test/test.dart';
 
@@ -106,6 +107,125 @@ void main() {
       }
     }
     expect(leaks, isEmpty);
+  });
+
+  // A public signature that mentions a type the library does not export
+  // forces callers to import `src/` (or leaves them unable to name the type
+  // at all, e.g. to store a returned value in a typed field).
+  test('public signatures only use types the library makes available', () {
+    final gaps = <String>[];
+    for (final MapEntry(key: name, value: companions) in _companions.entries) {
+      final available = {
+        for (final lib in [name, ...companions])
+          ...resolved[lib]!.exportNamespace.definedNames2.values,
+      };
+      final namespace = resolved[name]!.exportNamespace.definedNames2;
+      for (final MapEntry(key: symbol, value: element) in namespace.entries) {
+        for (final used in _referencedTypes(element)) {
+          if (!available.contains(used)) {
+            gaps.add('$name.dart: $symbol references ${used.name}');
+          }
+        }
+      }
+    }
+    expect(gaps.toSet(), isEmpty);
+  });
+}
+
+/// For each library, the libraries it is documented to be used together with.
+/// A type is "available" to callers if any of them exports it.
+const _companions = {
+  'genkit': <String>[],
+  'client': <String>[],
+  'plugin': <String>[],
+  'telemetry': <String>[],
+  // `lite.dart` is used with a model plugin and, for models/middleware,
+  // `genkit.dart` (see the package README).
+  'lite': ['genkit'],
+  'experimental': ['genkit'],
+  'experimental_client': ['client'],
+  'experimental_io': ['experimental', 'genkit'],
+};
+
+/// Public `package:genkit` declarations mentioned in the public signatures of
+/// [element] (supertypes, members, parameters, return types, aliased types).
+/// Members annotated `@experimental` are skipped: their types live in the
+/// experimental libraries by design.
+Iterable<Element> _referencedTypes(Element element) {
+  final found = <Element>{};
+  void visitType(DartType? type) {
+    if (type == null) return;
+    final alias = type.alias;
+    if (alias != null) {
+      found.add(alias.element);
+      alias.typeArguments.forEach(visitType);
+    }
+    switch (type) {
+      case InterfaceType():
+        found.add(type.element);
+        type.typeArguments.forEach(visitType);
+      case FunctionType():
+        for (final tp in type.typeParameters) {
+          visitType(tp.bound);
+        }
+        visitType(type.returnType);
+        for (final p in type.formalParameters) {
+          visitType(p.type);
+        }
+      case RecordType():
+        for (final f in type.positionalFields) {
+          visitType(f.type);
+        }
+        for (final f in type.namedFields) {
+          visitType(f.type);
+        }
+      default:
+    }
+  }
+
+  // Bounds are part of the signature too: `<T extends Hidden>` makes callers
+  // name `Hidden` to satisfy it.
+  void visitBounds(TypeParameterizedElement e) {
+    for (final tp in e.typeParameters) {
+      visitType(tp.bound);
+    }
+  }
+
+  void visitExecutable(ExecutableElement e) {
+    if (!e.isPublic || e.metadata.hasExperimental) return;
+    visitBounds(e);
+    visitType(e.returnType);
+    for (final p in e.formalParameters) {
+      visitType(p.type);
+    }
+  }
+
+  switch (element) {
+    case InstanceElement():
+      visitBounds(element);
+      if (element is InterfaceElement) {
+        visitType(element.supertype);
+        element.interfaces.forEach(visitType);
+        element.constructors.forEach(visitExecutable);
+      }
+      element.methods.forEach(visitExecutable);
+      element.getters.forEach(visitExecutable);
+      element.setters.forEach(visitExecutable);
+    case ExecutableElement():
+      visitExecutable(element);
+    case TypeAliasElement():
+      visitBounds(element);
+      visitType(element.aliasedType);
+    case TopLevelVariableElement():
+      visitType(element.type);
+    default:
+  }
+  return found.where((e) {
+    final uri = e.library?.uri;
+    return e.isPublic &&
+        uri != null &&
+        uri.scheme == 'package' &&
+        uri.pathSegments.first == 'genkit';
   });
 }
 

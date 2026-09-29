@@ -66,6 +66,11 @@ final class AgentError<State> implements Exception [src/ai/agents/agent_core.dar
   final State? state
   final String status
   String toString()
+class AgentErrorDetails [src/ai/agents/agent.dart]
+  AgentErrorDetails({required String status, required String message, dynamic details})
+  final dynamic details
+  final String message
+  final String status
 base class AgentErrorInfo [src/experimental_types.dart]
 extension type AgentFinishReason(String) [src/experimental_types.dart]
   AgentFinishReason(String value)
@@ -204,6 +209,8 @@ extension type JsonPatchOp(String) [src/experimental_types.dart]
   static JsonPatchOp get test
 base class JsonPatchOperation [src/experimental_types.dart]
 typedef JsonPatchOperationMap = Map<String, dynamic> [src/ai/agents/json_patch.dart]
+typedef OnDetach = void Function(String) [src/ai/agents/agent.dart]
+typedef OnEndTurn = void Function(String?, AgentFinishReason?) [src/ai/agents/agent.dart]
 @experimental final class Session<State> [src/ai/agents/session.dart]
   Session(SessionState initialState, {SchemanticType<State>? stateSchema})
   void addArtifacts(List<Artifact> artifacts)
