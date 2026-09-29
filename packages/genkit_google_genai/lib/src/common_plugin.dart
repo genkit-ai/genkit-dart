@@ -658,7 +658,8 @@ gcl.Part toGeminiPart(Part p) {
       thoughtSignature: thoughtSignature,
     );
   }
-  throw UnimplementedError('Unsupported part type: $p');
+  final kind = p.toJson().keys.where((key) => key != 'metadata').join(', ');
+  throw UnimplementedError('Unsupported part type: $kind');
 }
 
 @visibleForTesting

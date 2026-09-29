@@ -319,7 +319,10 @@ void main() {
               DocumentData(content: [TextPart(text: 'first')]),
               DocumentData(
                 content: [
-                  DataPart(data: {'k': 'v'}),
+                  Part.fromJson({
+                    'data': {'ssn': 'private-unsupported-part-payload'},
+                    'metadata': {'note': 'private-unsupported-part-metadata'},
+                  }),
                 ],
               ),
             ],
@@ -328,7 +331,22 @@ void main() {
         throwsA(
           isA<GenkitException>()
               .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
-              .having((e) => e.message, 'message', contains('index 1')),
+              .having((e) => e.message, 'message', contains('index 1'))
+              .having(
+                (e) => e.message,
+                'part kind',
+                contains('Unsupported part type: data'),
+              )
+              .having(
+                (e) => e.message,
+                'payload absent',
+                isNot(contains('private-unsupported-part-payload')),
+              )
+              .having(
+                (e) => e.message,
+                'metadata absent',
+                isNot(contains('private-unsupported-part-metadata')),
+              ),
         ),
       );
       expect(captured, isEmpty);
