@@ -114,7 +114,6 @@ class CancelledException extends GenkitException [src/core/cancellation.dart]
   CancelledException({Object? reason, CancellationToken? token})
   final CancellationToken? token
 base class Candidate [src/types.dart]
-typedef ChunkParser<Output> = Output Function(GenerateResponseChunk<Output>) [src/ai/formatters/types.dart]
 base class CustomPart implements Part [src/types.dart]
 base class DataPart implements Part [src/types.dart]
 base class DocumentData [src/types.dart]
@@ -150,8 +149,6 @@ final class ExecutablePrompt<Input> [src/ai/prompt.dart]
 extension type FinishReason(String) [src/types.dart]
 base class Flow<Input, Output, Chunk, Init> extends Action<Input, Output, Chunk, Init> [src/core/flow.dart]
   Flow({required String name, required Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Input>? inputSchema, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema, SchemanticType<Init>? initSchema, Map<String, dynamic>? metadata})
-class Formatter<Output> [src/ai/formatters/types.dart]
-class FormatterHandlerResult<Output> [src/ai/formatters/types.dart]
 base class GenerateActionOptions [src/types.dart]
 base class GenerateActionOutputConfig [src/types.dart]
 final class GenerateActionOutputConfigInstructions [src/types.dart]
@@ -262,7 +259,6 @@ extension MessageExtension on Message [src/schema_extensions.dart]
   Media? get media
   String get text
   List<ToolRequest> get toolRequests
-typedef MessageParser<Output> = Output Function(Message) [src/ai/formatters/types.dart]
 base class MiddlewareRef [src/types.dart]
 base class Model<CustomOptions> extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void> implements ModelRef<CustomOptions> [src/ai/model.dart]
   Model({required String name, required Future<ModelResponse> Function(ModelRequest?, ActionFnArg<ModelResponseChunk, ModelRequest, void>) fn, Map<String, dynamic>? metadata, SchemanticType<CustomOptions>? customOptions})

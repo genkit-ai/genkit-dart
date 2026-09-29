@@ -31,7 +31,6 @@ export 'src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
 export 'src/ai/evaluator.dart' show Evaluator;
 
-export 'src/ai/formatters/types.dart';
 export 'src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
