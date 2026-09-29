@@ -242,7 +242,11 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             constrained: req.output?.constrained ?? false,
           ),
           tools: toGeminiTools(req.tools, codeExecution: options.codeExecution),
-          toolConfig: toGeminiToolConfig(options.functionCallingConfig),
+          toolConfig: toGeminiToolConfig(
+            options.functionCallingConfig,
+            toolChoice: req.toolChoice,
+            hasFunctionTools: req.tools?.isNotEmpty ?? false,
+          ),
         );
 
         if (ctx.streamingRequested) {
@@ -800,11 +804,34 @@ fai.GenerationConfig toGeminiSettings(
   );
 }
 
+/// Builds the Firebase AI `toolConfig` from the plugin-specific
+/// [functionCallingConfig] or, when that is absent, the portable Genkit
+/// [toolChoice] (`auto` / `required` / `none`). The plugin config wins because
+/// it can also restrict the allowed function names. Unknown [toolChoice]
+/// values are ignored.
+///
+/// [toolChoice] only applies when [hasFunctionTools] is true, i.e. the request
+/// declares Genkit tools. Code execution doesn't count: a function-calling
+/// mode with no function declarations is contradictory (`required` would
+/// demand a call to nothing).
 @visibleForTesting
 fai.ToolConfig? toGeminiToolConfig(
-  FunctionCallingConfig? functionCallingConfig,
-) {
-  if (functionCallingConfig == null) return null;
+  FunctionCallingConfig? functionCallingConfig, {
+  ToolChoice? toolChoice,
+  bool hasFunctionTools = false,
+}) {
+  if (functionCallingConfig == null) {
+    if (!hasFunctionTools) return null;
+    final fromChoice = switch (toolChoice?.value) {
+      'auto' => fai.FunctionCallingConfig.auto(),
+      'required' => fai.FunctionCallingConfig.any({}),
+      'none' => fai.FunctionCallingConfig.none(),
+      _ => null,
+    };
+    return fromChoice == null
+        ? null
+        : fai.ToolConfig(functionCallingConfig: fromChoice);
+  }
   final mConfig = switch (functionCallingConfig.mode?.toUpperCase()) {
     'ANY' => fai.FunctionCallingConfig.any(
       functionCallingConfig.allowedFunctionNames?.toSet() ?? {},

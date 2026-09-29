@@ -296,5 +296,36 @@ void main() {
         isTrue,
       );
     });
+
+    test('toGeminiToolConfig maps the portable toolChoice', () {
+      m.FunctionCallingMode? modeFor(ToolChoice choice) => toGeminiToolConfig(
+        null,
+        toolChoice: choice,
+        hasFunctionTools: true,
+      )?.functionCallingConfig?.mode;
+
+      expect(modeFor(.auto), m.FunctionCallingMode.auto);
+      expect(modeFor(.required), m.FunctionCallingMode.any);
+      expect(modeFor(.none), m.FunctionCallingMode.none);
+      expect(modeFor(ToolChoice('unknown')), isNull);
+    });
+
+    test('toGeminiToolConfig ignores toolChoice without function tools', () {
+      expect(toGeminiToolConfig(null, toolChoice: .required), isNull);
+    });
+
+    test('functionCallingConfig takes precedence over toolChoice', () {
+      final config = toGeminiToolConfig(
+        FunctionCallingConfig(mode: 'ANY', allowedFunctionNames: ['foo']),
+        toolChoice: .none,
+        hasFunctionTools: true,
+      );
+      expect(config?.functionCallingConfig?.mode, m.FunctionCallingMode.any);
+    });
+
+    test('an explicit functionCallingConfig applies without tools', () {
+      final config = toGeminiToolConfig(FunctionCallingConfig(mode: 'NONE'));
+      expect(config?.functionCallingConfig?.mode, m.FunctionCallingMode.none);
+    });
   });
 }
