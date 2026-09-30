@@ -220,7 +220,8 @@ bool _isRecursive(Map<String, dynamic> schema) {
   final defs = <String, Object?>{
     for (final key in const [r'$defs', 'definitions'])
       if (schema[key] case final Map<dynamic, dynamic> map)
-        for (final entry in map.entries) '#/$key/${entry.key}': entry.value,
+        for (final entry in map.entries)
+          '#/$key/${_escapePointerToken('${entry.key}')}': entry.value,
   };
   if (defs.isEmpty) return false;
 
@@ -243,18 +244,42 @@ bool _isRecursive(Map<String, dynamic> schema) {
   return edges.keys.any((ref) => reachesCycle(ref, <String>{}));
 }
 
-/// Every `$ref` string anywhere under [node].
+/// Escapes a `$defs` key into a JSON Pointer token, so it matches the `$ref`
+/// that names it: `~` becomes `~0` and `/` becomes `~1`, in that order.
+///
+/// A key holding either character is not something schemantic emits, but a
+/// hand-written schema can: unescaped, `a/b` would be looked up as
+/// `#/$defs/a/b` while the ref says `#/$defs/a~1b`, and a cycle through it
+/// would read as acyclic and reach Anthropic as a 400.
+String _escapePointerToken(String key) =>
+    key.replaceAll('~', '~0').replaceAll('/', '~1');
+
+/// Every `$ref` under [node] that JSON Schema reads as a reference.
+///
+/// Follows schema structure rather than descending into every map, because a
+/// `$ref` key can also appear in *instance data* - a `default`, `const` or
+/// `enum` value is an ordinary JSON value, and `{"$ref": "#"}` there is a
+/// two-character string field, not a cycle. Walking those would report a
+/// self-reference that does not exist and send an expressible schema to the
+/// prompt instead of constraining it natively.
 Set<String> _refsIn(Object? node) {
   final refs = <String>{};
   void collect(Object? n) {
-    if (n is Map) {
-      if (n[r'$ref'] case final String ref) refs.add(ref);
-      for (final value in n.values) {
-        collect(value);
-      }
-    } else if (n is List) {
-      for (final item in n) {
-        collect(item);
+    if (n is! Map) return;
+    if (n[r'$ref'] case final String ref) refs.add(ref);
+    for (final entry in n.entries) {
+      final key = entry.key;
+      final value = entry.value;
+      if (_schemaMapKeywords.contains(key) && value is Map) {
+        value.values.forEach(collect);
+      } else if (_schemaListKeywords.contains(key) && value is List) {
+        value.forEach(collect);
+      } else if (_schemaValuedKeywords.contains(key)) {
+        if (value is List) {
+          value.forEach(collect);
+        } else {
+          collect(value);
+        }
       }
     }
   }

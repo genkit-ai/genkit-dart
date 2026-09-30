@@ -509,6 +509,83 @@ void main() {
       expect(body, isNot(contains('output_config')));
     });
 
+    test('a \$ref inside default data is not a reference', () async {
+      // `{"$ref": "#"}` as a `default` is an object *value* two characters
+      // wide, not a cycle. Reading it as one would send an expressible schema
+      // to the prompt instead of constraining it.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'cfg': {
+              'type': 'object',
+              'properties': {
+                'x': {'type': 'string'},
+              },
+              'default': {r'$ref': '#'},
+            },
+          },
+        },
+      );
+
+      expect((body['output_config'] as Map)['format'], isNotNull);
+      expect(body, isNot(contains('system')));
+    });
+
+    test('a \$ref inside enum or const data is not a reference', () async {
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'e': {
+              'type': 'object',
+              'enum': [
+                {r'$ref': '#'},
+              ],
+            },
+            'c': {
+              'type': 'object',
+              'const': {r'$ref': r'#/$defs/Node'},
+            },
+          },
+          r'$defs': {
+            'Node': {
+              'type': 'object',
+              'properties': {
+                'a': {'type': 'string'},
+              },
+            },
+          },
+        },
+      );
+
+      expect((body['output_config'] as Map)['format'], isNotNull);
+    });
+
+    test('recursion through a slash-bearing definition key is found', () async {
+      // `#/$defs/a~1b` names the definition `a/b`: `~1` is an escaped slash,
+      // so the key has to be escaped back before the two are compared.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          r'$ref': r'#/$defs/a~1b',
+          r'$defs': {
+            'a/b': {
+              'type': 'object',
+              'properties': {
+                'self': {r'$ref': r'#/$defs/a~1b'},
+              },
+            },
+          },
+        },
+      );
+
+      expect(body, isNot(contains('output_config')));
+      expect(body['system'].toString(), contains('conform to the following'));
+    });
+
     test('a definition shared by two fields still goes native', () async {
       // Reused, not recursive: `$defs/Pet` is reachable twice but never from
       // itself.
