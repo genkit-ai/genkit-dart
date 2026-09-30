@@ -2,6 +2,16 @@
 
 A collection of useful middleware for Genkit Dart to enhance your agent's capabilities.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Features
 
 - **Agents** (experimental): Let a main agent delegate tasks to specialized

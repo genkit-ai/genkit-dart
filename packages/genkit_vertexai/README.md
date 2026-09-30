@@ -2,6 +2,16 @@
 
 Vertex AI plugin for Genkit Dart.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Usage
 
 To use Google's Vertex AI models, simply import this package and pass `vertexAI` to the `Genkit` initialization. 
