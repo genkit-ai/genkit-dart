@@ -66,7 +66,7 @@ Flow<String, Recipe, void, void> defineRecipeFlow(Genkit ai) {
     outputSchema: Recipe.$schema,
     fn: (dish, _) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-5-5'),
         prompt: 'Write a short recipe for $dish.',
         outputSchema: Recipe.$schema,
       );
@@ -101,7 +101,7 @@ Flow<String, Recipe, Recipe, void> defineStreamedRecipeFlow(Genkit ai) {
     streamSchema: Recipe.$schema,
     fn: (dish, ctx) async {
       final stream = ai.generateStream(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-5-5'),
         prompt: 'Write a short recipe for $dish.',
         outputSchema: Recipe.$schema,
       );
@@ -132,7 +132,7 @@ Flow<String, Recipe, void, void> defineRecipeWithToolsFlow(Genkit ai) {
     outputSchema: Recipe.$schema,
     fn: (dish, _) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-5-5'),
         prompt:
             'Suggest a recipe for $dish. Check the pantry for each main '
             'ingredient first and avoid anything we are out of.',
@@ -156,7 +156,7 @@ Flow<String, Scorecard, void, void> defineScorecardFlow(Genkit ai) {
     outputSchema: Scorecard.$schema,
     fn: (input, _) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-5-5'),
         prompt: 'Turn this into a scorecard: $input',
         outputSchema: Scorecard.$schema,
       );
@@ -172,7 +172,7 @@ Flow<String, Category, void, void> defineTaxonomyFlow(Genkit ai) {
     outputSchema: Category.$schema,
     fn: (topic, _) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-5-5'),
         prompt: 'Build a small two-level taxonomy of $topic.',
         outputSchema: Category.$schema,
       );
