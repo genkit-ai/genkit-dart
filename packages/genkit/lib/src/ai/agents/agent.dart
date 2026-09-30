@@ -1798,7 +1798,8 @@ Agent<State> definePromptAgent<State>(
   SessionStore? store,
   ClientTransform? clientTransform,
 }) {
-  ExecutablePrompt? cachedPrompt;
+  // The agent only ever renders the prompt, so the output type is irrelevant.
+  ExecutablePrompt<dynamic, dynamic>? cachedPrompt;
 
   Future<AgentResult> fn(SessionRunner sess, AgentFnOptions options) async {
     final sendChunk = options.sendChunk;

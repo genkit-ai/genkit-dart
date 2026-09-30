@@ -249,17 +249,22 @@ final class Genkit extends GenkitAI {
   /// Returns an [ExecutablePrompt] that can be called directly, rendered,
   /// or streamed.
   ///
+  /// Pass [inputSchema] and [outputSchema] to get a fully typed prompt: the
+  /// type arguments are inferred, so they rarely need to be written out.
+  ///
   /// Example:
   /// ```dart
-  /// final hi = ai.definePrompt(
-  ///   name: 'hi',
+  /// final joke = ai.definePrompt(
+  ///   name: 'joke',
   ///   model: modelRef('googleai/gemini-flash-latest'),
-  ///   prompt: 'Say hi to {{name}}',
+  ///   inputSchema: JokeInput.$schema,
+  ///   outputSchema: Joke.$schema,
+  ///   prompt: 'Tell a joke about {{topic}}',
   /// );
   ///
-  /// final response = await hi({'name': 'Sparky'});
+  /// final Joke? j = (await joke(JokeInput(topic: 'cats'))).output;
   /// ```
-  ExecutablePrompt<Input> definePrompt<CustomOptions, Input>({
+  ExecutablePrompt<Input, Output> definePrompt<Input, Output, CustomOptions>({
     required String name,
     String? variant,
     ModelRef<CustomOptions>? model,
@@ -272,6 +277,14 @@ final class Genkit extends GenkitAI {
     List<Part>? promptParts,
     List<Message>? messages,
     String? messagesTemplate,
+
+    /// Structured output schema. Infers `Output`, sets the request's JSON
+    /// schema, and parses `response.output`.
+    SchemanticType<Output>? outputSchema,
+
+    /// Raw output config (`format`, `constrained`, `instructions`), for
+    /// settings `outputSchema` does not cover. Setting a `jsonSchema` on both
+    /// this and `outputSchema` throws.
     GenerateActionOutputConfig? output,
     int? maxTurns,
     bool? returnToolRequests,
@@ -281,7 +294,7 @@ final class Genkit extends GenkitAI {
     ToolChoice? toolChoice,
     List<GenerateMiddlewareRef>? use,
   }) {
-    final promptConfig = PromptConfig<CustomOptions, Input>(
+    final promptConfig = PromptConfig<Input, Output, CustomOptions>(
       name: name,
       variant: variant,
       model: model,
@@ -294,6 +307,7 @@ final class Genkit extends GenkitAI {
       promptParts: promptParts,
       messages: messages,
       messagesTemplate: messagesTemplate,
+      outputSchema: outputSchema,
       output: output,
       maxTurns: maxTurns,
       returnToolRequests: returnToolRequests,
@@ -303,7 +317,7 @@ final class Genkit extends GenkitAI {
       toolChoice: toolChoice,
       use: use,
     );
-    return definePromptAction<CustomOptions, Input>(
+    return definePromptAction<Input, Output, CustomOptions>(
       registry,
       _dotpromptRegistry,
       promptConfig,
@@ -338,13 +352,34 @@ final class Genkit extends GenkitAI {
   /// Returns the [ExecutablePrompt] registered under the given name
   /// and optional variant.
   ///
+  /// Supply `Input` / `Output` to get a typed handle. `Input` is asserted by
+  /// the caller (the registry does not retain it), while `Output` must be
+  /// backed by a schema: either the one the prompt was defined with, or
+  /// [outputSchema] here. A prompt loaded from a `.prompt` file has a JSON
+  /// schema but no Dart type, so it needs [outputSchema].
+  ///
   /// Example:
   /// ```dart
   /// final hi = await ai.prompt('hi');
   /// final response = await hi({'name': 'Sparky'});
+  ///
+  /// // Typed: parses `.output` into a Joke.
+  /// final joke = await ai.prompt<JokeInput, Joke>(
+  ///   'joke',
+  ///   outputSchema: Joke.$schema,
+  /// );
   /// ```
-  Future<ExecutablePrompt> prompt(String name, {String? variant}) {
-    return lookupPrompt(registry, name, variant: variant);
+  Future<ExecutablePrompt<Input, Output>> prompt<Input, Output>(
+    String name, {
+    String? variant,
+    SchemanticType<Output>? outputSchema,
+  }) {
+    return lookupPrompt<Input, Output>(
+      registry,
+      name,
+      variant: variant,
+      outputSchema: outputSchema,
+    );
   }
 
   /// Registers a Handlebars partial template for use in prompts.

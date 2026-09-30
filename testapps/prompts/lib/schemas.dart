@@ -40,6 +40,28 @@ class JokeInput {
   );
 }
 
+/// Structured output schema for the joke prompt.
+@JsonSerializable(createJsonSchema: true)
+class Joke {
+  /// The joke's setup line.
+  final String setup;
+
+  /// The joke's punchline.
+  final String punchline;
+
+  Joke({required this.setup, required this.punchline});
+
+  factory Joke.fromJson(Map<String, dynamic> json) => _$JokeFromJson(json);
+  Map<String, dynamic> toJson() => _$JokeToJson(this);
+
+  static const jsonSchema = _$JokeJsonSchema;
+
+  static final schema = SchemanticType.from<Joke>(
+    jsonSchema: Joke.jsonSchema,
+    parse: (json) => Joke.fromJson(json as Map<String, dynamic>),
+  );
+}
+
 /// Input schema for the email prompt.
 @JsonSerializable(createJsonSchema: true)
 class EmailInput {
@@ -60,6 +82,32 @@ class EmailInput {
   static final schema = SchemanticType.from<EmailInput>(
     jsonSchema: EmailInput.jsonSchema,
     parse: (json) => EmailInput.fromJson(json as Map<String, dynamic>),
+  );
+}
+
+/// Output schema for the `summarize.prompt` file.
+///
+/// The file declares the same shape in its `output.schema` frontmatter; this
+/// is the Dart side, handed to `ai.prompt<Input, Output>()` at lookup.
+@JsonSerializable(createJsonSchema: true)
+class Summary {
+  /// The summary text.
+  final String summary;
+
+  /// Key points pulled out of the source text.
+  final List<String> keyPoints;
+
+  Summary({required this.summary, required this.keyPoints});
+
+  factory Summary.fromJson(Map<String, dynamic> json) =>
+      _$SummaryFromJson(json);
+  Map<String, dynamic> toJson() => _$SummaryToJson(this);
+
+  static const jsonSchema = _$SummaryJsonSchema;
+
+  static final schema = SchemanticType.from<Summary>(
+    jsonSchema: Summary.jsonSchema,
+    parse: (json) => Summary.fromJson(json as Map<String, dynamic>),
   );
 }
 

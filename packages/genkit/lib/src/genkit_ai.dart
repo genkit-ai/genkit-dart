@@ -55,7 +55,7 @@ base class GenkitAI {
   }
 
   /// Generates a response using the specified model and context.
-  Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({
+  Future<GenerateResponseHelper<Output>> generate<Output, CustomOptions>({
     String? system,
     String? prompt,
     List<Part>? promptParts,
@@ -199,7 +199,7 @@ base class GenkitAI {
 
   /// Streams a response from the specified model.
   ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
-  generateStream<CustomOptions, Output>({
+  generateStream<Output, CustomOptions>({
     String? system,
     String? prompt,
     List<Part>? promptParts,

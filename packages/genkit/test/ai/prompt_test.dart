@@ -20,7 +20,37 @@ import 'package:genkit/src/ai/dotprompt_registry.dart';
 import 'package:genkit/src/ai/prompt.dart';
 import 'package:genkit/src/ai/prompt_loader.dart';
 import 'package:path/path.dart' as p;
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
+
+/// Structured output fixture for the typed-prompt tests. Hand-rolled rather
+/// than generated so this file stays free of a build_runner part.
+class _Joke {
+  _Joke({required this.setup, required this.punchline});
+
+  factory _Joke.fromJson(Map<String, dynamic> json) => _Joke(
+    setup: json['setup'] as String,
+    punchline: json['punchline'] as String,
+  );
+
+  final String setup;
+  final String punchline;
+
+  Map<String, dynamic> toJson() => {'setup': setup, 'punchline': punchline};
+}
+
+/// Stands in for a generated `_Joke.$schema`.
+final _jokeSchema = SchemanticType.from<_Joke>(
+  jsonSchema: {
+    'type': 'object',
+    'properties': {
+      'setup': {'type': 'string'},
+      'punchline': {'type': 'string'},
+    },
+    'required': ['setup', 'punchline'],
+  },
+  parse: (json) => _Joke.fromJson(json as Map<String, dynamic>),
+);
 
 void main() {
   group('PromptConfig', () {
@@ -1181,6 +1211,315 @@ void main() {
       expect(s2, isNotNull);
       expect(s1!['properties'], contains('a'));
       expect(s2!['properties'], contains('b'));
+    });
+  });
+
+  group('typed prompt output', () {
+    late Genkit genkit;
+
+    /// A model that replies with [text], optionally streaming [chunks] first.
+    void defineEchoModel(String name, String text, {List<String>? chunks}) {
+      genkit.defineModel(
+        name: name,
+        fn: (request, context) async {
+          for (final chunk in chunks ?? const <String>[]) {
+            context.sendChunk(
+              ModelResponseChunk(content: [TextPart(text: chunk)]),
+            );
+          }
+          return ModelResponse(
+            finishReason: .stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: text)],
+            ),
+          );
+        },
+      );
+    }
+
+    setUp(() {
+      genkit = Genkit(isDevEnv: false, promptDir: null);
+    });
+
+    tearDown(() async {
+      await genkit.shutdown();
+    });
+
+    test('definePrompt infers Output from outputSchema', () {
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        inputSchema: SchemanticType.map(.string(), .string()),
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+
+      expect(ep, isA<ExecutablePrompt<Map<String, String>, _Joke>>());
+    });
+
+    test('definePrompt without outputSchema leaves Output dynamic', () {
+      final ep = genkit.definePrompt(name: 'plain', prompt: 'Say hi');
+
+      expect(ep, isA<ExecutablePrompt<dynamic, dynamic>>());
+      expect(ep, isNot(isA<ExecutablePrompt<dynamic, _Joke>>()));
+    });
+
+    test('outputSchema reaches the rendered request as a jsonSchema', () async {
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+
+      final options = await ep.render(null);
+      expect(options.output, isNotNull);
+      expect(
+        (options.output!.jsonSchema!['properties'] as Map).keys,
+        containsAll(['setup', 'punchline']),
+      );
+    });
+
+    test('outputSchema merges with the raw output config', () async {
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        outputSchema: _jokeSchema,
+        output: GenerateActionOutputConfig.fromJson({'format': 'json'}),
+        prompt: 'Tell a joke',
+      );
+
+      final options = await ep.render(null);
+      expect(options.output!.toJson()['format'], equals('json'));
+      expect(options.output!.jsonSchema, isNotNull);
+    });
+
+    test('a jsonSchema on both outputSchema and output is rejected', () {
+      expect(
+        () => genkit.definePrompt(
+          name: 'joke',
+          outputSchema: _jokeSchema,
+          output: GenerateActionOutputConfig.fromJson({
+            'jsonSchema': {'type': 'object'},
+          }),
+          prompt: 'Tell a joke',
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('call() parses the response into Output', () async {
+      defineEchoModel('m', '{"setup": "Why?", "punchline": "Because."}');
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        model: modelRef('m'),
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+
+      final response = await ep(null);
+
+      // Statically a `_Joke?`, so no cast is needed to reach the fields.
+      expect(response.output?.setup, equals('Why?'));
+      expect(response.output?.punchline, equals('Because.'));
+    });
+
+    test('an untyped prompt still yields the raw JSON output', () async {
+      defineEchoModel('m', '{"setup": "Why?"}');
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        model: modelRef('m'),
+        output: GenerateActionOutputConfig.fromJson({'format': 'json'}),
+        prompt: 'Tell a joke',
+      );
+
+      final response = await ep(null);
+      // Output is `dynamic` here, so the raw decoded JSON passes through.
+      expect(response.output, isA<Map<String, dynamic>>());
+      expect((response.output as Map)['setup'], equals('Why?'));
+    });
+
+    test('stream() parses both chunks and the final response', () async {
+      defineEchoModel(
+        'm',
+        '{"setup": "Why?", "punchline": "Because."}',
+        // Split mid-value so the first chunk is unparseable partial JSON.
+        chunks: ['{"setup": "Wh', 'y?", "punchline": "Because."}'],
+      );
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        model: modelRef('m'),
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+
+      final stream = ep.stream(null);
+      final chunkOutputs = <_Joke?>[];
+      await for (final chunk in stream) {
+        chunkOutputs.add(chunk.output);
+      }
+      final response = await stream.onResult;
+
+      expect(response.output?.punchline, equals('Because.'));
+      // A partial chunk that cannot satisfy the schema yields null rather
+      // than failing the generation.
+      expect(chunkOutputs.first, isNull);
+      expect(chunkOutputs.last?.punchline, equals('Because.'));
+    });
+
+    test('an aborted response survives a typed prompt', () async {
+      genkit.defineModel(
+        name: 'slow',
+        fn: (request, context) async {
+          await Future<void>.delayed(const Duration(seconds: 30));
+          return ModelResponse(finishReason: .stop);
+        },
+      );
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        model: modelRef('slow'),
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+
+      final controller = CancellationController()..cancel();
+      final response = await ep(
+        null,
+        PromptGenerateOptions(cancel: controller.token),
+      );
+
+      // Nothing to parse, but the response itself still comes back.
+      expect(response.finishReason, equals(FinishReason.aborted));
+      expect(response.output, isNull);
+    });
+  });
+
+  group('typed prompt lookup', () {
+    late Genkit genkit;
+
+    setUp(() {
+      genkit = Genkit(isDevEnv: false, promptDir: null);
+    });
+
+    tearDown(() async {
+      await genkit.shutdown();
+    });
+
+    test('reuses the schema the prompt was defined with', () async {
+      genkit.definePrompt(
+        name: 'joke',
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+
+      final ep = await genkit.prompt<Map<String, dynamic>, _Joke>('joke');
+      expect(ep, isA<ExecutablePrompt<Map<String, dynamic>, _Joke>>());
+    });
+
+    test('accepts a caller-supplied schema for an untyped prompt', () async {
+      genkit.definePrompt(name: 'joke', prompt: 'Tell a joke');
+
+      final ep = await genkit.prompt<Map<String, dynamic>, _Joke>(
+        'joke',
+        outputSchema: _jokeSchema,
+      );
+      expect(ep, isA<ExecutablePrompt<Map<String, dynamic>, _Joke>>());
+    });
+
+    test('fails at lookup when Output has no schema to back it', () async {
+      genkit.definePrompt(name: 'joke', prompt: 'Tell a joke');
+
+      await expectLater(
+        genkit.prompt<Map<String, dynamic>, _Joke>('joke'),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('was not defined with an output schema'),
+          ),
+        ),
+      );
+    });
+
+    test('an untyped lookup of a typed prompt still works', () async {
+      genkit.definePrompt(
+        name: 'joke',
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+
+      // No type arguments: Output is dynamic, so no schema is required.
+      final ep = await genkit.prompt('joke');
+      expect(ep.ref.name, equals('joke'));
+    });
+
+    test('a missing prompt is reported at lookup', () async {
+      await expectLater(
+        genkit.prompt<Map<String, dynamic>, _Joke>(
+          'nope',
+          outputSchema: _jokeSchema,
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('not found'),
+          ),
+        ),
+      );
+    });
+
+    test('a typed lookup of a .prompt file parses its output', () async {
+      final tempDir = Directory.systemTemp.createTempSync('genkit_typed_');
+      addTearDown(() => tempDir.deleteSync(recursive: true));
+      File(p.join(tempDir.path, 'joke.prompt')).writeAsStringSync('''
+---
+model: m
+output:
+  schema:
+    setup: string
+    punchline: string
+---
+Tell a joke.
+''');
+      final ai = Genkit(isDevEnv: false, promptDir: tempDir.path);
+      addTearDown(ai.shutdown);
+      ai.defineModel(
+        name: 'm',
+        fn: (request, context) async => ModelResponse(
+          finishReason: .stop,
+          message: Message(
+            role: .model,
+            content: [
+              TextPart(text: '{"setup": "Why?", "punchline": "Because."}'),
+            ],
+          ),
+        ),
+      );
+
+      // The file supplies the wire schema; the Dart type comes from here.
+      final ep = await ai.prompt<Map<String, dynamic>, _Joke>(
+        'joke',
+        outputSchema: _jokeSchema,
+      );
+      final response = await ep(null);
+
+      expect(response.output?.setup, equals('Why?'));
+    });
+
+    test('a typed lookup shares the defining template cache', () async {
+      final defined = genkit.definePrompt(
+        name: 'joke',
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke about {{topic}}',
+      );
+      await defined.render({'topic': 'cats'});
+
+      final ep = await genkit.prompt<Map<String, dynamic>, _Joke>('joke');
+      final options = await ep.render({'topic': 'dogs'});
+
+      expect(
+        options.messages.last.content[0].toJson()['text'],
+        contains('dogs'),
+      );
     });
   });
 

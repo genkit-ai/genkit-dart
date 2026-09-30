@@ -58,7 +58,7 @@ export 'src/types.dart';
 ///
 /// Pass [outputSchema] to get typed structured output: `response.output` (and
 /// each streamed chunk's `output`) is then parsed into `Output`.
-Future<GenerateResponseHelper<Output>> generate<C, Output>({
+Future<GenerateResponseHelper<Output>> generate<Output, C>({
   String? system,
   String? prompt,
   List<Part>? promptParts,
@@ -191,7 +191,7 @@ Future<GenerateResponseHelper<Output>> generate<C, Output>({
 
 /// Streams a response from [model]; see [generate].
 ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
-generateStream<C, Output>({
+generateStream<Output, C>({
   required Model<C> model,
   String? system,
   String? prompt,
@@ -216,7 +216,7 @@ generateStream<C, Output>({
   List<ToolRequestPart>? interruptRestart,
 }) {
   final chunks = StreamController<GenerateResponseChunk<Output>>();
-  final result = generate<C, Output>(
+  final result = generate<Output, C>(
     system: system,
     prompt: prompt,
     promptParts: promptParts,

@@ -195,22 +195,26 @@ void _loadPrompt(
   // Create the prompt config. `definePromptAction` builds the registry/display
   // metadata (`type`, `prompt`) from these fields, so `use`/`toolChoice` are
   // surfaced for the Developer UI without building the metadata map here.
-  final promptConfig = PromptConfig<Map<String, dynamic>, Map<String, dynamic>>(
-    name: _registryDefinitionKey(name, null, ns),
-    variant: variant,
-    model: model != null ? modelRef(model) : null,
-    config: config,
-    inputSchema: inputSchema,
-    toolNames: tools,
-    toolChoice: toolChoice == null ? null : ToolChoice(toolChoice),
-    maxTurns: maxTurns,
-    returnToolRequests: returnToolRequests,
-    messagesTemplate: parsedPrompt.template,
-    output: outputConfig,
-    use: use,
-  );
+  // Output is `dynamic`: the frontmatter gives a JSON schema (carried on
+  // `output`) but no Dart type to parse into. `ai.prompt<I, O>(name,
+  // outputSchema: ...)` supplies one at lookup.
+  final promptConfig =
+      PromptConfig<Map<String, dynamic>, dynamic, Map<String, dynamic>>(
+        name: _registryDefinitionKey(name, null, ns),
+        variant: variant,
+        model: model != null ? modelRef(model) : null,
+        config: config,
+        inputSchema: inputSchema,
+        toolNames: tools,
+        toolChoice: toolChoice == null ? null : ToolChoice(toolChoice),
+        maxTurns: maxTurns,
+        returnToolRequests: returnToolRequests,
+        messagesTemplate: parsedPrompt.template,
+        output: outputConfig,
+        use: use,
+      );
 
-  definePromptAction<Map<String, dynamic>, Map<String, dynamic>>(
+  definePromptAction<Map<String, dynamic>, dynamic, Map<String, dynamic>>(
     registry,
     dotpromptRegistry,
     promptConfig,

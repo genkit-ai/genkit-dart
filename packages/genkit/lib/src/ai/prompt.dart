@@ -22,6 +22,7 @@ import '../core/cancellation.dart';
 import '../core/registry.dart';
 import '../exception.dart';
 import '../o11y/instrumentation.dart';
+import '../schema.dart';
 import '../types.dart';
 import 'dotprompt_registry.dart';
 import 'generate.dart';
@@ -34,7 +35,7 @@ import 'tool.dart';
 /// Configuration for defining a prompt.
 ///
 /// This holds all the metadata needed to define an executable prompt action.
-class PromptConfig<CustomOptions, Input> {
+class PromptConfig<Input, Output, CustomOptions> {
   /// The name of the prompt.
   final String name;
 
@@ -71,7 +72,18 @@ class PromptConfig<CustomOptions, Input> {
   /// Messages as a Handlebars template string (e.g. loaded from .prompt files).
   final String? messagesTemplate;
 
-  /// Output format configuration.
+  /// Typed output schema. Supplies the request's JSON schema and parses
+  /// `response.output` into [Output].
+  ///
+  /// Prompts loaded from `.prompt` files have a JSON schema but no Dart type,
+  /// so they leave this null and carry the schema on [output] instead.
+  final SchemanticType<Output>? outputSchema;
+
+  /// Raw output configuration (`format`, `constrained`, `instructions`).
+  ///
+  /// This is the escape hatch for settings [outputSchema] does not cover, and
+  /// the only way for a `.prompt` file to supply a JSON schema. When both set a
+  /// `jsonSchema`, [outputSchema] wins and the constructor throws.
   final GenerateActionOutputConfig? output;
 
   /// Maximum number of tool-call turns.
@@ -108,6 +120,7 @@ class PromptConfig<CustomOptions, Input> {
     this.promptParts,
     this.messages,
     this.messagesTemplate,
+    this.outputSchema,
     this.output,
     this.maxTurns,
     this.returnToolRequests,
@@ -116,10 +129,30 @@ class PromptConfig<CustomOptions, Input> {
     this.toolNames,
     this.toolChoice,
     this.use,
-  });
+  }) {
+    if (outputSchema != null && output?.jsonSchema != null) {
+      throw ArgumentError(
+        'Prompt "$name" sets a JSON schema on both outputSchema and output. '
+        'Use outputSchema for the schema and output for format/constrained/'
+        'instructions only.',
+      );
+    }
+  }
 
   /// The full name including variant.
   String get fullName => variant != null ? '$name.$variant' : name;
+
+  /// The wire output config, with [outputSchema]'s JSON schema folded in.
+  ///
+  /// Returns null when the prompt configures no output at all, so the rendered
+  /// options stay free of an empty `output` block.
+  GenerateActionOutputConfig? get resolvedOutput {
+    if (outputSchema == null) return output;
+    return GenerateActionOutputConfig.fromJson({
+      ...?output?.toJson(),
+      'jsonSchema': toJsonSchema(type: outputSchema),
+    });
+  }
 }
 
 /// Options for generating from a prompt (everything except prompt/system
@@ -158,30 +191,69 @@ class PromptGenerateOptions<CustomOptions> {
   });
 }
 
+/// Memoized compiled templates for one registered prompt.
+///
+/// Held separately from [ExecutablePrompt] so the typed views produced by a
+/// `prompt<Input, Output>()` lookup share one cache with the registered prompt
+/// instead of recompiling per lookup. Futures (not values) are memoized so
+/// concurrent first-renders await the same compile.
+class _PromptTemplates {
+  Future<dp.PromptFunction>? system;
+  Future<dp.PromptFunction>? prompt;
+  Future<dp.PromptFunction>? messages;
+}
+
 /// An executable prompt that can render, generate, and stream.
 ///
 /// It acts as a callable that invokes `generate` with the rendered prompt
 /// template, and also provides `.render()` and `.stream()` methods.
-final class ExecutablePrompt<Input> {
+///
+/// [Output] is the parsed structured output type: `(await prompt(input)).output`
+/// is an `Output?`. It is inferred from `outputSchema` at definition, and is
+/// `dynamic` for a prompt defined without one.
+final class ExecutablePrompt<Input, Output> {
   /// A reference to the prompt (name + optional metadata).
   final ({String name, Map<String, dynamic>? metadata}) ref;
 
   final Registry _registry;
   final DotpromptRegistry _dotpromptRegistry;
-  final PromptConfig<dynamic, Input> _config;
 
-  // Memoized compiled template futures (Future-based for concurrency safety).
-  Future<dp.PromptFunction>? _compiledSystem;
-  Future<dp.PromptFunction>? _compiledPrompt;
-  Future<dp.PromptFunction>? _compiledMessages;
+  // Fully erased: rendering only reads the template/model/tool fields, never
+  // the schemas, so the config's own type arguments are irrelevant here. This
+  // also lets `_retyped` rebuild the view over any Input/Output pair.
+  final PromptConfig<dynamic, dynamic, dynamic> _config;
+  final _PromptTemplates _templates;
+
+  /// Parses `response.output` into [Output]. Null for an untyped prompt, where
+  /// the raw JSON value is cast to [Output] (typically `dynamic`) instead.
+  final SchemanticType<Output>? _outputSchema;
 
   ExecutablePrompt._({
     required this._registry,
     required this._dotpromptRegistry,
-    required PromptConfig<dynamic, Input> config,
+    required PromptConfig<Input, Output, dynamic> config,
     Map<String, dynamic>? metadata,
   }) : _config = config,
+       _outputSchema = config.outputSchema,
+       _templates = _PromptTemplates(),
        ref = (name: config.fullName, metadata: metadata);
+
+  /// Creates a typed view of an existing prompt, for `prompt<Input, Output>()`.
+  ///
+  /// A plain cast cannot do this: `ExecutablePrompt<I, dynamic>` is not an
+  /// `ExecutablePrompt<I, Joke>`. The registry, config, and template cache are
+  /// shared, so the view behaves as the registered prompt with a parsed output.
+  ///
+  /// [Input] is the caller's assertion. The registry does not retain it, and
+  /// rendering serializes whatever it is handed, so it is not re-checked here.
+  ExecutablePrompt._retyped(
+    ExecutablePrompt<dynamic, dynamic> source,
+    this._outputSchema,
+  ) : _registry = source._registry,
+      _dotpromptRegistry = source._dotpromptRegistry,
+      _config = source._config,
+      _templates = source._templates,
+      ref = source.ref;
 
   /// Renders the prompt template with the given input, producing
   /// [GenerateActionOptions] suitable for the `generate` action.
@@ -245,7 +317,9 @@ final class ExecutablePrompt<Input> {
           returnToolRequests:
               opts?.returnToolRequests ?? _config.returnToolRequests,
           maxTurns: opts?.maxTurns ?? _config.maxTurns,
-          output: opts?.output ?? _config.output,
+          // `_config.resolvedOutput` folds the typed `outputSchema` into the
+          // wire config; a per-call `output` still overrides it wholesale.
+          output: opts?.output ?? _config.resolvedOutput,
           use: resolvedUse.isNotEmpty ? resolvedUse : null,
         );
       },
@@ -255,21 +329,20 @@ final class ExecutablePrompt<Input> {
   }
 
   /// Generates a response by rendering the prompt and calling the model.
-  Future<GenerateResponseHelper> call(
+  Future<GenerateResponseHelper<Output>> call(
     Input? input, [
     PromptGenerateOptions? opts,
   ]) => _generate(input, opts);
 
   /// Streams a response by rendering the prompt and calling the model.
-  ActionStream<GenerateResponseChunk, GenerateResponseHelper> stream(
-    Input? input, [
-    PromptGenerateOptions? opts,
-  ]) {
-    final streamController = StreamController<GenerateResponseChunk>();
+  ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
+  stream(Input? input, [PromptGenerateOptions? opts]) {
+    final streamController = StreamController<GenerateResponseChunk<Output>>();
     final actionStream =
-        ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
-          streamController.stream,
-        );
+        ActionStream<
+          GenerateResponseChunk<Output>,
+          GenerateResponseHelper<Output>
+        >(streamController.stream);
 
     _generate(
       input,
@@ -298,11 +371,34 @@ final class ExecutablePrompt<Input> {
     return actionStream;
   }
 
+  /// Parses a raw JSON output value into [Output].
+  ///
+  /// Without a schema the prompt is untyped and [Output] is whatever the caller
+  /// asserted (normally `dynamic`), so the raw value passes through.
+  Output? _parseOutput(Object? raw) {
+    if (raw == null) return null;
+    final schema = _outputSchema;
+    return schema == null ? raw as Output : schema.parse(raw);
+  }
+
+  /// Parses a streamed chunk's *partial* output.
+  ///
+  /// Partial JSON often fails a strict schema while the value is still
+  /// arriving. That is not a generation failure, so the chunk's typed output is
+  /// simply unavailable; the final response is still parsed strictly.
+  Output? _parsePartialOutput(Object? raw) {
+    try {
+      return _parseOutput(raw);
+    } on Object {
+      return null;
+    }
+  }
+
   /// Internal generate implementation shared by [call] and [stream].
-  Future<GenerateResponseHelper> _generate(
+  Future<GenerateResponseHelper<Output>> _generate(
     Input? input,
     PromptGenerateOptions? opts, {
-    StreamingCallback<GenerateResponseChunk>? onChunk,
+    StreamingCallback<GenerateResponseChunk<Output>>? onChunk,
   }) async {
     return runInNewSpan(
       ref.name,
@@ -329,7 +425,7 @@ final class ExecutablePrompt<Input> {
           }
         }
 
-        return generateHelper(
+        final raw = await generateHelper(
           registry,
           messages: options.messages,
           model: options.model != null ? modelRef(options.model!) : null,
@@ -342,7 +438,25 @@ final class ExecutablePrompt<Input> {
           context: opts?.context,
           cancel: opts?.cancel,
           middleware: middleware.isNotEmpty ? middleware : null,
-          onChunk: onChunk,
+          onChunk: onChunk == null
+              ? null
+              : (c) => onChunk(
+                  GenerateResponseChunk<Output>(
+                    c.rawChunk,
+                    previousChunks: List.from(c.previousChunks),
+                    output: _parsePartialOutput(c.output),
+                  ),
+                ),
+        );
+
+        // An aborted or failed response carries no output; `_parseOutput`
+        // returns null for it so the response (and its resumable history)
+        // survives a structured-output call.
+        return GenerateResponseHelper<Output>(
+          raw.rawResponse,
+          request: raw.modelRequest,
+          output: _parseOutput(raw.output),
+          cause: raw.cause,
         );
       },
       input: input,
@@ -355,8 +469,8 @@ final class ExecutablePrompt<Input> {
   Future<void> _renderSystem(Input? input, List<Message> messages) async {
     if (_config.system != null) {
       // Handlebars template (Future-based memoization for concurrency safety)
-      _compiledSystem ??= _dotpromptRegistry.compile(_config.system!);
-      final compiled = await _compiledSystem!;
+      _templates.system ??= _dotpromptRegistry.compile(_config.system!);
+      final compiled = await _templates.system!;
       final rendered = await compiled.render(
         dp.DataArgument(input: _inputToMap(input)),
       );
@@ -378,10 +492,10 @@ final class ExecutablePrompt<Input> {
   ) async {
     if (_config.messagesTemplate != null) {
       // Handlebars template for messages
-      _compiledMessages ??= _dotpromptRegistry.compile(
+      _templates.messages ??= _dotpromptRegistry.compile(
         _config.messagesTemplate!,
       );
-      final compiled = await _compiledMessages!;
+      final compiled = await _templates.messages!;
       final rendered = await compiled.render(
         dp.DataArgument(
           input: _inputToMap(input),
@@ -402,8 +516,8 @@ final class ExecutablePrompt<Input> {
   Future<void> _renderUserPrompt(Input? input, List<Message> messages) async {
     if (_config.prompt != null) {
       // Handlebars template (Future-based memoization for concurrency safety)
-      _compiledPrompt ??= _dotpromptRegistry.compile(_config.prompt!);
-      final compiled = await _compiledPrompt!;
+      _templates.prompt ??= _dotpromptRegistry.compile(_config.prompt!);
+      final compiled = await _templates.prompt!;
       final rendered = await compiled.render(
         dp.DataArgument(input: _inputToMap(input)),
       );
@@ -451,15 +565,16 @@ Map<String, dynamic>? _configToMap(dynamic config) {
 /// This creates both a `PromptAction` (registered as actionType
 /// 'executable-prompt') and returns an [ExecutablePrompt] that can be called
 /// directly.
-ExecutablePrompt<Input> definePromptAction<CustomOptions, Input>(
+ExecutablePrompt<Input, Output>
+definePromptAction<Input, Output, CustomOptions>(
   Registry registry,
   DotpromptRegistry dotpromptRegistry,
-  PromptConfig<CustomOptions, Input> config, {
+  PromptConfig<Input, Output, CustomOptions> config, {
   Map<String, dynamic>? metadata,
 }) {
   final promptMetadata = _buildPromptMetadata(config, metadata);
 
-  final executablePrompt = ExecutablePrompt<Input>._(
+  final executablePrompt = ExecutablePrompt<Input, Output>._(
     registry: registry,
     dotpromptRegistry: dotpromptRegistry,
     config: config,
@@ -480,8 +595,8 @@ ExecutablePrompt<Input> definePromptAction<CustomOptions, Input>(
 }
 
 /// Builds prompt metadata for registry/reflection purposes.
-Map<String, dynamic> _buildPromptMetadata<CustomOptions, Input>(
-  PromptConfig<CustomOptions, Input> config,
+Map<String, dynamic> _buildPromptMetadata<Input, Output, CustomOptions>(
+  PromptConfig<Input, Output, CustomOptions> config,
   Map<String, dynamic>? extraMetadata,
 ) {
   return {
@@ -516,11 +631,13 @@ Map<String, dynamic> _buildPromptMetadata<CustomOptions, Input>(
 /// [GenerateActionOptions] (i.e., the generate request).
 base class PromptAction<Input>
     extends Action<Input, GenerateActionOptions, void, void> {
-  final ExecutablePrompt<Input>? _executablePrompt;
+  // Output-erased: a prompt of any output type is stored here, and
+  // `lookupPrompt` re-types it on the way out.
+  final ExecutablePrompt<Input, dynamic>? _executablePrompt;
 
   PromptAction({
     required super.name,
-    ExecutablePrompt<Input>? executablePrompt,
+    ExecutablePrompt<Input, dynamic>? executablePrompt,
     PromptFn<Input>? fn,
     super.inputSchema,
     super.description,
@@ -546,7 +663,7 @@ base class PromptAction<Input>
 
   /// The executable prompt instance, if this action was created via
   /// [definePromptAction].
-  ExecutablePrompt<Input>? get executablePrompt => _executablePrompt;
+  ExecutablePrompt<Input, dynamic>? get executablePrompt => _executablePrompt;
 }
 
 /// Legacy prompt function type for backwards compatibility.
@@ -569,20 +686,50 @@ Map<String, dynamic> _promptActionMetadata(
 }
 
 /// Looks up a prompt by name in the registry and returns its
-/// [ExecutablePrompt].
-Future<ExecutablePrompt> lookupPrompt(
+/// [ExecutablePrompt], typed as `ExecutablePrompt<Input, Output>`.
+///
+/// The registry does not retain the prompt's input type, so [Input] is purely
+/// the caller's assertion; rendering serializes whatever it is handed.
+/// [Output] is backed by a real schema, resolved in this order:
+///
+/// 1. [outputSchema], when the caller supplies one (the usual case for a
+///    `.prompt` file, which has a JSON schema but no Dart type);
+/// 2. the schema the prompt was defined with, when it produces an [Output];
+/// 3. otherwise this throws, unless [Output] is unconstrained (`dynamic`).
+///
+/// Failing here, rather than on a cast inside the eventual response, keeps the
+/// error at the call that has to change.
+Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
   Registry registry,
   String name, {
   String? variant,
+  SchemanticType<Output>? outputSchema,
 }) async {
+  final label = 'Prompt $name${variant != null ? ' (variant $variant)' : ''}';
   final lookupName = variant != null ? '$name.$variant' : name;
   final action = await registry.lookupAction(.executablePrompt, lookupName);
-  if (action != null && action is PromptAction) {
-    final ep = action.executablePrompt;
-    if (ep != null) return ep;
+
+  final found = action is PromptAction ? action.executablePrompt : null;
+  if (found == null) {
+    throw GenkitException('$label not found', status: StatusCodes.NOT_FOUND);
   }
-  throw GenkitException(
-    'Prompt $name${variant != null ? ' (variant $variant)' : ''} not found',
-    status: StatusCodes.NOT_FOUND,
-  );
+
+  final defined = found._outputSchema;
+  final resolved =
+      outputSchema ?? (defined is SchemanticType<Output> ? defined : null);
+  if (resolved == null && !_isUnconstrained<Output>()) {
+    throw GenkitException(
+      '$label was not defined with an output schema for $Output. Pass '
+      'outputSchema: to prompt<$Input, $Output>(), or look it up untyped.',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+  return ExecutablePrompt<Input, Output>._retyped(found, resolved);
 }
+
+/// Whether [T] is an unconstrained type argument, i.e. the caller did not pin
+/// an output type and raw JSON can pass through unparsed.
+///
+/// True for `dynamic`, `Object`, and `Object?`, which any JSON value already
+/// satisfies; false for a real type like `Joke`, which needs a schema to parse.
+bool _isUnconstrained<T>() => <Object>[] is List<T>;
