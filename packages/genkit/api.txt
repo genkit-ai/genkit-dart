@@ -1333,7 +1333,7 @@ package:genkit/experimental.dart (experimental):
     close (method: Future<void> Function())
     send (method: void Function(Request))
   BidiModel (class<CustomOptions> extends Action<ModelRequest, ModelResponse, ModelResponseChunk, ModelRequest> implements BidiModelRef<CustomOptions>, base, experimental):
-    new (constructor: BidiModel<CustomOptions> Function({SchemanticType<CustomOptions>? customOptions, required Future<ModelResponse> Function(ModelRequest?, ActionFnArg<ModelResponseChunk, ModelRequest, ModelRequest>) fn, Map<String, dynamic>? metadata, required String name}))
+    new (constructor: BidiModel<CustomOptions> Function({SchemanticType<CustomOptions>? customOptions, required Future<ModelResponse> Function(Stream<ModelRequest>, ActionFnArg<ModelResponseChunk, ModelRequest, ModelRequest>) fn, Map<String, dynamic>? metadata, required String name}))
     customOptions (getter: SchemanticType<CustomOptions>?)
   BidiModelRef (class<CustomOptions> extends Object, abstract, interface, experimental):
     customOptions (getter: SchemanticType<CustomOptions>?)
@@ -1660,7 +1660,6 @@ package:genkit/genkit.dart:
   $ToolResponsePart (see above)
   Action (class<Input, Output, Chunk, Init> extends ActionMetadata<Input, Output, Chunk, Init>, base):
     new (constructor: Action<Input, Output, Chunk, Init> Function({required ActionType actionType, String? description, required Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Init>? initSchema, SchemanticType<Input>? inputSchema, String? key, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema}))
-    fn (getter: Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>))
     manifestOutputSchema (getter: SchemanticType<dynamic>?)
     call (method: Future<Output> Function(Input?, {CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk)? onChunk, void Function({required String spanId, required String traceId})? onTraceStart}))
     run (method: Future<RunResult<Output>> Function(Input?, {CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk)? onChunk, void Function({required String spanId, required String traceId})? onTraceStart}))
@@ -1733,7 +1732,7 @@ package:genkit/genkit.dart:
   EmbedRequest (see above)
   EmbedResponse (see above)
   Embedder (class<CustomOptions> extends Action<EmbedRequest, EmbedResponse, void, void> implements EmbedderRef<CustomOptions>, base):
-    new (constructor: Embedder<CustomOptions> Function({SchemanticType<CustomOptions>? customOptions, required Future<EmbedResponse> Function(EmbedRequest?, ActionFnArg<void, EmbedRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
+    new (constructor: Embedder<CustomOptions> Function({SchemanticType<CustomOptions>? customOptions, required Future<EmbedResponse> Function(EmbedRequest, ActionFnArg<void, EmbedRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
     customOptions (getter: SchemanticType<CustomOptions>?)
     customOptions= (setter: SchemanticType<CustomOptions>?)
   EmbedderRef (class<CustomOptions> extends Object, abstract, interface):
@@ -1745,7 +1744,7 @@ package:genkit/genkit.dart:
   EvalRequest (see above)
   EvalStatusEnum (see above)
   Evaluator (class<CustomOptions> extends Action<EvalRequest, List<EvalFnResponse>, void, void>, base):
-    new (constructor: Evaluator<CustomOptions> Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest?, ActionFnArg<void, EvalRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
+    new (constructor: Evaluator<CustomOptions> Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest, ActionFnArg<void, EvalRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
   ExecutablePrompt (class<Input> extends Object, final):
     ref (getter: ({Map<String, dynamic>? metadata, String name}))
     call (method: Future<GenerateResponseHelper<dynamic>> Function(Input?, [PromptGenerateOptions<dynamic>?]))
@@ -1753,7 +1752,8 @@ package:genkit/genkit.dart:
     stream (method: ActionStream<GenerateResponseChunk<dynamic>, GenerateResponseHelper<dynamic>> Function(Input?, [PromptGenerateOptions<dynamic>?]))
   FinishReason (see above)
   Flow (class<Input, Output, Chunk, Init> extends Action<Input, Output, Chunk, Init>, base):
-    new (constructor: Flow<Input, Output, Chunk, Init> Function({required Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Init>? initSchema, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema}))
+    new (constructor: Flow<Input, Output, Chunk, Init> Function({required Future<Output> Function(Input, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Init>? initSchema, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema}))
+    bidi (constructor: Flow<Input, Output, Chunk, Init> Function({required Future<Output> Function(Stream<Input>, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Init>? initSchema, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema}), experimental)
   GenerateActionOptions (see above)
   GenerateActionOutputConfig (see above)
   GenerateActionOutputConfigInstructions (see above)
@@ -1855,7 +1855,7 @@ package:genkit/genkit.dart:
   Message (see above)
   MiddlewareRef (see above)
   Model (class<CustomOptions> extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void> implements ModelRef<CustomOptions>, base):
-    new (constructor: Model<CustomOptions> Function({SchemanticType<CustomOptions>? customOptions, required Future<ModelResponse> Function(ModelRequest?, ActionFnArg<ModelResponseChunk, ModelRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
+    new (constructor: Model<CustomOptions> Function({SchemanticType<CustomOptions>? customOptions, required Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
     config (getter: CustomOptions?)
     customOptions (getter: SchemanticType<CustomOptions>?)
   ModelInfo (see above)
@@ -2046,8 +2046,8 @@ package:genkit/genkit.dart:
   PartExtension (see above)
   ToolRequestPartExtension (see above)
   ActionFn (type alias<Input, Output, Chunk, Init> for Future<Output> Function(Input, ActionFnArg<Chunk, Input, Init>))
-  InternalActionFn (type alias<Input, Output, Chunk, Init> for Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>))
   PromptFn (type alias<Input> for Future<GenerateActionOptions> Function(Input, ActionFnArg<void, Input, void>))
+  RawActionFn (type alias<Input, Output, Chunk, Init> for Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>))
   ResourceFn (type alias for Future<ResourceOutput> Function(ResourceInput, ActionFnArg<void, ResourceInput, void>))
   StreamingCallback (type alias<Chunk> for void Function(Chunk))
   TemplateHelperFn (type alias for dynamic Function(List<dynamic>, TemplateHelperOptions))
@@ -2287,7 +2287,7 @@ package:genkit/plugin.dart:
   PartExtension (see above)
   ToolRequestPartExtension (see above)
   ActionFn (see above)
-  InternalActionFn (see above)
+  RawActionFn (see above)
   StreamingCallback (see above)
   ToolFn (see above)
   TraceStartCallback (see above)

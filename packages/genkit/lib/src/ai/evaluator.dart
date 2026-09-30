@@ -19,10 +19,11 @@ base class Evaluator<CustomOptions>
     extends Action<EvalRequest, List<EvalFnResponse>, void, void> {
   Evaluator({
     required super.name,
-    required super.fn,
+    required ActionFn<EvalRequest, List<EvalFnResponse>, void, void> fn,
     super.metadata,
     required String description,
   }) : super(
+         fn: requireInput('Evaluator', name, fn),
          actionType: .evaluator,
          inputSchema: EvalRequest.$schema,
          description: description,

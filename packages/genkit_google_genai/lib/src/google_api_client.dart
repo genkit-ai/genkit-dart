@@ -120,7 +120,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
     return Embedder(
       name: '$name/$embedderName',
       fn: (req, ctx) async {
-        if (req == null || req.input.isEmpty) {
+        if (req.input.isEmpty) {
           return EmbedResponse(embeddings: []);
         }
         final service = await getApiClient();

@@ -12,17 +12,38 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:meta/meta.dart';
+
 import 'action.dart';
 
 base class Flow<Input, Output, Chunk, Init>
     extends Action<Input, Output, Chunk, Init> {
+  /// Creates a unary flow.
+  ///
+  /// A null input is rejected with `INVALID_ARGUMENT` unless `Input` is itself
+  /// nullable (or `void`/`dynamic`).
   Flow({
     required super.name,
-    required super.fn,
+    required ActionFn<Input, Output, Chunk, Init> fn,
     super.inputSchema,
     super.outputSchema,
     super.streamSchema,
     super.initSchema,
     super.metadata,
-  }) : super(actionType: .flow);
+  }) : super(fn: requireInput('Flow', name, fn), actionType: .flow);
+
+  /// Creates a bidirectional flow whose function receives the input stream.
+  ///
+  /// Experimental: bidirectional streaming is not covered by semver and may
+  /// change in any minor release.
+  @experimental
+  Flow.bidi({
+    required super.name,
+    required BidiActionFn<Input, Output, Chunk, Init> fn,
+    super.inputSchema,
+    super.outputSchema,
+    super.streamSchema,
+    super.initSchema,
+    super.metadata,
+  }) : super(fn: bidiInput('Bidi flow', name, fn), actionType: .flow);
 }

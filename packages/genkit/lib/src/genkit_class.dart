@@ -162,12 +162,7 @@ final class Genkit extends GenkitAI {
   }) {
     final flow = Flow(
       name: name,
-      fn: (input, context) {
-        if (input == null && inputSchema != null && null is! Input) {
-          throw ArgumentError('Flow "$name" requires a non-null input.');
-        }
-        return fn(input as Input, context);
-      },
+      fn: fn,
       inputSchema: inputSchema,
       outputSchema: outputSchema,
       streamSchema: streamSchema,
@@ -427,9 +422,7 @@ final class Genkit extends GenkitAI {
     final model = Model(
       name: name,
       metadata: info == null ? null : {'model': info.toJson()},
-      fn: (input, context) {
-        return fn(input!, context);
-      },
+      fn: fn,
     );
     registry.register(model);
     return model;
@@ -460,12 +453,7 @@ final class Genkit extends GenkitAI {
     required String name,
     required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
   }) {
-    final embedder = Embedder(
-      name: name,
-      fn: (input, context) {
-        return fn(input!, context);
-      },
-    );
+    final embedder = Embedder(name: name, fn: fn);
     registry.register(embedder);
     return embedder;
   }
@@ -500,13 +488,7 @@ final class Genkit extends GenkitAI {
     required String description,
     required ActionFn<EvalRequest, List<EvalFnResponse>, void, void> fn,
   }) {
-    final evaluator = Evaluator(
-      name: name,
-      description: description,
-      fn: (input, context) {
-        return fn(input!, context);
-      },
-    );
+    final evaluator = Evaluator(name: name, description: description, fn: fn);
     registry.register(evaluator);
     return evaluator;
   }

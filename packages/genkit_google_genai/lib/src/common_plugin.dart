@@ -93,7 +93,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         String? apiKey;
 
         final isJsonMode =
-            req!.output?.format == 'json' ||
+            req.output?.format == 'json' ||
             req.output?.contentType == 'application/json';
 
         if (customOptions == GeminiTtsOptions.$schema) {

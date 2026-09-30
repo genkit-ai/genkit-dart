@@ -47,10 +47,11 @@ base class Embedder<CustomOptions>
 
   Embedder({
     required super.name,
-    required super.fn,
+    required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
     super.metadata,
     this.customOptions,
   }) : super(
+         fn: requireInput('Embedder', name, fn),
          actionType: .embedder,
          inputSchema: EmbedRequest.$schema,
          outputSchema: EmbedResponse.$schema,

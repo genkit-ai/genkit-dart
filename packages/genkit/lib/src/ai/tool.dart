@@ -234,18 +234,15 @@ base class Tool<Input, Output>
          // it is registered and resolved under `ActionType.tool` (`tool.v2`).
          metadata: {...?metadata, 'type': ActionType.tool.value},
          actionType: .tool,
-         fn: (input, ctx) async {
-           if (input == null && inputSchema != null && null is! Input) {
-             throw ArgumentError('Tool "$name" requires a non-null input.');
-           }
-           final result = await fn(input as Input, ToolFnArgs(ctx));
+         fn: requireInput('Tool', name, (input, ctx) async {
+           final result = await fn(input, ToolFnArgs(ctx));
            // Record the interrupt on the tool's telemetry span. This runs
            // inside the tool's span (see `Action.run` -> `runInNewSpan`).
            if (result is ToolInterruptResult<Output>) {
              setCustomMetadataAttributes({'interrupt': result.data ?? true});
            }
            return result;
-         },
+         }),
        );
 
   // A tool's base `outputSchema` describes the wrapper `ToolResult<Output>`,

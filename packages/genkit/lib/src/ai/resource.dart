@@ -51,12 +51,7 @@ base class ResourceAction
          inputSchema: ResourceInput.$schema,
          outputSchema: ResourceOutput.$schema,
          metadata: _resourceMetadata(description, metadata),
-         fn: (input, ctx) {
-           if (input == null) {
-             throw ArgumentError('Resource "$name" requires a non-null input.');
-           }
-           return fn(input, ctx);
-         },
+         fn: requireInput('Resource', name, fn),
        );
 
   bool matches(ResourceInput input) => _matches(input);
