@@ -1870,8 +1870,9 @@ package:genkit/genkit.dart:
   OutputConfig (see above)
   Part (see above)
   PromptAction (class<Input> extends Action<Input, GenerateActionOptions, void, void>, base):
-    new (constructor: PromptAction<Input> Function({String? description, ExecutablePrompt<Input, dynamic>? executablePrompt, Future<GenerateActionOptions> Function(Input, ActionFnArg<void, Input, void>)? fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name}))
-    executablePrompt (getter: ExecutablePrompt<Input, dynamic>?)
+    new (constructor: PromptAction<Input> Function({String? description, required Future<GenerateActionOptions> Function(Input, ActionFnArg<void, Input, void>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name}))
+    executable (constructor: PromptAction<Input> Function(ExecutablePrompt<Input, dynamic>, {String? description, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name}), internal)
+    executablePrompt (getter: ExecutablePrompt<Input, dynamic>?, internal)
   PromptConfig (class<Input, Output, CustomOptions> extends Object):
     new (constructor: PromptConfig<Input, Output, CustomOptions> Function({CustomOptions? config, String? description, SchemanticType<Input>? inputSchema, int? maxTurns, List<Message>? messages, String? messagesTemplate, Map<String, dynamic>? metadata, ModelRef<CustomOptions>? model, required String name, GenerateActionOutputConfig? output, SchemanticType<Output>? outputSchema, String? prompt, List<Part>? promptParts, bool? returnToolRequests, String? system, List<Part>? systemParts, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddlewareRef<dynamic>>? use, String? variant}))
     config (getter: CustomOptions?)

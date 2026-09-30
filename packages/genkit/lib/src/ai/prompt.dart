@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import 'package:dotprompt/dotprompt.dart' as dp;
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
@@ -591,11 +592,11 @@ definePromptAction<Input, Output, CustomOptions>(
   );
 
   // Register a PromptAction in the registry
-  final action = PromptAction<Input>(
+  final action = PromptAction<Input>.executable(
+    executablePrompt,
     name: config.fullName,
     description: config.description,
     inputSchema: config.inputSchema,
-    executablePrompt: executablePrompt,
     metadata: promptMetadata,
   );
   registry.register(action);
@@ -636,46 +637,74 @@ Map<String, dynamic> _buildPromptMetadata<Input, Output, CustomOptions>(
 
 /// The registered action for a prompt.
 ///
-/// When invoked, it renders the prompt template and returns
-/// [GenerateActionOptions] (i.e., the generate request).
+/// When invoked, it renders the prompt and returns [GenerateActionOptions]
+/// (i.e., the generate request).
 base class PromptAction<Input>
     extends Action<Input, GenerateActionOptions, void, void> {
   // Output-erased: a prompt of any output type is stored here, and
   // `lookupPrompt` re-types it on the way out.
   final ExecutablePrompt<Input, dynamic>? _executablePrompt;
 
+  /// A prompt whose request is built by [fn]. Backs
+  /// `Genkit.defineCustomPrompt` and plugin-provided prompts (e.g. MCP).
   PromptAction({
-    required super.name,
-    ExecutablePrompt<Input, dynamic>? executablePrompt,
-    PromptFn<Input>? fn,
-    super.inputSchema,
-    super.description,
+    required String name,
+    required PromptFn<Input> fn,
+    SchemanticType<Input>? inputSchema,
+    String? description,
     Map<String, dynamic>? metadata,
-  }) : _executablePrompt = executablePrompt,
-       super(
-         actionType: .executablePrompt,
-         outputSchema: GenerateActionOptions.$schema,
-         metadata: _promptActionMetadata(description, metadata),
+  }) : this._(
+         name: name,
+         inputSchema: inputSchema,
+         description: description,
+         metadata: metadata,
          fn: (input, ctx) async {
-           if (executablePrompt != null) {
-             return executablePrompt.render(input);
+           if (input == null && inputSchema != null && null is! Input) {
+             throw ArgumentError('Prompt "$name" requires a non-null input.');
            }
-           if (fn != null) {
-             if (input == null && inputSchema != null && null is! Input) {
-               throw ArgumentError('Prompt "$name" requires a non-null input.');
-             }
-             return fn(input as Input, ctx);
-           }
-           throw StateError('PromptAction has no executable prompt or fn');
+           return fn(input as Input, ctx);
          },
        );
 
-  /// The executable prompt instance, if this action was created via
-  /// [definePromptAction].
+  /// The registry entry for a template prompt; see [definePromptAction].
+  @internal
+  PromptAction.executable(
+    ExecutablePrompt<Input, dynamic> prompt, {
+    required String name,
+    SchemanticType<Input>? inputSchema,
+    String? description,
+    Map<String, dynamic>? metadata,
+  }) : this._(
+         name: name,
+         inputSchema: inputSchema,
+         description: description,
+         metadata: metadata,
+         executablePrompt: prompt,
+         fn: (input, ctx) => prompt.render(input),
+       );
+
+  PromptAction._({
+    required super.name,
+    required super.fn,
+    super.inputSchema,
+    super.description,
+    Map<String, dynamic>? metadata,
+    this._executablePrompt,
+  }) : super(
+         actionType: .executablePrompt,
+         outputSchema: GenerateActionOptions.$schema,
+         metadata: _promptActionMetadata(description, metadata),
+       );
+
+  /// The executable prompt, when this action was created by
+  /// [definePromptAction]; null for a [PromptFn]-backed prompt.
+  @internal
   ExecutablePrompt<Input, dynamic>? get executablePrompt => _executablePrompt;
 }
 
-/// Legacy prompt function type for backwards compatibility.
+/// Builds the generate request for a custom prompt from its [input].
+///
+/// See `Genkit.defineCustomPrompt`.
 typedef PromptFn<Input> =
     Future<GenerateActionOptions> Function(
       Input input,
