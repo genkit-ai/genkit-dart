@@ -16,10 +16,6 @@ import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
 import 'src/basic_types.dart' as bt;
 
-// `package:json_schema_builder` is an implementation detail: nothing from it
-// appears in this library's public API or in generated code, so its 0.x
-// releases cannot break schemantic users.
-
 export 'package:schemantic/src/flatten.dart' show SchemaFlatten;
 
 /// Annotation to mark a class as a schema definition.
