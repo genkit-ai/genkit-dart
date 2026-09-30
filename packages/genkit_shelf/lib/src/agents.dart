@@ -24,19 +24,22 @@ import 'router.dart';
 /// references the experimental [Agent] type.
 extension GenkitRouterAgents on GenkitRouter {
   /// Serves [agent] using the layout `remoteAgent(url: '<base><path>')`
-  /// expects:
+  /// expects. Companion routes are mounted only when the agent supports them:
   ///
-  /// - `POST <path>`: runs a turn (streams with `?stream=true`)
-  /// - `POST <path>/getSnapshot`: reads a snapshot, unless [hideGetSnapshot]
-  /// - `POST <path>/abort`: aborts a detached turn, unless [hideAbort]
+  /// - `POST <path>`: runs a turn (streams with `?stream=true`). Always.
+  /// - `POST <path>/getSnapshot`: reads a snapshot. Server-managed agents
+  ///   (defined with a session store), unless [hideGetSnapshot].
+  /// - `POST <path>/abort`: aborts a detached turn. Agents whose store can
+  ///   signal the running turn (the metadata's `abortable`), unless
+  ///   [hideAbort].
+  ///
+  /// So a client-managed agent gets only its turn route. The `hide*` flags
+  /// can only remove supported routes, never force-mount unsupported ones
+  /// (those could only answer with an error).
   ///
   /// [path] defaults to `'/<agent name>'`. [contextProvider] applies to every
-  /// route, so reading or aborting a snapshot is authorized the same way as
-  /// running a turn.
-  ///
-  /// The snapshot and abort routes need a session store; on a client-managed
-  /// agent they answer `400 FAILED_PRECONDITION`. Hide them if you don't want
-  /// them mounted at all. Future Genkit versions may add more companion
+  /// mounted route, so reading or aborting a snapshot is authorized the same
+  /// way as running a turn. Future Genkit versions may add more companion
   /// routes here (each with its own `hide*` flag).
   ///
   /// Throws an [ArgumentError] if [path] is invalid (see
@@ -55,15 +58,16 @@ extension GenkitRouterAgents on GenkitRouter {
     if (base == '/') {
       throw ArgumentError.value(path, 'path', "must not be '/'");
     }
+    final capabilities = _capabilitiesOf(agent);
     addAction(agent.action, path: base, contextProvider: contextProvider);
-    if (!hideGetSnapshot) {
+    if (capabilities.snapshots && !hideGetSnapshot) {
       addAction(
         agent.getSnapshotDataAction,
         path: '$base/getSnapshot',
         contextProvider: contextProvider,
       );
     }
-    if (!hideAbort) {
+    if (capabilities.abortable && !hideAbort) {
       addAction(
         agent.abortAgentAction,
         path: '$base/abort',
@@ -71,4 +75,26 @@ extension GenkitRouterAgents on GenkitRouter {
       );
     }
   }
+}
+
+/// Reads what [agent] supports from the `agent` entry of its turn action's
+/// metadata, the same descriptor every Genkit runtime publishes (and the Dev
+/// UI reads).
+({bool snapshots, bool abortable}) _capabilitiesOf(Agent<dynamic> agent) {
+  // The generated `AgentMetadata` getters cast lazily (and throw on a bad
+  // shape), so check the two fields up front instead.
+  final raw = agent.action.metadata['agent'];
+  if (raw is Map<String, dynamic> &&
+      raw['stateManagement'] is String &&
+      raw['abortable'] is bool) {
+    final meta = AgentMetadata.fromJson(raw);
+    return (
+      snapshots: meta.stateManagement == AgentStateManagement.server,
+      abortable: meta.abortable,
+    );
+  }
+  // Every `Agent` comes from defineAgent/defineCustomAgent, which always set
+  // this, so this is purely defensive: mount everything and let the actions
+  // report what they don't support.
+  return (snapshots: true, abortable: true);
 }

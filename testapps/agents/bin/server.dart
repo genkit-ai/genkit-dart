@@ -48,16 +48,15 @@ void main() async {
   registerSubAgents();
 
   final api = GenkitRouter()
-    // Client-managed (stateless) agent: the client holds the state, so there
-    // are no snapshots to read or abort.
-    ..addAgent(weatherAgentStateless, hideGetSnapshot: true, hideAbort: true)
     // Workspace browser flows used by the coding-agent page.
     ..addAction(listWorkspaceFiles, path: '/workspace/files')
     ..addAction(readWorkspaceFile, path: '/workspace/file');
 
-  // Server-managed agents (turn + getSnapshot + abort).
+  // Server-managed agents get turn + getSnapshot + abort; the client-managed
+  // weatherAgentStateless gets only its turn route.
   for (final agent in [
     weatherAgent,
+    weatherAgentStateless,
     bankingAgent,
     backgroundAgent,
     branchingAgent,

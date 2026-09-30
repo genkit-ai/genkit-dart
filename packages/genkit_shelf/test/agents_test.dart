@@ -39,6 +39,32 @@ Agent<dynamic> _defineGreeter(Genkit ai, String name, {SessionStore? store}) =>
       },
     );
 
+/// A persistent store without [SnapshotChangeNotifier], so an abort written to
+/// it can't reach the running turn and the agent reports `abortable: false`.
+final class _NonNotifyingStore implements SessionStore {
+  _NonNotifyingStore(this._inner);
+
+  final SessionStore _inner;
+
+  @override
+  Future<SessionSnapshot?> getSnapshot({
+    String? snapshotId,
+    String? sessionId,
+    Map<String, dynamic>? context,
+  }) => _inner.getSnapshot(
+    snapshotId: snapshotId,
+    sessionId: sessionId,
+    context: context,
+  );
+
+  @override
+  Future<String?> saveSnapshot(
+    String? snapshotId,
+    SnapshotMutator mutator, {
+    Map<String, dynamic>? context,
+  }) => _inner.saveSnapshot(snapshotId, mutator, context: context);
+}
+
 Map<String, dynamic> _bearerAuth(Request request) {
   final auth = request.headers['authorization'];
   if (auth != 'Bearer secret') throw Exception('unauthorized');
@@ -145,7 +171,7 @@ void main() {
     expect((await post('$base/greeter/abort', body)).statusCode, 404);
   });
 
-  test('client-managed agent companions answer FAILED_PRECONDITION', () async {
+  test('client-managed agent gets only its turn route', () async {
     final stateless = _defineGreeter(ai, 'stateless');
     final base = await serve(GenkitRouter()..addAgent(stateless));
 
@@ -154,11 +180,26 @@ void main() {
     ).chat().send(text: 'hi');
     expect(res.text, 'hello null');
 
-    final response = await post('$base/stateless/getSnapshot', {
-      'snapshotId': 'x',
+    final body = {'snapshotId': 'x'};
+    expect((await post('$base/stateless/getSnapshot', body)).statusCode, 404);
+    expect((await post('$base/stateless/abort', body)).statusCode, 404);
+  });
+
+  test('store that cannot signal the turn gets no abort route', () async {
+    final greeter = _defineGreeter(
+      ai,
+      'greeter',
+      store: _NonNotifyingStore(InMemorySessionStore()),
+    );
+    final base = await serve(GenkitRouter()..addAgent(greeter));
+
+    final agent = remoteAgent(url: '$base/greeter');
+    final res = await agent.chat().send(text: 'hi');
+    expect(await agent.getSnapshot(snapshotId: res.snapshotId), isNotNull);
+    final abort = await post('$base/greeter/abort', {
+      'snapshotId': res.snapshotId,
     });
-    expect(response.statusCode, 400);
-    expect((jsonDecode(response.body) as Map)['status'], 'FAILED_PRECONDITION');
+    expect(abort.statusCode, 404);
   });
 
   test('throws on a custom path with a trailing slash or at the root', () {
@@ -172,7 +213,12 @@ void main() {
   });
 
   test('throws when an agent route collides with an existing path', () {
-    final greeter = _defineGreeter(ai, 'greeter');
+    // Needs a store: a client-managed agent has no `/abort` route to collide.
+    final greeter = _defineGreeter(
+      ai,
+      'greeter',
+      store: InMemorySessionStore(),
+    );
     final echo = ai.defineFlow(
       name: 'echo',
       fn: (String input, _) async => input,

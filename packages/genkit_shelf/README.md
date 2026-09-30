@@ -125,21 +125,21 @@ import 'package:genkit_shelf/genkit_shelf.dart';
 
 final genkit = GenkitRouter()
   ..addAgent(weatherAgent)
-  ..addAgent(bankingAgent, contextProvider: bearerAuth)
-  ..addAgent(statelessAgent, hideGetSnapshot: true, hideAbort: true);
+  ..addAgent(bankingAgent, contextProvider: bearerAuth, hideAbort: true)
+  ..addAgent(statelessAgent);
 
 await genkit.serve();
 ```
 
-Each agent gets the routes that `remoteAgent` from `package:genkit/client.dart` expects:
+Each agent gets the routes that `remoteAgent` from `package:genkit/client.dart` expects, depending on what the agent supports:
 
-| Route | Action |
+| Route | Mounted when |
 | --- | --- |
-| `POST /<name>` | run a turn |
-| `POST /<name>/getSnapshot` | read a snapshot (unless `hideGetSnapshot`) |
-| `POST /<name>/abort` | abort a detached turn (unless `hideAbort`) |
+| `POST /<name>` | always (runs a turn) |
+| `POST /<name>/getSnapshot` | the agent has a session store, unless `hideGetSnapshot` |
+| `POST /<name>/abort` | the agent's store can signal a running turn, unless `hideAbort` |
 
-The `contextProvider` applies to all of them. The snapshot and abort routes need a session store. On a client-managed agent they answer `400 FAILED_PRECONDITION`, so you'll usually hide them there.
+So a client-managed (store-less) agent gets only its turn route. All the built-in stores support abort. The `contextProvider` applies to every mounted route.
 
 ```dart
 final agent = remoteAgent(url: 'http://localhost:3400/weatherAgent');

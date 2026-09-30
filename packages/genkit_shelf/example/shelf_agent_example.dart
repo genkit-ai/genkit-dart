@@ -24,8 +24,9 @@ import 'package:shelf/shelf.dart';
 // To run it:
 //   GEMINI_API_KEY=... dart run example/shelf_agent_example.dart
 //
-// Each agent gets a turn route plus `/getSnapshot` and `/abort`, which is the
-// layout `remoteAgent` from `package:genkit/client.dart` expects:
+// Each agent gets a turn route, plus `/getSnapshot` and `/abort` when it has a
+// session store. That's the layout `remoteAgent` from
+// `package:genkit/client.dart` expects:
 //
 //   final agent = remoteAgent(url: 'http://localhost:3400/assistant');
 //   final res = await agent.chat().send(text: 'Hi!');
@@ -48,7 +49,8 @@ void main() async {
   );
 
   // Client-managed agent: the client round-trips the state itself, so there
-  // are no snapshots to read or abort.
+  // are no snapshots to read or abort. addAgent detects this and mounts only
+  // the turn route.
   final statelessAssistant = ai.defineAgent(
     name: 'statelessAssistant',
     model: googleAI.gemini('gemini-flash-latest'),
@@ -56,7 +58,8 @@ void main() async {
   );
 
   // Server-managed agent that only signed-in users may call. The context
-  // provider guards the turn, getSnapshot and abort routes alike.
+  // provider guards the turn and getSnapshot routes alike; abort is hidden
+  // because this agent's turns are short and never detached.
   final accountAgent = ai.defineCustomAgent(
     name: 'accountAgent',
     store: InMemorySessionStore(),
@@ -72,9 +75,9 @@ void main() async {
   );
 
   final genkit = GenkitRouter()
-    ..addAgent(assistant)
-    ..addAgent(statelessAssistant, hideGetSnapshot: true, hideAbort: true)
-    ..addAgent(accountAgent, contextProvider: _bearerAuth);
+    ..addAgent(assistant) // turn + getSnapshot + abort
+    ..addAgent(statelessAssistant) // turn only
+    ..addAgent(accountAgent, contextProvider: _bearerAuth, hideAbort: true);
 
   await genkit.serve(port: 3400, cors: const CorsOptions());
 }
