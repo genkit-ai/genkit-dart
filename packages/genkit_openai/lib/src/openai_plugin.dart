@@ -459,7 +459,7 @@ class OpenAIPlugin extends GenkitPlugin {
       return switch (_kindOf(name, info: info, declared: declared?.kind)) {
         OpenAIModelKind.speech => _createSpeechModel(name, info),
         OpenAIModelKind.transcription => _createTranscriptionModel(name, info),
-        OpenAIModelKind.chat => _createModel(name, info),
+        _ => _createModel(name, info),
       };
     }
     // A provider with no embeddings API declines the lookup rather than

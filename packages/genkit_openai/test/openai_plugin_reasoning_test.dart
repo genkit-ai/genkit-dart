@@ -128,7 +128,7 @@ void main() {
     test('reaches the request for the GPT-5 family', () async {
       final captured = <Map<String, dynamic>>[];
       await genkitWith(reasoningClient(captured)).generate(
-        model: OpenAIModels.gpt5Mini,
+        model: openAI.model('gpt-5-mini'),
         prompt: 'think',
         config: OpenAIChatOptions(reasoningEffort: 'minimal'),
       );
@@ -142,7 +142,7 @@ void main() {
       for (final effort in ['none', 'low', 'medium', 'high', 'xhigh', 'max']) {
         final captured = <Map<String, dynamic>>[];
         await genkitWith(reasoningClient(captured)).generate(
-          model: OpenAIModels.gpt56Sol,
+          model: openAI.model('gpt-5.6-sol'),
           prompt: 'think',
           config: OpenAIChatOptions(reasoningEffort: effort),
         );
@@ -164,7 +164,7 @@ void main() {
     test('verbosity reaches the request', () async {
       final captured = <Map<String, dynamic>>[];
       await genkitWith(reasoningClient(captured)).generate(
-        model: OpenAIModels.gpt5,
+        model: openAI.model('gpt-5'),
         prompt: 'hi',
         config: OpenAIChatOptions(verbosity: 'low'),
       );
@@ -179,7 +179,7 @@ void main() {
 
       await expectLater(
         genkitWith(reasoningClient(captured)).generate(
-          model: OpenAIModels.gpt4o,
+          model: openAI.model('gpt-4o'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'high'),
         ),
@@ -217,7 +217,7 @@ void main() {
 
       await expectLater(
         genkitWith(reasoningClient(captured)).generate(
-          model: OpenAIModels.o4Mini,
+          model: openAI.model('o4-mini'),
           prompt: 'hi',
           config: OpenAIChatOptions(version: 'gpt-4o', reasoningEffort: 'high'),
         ),
@@ -228,7 +228,7 @@ void main() {
       // And the reverse: a reasoning `version` behind a non-reasoning action
       // is allowed through, because that is the model that will answer.
       await genkitWith(reasoningClient(captured)).generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'hi',
         config: OpenAIChatOptions(version: 'o3', reasoningEffort: 'high'),
       );
@@ -260,7 +260,7 @@ void main() {
       // `o4-mini` answers "does not support 'none' with this model".
       await expectLater(
         genkitWith(reasoningClient([])).generate(
-          model: OpenAIModels.gpt4o,
+          model: openAI.model('gpt-4o'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'none'),
         ),
@@ -294,7 +294,7 @@ void main() {
       // without knowing which models reason, so it is the one named.
       await expectLater(
         genkitWith(reasoningClient([])).generate(
-          model: OpenAIModels.gpt4o,
+          model: openAI.model('gpt-4o'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'extreme'),
         ),
@@ -309,7 +309,7 @@ void main() {
       // caller set or what OpenAI will answer for.
       await expectLater(
         genkitWith(reasoningClient([])).generate(
-          model: OpenAIModels.gpt4o,
+          model: openAI.model('gpt-4o'),
           prompt: 'hi',
           config: OpenAIChatOptions(
             version: 'gpt-4o-2024-11-20',
@@ -330,7 +330,7 @@ void main() {
           reasoningClient([]),
           baseUrl: 'https://api.openai.com/v1',
         ).generate(
-          model: OpenAIModels.gpt4o,
+          model: openAI.model('gpt-4o'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'high'),
         ),

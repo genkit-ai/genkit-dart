@@ -28,7 +28,7 @@ Flow<String, String, void, void> defineDeepSeekFlow(Genkit ai) {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: prompt,
       );
       return response.text;
@@ -48,7 +48,7 @@ Flow<String, String, void, void> defineDeepSeekThinkingFlow(Genkit ai) {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: prompt,
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );

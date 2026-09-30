@@ -31,6 +31,8 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/known_deepseek_models.dart';
+import 'package:genkit_openai/src/known_models.dart';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -63,7 +65,7 @@ void main() {
   group('DeepSeek integration', () {
     test('generates text', () async {
       final response = await newAi().generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'Say "hello" and nothing else.',
       );
 
@@ -77,7 +79,7 @@ void main() {
       // 'an effort of none turns thinking off' below, where it changes what
       // comes back, and by the wire tests for the body shape.
       final response = await newAi().generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'Is 8051 prime? Think it through, then answer yes or no.',
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );
@@ -98,7 +100,7 @@ void main() {
       // back and reach the caller as they are produced. DeepSeek is the only
       // provider that exercises this mapping at all.
       final stream = newAi().generateStream(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'Is 91 prime? Think it through, then answer yes or no.',
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );
@@ -131,7 +133,7 @@ void main() {
 
     test('an effort of none turns thinking off', () async {
       final response = await newAi().generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'What is 2 + 2? Answer with the number only.',
         config: OpenAIChatOptions(reasoningEffort: 'none'),
       );
@@ -148,7 +150,7 @@ void main() {
       // The defect this branch fixes: sent as `max_completion_tokens` the
       // limit is ignored silently, and the answer runs to its natural end.
       final response = await newAi().generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'Write five paragraphs about the sea.',
         config: OpenAIChatOptions(reasoningEffort: 'none', maxTokens: 16),
       );
@@ -160,7 +162,7 @@ void main() {
       // DeepSeek has no json_schema, so this exercises json_object plus the
       // schema the plugin puts in the prompt.
       final response = await newAi().generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'Give me a city and its country.',
         outputFormat: 'json',
         outputSchema: CityFact.$schema,
@@ -187,7 +189,7 @@ void main() {
       );
 
       final response = await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'Use the tool to get the population of London, then say it.',
         toolNames: ['getPopulation'],
       );

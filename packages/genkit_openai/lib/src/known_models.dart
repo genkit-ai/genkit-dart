@@ -16,6 +16,11 @@ import 'package:genkit/plugin.dart';
 
 import 'utils.dart';
 
+// This catalog and its DeepSeek, xAI and embedder siblings are internal
+// metadata, not API: they only enrich names that resolve anyway, and entries
+// are added, retired and removed with the providers' model lists in any
+// release. Callers name models by string (`openAI.model('gpt-5.5')`).
+
 // Capability presets shared by the catalog entries below.
 //
 // Structured outputs (`response_format: json_schema` with `strict`) arrived
