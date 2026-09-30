@@ -473,22 +473,22 @@ final class Genkit extends GenkitAI {
   /// Defines a dynamic provider for actions.
   ///
   /// [getActionFn] receives the requested [ActionType] and name so a single
-  /// provider can serve tools, prompts, and resources. [cacheTtlMillis]
-  /// controls how long the provider's listing is cached (defaults to three
-  /// seconds; a negative value disables caching).
+  /// provider can serve tools, prompts, and resources. [cacheTtl] controls how
+  /// long the provider's listing is cached: three seconds when null, and
+  /// [Duration.zero] disables caching.
   DynamicActionProvider defineDynamicActionProvider({
     required String name,
     FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn,
     FutureOr<Action?> Function(ActionType actionType, String name)? getActionFn,
     Map<String, dynamic>? metadata,
-    int? cacheTtlMillis,
+    Duration? cacheTtl,
   }) {
     final provider = DynamicActionProvider(
       name: name,
       listActionsFn: listActionsFn,
       getActionFn: getActionFn,
       metadata: metadata,
-      cacheTtlMillis: cacheTtlMillis,
+      cacheTtl: cacheTtl,
     );
     registry.register(provider);
     return provider;

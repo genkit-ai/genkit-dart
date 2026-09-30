@@ -95,10 +95,10 @@ class McpClientOptions {
 
   /// Cache TTL for remote action listings.
   ///
-  /// Positive values override server hints, negative values disable caching,
-  /// and `null` or zero uses the MCP 2026-07-28 server `ttlMs` hint when
-  /// available, falling back to three seconds.
-  final int? cacheTtlMillis;
+  /// `null` uses the MCP 2026-07-28 server `ttlMs` hint when available,
+  /// falling back to three seconds. A positive value overrides the hint, and
+  /// [Duration.zero] disables caching. Negative values are rejected.
+  final Duration? cacheTtl;
 
   const McpClientOptions({
     required this.name,
@@ -109,7 +109,7 @@ class McpClientOptions {
     this.samplingHandler,
     this.elicitationHandler,
     this.notificationHandler,
-    this.cacheTtlMillis,
+    this.cacheTtl,
   });
 }
 
@@ -141,6 +141,7 @@ class GenkitMcpClient {
 
   GenkitMcpClient(this.options)
     : _roots = List.of(options.mcpServer.roots ?? const []) {
+    checkCacheTtl(options.cacheTtl);
     _disabled = options.mcpServer.disabled;
     if (_disabled) {
       _readyCompleter.complete();
@@ -1340,7 +1341,7 @@ class GenkitMcpClient {
     return meta is Map ? meta['progressToken'] : null;
   }
 
-  int? get cacheTtlMillis => options.cacheTtlMillis;
+  Duration? get cacheTtl => options.cacheTtl;
 
   final Map<String, _McpClientActionDescriptor> _actionIndex = {};
   List<ActionMetadata> _cachedActions = [];
@@ -1541,28 +1542,22 @@ class GenkitMcpClient {
       ..clear()
       ..addAll(index);
     _cachedActions = actions;
-    final effectiveTtl = _effectiveCacheTtlMillis(serverTtlMillis);
-    if (_shouldUseCache() && effectiveTtl > 0) {
-      _cacheExpiresAt = DateTime.now().add(
-        Duration(milliseconds: effectiveTtl),
-      );
-    } else {
-      _cacheExpiresAt = null;
-    }
+    final effectiveTtl = _effectiveCacheTtl(serverTtlMillis);
+    _cacheExpiresAt = effectiveTtl > Duration.zero
+        ? DateTime.now().add(effectiveTtl)
+        : null;
     return actions;
   }
 
-  bool _shouldUseCache() {
-    return cacheTtlMillis == null || cacheTtlMillis! >= 0;
-  }
+  bool _shouldUseCache() => cacheTtl != Duration.zero;
 
-  int _effectiveCacheTtlMillis(int? serverTtlMillis) {
-    final configured = cacheTtlMillis;
-    if (configured != null && configured != 0) return configured.abs();
+  Duration _effectiveCacheTtl(int? serverTtlMillis) {
+    final configured = cacheTtl;
+    if (configured != null) return configured;
     if (_usesStatelessProtocol && serverTtlMillis != null) {
-      return serverTtlMillis;
+      return Duration(milliseconds: serverTtlMillis);
     }
-    return 3000;
+    return const Duration(seconds: 3);
   }
 
   static Future<List<Map<String, dynamic>>> _listAll(
