@@ -166,11 +166,26 @@ final class PromptRef {
   final String name;
 
   /// The prompt's registry metadata (`{'type': 'prompt', 'prompt': {...}}`).
+  ///
+  /// Read-only at every level.
   final Map<String, dynamic> metadata;
 
   PromptRef._(this.name, Map<String, dynamic> metadata)
-    : metadata = Map.unmodifiable(metadata);
+    : metadata = _freeze(metadata) as Map<String, dynamic>;
 }
+
+/// A read-only copy of [value], all the way down. Copying (rather than
+/// wrapping) also keeps callers' edits from reaching the prompt's own config,
+/// e.g. its `toolNames` list. String-keyed maps stay `Map<String, dynamic>`
+/// so callers can keep casting nested entries to that type.
+Object? _freeze(Object? value) => switch (value) {
+  Map<String, dynamic>() => Map<String, dynamic>.unmodifiable(
+    value.map((k, v) => MapEntry(k, _freeze(v))),
+  ),
+  Map() => Map.unmodifiable(value.map((k, v) => MapEntry(k, _freeze(v)))),
+  List() => List.unmodifiable(value.map(_freeze)),
+  _ => value,
+};
 
 /// An executable prompt that can render, generate, and stream.
 ///
