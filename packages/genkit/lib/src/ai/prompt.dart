@@ -158,13 +158,27 @@ class PromptGenerateOptions<CustomOptions> {
   });
 }
 
+/// Identifies a defined prompt: its registered name and metadata.
+///
+/// Obtained from [ExecutablePrompt.ref]; not constructed directly.
+final class PromptRef {
+  /// The full prompt name, including the variant (e.g. `greet.formal`).
+  final String name;
+
+  /// The prompt's registry metadata (`{'type': 'prompt', 'prompt': {...}}`).
+  final Map<String, dynamic> metadata;
+
+  PromptRef._(this.name, Map<String, dynamic> metadata)
+    : metadata = Map.unmodifiable(metadata);
+}
+
 /// An executable prompt that can render, generate, and stream.
 ///
 /// It acts as a callable that invokes `generate` with the rendered prompt
 /// template, and also provides `.render()` and `.stream()` methods.
 final class ExecutablePrompt<Input> {
-  /// A reference to the prompt (name + optional metadata).
-  final ({String name, Map<String, dynamic>? metadata}) ref;
+  /// A reference to the prompt (name + metadata).
+  final PromptRef ref;
 
   final Registry _registry;
   final DotpromptRegistry _dotpromptRegistry;
@@ -179,9 +193,9 @@ final class ExecutablePrompt<Input> {
     required this._registry,
     required this._dotpromptRegistry,
     required PromptConfig<dynamic, Input> config,
-    Map<String, dynamic>? metadata,
+    required Map<String, dynamic> metadata,
   }) : _config = config,
-       ref = (name: config.fullName, metadata: metadata);
+       ref = PromptRef._(config.fullName, metadata);
 
   /// Renders the prompt template with the given input, producing
   /// [GenerateActionOptions] suitable for the `generate` action.

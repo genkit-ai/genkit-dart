@@ -55,7 +55,8 @@ export 'src/ai/prompt.dart'
         PromptAction,
         PromptConfig,
         PromptFn,
-        PromptGenerateOptions;
+        PromptGenerateOptions,
+        PromptRef;
 export 'src/ai/resource.dart'
     show
         ResourceAction,

@@ -108,6 +108,12 @@ void main() {
 
       expect(ep, isA<ExecutablePrompt>());
       expect(ep.ref.name, equals('greet'));
+      expect(ep.ref.metadata['type'], equals('prompt'));
+      expect(
+        () => ep.ref.metadata['type'] = 'other',
+        throwsUnsupportedError,
+        reason: 'ref metadata is read-only',
+      );
     });
 
     test('registers a PromptAction in the registry', () async {
