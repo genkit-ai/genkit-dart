@@ -19,14 +19,13 @@ import 'package:test/test.dart';
 
 import 'wire_harness.dart';
 
-/// How an output schema reaches Anthropic: natively on beta, through the
-/// forced `return_output` tool on stable, and the rewriting each needs.
+/// How an output schema reaches Anthropic: natively as `output_config.format`
+/// on either surface, and the rewriting that needs.
 
 void main() {
   group('structured output on the wire', () {
     // `output_config.format` is served on either surface, so these run on the
-    // default one. An uncurated name never arrives here at all: it claims no
-    // constrained support, so core simulates and strips the schema first.
+    // default one.
     final schema = <String, dynamic>{
       r'$schema': 'https://json-schema.org/draft/2020-12/schema',
       'type': 'object',
@@ -78,6 +77,19 @@ void main() {
 
       expect(body['thinking'], {'type': 'enabled', 'budget_tokens': 1024});
       expect((body['output_config'] as Map)['format'], isNotNull);
+    });
+
+    test('an uncurated model name goes native too', () async {
+      // A model released after this plugin claims the same capabilities as a
+      // curated one, so its schema is not left to anyone else.
+      final body = await requestOnTheWire(
+        model: 'claude-future-model',
+        outputSchema: schema,
+      );
+
+      final format = (body['output_config'] as Map)['format'] as Map;
+      expect(format['type'], 'json_schema');
+      expect(body, isNot(contains('system')));
     });
 
     test('a dated snapshot of a capable model still goes native', () async {
@@ -445,6 +457,160 @@ void main() {
       expect(body, isNot(contains('output_config')));
     });
 
+    test('a recursive schema travels in the prompt', () async {
+      // `class Node { List<Node> children; }` compiles to a `$defs` entry that
+      // refers to itself, and Anthropic does not support recursive schemas.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          r'$ref': r'#/$defs/Node',
+          r'$defs': {
+            'Node': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+                'children': {
+                  'type': 'array',
+                  'items': {r'$ref': r'#/$defs/Node'},
+                },
+              },
+            },
+          },
+        },
+      );
+
+      expect(body, isNot(contains('output_config')));
+      expect(body['system'].toString(), contains('conform to the following'));
+      expect(body['system'].toString(), contains('children'));
+    });
+
+    test('recursion through another definition is found too', () async {
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          r'$ref': r'#/$defs/A',
+          r'$defs': {
+            'A': {
+              'type': 'object',
+              'properties': {
+                'b': {r'$ref': r'#/$defs/B'},
+              },
+            },
+            'B': {
+              'type': 'object',
+              'properties': {
+                'a': {r'$ref': r'#/$defs/A'},
+              },
+            },
+          },
+        },
+      );
+
+      expect(body, isNot(contains('output_config')));
+    });
+
+    test('a \$ref inside default data is not a reference', () async {
+      // `{"$ref": "#"}` as a `default` is an object *value* two characters
+      // wide, not a cycle. Reading it as one would send an expressible schema
+      // to the prompt instead of constraining it.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'cfg': {
+              'type': 'object',
+              'properties': {
+                'x': {'type': 'string'},
+              },
+              'default': {r'$ref': '#'},
+            },
+          },
+        },
+      );
+
+      expect((body['output_config'] as Map)['format'], isNotNull);
+      expect(body, isNot(contains('system')));
+    });
+
+    test('a \$ref inside enum or const data is not a reference', () async {
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'e': {
+              'type': 'object',
+              'enum': [
+                {r'$ref': '#'},
+              ],
+            },
+            'c': {
+              'type': 'object',
+              'const': {r'$ref': r'#/$defs/Node'},
+            },
+          },
+          r'$defs': {
+            'Node': {
+              'type': 'object',
+              'properties': {
+                'a': {'type': 'string'},
+              },
+            },
+          },
+        },
+      );
+
+      expect((body['output_config'] as Map)['format'], isNotNull);
+    });
+
+    test('recursion through a slash-bearing definition key is found', () async {
+      // `#/$defs/a~1b` names the definition `a/b`: `~1` is an escaped slash,
+      // so the key has to be escaped back before the two are compared.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          r'$ref': r'#/$defs/a~1b',
+          r'$defs': {
+            'a/b': {
+              'type': 'object',
+              'properties': {
+                'self': {r'$ref': r'#/$defs/a~1b'},
+              },
+            },
+          },
+        },
+      );
+
+      expect(body, isNot(contains('output_config')));
+      expect(body['system'].toString(), contains('conform to the following'));
+    });
+
+    test('a definition shared by two fields still goes native', () async {
+      // Reused, not recursive: `$defs/Pet` is reachable twice but never from
+      // itself.
+      final body = await requestOnTheWire(
+        model: 'claude-sonnet-4-5',
+        outputSchema: {
+          'type': 'object',
+          'properties': {
+            'first': {r'$ref': r'#/$defs/Pet'},
+            'second': {r'$ref': r'#/$defs/Pet'},
+          },
+          r'$defs': {
+            'Pet': {
+              'type': 'object',
+              'properties': {
+                'species': {'type': 'string'},
+              },
+            },
+          },
+        },
+      );
+
+      expect((body['output_config'] as Map)['format'], isNotNull);
+    });
+
     test('the prompt fallback keeps the caller\'s own system prompt', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
@@ -536,11 +702,8 @@ void main() {
 
     test('a caller toolChoice is dropped when there are no tools', () async {
       // Anthropic rejects a choice with nothing to choose from - "tool_choice.
-      // any may only be specified while providing tools". Newly reachable:
-      // an output schema used to always append `return_output`, so a caller's
-      // toolChoice always had a tool to refer to. Both routes get there now:
-      // the curated model goes native on beta, and the uncurated one is
-      // simulated by core, which strips the schema before it arrives.
+      // any may only be specified while providing tools" - and a native
+      // output schema adds no tool for one to refer to.
       for (final model in ['claude-sonnet-4-5', 'claude-future-model']) {
         final body = await requestOnTheWire(
           model: model,
