@@ -39,7 +39,9 @@ extension GenkitRouterAgents on GenkitRouter {
   /// them mounted at all. Future Genkit versions may add more companion
   /// routes here (each with its own `hide*` flag).
   ///
-  /// Throws an [ArgumentError] if any of the paths is already registered.
+  /// Throws an [ArgumentError] if [path] is invalid (see
+  /// [GenkitRouter.addAction]; `/` is rejected too, since the companion routes
+  /// are nested under it) or if any of the paths is already registered.
   void addAgent(
     Agent<dynamic> agent, {
     String? path,
@@ -48,6 +50,11 @@ extension GenkitRouterAgents on GenkitRouter {
     bool hideAbort = false,
   }) {
     final base = path ?? '/${agent.action.name}';
+    // addAction validates the rest; '/' alone is only invalid here, because
+    // the companions would become '//getSnapshot' and '//abort'.
+    if (base == '/') {
+      throw ArgumentError.value(path, 'path', "must not be '/'");
+    }
     addAction(agent.action, path: base, contextProvider: contextProvider);
     if (!hideGetSnapshot) {
       addAction(

@@ -161,6 +161,16 @@ void main() {
     expect((jsonDecode(response.body) as Map)['status'], 'FAILED_PRECONDITION');
   });
 
+  test('throws on a custom path with a trailing slash or at the root', () {
+    final greeter = _defineGreeter(ai, 'greeter');
+    final router = GenkitRouter();
+
+    expect(() => router.addAgent(greeter, path: '/chat/'), throwsArgumentError);
+    expect(() => router.addAgent(greeter, path: '/'), throwsArgumentError);
+    // Nothing was registered by the failed calls.
+    router.addAgent(greeter, path: '/chat');
+  });
+
   test('throws when an agent route collides with an existing path', () {
     final greeter = _defineGreeter(ai, 'greeter');
     final echo = ai.defineFlow(

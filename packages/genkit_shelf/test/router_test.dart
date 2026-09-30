@@ -17,6 +17,8 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
+// The middleware is internal; tested directly to control the inner response.
+import 'package:genkit_shelf/src/cors.dart' show corsMiddleware;
 import 'package:http/http.dart' as http;
 import 'package:shelf/shelf.dart';
 import 'package:shelf_router/shelf_router.dart';
@@ -147,6 +149,14 @@ void main() {
         throwsArgumentError,
       );
     });
+
+    test('throws on a path with a trailing slash', () {
+      final router = GenkitRouter();
+
+      expect(() => router.addAction(echo, path: '/echo/'), throwsArgumentError);
+      // The root path is allowed (e.g. serving one action under a mount).
+      router.addAction(echo, path: '/');
+    });
   });
 
   group('call', () {
@@ -259,6 +269,26 @@ void main() {
       expect(denied.headers['access-control-allow-methods'], isNull);
       final deniedPost = await postEcho('https://evil.dev');
       expect(deniedPost.headers['access-control-allow-origin'], isNull);
+    });
+
+    test('CORS appends to an existing Vary header', () async {
+      Future<String?> varyFor(String innerVary) async {
+        final handler = corsMiddleware(
+          const CorsOptions(allowedOrigins: ['https://a.dev']),
+        )((_) => Response.ok('', headers: {'Vary': innerVary}));
+        final response = await handler(
+          Request(
+            'POST',
+            Uri.parse('http://localhost/x'),
+            headers: {'origin': 'https://a.dev'},
+          ),
+        );
+        return response.headers['vary'];
+      }
+
+      expect(await varyFor('Accept-Encoding'), 'Accept-Encoding, Origin');
+      expect(await varyFor('origin'), 'origin');
+      expect(await varyFor('*'), '*');
     });
 
     test('CORS keeps streaming responses unbuffered', () async {

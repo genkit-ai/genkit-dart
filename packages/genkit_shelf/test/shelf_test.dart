@@ -67,6 +67,34 @@ class _FakeSpanContext implements SpanContext {
   void setMetadata(Map<String, Object?> metadata) {}
 }
 
+/// An action whose [run] override never calls `onTraceStart`, so the streaming
+/// handler must not wait for it before sending headers.
+final class _NoTraceAction extends Action<String, String, String, void> {
+  _NoTraceAction()
+    : super(
+        name: 'noTrace',
+        actionType: ActionType.flow,
+        inputSchema: .string(),
+        outputSchema: .string(),
+        streamSchema: .string(),
+        fn: (input, _) async => throw UnimplementedError(),
+      );
+
+  @override
+  Future<RunResult<String>> run(
+    String? input, {
+    StreamingCallback<String>? onChunk,
+    Map<String, dynamic>? context,
+    Stream<String>? inputStream,
+    void init,
+    TraceStartCallback? onTraceStart,
+    CancellationToken? cancel,
+  }) async {
+    onChunk?.call('chunk');
+    return RunResult(result: 'done $input', traceId: '', spanId: '');
+  }
+}
+
 void main() {
   late Genkit ai;
   HttpServer? server;
@@ -613,6 +641,27 @@ void main() {
     expect(response.headers.containsKey('x-genkit-trace-id'), isFalse);
     expect(response.headers.containsKey('x-genkit-span-id'), isFalse);
   });
+
+  test(
+    'Streaming does not wait for onTraceStart when it never fires',
+    () async {
+      server = await (GenkitRouter()..addAction(_NoTraceAction())).serve(
+        port: 0,
+      );
+      port = server!.port;
+
+      final action = defineRemoteAction(
+        url: 'http://localhost:$port/noTrace',
+        fromResponse: (data) => data as String,
+        fromStreamChunk: (data) => data as String,
+      );
+
+      final stream = action.stream(input: 'x');
+      expect(await stream.toList(), ['chunk']);
+      expect(await stream.onResult, 'done x');
+    },
+    timeout: const Timeout(Duration(seconds: 5)),
+  );
 
   test('Remote model', () async {
     final myModel = ai.defineModel(

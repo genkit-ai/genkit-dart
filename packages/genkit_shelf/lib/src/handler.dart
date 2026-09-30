@@ -149,8 +149,15 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
       // Trace/span ids are only known once the span starts, but headers must be
       // set before the streaming Response is returned. Capture them via
       // onTraceStart and await before building the response; the controller
-      // buffers any chunks emitted in the meantime.
+      // buffers any chunks emitted in the meantime. Every exit path completes
+      // the completer: `Action.run` can be overridden by subclasses that never
+      // call onTraceStart, and awaiting it would then hang the request.
       final traceInfo = Completer<({String traceId, String spanId})>();
+      void completeTraceInfoIfPending() {
+        if (!traceInfo.isCompleted) {
+          traceInfo.complete((traceId: '', spanId: ''));
+        }
+      }
 
       void sendChunk(String prefix, Map<String, dynamic> payload) {
         final chunk = '$prefix ${jsonEncode(payload)}$_streamDelimiter';
@@ -173,15 +180,13 @@ Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
             },
           )
           .then((result) {
+            completeTraceInfoIfPending();
             sendChunk('data:', {'result': result.result});
             controller.close();
           })
           .catchError((Object e) {
-            // Unblock header emission if the action failed before the span
-            // started (traceInfo would otherwise never complete).
-            if (!traceInfo.isCompleted) {
-              traceInfo.complete((traceId: '', spanId: ''));
-            }
+            // Also covers an action that failed before the span started.
+            completeTraceInfoIfPending();
             final mapped = _toShelfError(e);
             sendChunk('error:', {
               'error': {

@@ -57,8 +57,11 @@ final class GenkitRouter {
   /// [contextProvider] builds the action context from the request (typically
   /// from auth headers); throwing from it rejects the request with `403`.
   ///
-  /// Throws an [ArgumentError] if [path] doesn't start with `/` or is already
-  /// registered on this router.
+  /// Paths match exactly, so `/hello` and `/hello/` would be different routes.
+  /// To avoid that trap, a trailing `/` is rejected (except for `/` itself).
+  ///
+  /// Throws an [ArgumentError] if [path] doesn't start with `/`, ends with
+  /// `/`, or is already registered on this router.
   void addAction(
     Action action, {
     String? path,
@@ -67,6 +70,9 @@ final class GenkitRouter {
     final routePath = path ?? '/${action.name}';
     if (!routePath.startsWith('/')) {
       throw ArgumentError.value(path, 'path', "must start with '/'");
+    }
+    if (routePath.length > 1 && routePath.endsWith('/')) {
+      throw ArgumentError.value(path, 'path', "must not end with '/'");
     }
     if (_routes.containsKey(routePath)) {
       throw ArgumentError.value(

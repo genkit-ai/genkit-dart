@@ -83,8 +83,27 @@ Middleware corsMiddleware(CorsOptions options) {
       );
     }
     final response = await inner(request);
+    if (headers.isEmpty) return response;
+    // `change` replaces headers by name, so append to an existing `Vary` (e.g.
+    // `Accept-Encoding` from compression middleware) instead of clobbering it.
+    final existingVary = response.headers['vary'];
+    final vary = headers['Vary'];
     // `change` keeps the response context, so streaming responses stay
     // unbuffered.
-    return headers.isEmpty ? response : response.change(headers: headers);
+    return response.change(
+      headers: {
+        ...headers,
+        if (vary != null && existingVary != null)
+          'Vary': _appendVary(existingVary, vary),
+      },
+    );
   };
+}
+
+String _appendVary(String existing, String value) {
+  final names = existing.split(',').map((v) => v.trim().toLowerCase());
+  if (names.contains('*') || names.contains(value.toLowerCase())) {
+    return existing;
+  }
+  return '$existing, $value';
 }
