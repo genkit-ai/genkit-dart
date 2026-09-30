@@ -55,7 +55,7 @@ import 'utils.dart' as utils;
 /// [definePrompt], and [defineResource].
 ///
 /// It extends [GenkitAI], inheriting the model-orchestration veneer
-/// ([generate], [generateStream], [embed], [embedMany], [run]).
+/// ([generate], [generateStream], [embed], [run]).
 ///
 /// If `isDevEnv` is true, or `GENKIT_ENV` is set to 'dev' in the process
 /// environment or as a `--dart-define`, initializing [Genkit] also starts a

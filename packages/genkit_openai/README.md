@@ -407,7 +407,7 @@ final vectors = await ai.embed(
 print(vectors.single.embedding.length); // 1536
 ```
 
-`embedMany` takes a list of documents and returns one vector per document, in
+Passing `documents:` instead takes a list and returns one vector per document, in
 order. A corpus larger than the 2048 inputs OpenAI accepts per request is split
 across requests rather than rejected.
 
