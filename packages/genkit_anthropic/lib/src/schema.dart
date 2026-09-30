@@ -244,14 +244,24 @@ bool _isRecursive(Map<String, dynamic> schema) {
 }
 
 /// Every `$ref` string anywhere under [node].
-Set<String> _refsIn(Object? node) => switch (node) {
-  final Map<dynamic, dynamic> map => {
-    if (map[r'$ref'] case final String ref) ref,
-    for (final value in map.values) ..._refsIn(value),
-  },
-  final List<dynamic> list => {for (final item in list) ..._refsIn(item)},
-  _ => const <String>{},
-};
+Set<String> _refsIn(Object? node) {
+  final refs = <String>{};
+  void collect(Object? n) {
+    if (n is Map) {
+      if (n[r'$ref'] case final String ref) refs.add(ref);
+      for (final value in n.values) {
+        collect(value);
+      }
+    } else if (n is List) {
+      for (final item in n) {
+        collect(item);
+      }
+    }
+  }
+
+  collect(node);
+  return refs;
+}
 
 /// The schema, rendered for a prompt, when it cannot travel as a constraint.
 ///
