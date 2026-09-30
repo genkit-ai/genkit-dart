@@ -91,16 +91,15 @@ base class _RecipeRequestTypeFactory extends SchemanticType<RecipeRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RecipeRequest',
-    definition: $Schema
-        .object(
-          properties: {
-            'provider': $Schema.string(),
-            'dietFriendly': $Schema.string(),
-            'mainIngredient': $Schema.string(),
-          },
-          required: ['provider', 'dietFriendly', 'mainIngredient'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'provider': <String, Object?>{'type': 'string'},
+        'dietFriendly': <String, Object?>{'type': 'string'},
+        'mainIngredient': <String, Object?>{'type': 'string'},
+      },
+      'required': ['provider', 'dietFriendly', 'mainIngredient'],
+    },
     dependencies: [],
   );
 }
@@ -153,9 +152,13 @@ base class _CheckPantryInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CheckPantryInput',
-    definition: $Schema
-        .object(properties: {'spice': $Schema.string()}, required: ['spice'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'spice': <String, Object?>{'type': 'string'},
+      },
+      'required': ['spice'],
+    },
     dependencies: [],
   );
 }

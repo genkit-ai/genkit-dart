@@ -65,9 +65,13 @@ base class _GreetInputTypeFactory extends SchemanticType<GreetInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GreetInput',
-    definition: $Schema
-        .object(properties: {'name': $Schema.string()}, required: ['name'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name'],
+    },
     dependencies: [],
   );
 }
@@ -118,9 +122,13 @@ base class _PromptInputTypeFactory extends SchemanticType<PromptInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PromptInput',
-    definition: $Schema
-        .object(properties: {'input': $Schema.string()}, required: ['input'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'input': <String, Object?>{'type': 'string'},
+      },
+      'required': ['input'],
+    },
     dependencies: [],
   );
 }

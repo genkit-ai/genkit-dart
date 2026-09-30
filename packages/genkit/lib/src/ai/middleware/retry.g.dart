@@ -174,42 +174,43 @@ base class _RetryOptionsTypeFactory extends SchemanticType<RetryOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RetryOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'maxRetries': $Schema.integer(),
-            'statuses': $Schema.list(
-              items: $Schema.string(
-                enumValues: [
-                  'OK',
-                  'CANCELLED',
-                  'UNKNOWN',
-                  'INVALID_ARGUMENT',
-                  'DEADLINE_EXCEEDED',
-                  'NOT_FOUND',
-                  'ALREADY_EXISTS',
-                  'PERMISSION_DENIED',
-                  'UNAUTHENTICATED',
-                  'RESOURCE_EXHAUSTED',
-                  'FAILED_PRECONDITION',
-                  'ABORTED',
-                  'OUT_OF_RANGE',
-                  'UNIMPLEMENTED',
-                  'INTERNAL',
-                  'UNAVAILABLE',
-                  'DATA_LOSS',
-                ],
-              ),
-            ),
-            'initialDelayMs': $Schema.integer(),
-            'maxDelayMs': $Schema.integer(),
-            'backoffFactor': $Schema.number(),
-            'noJitter': $Schema.boolean(),
-            'retryModel': $Schema.boolean(),
-            'retryTools': $Schema.boolean(),
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'maxRetries': <String, Object?>{'type': 'integer'},
+        'statuses': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{
+            'type': 'string',
+            'enum': [
+              'OK',
+              'CANCELLED',
+              'UNKNOWN',
+              'INVALID_ARGUMENT',
+              'DEADLINE_EXCEEDED',
+              'NOT_FOUND',
+              'ALREADY_EXISTS',
+              'PERMISSION_DENIED',
+              'UNAUTHENTICATED',
+              'RESOURCE_EXHAUSTED',
+              'FAILED_PRECONDITION',
+              'ABORTED',
+              'OUT_OF_RANGE',
+              'UNIMPLEMENTED',
+              'INTERNAL',
+              'UNAVAILABLE',
+              'DATA_LOSS',
+            ],
           },
-        )
-        .value,
+        },
+        'initialDelayMs': <String, Object?>{'type': 'integer'},
+        'maxDelayMs': <String, Object?>{'type': 'integer'},
+        'backoffFactor': <String, Object?>{'type': 'number'},
+        'noJitter': <String, Object?>{'type': 'boolean'},
+        'retryModel': <String, Object?>{'type': 'boolean'},
+        'retryTools': <String, Object?>{'type': 'boolean'},
+      },
+    },
     dependencies: [],
   );
 }

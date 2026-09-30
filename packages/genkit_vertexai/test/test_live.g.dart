@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format width=80
 
 part of 'test_live.dart';
 
@@ -21,6 +22,7 @@ part of 'test_live.dart';
 // **************************************************************************
 
 base class Person {
+  /// Creates a [Person] from a JSON map.
   factory Person.fromJson(Map<String, dynamic> json) => $schema.parse(json);
 
   Person._(this._json);
@@ -31,6 +33,7 @@ base class Person {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [Person].
   static const SchemanticType<Person> $schema = _PersonTypeFactory();
 
   String get name {
@@ -54,6 +57,7 @@ base class Person {
     return _json.toString();
   }
 
+  /// Serializes this [Person] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -70,17 +74,20 @@ base class _PersonTypeFactory extends SchemanticType<Person> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Person',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string(), 'age': $Schema.integer()},
-          required: ['name', 'age'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'age': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['name', 'age'],
+    },
     dependencies: [],
   );
 }
 
 base class CalculatorInput {
+  /// Creates a [CalculatorInput] from a JSON map.
   factory CalculatorInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -92,6 +99,7 @@ base class CalculatorInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [CalculatorInput].
   static const SchemanticType<CalculatorInput> $schema =
       _CalculatorInputTypeFactory();
 
@@ -116,6 +124,7 @@ base class CalculatorInput {
     return _json.toString();
   }
 
+  /// Serializes this [CalculatorInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -132,12 +141,14 @@ base class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CalculatorInput',
-    definition: $Schema
-        .object(
-          properties: {'a': $Schema.integer(), 'b': $Schema.integer()},
-          required: ['a', 'b'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'a': <String, Object?>{'type': 'integer'},
+        'b': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['a', 'b'],
+    },
     dependencies: [],
   );
 }

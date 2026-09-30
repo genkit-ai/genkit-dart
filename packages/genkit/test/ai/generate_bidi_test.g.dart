@@ -67,12 +67,13 @@ base class _MyToolInputTypeFactory extends SchemanticType<MyToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MyToolInput',
-    definition: $Schema
-        .object(
-          properties: {'location': $Schema.string()},
-          required: ['location'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'location': <String, Object?>{'type': 'string'},
+      },
+      'required': ['location'],
+    },
     dependencies: [],
   );
 }

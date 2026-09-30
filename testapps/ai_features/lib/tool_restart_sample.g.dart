@@ -76,17 +76,20 @@ base class _ApprovalRequestTypeFactory extends SchemanticType<ApprovalRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ApprovalRequest',
-    definition: $Schema
-        .object(
-          properties: {
-            'question': $Schema.string(description: 'the main question'),
-            'details': $Schema.string(
-              description: 'request for approval details',
-            ),
-          },
-          required: ['question', 'details'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'question': <String, Object?>{
+          'type': 'string',
+          'description': 'the main question',
+        },
+        'details': <String, Object?>{
+          'type': 'string',
+          'description': 'request for approval details',
+        },
+      },
+      'required': ['question', 'details'],
+    },
     dependencies: [],
   );
 }

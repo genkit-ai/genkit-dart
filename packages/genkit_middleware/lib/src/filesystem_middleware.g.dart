@@ -21,6 +21,7 @@ part of 'filesystem_middleware.dart';
 // **************************************************************************
 
 base class FilesystemOptions {
+  /// Creates a [FilesystemOptions] from a JSON map.
   factory FilesystemOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -32,6 +33,7 @@ base class FilesystemOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [FilesystemOptions].
   static const SchemanticType<FilesystemOptions> $schema =
       _FilesystemOptionsTypeFactory();
 
@@ -48,6 +50,7 @@ base class FilesystemOptions {
     return _json.toString();
   }
 
+  /// Serializes this [FilesystemOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -65,22 +68,23 @@ base class _FilesystemOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'FilesystemOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'rootDirectory': $Schema.string(
-              description:
-                  'The root directory to which all filesystem operations are restricted.',
-            ),
-          },
-          required: ['rootDirectory'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'rootDirectory': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The root directory to which all filesystem operations are restricted.',
+        },
+      },
+      'required': ['rootDirectory'],
+    },
     dependencies: [],
   );
 }
 
 base class ListFilesInput {
+  /// Creates a [ListFilesInput] from a JSON map.
   factory ListFilesInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -92,6 +96,7 @@ base class ListFilesInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ListFilesInput].
   static const SchemanticType<ListFilesInput> $schema =
       _ListFilesInputTypeFactory();
 
@@ -124,6 +129,7 @@ base class ListFilesInput {
     return _json.toString();
   }
 
+  /// Serializes this [ListFilesInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -140,28 +146,27 @@ base class _ListFilesInputTypeFactory extends SchemanticType<ListFilesInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ListFilesInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'dirPath': $Schema.fromMap({
-              'description': 'Directory path relative to root.',
-              'default': '',
-              'type': 'string',
-            }),
-            'recursive': $Schema.fromMap({
-              'description': 'Whether to list files recursively.',
-              'default': false,
-              'type': 'boolean',
-            }),
-          },
-          required: [],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'dirPath': <String, Object?>{
+          'type': 'string',
+          'description': 'Directory path relative to root.',
+          'default': '',
+        },
+        'recursive': <String, Object?>{
+          'type': 'boolean',
+          'description': 'Whether to list files recursively.',
+          'default': false,
+        },
+      },
+    },
     dependencies: [],
   );
 }
 
 base class ReadFileInput {
+  /// Creates a [ReadFileInput] from a JSON map.
   factory ReadFileInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -173,6 +178,7 @@ base class ReadFileInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ReadFileInput].
   static const SchemanticType<ReadFileInput> $schema =
       _ReadFileInputTypeFactory();
 
@@ -189,6 +195,7 @@ base class ReadFileInput {
     return _json.toString();
   }
 
+  /// Serializes this [ReadFileInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -205,21 +212,22 @@ base class _ReadFileInputTypeFactory extends SchemanticType<ReadFileInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReadFileInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'filePath': $Schema.string(
-              description: 'File path relative to root.',
-            ),
-          },
-          required: ['filePath'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'filePath': <String, Object?>{
+          'type': 'string',
+          'description': 'File path relative to root.',
+        },
+      },
+      'required': ['filePath'],
+    },
     dependencies: [],
   );
 }
 
 base class WriteFileInput {
+  /// Creates a [WriteFileInput] from a JSON map.
   factory WriteFileInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -231,6 +239,7 @@ base class WriteFileInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [WriteFileInput].
   static const SchemanticType<WriteFileInput> $schema =
       _WriteFileInputTypeFactory();
 
@@ -255,6 +264,7 @@ base class WriteFileInput {
     return _json.toString();
   }
 
+  /// Serializes this [WriteFileInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -271,24 +281,26 @@ base class _WriteFileInputTypeFactory extends SchemanticType<WriteFileInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WriteFileInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'filePath': $Schema.string(
-              description: 'File path relative to root.',
-            ),
-            'content': $Schema.string(
-              description: 'Content to write to the file.',
-            ),
-          },
-          required: ['filePath', 'content'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'filePath': <String, Object?>{
+          'type': 'string',
+          'description': 'File path relative to root.',
+        },
+        'content': <String, Object?>{
+          'type': 'string',
+          'description': 'Content to write to the file.',
+        },
+      },
+      'required': ['filePath', 'content'],
+    },
     dependencies: [],
   );
 }
 
 base class SearchAndReplaceInput {
+  /// Creates a [SearchAndReplaceInput] from a JSON map.
   factory SearchAndReplaceInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -303,6 +315,7 @@ base class SearchAndReplaceInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [SearchAndReplaceInput].
   static const SchemanticType<SearchAndReplaceInput> $schema =
       _SearchAndReplaceInputTypeFactory();
 
@@ -327,6 +340,7 @@ base class SearchAndReplaceInput {
     return _json.toString();
   }
 
+  /// Serializes this [SearchAndReplaceInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -344,26 +358,28 @@ base class _SearchAndReplaceInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SearchAndReplaceInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'filePath': $Schema.string(
-              description: 'File path relative to root.',
-            ),
-            'edits': $Schema.list(
-              description:
-                  'A search and replace block string in the format:\n<<<<<<< SEARCH\n[search content]\n=======\n[replace content]\n>>>>>>> REPLACE',
-              items: $Schema.string(),
-            ),
-          },
-          required: ['filePath', 'edits'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'filePath': <String, Object?>{
+          'type': 'string',
+          'description': 'File path relative to root.',
+        },
+        'edits': <String, Object?>{
+          'type': 'array',
+          'description':
+              'A search and replace block string in the format:\n<<<<<<< SEARCH\n[search content]\n=======\n[replace content]\n>>>>>>> REPLACE',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+      'required': ['filePath', 'edits'],
+    },
     dependencies: [],
   );
 }
 
 base class ListFileOutputItem {
+  /// Creates a [ListFileOutputItem] from a JSON map.
   factory ListFileOutputItem.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -375,6 +391,7 @@ base class ListFileOutputItem {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ListFileOutputItem].
   static const SchemanticType<ListFileOutputItem> $schema =
       _ListFileOutputItemTypeFactory();
 
@@ -399,6 +416,7 @@ base class ListFileOutputItem {
     return _json.toString();
   }
 
+  /// Serializes this [ListFileOutputItem] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -416,15 +434,14 @@ base class _ListFileOutputItemTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ListFileOutputItem',
-    definition: $Schema
-        .object(
-          properties: {
-            'path': $Schema.string(),
-            'isDirectory': $Schema.boolean(),
-          },
-          required: ['path', 'isDirectory'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'path': <String, Object?>{'type': 'string'},
+        'isDirectory': <String, Object?>{'type': 'boolean'},
+      },
+      'required': ['path', 'isDirectory'],
+    },
     dependencies: [],
   );
 }

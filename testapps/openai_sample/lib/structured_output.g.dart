@@ -85,12 +85,14 @@ base class _MovieReviewInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MovieReviewInput',
-    definition: $Schema
-        .object(
-          properties: {'title': $Schema.string(), 'year': $Schema.integer()},
-          required: ['title'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title': <String, Object?>{'type': 'string'},
+        'year': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['title'],
+    },
     dependencies: [],
   );
 }
@@ -207,26 +209,31 @@ base class _MovieReviewTypeFactory extends SchemanticType<MovieReview> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MovieReview',
-    definition: $Schema
-        .object(
-          properties: {
-            'title': $Schema.string(),
-            'rating': $Schema.number(),
-            'summary': $Schema.string(),
-            'pros': $Schema.list(items: $Schema.string()),
-            'cons': $Schema.list(items: $Schema.string()),
-            'recommendedFor': $Schema.string(),
-          },
-          required: [
-            'title',
-            'rating',
-            'summary',
-            'pros',
-            'cons',
-            'recommendedFor',
-          ],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title': <String, Object?>{'type': 'string'},
+        'rating': <String, Object?>{'type': 'number'},
+        'summary': <String, Object?>{'type': 'string'},
+        'pros': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'cons': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'recommendedFor': <String, Object?>{'type': 'string'},
+      },
+      'required': [
+        'title',
+        'rating',
+        'summary',
+        'pros',
+        'cons',
+        'recommendedFor',
+      ],
+    },
     dependencies: [],
   );
 }

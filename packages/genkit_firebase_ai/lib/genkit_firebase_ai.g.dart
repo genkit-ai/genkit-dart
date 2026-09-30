@@ -308,37 +308,42 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GeminiOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'stopSequences': $Schema.list(items: $Schema.string()),
-            'maxOutputTokens': $Schema.integer(),
-            'temperature': $Schema.number(),
-            'topP': $Schema.number(),
-            'topK': $Schema.integer(),
-            'presencePenalty': $Schema.number(),
-            'frequencyPenalty': $Schema.number(),
-            'responseModalities': $Schema.list(items: $Schema.string()),
-            'responseMimeType': $Schema.string(),
-            'responseSchema': $Schema.object(
-              additionalProperties: $Schema.any(),
-            ),
-            'responseJsonSchema': $Schema.object(
-              additionalProperties: $Schema.any(),
-            ),
-            'thinkingConfig': $Schema.fromMap({
-              '\$ref': r'#/$defs/ThinkingConfig',
-            }),
-            'candidateCount': $Schema.integer(),
-            'codeExecution': $Schema.boolean(),
-            'functionCallingConfig': $Schema.fromMap({
-              '\$ref': r'#/$defs/FunctionCallingConfig',
-            }),
-            'responseLogprobs': $Schema.boolean(),
-            'logprobs': $Schema.integer(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'stopSequences': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'maxOutputTokens': <String, Object?>{'type': 'integer'},
+        'temperature': <String, Object?>{'type': 'number'},
+        'topP': <String, Object?>{'type': 'number'},
+        'topK': <String, Object?>{'type': 'integer'},
+        'presencePenalty': <String, Object?>{'type': 'number'},
+        'frequencyPenalty': <String, Object?>{'type': 'number'},
+        'responseModalities': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'responseMimeType': <String, Object?>{'type': 'string'},
+        'responseSchema': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'responseJsonSchema': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
+        'candidateCount': <String, Object?>{'type': 'integer'},
+        'codeExecution': <String, Object?>{'type': 'boolean'},
+        'functionCallingConfig': <String, Object?>{
+          r'$ref': r'#/$defs/FunctionCallingConfig',
+        },
+        'responseLogprobs': <String, Object?>{'type': 'boolean'},
+        'logprobs': <String, Object?>{'type': 'integer'},
+      },
+    },
     dependencies: [ThinkingConfig.$schema, FunctionCallingConfig.$schema],
   );
 }
@@ -407,16 +412,19 @@ base class _FunctionCallingConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'FunctionCallingConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'mode': $Schema.string(
-              enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'],
-            ),
-            'allowedFunctionNames': $Schema.list(items: $Schema.string()),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'mode': <String, Object?>{
+          'type': 'string',
+          'enum': ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'],
+        },
+        'allowedFunctionNames': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -487,14 +495,13 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ThinkingConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'thinkingBudget': $Schema.integer(),
-            'includeThoughts': $Schema.boolean(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'thinkingBudget': <String, Object?>{'type': 'integer'},
+        'includeThoughts': <String, Object?>{'type': 'boolean'},
+      },
+    },
     dependencies: [],
   );
 }
@@ -551,9 +558,12 @@ base class _PrebuiltVoiceConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PrebuiltVoiceConfig',
-    definition: $Schema
-        .object(properties: {'voiceName': $Schema.string()})
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'voiceName': <String, Object?>{'type': 'string'},
+      },
+    },
     dependencies: [],
   );
 }
@@ -612,15 +622,14 @@ base class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'VoiceConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'prebuiltVoiceConfig': $Schema.fromMap({
-              '\$ref': r'#/$defs/PrebuiltVoiceConfig',
-            }),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'prebuiltVoiceConfig': <String, Object?>{
+          r'$ref': r'#/$defs/PrebuiltVoiceConfig',
+        },
+      },
+    },
     dependencies: [PrebuiltVoiceConfig.$schema],
   );
 }
@@ -678,13 +687,12 @@ base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SpeechConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'voiceConfig': $Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/VoiceConfig'},
+      },
+    },
     dependencies: [VoiceConfig.$schema],
   );
 }
@@ -859,21 +867,26 @@ base class _LiveGenerationConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'LiveGenerationConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'responseModalities': $Schema.list(items: $Schema.string()),
-            'speechConfig': $Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
-            'stopSequences': $Schema.list(items: $Schema.string()),
-            'maxOutputTokens': $Schema.integer(),
-            'temperature': $Schema.number(),
-            'topP': $Schema.number(),
-            'topK': $Schema.integer(),
-            'presencePenalty': $Schema.number(),
-            'frequencyPenalty': $Schema.number(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'responseModalities': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'speechConfig': <String, Object?>{r'$ref': r'#/$defs/SpeechConfig'},
+        'stopSequences': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'maxOutputTokens': <String, Object?>{'type': 'integer'},
+        'temperature': <String, Object?>{'type': 'number'},
+        'topP': <String, Object?>{'type': 'number'},
+        'topK': <String, Object?>{'type': 'integer'},
+        'presencePenalty': <String, Object?>{'type': 'number'},
+        'frequencyPenalty': <String, Object?>{'type': 'number'},
+      },
+    },
     dependencies: [SpeechConfig.$schema],
   );
 }

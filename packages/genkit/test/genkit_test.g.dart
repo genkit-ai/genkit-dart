@@ -69,12 +69,13 @@ base class _TestCustomOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestCustomOptions',
-    definition: $Schema
-        .object(
-          properties: {'customField': $Schema.string()},
-          required: ['customField'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'customField': <String, Object?>{'type': 'string'},
+      },
+      'required': ['customField'],
+    },
     dependencies: [],
   );
 }
@@ -126,9 +127,13 @@ base class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestToolInput',
-    definition: $Schema
-        .object(properties: {'name': $Schema.string()}, required: ['name'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name'],
+    },
     dependencies: [],
   );
 }
@@ -189,12 +194,14 @@ base class _TestOutputSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestOutputSchema',
-    definition: $Schema
-        .object(
-          properties: {'title': $Schema.string(), 'rating': $Schema.integer()},
-          required: ['title', 'rating'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title': <String, Object?>{'type': 'string'},
+        'rating': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['title', 'rating'],
+    },
     dependencies: [],
   );
 }

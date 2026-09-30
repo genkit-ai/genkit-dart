@@ -21,6 +21,7 @@ part of 'tool_approval_middleware.dart';
 // **************************************************************************
 
 base class ToolApprovalOptions {
+  /// Creates a [ToolApprovalOptions] from a JSON map.
   factory ToolApprovalOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -32,6 +33,7 @@ base class ToolApprovalOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [ToolApprovalOptions].
   static const SchemanticType<ToolApprovalOptions> $schema =
       _ToolApprovalOptionsTypeFactory();
 
@@ -48,6 +50,7 @@ base class ToolApprovalOptions {
     return _json.toString();
   }
 
+  /// Serializes this [ToolApprovalOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -65,12 +68,16 @@ base class _ToolApprovalOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolApprovalOptions',
-    definition: $Schema
-        .object(
-          properties: {'approved': $Schema.list(items: $Schema.string())},
-          required: ['approved'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'approved': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+      'required': ['approved'],
+    },
     dependencies: [],
   );
 }

@@ -74,12 +74,14 @@ base class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Ingredient',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string(), 'quantity': $Schema.string()},
-          required: ['name', 'quantity'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'quantity': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name', 'quantity'],
+    },
     dependencies: [],
   );
 }
@@ -155,18 +157,18 @@ base class _RecipeTypeFactory extends SchemanticType<Recipe> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Recipe',
-    definition: $Schema
-        .object(
-          properties: {
-            'title': $Schema.string(),
-            'ingredients': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
-            ),
-            'servings': $Schema.integer(),
-          },
-          required: ['title', 'ingredients', 'servings'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title': <String, Object?>{'type': 'string'},
+        'ingredients': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Ingredient'},
+        },
+        'servings': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['title', 'ingredients', 'servings'],
+    },
     dependencies: [Ingredient.$schema],
   );
 }

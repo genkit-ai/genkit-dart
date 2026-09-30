@@ -162,19 +162,23 @@ base class _OpenAISpeechOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'OpenAISpeechOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'version': $Schema.string(),
-            'voice': $Schema.string(),
-            'instructions': $Schema.string(),
-            'speed': $Schema.number(minimum: 0.25, maximum: 4.0),
-            'responseFormat': $Schema.string(
-              enumValues: ['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'],
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'version': <String, Object?>{'type': 'string'},
+        'voice': <String, Object?>{'type': 'string'},
+        'instructions': <String, Object?>{'type': 'string'},
+        'speed': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.25,
+          'maximum': 4.0,
+        },
+        'responseFormat': <String, Object?>{
+          'type': 'string',
+          'enum': ['mp3', 'opus', 'aac', 'flac', 'wav', 'pcm'],
+        },
+      },
+    },
     dependencies: [],
   );
 }

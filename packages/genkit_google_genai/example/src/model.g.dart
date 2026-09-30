@@ -69,17 +69,17 @@ base class _WeatherToolInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'location': $Schema.string(
-              description:
-                  'The location (ex. city, state, country) to get the weather for',
-            ),
-          },
-          required: ['location'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'location': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The location (ex. city, state, country) to get the weather for',
+        },
+      },
+      'required': ['location'],
+    },
     dependencies: [],
   );
 }
@@ -143,15 +143,20 @@ base class _TemperatureConverterInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TemperatureConverterInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'temperature': $Schema.number(description: 'Input temperature'),
-            'unit': $Schema.string(enumValues: ['C', 'F']),
-          },
-          required: ['temperature', 'unit'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'description': 'Input temperature',
+        },
+        'unit': <String, Object?>{
+          'type': 'string',
+          'enum': ['C', 'F'],
+        },
+      },
+      'required': ['temperature', 'unit'],
+    },
     dependencies: [],
   );
 }
@@ -215,15 +220,20 @@ base class _TemperatureConverterOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TemperatureConverterOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'temperature': $Schema.number(description: 'Output temperature'),
-            'unit': $Schema.string(enumValues: ['C', 'F']),
-          },
-          required: ['temperature', 'unit'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'description': 'Output temperature',
+        },
+        'unit': <String, Object?>{
+          'type': 'string',
+          'enum': ['C', 'F'],
+        },
+      },
+      'required': ['temperature', 'unit'],
+    },
     dependencies: [],
   );
 }
@@ -290,17 +300,17 @@ base class _CategoryTypeFactory extends SchemanticType<Category> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Category',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'subcategories': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Category'}),
-            ),
-          },
-          required: ['name'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'subcategories': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Category'},
+        },
+      },
+      'required': ['name'],
+    },
     dependencies: [Category.$schema],
   );
 }
@@ -370,16 +380,15 @@ base class _WeaponTypeFactory extends SchemanticType<Weapon> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Weapon',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'damage': $Schema.number(),
-            'category': $Schema.fromMap({'\$ref': r'#/$defs/Category'}),
-          },
-          required: ['name', 'damage', 'category'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'damage': <String, Object?>{'type': 'number'},
+        'category': <String, Object?>{r'$ref': r'#/$defs/Category'},
+      },
+      'required': ['name', 'damage', 'category'],
+    },
     dependencies: [Category.$schema],
   );
 }
@@ -481,22 +490,23 @@ base class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RpgCharacter',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'backstory': $Schema.string(),
-            'weapons': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Weapon'}),
-            ),
-            'classType': $Schema.string(
-              enumValues: ['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER'],
-            ),
-            'affiliation': $Schema.string(),
-          },
-          required: ['name', 'backstory', 'weapons', 'classType'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'backstory': <String, Object?>{'type': 'string'},
+        'weapons': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Weapon'},
+        },
+        'classType': <String, Object?>{
+          'type': 'string',
+          'enum': ['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER'],
+        },
+        'affiliation': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name', 'backstory', 'weapons', 'classType'],
+    },
     dependencies: [Weapon.$schema],
   );
 }
@@ -569,16 +579,15 @@ base class _CharacterProfileTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CharacterProfile',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'bio': $Schema.string(),
-            'age': $Schema.integer(),
-          },
-          required: ['name', 'bio', 'age'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'bio': <String, Object?>{'type': 'string'},
+        'age': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['name', 'bio', 'age'],
+    },
     dependencies: [],
   );
 }

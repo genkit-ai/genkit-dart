@@ -74,12 +74,14 @@ base class _IngredientTypeFactory extends SchemanticType<Ingredient> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Ingredient',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string(), 'quantity': $Schema.string()},
-          required: ['name', 'quantity'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'quantity': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name', 'quantity'],
+    },
     dependencies: [],
   );
 }
@@ -155,18 +157,18 @@ base class _RecipeTypeFactory extends SchemanticType<Recipe> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Recipe',
-    definition: $Schema
-        .object(
-          properties: {
-            'title': $Schema.string(),
-            'ingredients': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
-            ),
-            'servings': $Schema.integer(),
-          },
-          required: ['title', 'ingredients', 'servings'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title': <String, Object?>{'type': 'string'},
+        'ingredients': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Ingredient'},
+        },
+        'servings': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['title', 'ingredients', 'servings'],
+    },
     dependencies: [Ingredient.$schema],
   );
 }
@@ -244,20 +246,21 @@ base class _AnnotatedRecipeTypeFactory extends SchemanticType<AnnotatedRecipe> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AnnotatedRecipe',
-    definition: $Schema
-        .object(
-          properties: {
-            'title_key_in_json': $Schema.string(
-              description: 'description set in json schema',
-            ),
-            'ingredients': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
-            ),
-            'servings': $Schema.integer(),
-          },
-          required: ['title_key_in_json', 'ingredients', 'servings'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title_key_in_json': <String, Object?>{
+          'type': 'string',
+          'description': 'description set in json schema',
+        },
+        'ingredients': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Ingredient'},
+        },
+        'servings': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['title_key_in_json', 'ingredients', 'servings'],
+    },
     dependencies: [Ingredient.$schema],
   );
 }
@@ -315,17 +318,17 @@ base class _MealPlanTypeFactory extends SchemanticType<MealPlan> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MealPlan',
-    definition: $Schema
-        .object(
-          properties: {
-            'day': $Schema.string(),
-            'mealType': $Schema.string(
-              enumValues: ['breakfast', 'lunch', 'dinner'],
-            ),
-          },
-          required: ['day', 'mealType'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'day': <String, Object?>{'type': 'string'},
+        'mealType': <String, Object?>{
+          'type': 'string',
+          'enum': ['breakfast', 'lunch', 'dinner'],
+        },
+      },
+      'required': ['day', 'mealType'],
+    },
     dependencies: [],
   );
 }
@@ -431,18 +434,18 @@ base class _NullableFieldsTypeFactory extends SchemanticType<NullableFields> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'NullableFields',
-    definition: $Schema
-        .object(
-          properties: {
-            'optionalString': $Schema.string(),
-            'optionalInt': $Schema.integer(),
-            'optionalList': $Schema.list(items: $Schema.string()),
-            'optionalIngredient': $Schema.fromMap({
-              '\$ref': r'#/$defs/Ingredient',
-            }),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'optionalString': <String, Object?>{'type': 'string'},
+        'optionalInt': <String, Object?>{'type': 'integer'},
+        'optionalList': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'optionalIngredient': <String, Object?>{r'$ref': r'#/$defs/Ingredient'},
+      },
+    },
     dependencies: [Ingredient.$schema],
   );
 }
@@ -556,21 +559,24 @@ base class _ComplexObjectTypeFactory extends SchemanticType<ComplexObject> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ComplexObject',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.string(),
-            'createdAt': $Schema.string(format: 'date-time'),
-            'price': $Schema.number(),
-            'metadata': $Schema.object(additionalProperties: $Schema.string()),
-            'ratings': $Schema.list(items: $Schema.integer()),
-            'nestedNullable': $Schema.fromMap({
-              '\$ref': r'#/$defs/NullableFields',
-            }),
-          },
-          required: ['id', 'createdAt', 'price', 'metadata', 'ratings'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'id': <String, Object?>{'type': 'string'},
+        'createdAt': <String, Object?>{'type': 'string', 'format': 'date-time'},
+        'price': <String, Object?>{'type': 'number'},
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{'type': 'string'},
+        },
+        'ratings': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'integer'},
+        },
+        'nestedNullable': <String, Object?>{r'$ref': r'#/$defs/NullableFields'},
+      },
+      'required': ['id', 'createdAt', 'price', 'metadata', 'ratings'],
+    },
     dependencies: [NullableFields.$schema],
   );
 }
@@ -641,19 +647,20 @@ base class _MenuTypeFactory extends SchemanticType<Menu> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Menu',
-    definition: $Schema
-        .object(
-          properties: {
-            'recipes': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Recipe'}),
-            ),
-            'optionalIngredients': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Ingredient'}),
-            ),
-          },
-          required: ['recipes'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'recipes': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Recipe'},
+        },
+        'optionalIngredients': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Ingredient'},
+        },
+      },
+      'required': ['recipes'],
+    },
     dependencies: [Recipe.$schema, Ingredient.$schema],
   );
 }

@@ -76,19 +76,22 @@ base class _TriviaQuestionsTypeFactory extends SchemanticType<TriviaQuestions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TriviaQuestions',
-    definition: $Schema
-        .object(
-          properties: {
-            'question': $Schema.string(description: 'the main question'),
-            'answers': $Schema.list(
-              description:
-                  'list of multiple choice answers (typically 4), 1 correct 3 wrong',
-              items: $Schema.string(),
-            ),
-          },
-          required: ['question', 'answers'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'question': <String, Object?>{
+          'type': 'string',
+          'description': 'the main question',
+        },
+        'answers': <String, Object?>{
+          'type': 'array',
+          'description':
+              'list of multiple choice answers (typically 4), 1 correct 3 wrong',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+      'required': ['question', 'answers'],
+    },
     dependencies: [],
   );
 }
