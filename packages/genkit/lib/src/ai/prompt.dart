@@ -137,6 +137,15 @@ class PromptConfig<Input, Output, CustomOptions> {
         'instructions only.',
       );
     }
+    // Without a schema the raw decoded JSON is cast straight to Output, which
+    // only works for the types a decoder already produces. Catch a domain type
+    // here rather than as a bare TypeError on the first generate call.
+    if (outputSchema == null && !_isJsonAssignable<Output>()) {
+      throw ArgumentError(
+        'Prompt "$name" declares an output type of $Output but has no '
+        'outputSchema to parse it. Pass outputSchema: to definePrompt().',
+      );
+    }
   }
 
   /// The full name including variant.
@@ -717,7 +726,7 @@ Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
   final defined = found._outputSchema;
   final resolved =
       outputSchema ?? (defined is SchemanticType<Output> ? defined : null);
-  if (resolved == null && !_isUnconstrained<Output>()) {
+  if (resolved == null && !_isJsonAssignable<Output>()) {
     throw GenkitException(
       '$label was not defined with an output schema for $Output. Pass '
       'outputSchema: to prompt<$Input, $Output>(), or look it up untyped.',
@@ -727,9 +736,24 @@ Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
   return ExecutablePrompt<Input, Output>._retyped(found, resolved);
 }
 
-/// Whether [T] is an unconstrained type argument, i.e. the caller did not pin
-/// an output type and raw JSON can pass through unparsed.
+/// Whether a raw decoded JSON value can inhabit [T] without a schema to parse
+/// it, i.e. whether `rawValue as T` is safe.
 ///
-/// True for `dynamic`, `Object`, and `Object?`, which any JSON value already
-/// satisfies; false for a real type like `Joke`, which needs a schema to parse.
-bool _isUnconstrained<T>() => <Object>[] is List<T>;
+/// True for `dynamic`/`Object`/`Object?` (the caller pinned nothing) and for
+/// the JSON types a decoder already produces, so `Output` of
+/// `Map<String, dynamic>` or `String` needs no schema. False for a domain type
+/// like `Joke`, which only a schema can produce; those must supply one or the
+/// cast blows up at generate time with a bare `TypeError`.
+///
+/// Checked through `List<T>` rather than `T` directly because a bare
+/// `<value> is T` cannot be written for an unbound type parameter.
+bool _isJsonAssignable<T>() =>
+    <Object?>[] is List<T> ||
+    <Object>[] is List<T> ||
+    <Map<String, dynamic>>[] is List<T> ||
+    <List<dynamic>>[] is List<T> ||
+    <String>[] is List<T> ||
+    <num>[] is List<T> ||
+    <int>[] is List<T> ||
+    <double>[] is List<T> ||
+    <bool>[] is List<T>;

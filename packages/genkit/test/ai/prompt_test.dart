@@ -1306,6 +1306,56 @@ void main() {
       );
     });
 
+    test('a domain Output with no outputSchema is rejected', () {
+      // Without a schema the raw JSON would be cast straight to _Joke and blow
+      // up with a bare TypeError on the first call, so this fails at
+      // definition instead.
+      expect(
+        () => genkit.definePrompt<dynamic, _Joke, dynamic>(
+          name: 'joke',
+          prompt: 'Tell a joke',
+        ),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('no outputSchema to parse it'),
+          ),
+        ),
+      );
+    });
+
+    test('JSON-shaped Outputs need no outputSchema', () {
+      // These are what a decoder already produces, so the cast is safe and
+      // requiring a schema would be a false positive.
+      expect(
+        genkit.definePrompt<dynamic, Map<String, dynamic>, dynamic>(
+          name: 'map',
+          prompt: 'x',
+        ),
+        isA<ExecutablePrompt<dynamic, Map<String, dynamic>>>(),
+      );
+      expect(
+        genkit.definePrompt<dynamic, String, dynamic>(name: 'str', prompt: 'x'),
+        isA<ExecutablePrompt<dynamic, String>>(),
+      );
+      expect(
+        genkit.definePrompt<dynamic, List<dynamic>, dynamic>(
+          name: 'list',
+          prompt: 'x',
+        ),
+        isA<ExecutablePrompt<dynamic, List<dynamic>>>(),
+      );
+      expect(
+        genkit.definePrompt<dynamic, int, dynamic>(name: 'int', prompt: 'x'),
+        isA<ExecutablePrompt<dynamic, int>>(),
+      );
+      expect(
+        genkit.definePrompt<dynamic, Object, dynamic>(name: 'obj', prompt: 'x'),
+        isA<ExecutablePrompt<dynamic, Object>>(),
+      );
+    });
+
     test('call() parses the response into Output', () async {
       defineEchoModel('m', '{"setup": "Why?", "punchline": "Because."}');
       final ep = genkit.definePrompt(
@@ -1437,6 +1487,15 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('a JSON-shaped Output needs no schema at lookup', () async {
+      genkit.definePrompt(name: 'joke', prompt: 'Tell a joke');
+
+      // A raw JSON map already satisfies this, so demanding a schema here
+      // would reject the common "just give me the decoded JSON" lookup.
+      final ep = await genkit.prompt<dynamic, Map<String, dynamic>>('joke');
+      expect(ep, isA<ExecutablePrompt<dynamic, Map<String, dynamic>>>());
     });
 
     test('an untyped lookup of a typed prompt still works', () async {
