@@ -33,11 +33,19 @@ import 'http.dart';
 ///
 /// The handler answers every request it gets (non-POST requests with `405`);
 /// routing is up to the caller. See `GenkitRouter` to serve several actions.
+///
+/// See [actionHandler] for [sendLegacyErrorFrame]. It is independent of any
+/// `GenkitRouter`'s setting, so match it if you use both.
 Future<void> Function(HttpRequest request) ioHandler(
   Action action, {
   ContextProvider? contextProvider,
+  bool sendLegacyErrorFrame = false,
 }) {
-  final handler = actionHandler(action, contextProvider: contextProvider);
+  final handler = actionHandler(
+    action,
+    contextProvider: contextProvider,
+    sendLegacyErrorFrame: sendLegacyErrorFrame,
+  );
   return (HttpRequest request) async {
     final response = await handler(
       toGenkitHttpRequest(request, path: request.uri.path),

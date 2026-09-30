@@ -121,3 +121,5 @@ final res = await agent.chat().send(text: 'Weather in Paris?');
 | `FlowWithContextProvider(flow: f, context: p)` | `addAction(f, contextProvider: p)` |
 | `shelfHandler(action, contextProvider: ...)` | unchanged, but the provider takes `RequestData` instead of a shelf `Request` |
 | `ContextProvider` from `genkit_shelf` | `ContextProvider` from `package:genkit/io.dart` |
+
+If your server is already in production with Dart or Flutter clients on `package:genkit` 0.17 or earlier, set `sendLegacyErrorFrame: true` on the `GenkitRouter` (and on any `shelfHandler`/`ioHandler`) until those clients are updated. Without it, those older clients report a generic "stream finished" error instead of the server's message when a streamed call fails. Current Dart clients and JS/Python clients handle both frames.

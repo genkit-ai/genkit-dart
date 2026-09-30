@@ -106,6 +106,31 @@ void main() {
     });
   });
 
+  test('sendLegacyErrorFrame reaches the stream error frame', () async {
+    final failing = ai.defineFlow(
+      name: 'failing',
+      fn: (String _, _) async =>
+          throw GenkitException('nope', status: StatusCodes.NOT_FOUND),
+      streamSchema: .string(),
+    );
+    Future<String> lastFrame(Handler handler) async {
+      final response = await handler(_post('/failing?stream=true', 'x'));
+      final frames = (await response.readAsString())
+          .split('\n\n')
+          .where((f) => f.trim().isNotEmpty);
+      return frames.last;
+    }
+
+    expect(await lastFrame(shelfHandler(failing)), startsWith('data: '));
+    expect(
+      await lastFrame(shelfHandler(failing, sendLegacyErrorFrame: true)),
+      startsWith('error: '),
+    );
+    final legacyRouter = GenkitRouter(sendLegacyErrorFrame: true)
+      ..addAction(failing);
+    expect(await lastFrame(legacyRouter.asShelfHandler), startsWith('error: '));
+  });
+
   group('asShelfHandler', () {
     test('works when mounted under a prefix', () async {
       final genkit = GenkitRouter()..addAction(echo);

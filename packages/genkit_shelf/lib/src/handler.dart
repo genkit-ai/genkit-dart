@@ -25,8 +25,19 @@ import 'package:shelf/shelf.dart';
 /// ```dart
 /// router.post('/hello', shelfHandler(helloFlow, contextProvider: bearerAuth));
 /// ```
-Handler shelfHandler(Action action, {ContextProvider? contextProvider}) {
-  final handler = actionHandler(action, contextProvider: contextProvider);
+///
+/// See `actionHandler` for [sendLegacyErrorFrame]. It is independent of any
+/// `GenkitRouter`'s setting, so match it if you use both.
+Handler shelfHandler(
+  Action action, {
+  ContextProvider? contextProvider,
+  bool sendLegacyErrorFrame = false,
+}) {
+  final handler = actionHandler(
+    action,
+    contextProvider: contextProvider,
+    sendLegacyErrorFrame: sendLegacyErrorFrame,
+  );
   return (Request request) async =>
       _toShelfResponse(await handler(_toGenkitRequest(request)));
 }

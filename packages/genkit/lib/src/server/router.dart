@@ -52,7 +52,17 @@ final _logger = Logger('genkit.server');
 /// [actionHandler]), so `defineRemoteAction`, `defineRemoteModel` and
 /// `remoteAgent` from `package:genkit/client.dart` can call it.
 final class GenkitRouter {
-  GenkitRouter();
+  /// Creates an empty router.
+  ///
+  /// [sendLegacyErrorFrame] applies to every route, however the router is
+  /// served (see `actionHandler` for when you need it). Single-action builders
+  /// (`ioHandler`, `shelfHandler`) take their own flag, so match it there if
+  /// you use both.
+  GenkitRouter({this.sendLegacyErrorFrame = false});
+
+  /// Whether failed streams end with the legacy `error:` frame that Dart
+  /// clients from `package:genkit` 0.17 and earlier understand.
+  final bool sendLegacyErrorFrame;
 
   // Exact-match lookup rather than a pattern router: action names may contain
   // '/' (e.g. `googleai/gemini-flash-latest`) or characters that routing
@@ -91,6 +101,7 @@ final class GenkitRouter {
     _routes[routePath] = actionHandler(
       action,
       contextProvider: contextProvider,
+      sendLegacyErrorFrame: sendLegacyErrorFrame,
     );
   }
 

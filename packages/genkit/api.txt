@@ -2056,8 +2056,8 @@ package:genkit/genkit.dart:
   ToolFn (type alias<Input, Output> for FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>))
   TraceStartCallback (type alias for void Function({required String spanId, required String traceId}))
 package:genkit/io.dart:
-  actionHandler (function: Future<GenkitHttpResponse> Function(GenkitHttpRequest) Function(Action<dynamic, dynamic, dynamic, dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider}))
-  ioHandler (function: Future<void> Function(HttpRequest) Function(Action<dynamic, dynamic, dynamic, dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider}))
+  actionHandler (function: Future<GenkitHttpResponse> Function(GenkitHttpRequest) Function(Action<dynamic, dynamic, dynamic, dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider, bool sendLegacyErrorFrame}))
+  ioHandler (function: Future<void> Function(HttpRequest) Function(Action<dynamic, dynamic, dynamic, dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider, bool sendLegacyErrorFrame}))
   CorsOptions (class extends Object, final):
     new (const constructor: CorsOptions Function({List<String> allowedHeaders, List<String> allowedOrigins, List<String> exposedHeaders}))
     allowedHeaders (getter: List<String>)
@@ -2076,7 +2076,8 @@ package:genkit/io.dart:
     headers (getter: Map<String, String>)
     statusCode (getter: int)
   GenkitRouter (class extends Object, final):
-    new (constructor: GenkitRouter Function())
+    new (constructor: GenkitRouter Function({bool sendLegacyErrorFrame}))
+    sendLegacyErrorFrame (getter: bool)
     addAction (method: void Function(Action<dynamic, dynamic, dynamic, dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider, String? path}))
     handle (method: Future<GenkitHttpResponse?> Function(GenkitHttpRequest))
     handleHttpRequest (method: Future<bool> Function(HttpRequest, {String basePath, CorsOptions? cors}))

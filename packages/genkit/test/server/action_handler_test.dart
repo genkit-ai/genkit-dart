@@ -94,6 +94,22 @@ final class _NoTraceAction extends Action<String, String, String, void> {
   }
 }
 
+/// The `error` payload of the final frame of a streamed [body], which must be
+/// a `data: {"error": ...}` frame, or `error: {"error": ...}` when [legacy].
+Map<String, dynamic> _streamError(String body, {bool legacy = false}) {
+  final prefix = legacy ? 'error: ' : 'data: ';
+  final frames = body
+      .split('\n\n')
+      .map((f) => f.trim())
+      .where((f) => f.isNotEmpty);
+  final last = frames.last;
+  expect(last, startsWith(prefix));
+  final event =
+      jsonDecode(last.substring(prefix.length)) as Map<String, dynamic>;
+  expect(event.keys, ['error']);
+  return event['error'] as Map<String, dynamic>;
+}
+
 void main() {
   late Genkit ai;
   HttpServer? server;
@@ -330,21 +346,124 @@ void main() {
     final response = await client.send(request);
     expect(response.statusCode, 200);
 
-    final streamBody = await response.stream.bytesToString();
-    final errorChunk = streamBody
-        .split('\n\n')
-        .map((chunk) => chunk.trim())
-        .firstWhere((chunk) => chunk.startsWith('error: '), orElse: () => '');
-
-    expect(errorChunk, isNotEmpty);
-
-    final eventJson = errorChunk.substring('error: '.length);
-    final event = jsonDecode(eventJson) as Map<String, dynamic>;
-    final error = event['error'] as Map<String, dynamic>;
+    final error = _streamError(await response.stream.bytesToString());
 
     expect(error['code'], 400);
     expect(error['status'], 'INVALID_ARGUMENT');
     expect(error['message'], 'Bad stream input');
+  });
+
+  group('stream error frames', () {
+    late Flow<String, String, String, void> failing;
+    setUp(() {
+      failing = ai.defineFlow(
+        name: 'failing',
+        fn: (input, ctx) async {
+          ctx.sendChunk('partial');
+          throw GenkitException('Bad input', status: StatusCodes.NOT_FOUND);
+        },
+        inputSchema: .string(),
+        outputSchema: .string(),
+        streamSchema: .string(),
+      );
+    });
+
+    Future<String> streamBody(String url) async {
+      final response = await http.Client().send(
+        http.Request('POST', Uri.parse('$url?stream=true'))
+          ..headers['content-type'] = 'application/json'
+          ..body = jsonEncode({'data': 'x'}),
+      );
+      return response.stream.bytesToString();
+    }
+
+    test('GenkitRouter(sendLegacyErrorFrame) sends the error: frame', () async {
+      server = await (GenkitRouter(
+        sendLegacyErrorFrame: true,
+      )..addAction(failing)).serve(port: 0);
+
+      final error = _streamError(
+        await streamBody('http://127.0.0.1:${server!.port}/failing'),
+        legacy: true,
+      );
+      expect(error['status'], 'NOT_FOUND');
+      expect(error['message'], 'Bad input');
+    });
+
+    test('actionHandler and ioHandler take the flag too', () async {
+      final legacy = await actionHandler(failing, sendLegacyErrorFrame: true)(
+        GenkitHttpRequest(
+          method: 'POST',
+          path: '/failing',
+          queryParameters: {'stream': 'true'},
+          body: Stream.value(utf8.encode('{"data": "x"}')),
+        ),
+      );
+      _streamError(await utf8.decodeStream(legacy.body), legacy: true);
+
+      final handle = ioHandler(failing, sendLegacyErrorFrame: true);
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server!.listen(handle);
+      _streamError(
+        await streamBody('http://127.0.0.1:${server!.port}/failing'),
+        legacy: true,
+      );
+    });
+
+    for (final legacy in [false, true]) {
+      test('the client reports the server error '
+          '(${legacy ? 'legacy error:' : 'data:'} frame)', () async {
+        server = await (GenkitRouter(
+          sendLegacyErrorFrame: legacy,
+        )..addAction(failing)).serve(port: 0);
+
+        final action = defineRemoteAction(
+          url: 'http://127.0.0.1:${server!.port}/failing',
+          outputSchema: .string(),
+          streamSchema: .string(),
+        );
+        final stream = action.stream(input: 'x');
+        final chunks = <String>[];
+        await expectLater(
+          () async {
+            await for (final chunk in stream) {
+              chunks.add(chunk);
+            }
+          }(),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              'Bad input',
+            ),
+          ),
+        );
+        expect(chunks, ['partial']);
+      });
+    }
+
+    test(
+      'an `error` field in user data is not mistaken for an error',
+      () async {
+        final tricky = ai.defineFlow(
+          name: 'tricky',
+          fn: (String _, ctx) async {
+            ctx.sendChunk({'error': 'chunk field'});
+            return {'error': 'result field', 'ok': true};
+          },
+        );
+        server = await (GenkitRouter()..addAction(tricky)).serve(port: 0);
+
+        final action = defineRemoteAction(
+          url: 'http://127.0.0.1:${server!.port}/tricky',
+        );
+        final stream = action.stream(input: 'x');
+        expect(await stream.toList(), [
+          {'error': 'chunk field'},
+        ]);
+        expect(await stream.onResult, {'error': 'result field', 'ok': true});
+      },
+    );
   });
 
   test('Unary flow hides non-Genkit exception details', () async {
@@ -404,17 +523,7 @@ void main() {
     final response = await client.send(request);
     expect(response.statusCode, 200);
 
-    final streamBody = await response.stream.bytesToString();
-    final errorChunk = streamBody
-        .split('\n\n')
-        .map((chunk) => chunk.trim())
-        .firstWhere((chunk) => chunk.startsWith('error: '), orElse: () => '');
-
-    expect(errorChunk, isNotEmpty);
-
-    final eventJson = errorChunk.substring('error: '.length);
-    final event = jsonDecode(eventJson) as Map<String, dynamic>;
-    final error = event['error'] as Map<String, dynamic>;
+    final error = _streamError(await response.stream.bytesToString());
 
     expect(error['code'], 500);
     expect(error['status'], 'INTERNAL');
@@ -753,6 +862,9 @@ void main() {
 
     expect(response.headers.containsKey('x-genkit-trace-id'), isFalse);
     expect(response.headers.containsKey('x-genkit-span-id'), isFalse);
+    // Same as Go and Python servers.
+    expect(response.headers['content-type'], 'text/event-stream');
+    expect(response.headers['cache-control'], 'no-cache');
   });
 
   test(

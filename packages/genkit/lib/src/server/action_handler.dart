@@ -32,9 +32,17 @@ const _internalErrorMessage = 'Internal server error';
 ///
 /// This is the building block for HTTP framework adapters. To serve actions
 /// directly, use `GenkitRouter` or `ioHandler` instead.
+///
+/// [sendLegacyErrorFrame] makes a failed stream end with an
+/// `error: {"error": ...}` frame instead of `data: {"error": ...}`. Only Dart
+/// clients from `package:genkit` 0.17 and earlier need it: they don't
+/// recognize the `data:` form and report a generic "stream finished" error
+/// instead of the server's. Enable it while such clients (typically shipped
+/// Flutter apps) are still in use, then remove it.
 GenkitHttpHandler actionHandler(
   Action action, {
   ContextProvider? contextProvider,
+  bool sendLegacyErrorFrame = false,
 }) {
   return (GenkitHttpRequest request) async {
     if (request.method != 'POST') {
@@ -100,7 +108,13 @@ GenkitHttpHandler actionHandler(
     }
 
     if (isStreaming) {
-      return _runStreaming(action, input, init, context);
+      return _runStreaming(
+        action,
+        input,
+        init,
+        context,
+        sendLegacyErrorFrame: sendLegacyErrorFrame,
+      );
     }
     try {
       final result = await action.run(input, context: context, init: init);
@@ -123,8 +137,9 @@ Future<GenkitHttpResponse> _runStreaming(
   Action action,
   Object? input,
   Object? init,
-  Map<String, dynamic>? context,
-) async {
+  Map<String, dynamic>? context, {
+  required bool sendLegacyErrorFrame,
+}) async {
   final controller = StreamController<List<int>>();
   // Trace/span ids are only known once the span starts, but headers must be
   // set before the streaming response is returned. Capture them via
@@ -166,7 +181,12 @@ Future<GenkitHttpResponse> _runStreaming(
         // Also covers an action that failed before the span started.
         completeTraceInfoIfPending();
         final (status, message) = _clientError(e);
-        sendChunk('error:', {'error': _errorBody(status, message)});
+        // `data: {"error": ...}` matches Go and Python servers and is what
+        // current clients read; genkit <= 0.17 Dart clients only know the
+        // `error:` prefix (see actionHandler's sendLegacyErrorFrame).
+        sendChunk(sendLegacyErrorFrame ? 'error:' : 'data:', {
+          'error': _errorBody(status, message),
+        });
         controller.close();
       });
 
@@ -174,7 +194,8 @@ Future<GenkitHttpResponse> _runStreaming(
   return GenkitHttpResponse(
     statusCode: 200,
     headers: {
-      'content-type': 'text/plain',
+      // Also keeps proxies and compression middleware from buffering it.
+      'content-type': 'text/event-stream',
       'cache-control': 'no-cache',
       ..._traceHeaders(ids.traceId, ids.spanId),
     },

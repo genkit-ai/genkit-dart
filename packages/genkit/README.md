@@ -720,6 +720,12 @@ genkit
   ..addAgent(statelessAgent); // turn only
 ```
 
+When a streamed call fails midway, the stream ends with a `data: {"error": ...}` frame, the same as Go and Python servers. Dart clients from `package:genkit` 0.17 and earlier only recognize the older `error: {...}` frame. If such clients are still in use (for example a shipped Flutter app), keep sending that frame until they've updated:
+
+```dart
+final genkit = GenkitRouter(sendLegacyErrorFrame: true); // also on ioHandler(...)
+```
+
 For shelf apps, use [genkit_shelf](https://pub.dev/packages/genkit_shelf) (`router.mount('/api/', genkit.asShelfHandler)`). Other frameworks can adapt the framework-neutral `GenkitRouter.handle` / `actionHandler`, which take a `GenkitHttpRequest` and return a `GenkitHttpResponse`. See [example/http_server_example.dart](example/http_server_example.dart) and [example/http_agent_example.dart](example/http_agent_example.dart).
 
 ---

@@ -122,6 +122,49 @@ void main() {
         expect(chunks, expectedChunks);
         expect(finalResponse, expectedResponse);
       });
+
+      // Current servers (Dart, Go, Python) send `data: {"error": ...}`; JS and
+      // legacy-mode Dart servers send `error: {"error": ...}`. Both must
+      // surface the server's message.
+      for (final (label, frame) in [
+        ('data: error frame', 'data: '),
+        ('legacy error: frame', 'error: '),
+      ]) {
+        test('surfaces a streamed $label', () async {
+          final responseBody =
+              'data: ${jsonEncode({
+                'message': {'chunk': 'chunk1'},
+              })}\n\n'
+              '$frame${jsonEncode({
+                'error': {'status': 'INVALID_ARGUMENT', 'message': 'Bad input'},
+              })}\n\n';
+          when(mockClient.send(any)).thenAnswer(
+            (_) async => http.StreamedResponse(
+              Stream.fromIterable([utf8.encode(responseBody)]),
+              200,
+            ),
+          );
+
+          final stream = testAction.stream(input: 'x');
+          final chunks = <String>[];
+          await expectLater(
+            () async {
+              await for (final chunk in stream) {
+                chunks.add(chunk);
+              }
+            }(),
+            throwsA(
+              isA<GenkitException>().having(
+                (e) => e.message,
+                'message',
+                'Bad input',
+              ),
+            ),
+          );
+          expect(chunks, ['chunk1']);
+          await expectLater(stream.onResult, throwsA(isA<GenkitException>()));
+        });
+      }
     });
   });
 
