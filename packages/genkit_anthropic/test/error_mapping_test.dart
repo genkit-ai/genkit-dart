@@ -66,9 +66,7 @@ void main() {
       });
       final genkit = Genkit(
         isDevEnv: false,
-        plugins: [
-          AnthropicPluginImpl(apiKey: 'test-key', httpClient: client),
-        ],
+        plugins: [AnthropicPluginImpl(apiKey: 'test-key', httpClient: client)],
       );
       addTearDown(genkit.shutdown);
 
