@@ -279,6 +279,70 @@ abstract class $Outer {
       );
     });
 
+    test('treats dart:core DateTime as a date-time string', () async {
+      await _testBuilderWithNoFail(
+        {
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
+          'a|lib/a.dart': r'''
+import 'package:schemantic/schemantic.dart';
+
+part 'a.g.dart';
+
+@Schema()
+abstract class $Event {
+  DateTime get at;
+}
+''',
+        },
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
+            allOf(
+              contains("return DateTime.parse(_json['at'] as String);"),
+              contains("_json['at'] = value.toIso8601String();"),
+              matches(
+                RegExp(
+                  r"'at': <String, Object\?>\{\s*"
+                  r"'type': 'string',\s*"
+                  r"'format': 'date-time',?\s*\}",
+                ),
+              ),
+            ),
+          ),
+        },
+      );
+    });
+
+    test('does not treat a user class named DateTime as dart:core', () async {
+      await _testBuilderWithNoFail(
+        {
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
+          'a|lib/a.dart': r'''
+import 'dart:core' hide DateTime;
+
+import 'package:schemantic/schemantic.dart';
+
+part 'a.g.dart';
+
+class DateTime {}
+
+@Schema()
+abstract class $Event {
+  DateTime? get at;
+}
+''',
+        },
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
+            allOf(
+              isNot(contains('DateTime.parse')),
+              isNot(contains('toIso8601String')),
+              isNot(contains("'date-time'")),
+            ),
+          ),
+        },
+      );
+    });
+
     test('rejects a field-less class that only implements schemas', () async {
       final errors = <String>[];
       await testBuilder(

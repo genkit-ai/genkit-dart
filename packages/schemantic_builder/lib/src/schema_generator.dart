@@ -513,10 +513,6 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
     final returnType = getter.returnType;
     final typeName = returnType.getDisplayString();
     final convertedTypeName = _convertSchemaType(returnType);
-    final nonNullableTypeName = returnType.getDisplayString().replaceAll(
-      '?',
-      '',
-    );
 
     var getterBody = "return _json['$jsonFieldName'] as $typeName;";
     if (returnType.isDartCoreDouble && !returnType.isNullable) {
@@ -585,7 +581,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
             "return _json['$jsonFieldName'] == null ? null : "
             "$nestedBaseName.fromJson(_json['$jsonFieldName'] "
             'as Map<String, dynamic>);';
-      } else if (nonNullableTypeName == 'DateTime') {
+      } else if (returnType.isDartCoreDateTime) {
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : "
             "DateTime.parse(_json['$jsonFieldName'] as String);";
@@ -662,7 +658,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
             "return (_json['$jsonFieldName'] as Map)"
             '.cast<$keyTypeName, $valueTypeName>();';
       }
-    } else if (nonNullableTypeName == 'DateTime') {
+    } else if (returnType.isDartCoreDateTime) {
       getterBody = "return DateTime.parse(_json['$jsonFieldName'] as String);";
     } else if (returnType.isSchema) {
       final nestedBaseName = _resolveBaseName(returnType.element!.name!);
@@ -703,7 +699,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       if (nonNullableTypeName.isSchema) {
         // Normalize the nested model to plain JSON, mirroring the constructor.
         valueExpression = 'value.toJson()';
-      } else if (nonNullableTypeName == 'DateTime') {
+      } else if (paramType.isDartCoreDateTime) {
         valueExpression = 'value.toIso8601String()';
       } else if (paramType.isDartCoreList) {
         final itemType = (paramType as InterfaceType).typeArguments.first;
@@ -754,7 +750,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
             "_json['$jsonFieldName'] = "
             'value.map((k, v) => MapEntry(k, $valAccess));';
       }
-    } else if (nonNullableTypeName == 'DateTime') {
+    } else if (paramType.isDartCoreDateTime) {
       setterBody = "_json['$jsonFieldName'] = value.toIso8601String();";
     } else if (nonNullableTypeName.isSchema) {
       setterBody = "_json['$jsonFieldName'] = value.toJson();";
@@ -1009,8 +1005,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       });
     }
 
-    final typeName = type.getDisplayString().replaceAll('?', '');
-    if (typeName == 'DateTime') {
+    if (type.isDartCoreDateTime) {
       return _schemaLiteral({
         'type': literalString('string'),
         ...properties,
@@ -1264,6 +1259,16 @@ extension on DartType {
 
   bool get isSchema {
     return element?.name?.startsWith(r'$') ?? false;
+  }
+
+  /// Whether this is `dart:core`'s `DateTime` (possibly nullable). Checked via
+  /// the element rather than the display name, so a user class that happens
+  /// to be named `DateTime` is not mistaken for it.
+  bool get isDartCoreDateTime {
+    final e = element;
+    return e != null &&
+        e.name == 'DateTime' &&
+        (e.library?.isDartCore ?? false);
   }
 }
 
