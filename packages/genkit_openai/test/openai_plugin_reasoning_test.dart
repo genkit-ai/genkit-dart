@@ -87,7 +87,7 @@ Matcher failsWith(StatusCodes status, {String? message}) =>
         );
 
 /// The reasoning text a response carries, or null when it carries none.
-String? reasoningOf(GenerateResponseHelper<dynamic> response) => response
+String? reasoningOf(GenerateResult<dynamic> response) => response
     .message
     ?.content
     .firstWhere((p) => p.isReasoning, orElse: () => TextPart(text: ''))

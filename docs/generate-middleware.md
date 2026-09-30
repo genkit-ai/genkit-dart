@@ -15,10 +15,10 @@ import 'package:genkit/genkit.dart';
 
 class PrintMiddleware extends GenerateMiddleware {
   @override
-  Future<GenerateResponseHelper> generate(
+  Future<GenerateResult> generate(
     GenerateActionOptions options,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateActionOptions options,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     ) next,
@@ -214,10 +214,10 @@ class RiskClassifierMiddleware extends GenerateMiddleware {
   final GenkitAI ai;
 
   @override
-  Future<GenerateResponseHelper> generate(
+  Future<GenerateResult> generate(
     GenerateActionOptions options,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateActionOptions options,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     ) next,

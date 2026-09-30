@@ -255,21 +255,18 @@ final class ExecutablePrompt<Input> {
   }
 
   /// Generates a response by rendering the prompt and calling the model.
-  Future<GenerateResponseHelper> call(
-    Input? input, [
-    PromptGenerateOptions? opts,
-  ]) => _generate(input, opts);
+  Future<GenerateResult> call(Input? input, [PromptGenerateOptions? opts]) =>
+      _generate(input, opts);
 
   /// Streams a response by rendering the prompt and calling the model.
-  ActionStream<GenerateResponseChunk, GenerateResponseHelper> stream(
+  ActionStream<GenerateResponseChunk, GenerateResult> stream(
     Input? input, [
     PromptGenerateOptions? opts,
   ]) {
     final streamController = StreamController<GenerateResponseChunk>();
-    final actionStream =
-        ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
-          streamController.stream,
-        );
+    final actionStream = ActionStream<GenerateResponseChunk, GenerateResult>(
+      streamController.stream,
+    );
 
     _generate(
       input,
@@ -299,7 +296,7 @@ final class ExecutablePrompt<Input> {
   }
 
   /// Internal generate implementation shared by [call] and [stream].
-  Future<GenerateResponseHelper> _generate(
+  Future<GenerateResult> _generate(
     Input? input,
     PromptGenerateOptions? opts, {
     StreamingCallback<GenerateResponseChunk>? onChunk,

@@ -104,9 +104,9 @@ void main() async {
         messages: request.messages,
         config: request.config,
         context: context.context,
-        onChunk: (chunk) => context.sendChunk(chunk.rawChunk),
+        onChunk: (chunk) => context.sendChunk(chunk.modelChunk),
       );
-      return response.rawResponse;
+      return response.modelResponse;
     },
   );
 

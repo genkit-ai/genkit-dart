@@ -517,19 +517,20 @@ void main() {
     });
 
     test(
-      'jsonOutput returns null on an aborted response rather than throwing',
+      'output is null on an aborted json response rather than throwing',
       () async {
         final controller = CancellationController()..cancel();
         final res = await genkit.generate(
           model: modelRef('m'),
           prompt: 'give me json',
+          outputFormat: 'json',
           cancel: controller.token,
         );
 
         expect(res.finishReason, FinishReason.aborted);
         // Degrades safely like the other accessors instead of throwing a
         // FormatException on the empty text.
-        expect(res.jsonOutput, isNull);
+        expect(res.output, isNull);
         expect(res.text, '');
       },
     );
