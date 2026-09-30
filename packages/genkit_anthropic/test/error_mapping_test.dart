@@ -68,7 +68,6 @@ void main() {
         isDevEnv: false,
         plugins: [
           AnthropicPluginImpl(apiKey: 'test-key', httpClient: client),
-          RetryPlugin(),
         ],
       );
       addTearDown(genkit.shutdown);

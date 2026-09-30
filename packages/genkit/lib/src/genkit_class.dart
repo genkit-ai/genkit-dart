@@ -23,6 +23,7 @@ import 'ai/evaluator.dart';
 import 'ai/formatters/formatters.dart';
 import 'ai/generate.dart';
 import 'ai/generate_middleware.dart';
+import 'ai/middleware/retry.dart';
 import 'ai/middleware/simulate_constrained_generation.dart';
 import 'ai/model.dart';
 import 'ai/prompt.dart';
@@ -87,11 +88,9 @@ final class Genkit extends GenkitAI {
 
     // Built-in middleware first, so a plugin's middleware of the same name
     // takes precedence.
-    registry.registerValue(
-      'middleware',
-      simulateConstrainedGenerationDef.name,
-      simulateConstrainedGenerationDef,
-    );
+    for (final def in [simulateConstrainedGenerationDef, retryDef]) {
+      registry.registerValue('middleware', def.name, def);
+    }
 
     // Register plugins
     for (final plugin in plugins) {

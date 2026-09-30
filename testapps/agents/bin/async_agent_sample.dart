@@ -40,7 +40,7 @@ import 'package:genkit_middleware/agents.dart';
 final _model = googleAI.gemini('gemini-flash-latest');
 
 final Genkit ai = Genkit(
-  plugins: [googleAI(), AgentsPlugin(), RetryPlugin()],
+  plugins: [googleAI(), AgentsPlugin()],
   model: _model,
 );
 
