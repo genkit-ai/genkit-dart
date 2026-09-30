@@ -102,6 +102,12 @@ void main() {
       );
     });
 
+    test('picks up new Gemini API text entries but not their TTS', () {
+      expect(vertexAiKnownModels, contains('gemini-3.8-flash'));
+      expect(knownGeminiModels, contains('gemini-3.8-flash-tts'));
+      expect(vertexAiKnownModels, isNot(contains('gemini-3.8-flash-tts')));
+    });
+
     test('shares the Gemini API entries rather than copying them', () {
       for (final MapEntry(:key, :value) in vertexAiKnownModels.entries) {
         expect(value, same(knownGeminiModels[key]), reason: key);
