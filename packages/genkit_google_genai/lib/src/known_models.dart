@@ -17,6 +17,12 @@ import 'package:schemantic/schemantic.dart';
 
 import 'model.dart';
 
+// The curated catalog is internal metadata, not API: it only enriches the
+// labels, stages and capabilities of names that resolve anyway. Entries are
+// added and removed with the upstream model list in any release, which is why
+// neither enum is exported. Callers name models by string
+// (`googleAI.gemini('gemini-flash-latest')`).
+
 /// The multimodal capability profile curated text and image models advertise.
 ///
 /// Mirrors the `Multimodal` preset the Go plugin uses for its curated model

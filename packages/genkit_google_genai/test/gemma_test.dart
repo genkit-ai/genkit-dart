@@ -16,6 +16,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/common.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_google_genai/src/google_api_client.dart';
+import 'package:genkit_google_genai/src/known_models.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
@@ -73,37 +74,13 @@ void main() {
       });
     }
 
-    test('typed refs point at the curated action names', () {
-      expect(
-        GoogleAiModels.gemma431b.name,
-        'googleai/${KnownGemmaModel.gemma431b.id}',
-      );
-      expect(
-        GoogleAiModels.gemma426bA4b.name,
-        'googleai/${KnownGemmaModel.gemma426bA4b.id}',
-      );
-    });
+    test('googleAI.gemma refs point at the action and carry GeminiOptions', () {
+      for (final model in KnownGemmaModel.values) {
+        final ref = googleAI.gemma(model.id);
 
-    test('typed refs carry GeminiOptions', () {
-      expect(
-        GoogleAiModels.gemma431b.customOptions,
-        same(GeminiOptions.$schema),
-      );
-      expect(
-        GoogleAiModels.gemma426bA4b.customOptions,
-        same(GeminiOptions.$schema),
-      );
-    });
-
-    test('every curated Gemma model has a typed ref', () {
-      final refNames = {
-        GoogleAiModels.gemma431b.name,
-        GoogleAiModels.gemma426bA4b.name,
-      };
-
-      expect(refNames, {
-        for (final model in KnownGemmaModel.values) 'googleai/${model.id}',
-      });
+        expect(ref.name, 'googleai/${model.id}');
+        expect(ref.customOptions, same(GeminiOptions.$schema));
+      }
     });
 
     test('curated catalogue holds both families', () {
