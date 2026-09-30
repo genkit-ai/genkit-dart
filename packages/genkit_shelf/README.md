@@ -14,12 +14,13 @@ Shelf integration for Genkit Dart.
 
 ## Usage
 
-### Serving Flows
+### Serving flows and models
 
-The easiest way to serve your flows is using `startFlowServer`:
+Register actions on a `GenkitRouter` and start a server. Any action works: flows, models, tools and so on. Each one is served as a POST endpoint at `/<action name>`.
 
 ```dart
 import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 
 void main() async {
@@ -32,118 +33,56 @@ void main() async {
     fn: (String input, _) async => 'Hello $input',
   );
 
-  await startFlowServer(
-    flows: [flow],
-    port: 8080,
-  );
-}
-```
-
-### Serving Models
-
-You can also serve AI models (and other actions) using `startFlowServer` or `shelfHandler`:
-
-```dart
-import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:genkit_shelf/genkit_shelf.dart';
-
-void main() async {
   // Just an example, can use Anthropic, OpenAI, etc. models
-  final geminiApi = googleAI();
-  final geminiFlash = geminiApi.model('gemini-flash-latest');
+  final geminiFlash = googleAI().model('gemini-flash-latest');
 
-  await startFlowServer(
-    flows: [geminiFlash],
-    port: 8080,
-  );
+  final genkit = GenkitRouter()
+    ..addAction(flow) // POST /myFlow
+    ..addAction(geminiFlash); // POST /googleai/gemini-flash-latest
+
+  await genkit.serve(port: 8080);
 }
 ```
 
-### Existing Shelf Application
-
-You can also integrate Genkit flows and actions (like models) into an existing Shelf application using `shelfHandler`. This allows you to use your own routing, middleware, and server configuration.
+`serve` options:
 
 ```dart
-import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:genkit_shelf/genkit_shelf.dart';
-import 'package:shelf/shelf.dart';
-import 'package:shelf/shelf_io.dart' as io;
-import 'package:shelf_router/shelf_router.dart';
+await genkit.serve(
+  host: InternetAddress.loopbackIPv4, // default: anyIPv4
+  port: 8080, // default: $PORT, then 3400
+  cors: const CorsOptions(allowedOrigins: ['https://myapp.dev']), // default: no CORS
+);
+```
 
-void main() async {
-  final ai = Genkit();
+Use `path` to serve an action somewhere other than `/<action name>`:
 
-  final flow = ai.defineFlow(
-    name: 'myFlow',
-    inputSchema: .string(),
-    outputSchema: .string(),
-    fn: (String input, _) async => 'Hello $input',
-  );
-
-  final geminiApi = googleAI();
-  final geminiFlash = geminiApi.model('gemini-flash-latest');
-
-  // Create a Shelf Router
-  final router = Router();
-
-  // Mount handlers
-  router.post('/myFlow', shelfHandler(flow));
-  router.post('/geminiFlash', shelfHandler(geminiFlash));
-
-  // Add other application routes
-  router.get('/health', (Request request) => Response.ok('OK'));
-
-  // Start the server
-  await io.serve(router.call, 'localhost', 8080);
-}
+```dart
+genkit.addAction(flow, path: '/v1/hello');
 ```
 
 ### Authentication and ContextProvider
 
-You can secure your flows and models by providing a `contextProvider` to `shelfHandler`. This allows the server to verify headers (like `Authorization`) before executing the action, and pass that context down to the Genkit action.
+Pass a `contextProvider` to verify the request (for example the `Authorization` header) before the action runs. What it returns becomes the action context. If it throws, the request is rejected with `403`.
 
 ```dart
-// 1. Define a flow that requires authentication
+// checkUserToken is where you implement your custom auth logic.
+Future<Map<String, dynamic>> bearerAuth(Request request) async {
+  final user = await checkUserToken(request.headers['authorization']);
+  if (user == null) throw Exception('Unauthorized');
+  return {'userId': user.id};
+}
+
 final secureFlow = ai.defineFlow(
   name: 'secureFlow',
   inputSchema: .string(),
   outputSchema: .string(),
-  fn: (input, ctx) async {
-    final userId = ctx.context?['userId'];
-    if (userId == null) throw Exception('Unauthorized');
-    return 'Hello $input, your ID is $userId!';
-  },
+  fn: (input, ctx) async => 'Hello $input, your ID is ${ctx.context?['userId']}!',
 );
 
-// 2. Define a model you want to secure
-final geminiApi = googleAI();
-final secureModel = geminiApi.model('gemini-flash-latest');
-
-final router = Router();
-
-// 3. Shared context provider for authentication
-Future<Map<String, dynamic>> authContextProvider(Request request) async {
-  final authHeader = request.headers['authorization'];
-  // checkUserToken is where you implement your custom auth logic
-  final user = await checkUserToken(authHeader);
-  if (user != null) {
-    return {'userId': user.id};
-  }
-  return {}; // Or throw an exception to reject early
-}
-
-// 4. Secure the endpoints
-router.post('/secureFlow', shelfHandler(
-  secureFlow,
-  contextProvider: authContextProvider,
-));
-
-router.post('/secureModel', shelfHandler(
-  secureModel,
-  contextProvider: authContextProvider,
-));
+final genkit = GenkitRouter()
+  ..addAction(publicFlow)
+  ..addAction(secureFlow, contextProvider: bearerAuth)
+  ..addAction(geminiFlash, contextProvider: bearerAuth);
 ```
 
 When consuming these remote endpoints from a client using `defineRemoteModel` or `defineRemoteAction`, you can pass the required headers:
@@ -165,8 +104,8 @@ final response = await remoteFlow(
 
 // Consuming a secure model
 final remoteModel = ai.defineRemoteModel(
-  name: 'remoteModel', 
-  url: 'http://localhost:8080/secureModel',
+  name: 'remoteModel',
+  url: 'http://localhost:8080/googleai/gemini-flash-latest',
   headers: (context) async => {'Authorization': 'Bearer ${await getUserToken()}'},
 );
 
@@ -174,6 +113,70 @@ final generateResponse = await ai.generate(
   model: remoteModel,
   prompt: 'Hello!',
 );
+```
+
+### Serving agents (experimental)
+
+`addAgent` comes from `package:genkit_shelf/agents.dart`. Like `package:genkit/experimental.dart`, that library isn't covered by semver.
+
+```dart
+import 'package:genkit_shelf/agents.dart';
+import 'package:genkit_shelf/genkit_shelf.dart';
+
+final genkit = GenkitRouter()
+  ..addAgent(weatherAgent)
+  ..addAgent(bankingAgent, contextProvider: bearerAuth)
+  ..addAgent(statelessAgent, hideGetSnapshot: true, hideAbort: true);
+
+await genkit.serve();
+```
+
+Each agent gets the routes that `remoteAgent` from `package:genkit/client.dart` expects:
+
+| Route | Action |
+| --- | --- |
+| `POST /<name>` | run a turn |
+| `POST /<name>/getSnapshot` | read a snapshot (unless `hideGetSnapshot`) |
+| `POST /<name>/abort` | abort a detached turn (unless `hideAbort`) |
+
+The `contextProvider` applies to all of them. The snapshot and abort routes need a session store. On a client-managed agent they answer `400 FAILED_PRECONDITION`, so you'll usually hide them there.
+
+```dart
+final agent = remoteAgent(url: 'http://localhost:3400/weatherAgent');
+final res = await agent.chat().send(text: 'Weather in Paris?');
+```
+
+### Existing Shelf application
+
+`GenkitRouter` is also a shelf handler, so you can mount it into your own app and keep your own routing, middleware and server setup:
+
+```dart
+import 'package:genkit_shelf/genkit_shelf.dart';
+import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as io;
+import 'package:shelf_router/shelf_router.dart';
+
+void main() async {
+  final genkit = GenkitRouter()
+    ..addAction(myFlow)
+    ..addAction(geminiFlash);
+
+  final app = Router()
+    ..get('/health', (Request request) => Response.ok('OK'))
+    ..mount('/api/', genkit.call); // POST /api/myFlow, ...
+
+  final handler = const Pipeline()
+      .addMiddleware(logRequests())
+      .addHandler(app.call);
+
+  await io.serve(handler, 'localhost', 8080);
+}
+```
+
+To mount a single action yourself, use `shelfHandler`:
+
+```dart
+router.post('/myFlow', shelfHandler(myFlow, contextProvider: bearerAuth));
 ```
 
 ## Consuming Remote Models

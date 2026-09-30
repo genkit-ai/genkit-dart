@@ -145,28 +145,26 @@ void main() async {
     outputSchema: .string(),
   );
 
-  // 5. Start the flow server
-  await startFlowServer(
-    flows: [
-      helloFlow,
-      countFlow,
-      // Wrap the secure flow with a context provider to handle auth
-      FlowWithContextProvider(
-        flow: secureFlow,
-        context: (request) {
-          final authHeader = request.headers['Authorization'];
-          if (authHeader == 'Bearer secret') {
-            return {'user': 'Admin'};
-          }
-          // Returning empty context or throwing here will result in ctx.context being null or the request failing
-          return {};
-        },
-      ),
-      clientFlow,
-    ],
+  // 5. Register the flows and start the server
+  final genkit = GenkitRouter()
+    ..addAction(helloFlow)
+    ..addAction(countFlow)
+    // The context provider turns the request's auth header into action
+    // context. Returning {} leaves the user unset; throwing rejects with 403.
+    ..addAction(
+      secureFlow,
+      contextProvider: (request) {
+        final authHeader = request.headers['Authorization'];
+        if (authHeader == 'Bearer secret') {
+          return {'user': 'Admin'};
+        }
+        return {};
+      },
+    )
+    ..addAction(clientFlow);
+
+  await genkit.serve(
     port: 3400,
-    cors: {
-      'origin': '*', // Allow all origins for development
-    },
+    cors: const CorsOptions(), // Allow all origins for development
   );
 }

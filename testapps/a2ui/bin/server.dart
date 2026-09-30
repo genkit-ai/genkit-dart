@@ -27,6 +27,7 @@ library;
 import 'dart:io';
 
 import 'package:a2ui_sample/agent.dart';
+import 'package:genkit_shelf/agents.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
@@ -38,24 +39,19 @@ void main() async {
   // agent's `a2ui(catalog: weatherCatalogId)` can resolve it from the registry.
   await registerCatalogs();
 
-  final router = Router();
-
-  router.get('/', (Request request) {
-    return Response.ok(
-      'Genkit Dart A2UI sample API server.\n\n'
-      'The uiAgent is mounted under /api/uiAgent.\n'
-      'Run the Flutter client with: flutter run -d chrome\n',
-      headers: {'Content-Type': 'text/plain'},
-    );
-  });
-
   // Server-managed agent (turn + snapshot + abort).
-  router.post('/api/uiAgent', shelfHandler(uiAgent.action));
-  router.post(
-    '/api/uiAgent/getSnapshot',
-    shelfHandler(uiAgent.getSnapshotDataAction),
-  );
-  router.post('/api/uiAgent/abort', shelfHandler(uiAgent.abortAgentAction));
+  final api = GenkitRouter()..addAgent(uiAgent);
+
+  final router = Router()
+    ..get('/', (Request request) {
+      return Response.ok(
+        'Genkit Dart A2UI sample API server.\n\n'
+        'The uiAgent is mounted under /api/uiAgent.\n'
+        'Run the Flutter client with: flutter run -d chrome\n',
+        headers: {'Content-Type': 'text/plain'},
+      );
+    })
+    ..mount('/api/', api.call);
 
   final handler = const Pipeline()
       .addMiddleware(logRequests())
@@ -73,7 +69,7 @@ void main() async {
 
   final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
   final server = await io.serve(handler, InternetAddress.anyIPv4, port);
-  print('\n🚀 A2UI sample API server on http://localhost:${server.port}');
+  print('\nA2UI sample API server on http://localhost:${server.port}');
   print('   uiAgent mounted at /api/uiAgent');
   print('   Run the Flutter client: flutter run -d chrome\n');
 }

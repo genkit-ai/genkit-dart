@@ -89,7 +89,7 @@ void main() {
       outputSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [echoFlow], port: 0);
+    server = await (GenkitRouter()..addAction(echoFlow)).serve(port: 0);
     port = server!.port;
 
     final action = defineRemoteAction(
@@ -115,7 +115,7 @@ void main() {
       streamSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [streamFlow], port: 0);
+    server = await (GenkitRouter()..addAction(streamFlow)).serve(port: 0);
     port = server!.port;
 
     final action = defineRemoteAction(
@@ -143,7 +143,7 @@ void main() {
       initSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [initFlow], port: 0);
+    server = await (GenkitRouter()..addAction(initFlow)).serve(port: 0);
     port = server!.port;
 
     final action = defineRemoteAction<String, String, void, String>(
@@ -168,7 +168,7 @@ void main() {
       initSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [initStreamFlow], port: 0);
+    server = await (GenkitRouter()..addAction(initStreamFlow)).serve(port: 0);
     port = server!.port;
 
     final action = defineRemoteAction<String, String, String, String>(
@@ -205,18 +205,18 @@ void main() {
       outputSchema: .string(),
     );
 
-    final flowWithContext = FlowWithContextProvider(
-      flow: authFlow,
-      context: (req) {
-        final auth = req.headers['Authorization'];
-        if (auth == 'Bearer token') {
-          return {'user': 'Admin'};
-        }
-        return {};
-      },
-    );
-
-    server = await startFlowServer(flows: [flowWithContext], port: 0);
+    server =
+        await (GenkitRouter()..addAction(
+              authFlow,
+              contextProvider: (req) {
+                final auth = req.headers['Authorization'];
+                if (auth == 'Bearer token') {
+                  return {'user': 'Admin'};
+                }
+                return {};
+              },
+            ))
+            .serve(port: 0);
     port = server!.port;
 
     final action = defineRemoteAction(
@@ -256,7 +256,7 @@ void main() {
       outputSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [deniedFlow], port: 0);
+    server = await (GenkitRouter()..addAction(deniedFlow)).serve(port: 0);
     port = server!.port;
 
     final response = await http.post(
@@ -286,7 +286,7 @@ void main() {
       streamSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [streamErrorFlow], port: 0);
+    server = await (GenkitRouter()..addAction(streamErrorFlow)).serve(port: 0);
     port = server!.port;
 
     final client = http.Client();
@@ -330,7 +330,7 @@ void main() {
       outputSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [hiddenErrorFlow], port: 0);
+    server = await (GenkitRouter()..addAction(hiddenErrorFlow)).serve(port: 0);
     port = server!.port;
 
     final response = await http.post(
@@ -358,7 +358,9 @@ void main() {
       streamSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [hiddenStreamErrorFlow], port: 0);
+    server = await (GenkitRouter()..addAction(hiddenStreamErrorFlow)).serve(
+      port: 0,
+    );
     port = server!.port;
 
     final client = http.Client();
@@ -425,7 +427,7 @@ void main() {
       outputSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [echoFlow], port: 0);
+    server = await (GenkitRouter()..addAction(echoFlow)).serve(port: 0);
     port = server!.port;
 
     final action = defineRemoteAction(
@@ -451,7 +453,9 @@ void main() {
       streamSchema: ShelfTestStream.$schema,
     );
 
-    server = await startFlowServer(flows: [complexStreamFlow], port: 0);
+    server = await (GenkitRouter()..addAction(complexStreamFlow)).serve(
+      port: 0,
+    );
     port = server!.port;
 
     final action = defineRemoteAction(
@@ -489,7 +493,7 @@ void main() {
       streamSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [streamFlow], port: 0);
+    server = await (GenkitRouter()..addAction(streamFlow)).serve(port: 0);
     port = server!.port;
 
     final client = http.Client();
@@ -560,7 +564,7 @@ void main() {
         streamSchema: .string(),
       );
 
-      server = await startFlowServer(flows: [streamFlow], port: 0);
+      server = await (GenkitRouter()..addAction(streamFlow)).serve(port: 0);
       port = server!.port;
 
       final client = http.Client();
@@ -592,7 +596,7 @@ void main() {
       streamSchema: .string(),
     );
 
-    server = await startFlowServer(flows: [streamFlow], port: 0);
+    server = await (GenkitRouter()..addAction(streamFlow)).serve(port: 0);
     port = server!.port;
 
     final client = http.Client();
@@ -629,7 +633,7 @@ void main() {
       },
     );
 
-    server = await startFlowServer(flows: [myModel], port: 0);
+    server = await (GenkitRouter()..addAction(myModel)).serve(port: 0);
     port = server!.port;
 
     final remoteModel = ai.defineRemoteModel(
