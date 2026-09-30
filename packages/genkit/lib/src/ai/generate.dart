@@ -553,10 +553,6 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     );
   }
 
-  // `coreModel` calls `model(...)` directly, so it stays the last hop before
-  // the plugin regardless: caller middleware observes the request the caller
-  // actually made, schema and all, and only `Model` - which wraps its own
-  // `fn` with the same simulation - sees it stripped.
   final composedModel = resolvedMiddleware.reversed.fold(
     coreModel,
     (next, mw) =>

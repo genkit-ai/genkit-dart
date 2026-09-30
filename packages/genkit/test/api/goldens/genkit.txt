@@ -399,6 +399,8 @@ final class RunResult<Output> [src/core/action.dart]
 base class RuntimeError [src/types.dart]
 base class Score [src/types.dart]
 final class ScoreScore [src/types.dart]
+class SimulateConstrainedGenerationMiddleware extends GenerateMiddleware [src/ai/middleware/simulate_constrained_generation.dart]
+  Future<ModelResponse> model(ModelRequest request, ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx, Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) next)
 enum StatusCodes [src/exception.dart]
   const StatusCodes(int value)
   value ABORTED
@@ -479,3 +481,4 @@ function GenerateMiddlewareRef<CustomOptions> middlewareRef<CustomOptions>({requ
 function ActionMetadata<dynamic, dynamic, dynamic, dynamic> modelMetadata(String name, {ModelInfo? modelInfo, SchemanticType<dynamic>? customOptions}) [src/ai/model.dart]
 function ModelRef<CustomOptions> modelRef<CustomOptions>(String name, {SchemanticType<CustomOptions>? customOptions, CustomOptions? config}) [src/ai/model.dart]
 function GenerateMiddlewareRef<RetryOptions> retry({int? maxRetries, List<StatusCodes>? statuses, int? initialDelayMs, int? maxDelayMs, double? backoffFactor, bool? noJitter, bool? retryModel, bool? retryTools}) [src/ai/middleware/retry.dart]
+function GenerateMiddlewareRef<void> simulateConstrainedGeneration() [src/ai/middleware/simulate_constrained_generation.dart]

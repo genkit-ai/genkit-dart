@@ -252,44 +252,27 @@ void main() {
       ).called(1);
     });
 
-    test('declares no constrained support unless the caller says so', () {
-      final remoteModel = ai.defineRemoteModel(
-        name: 'undeclared-remote-model',
-        url: remoteUrl,
-        httpClient: mockClient,
-      );
-
-      // The remote endpoint is a model action, so its own generate loop never
-      // runs for this call and no fallback of its own applies. Claiming
-      // constrained support here would send a schema the remote never said it
-      // honours and skip the local simulation.
-      final supports =
-          (remoteModel.metadata['model'] as Map<String, dynamic>)['supports']
-              as Map<String, dynamic>;
-      expect(supports.containsKey('constrained'), isFalse);
-
+    test('passes a declared modelInfo through', () {
       final declared = ai.defineRemoteModel(
         name: 'declared-remote-model',
         url: remoteUrl,
         httpClient: mockClient,
-        modelInfo: ModelInfo(supports: {'constrained': true}),
+        modelInfo: ModelInfo(supports: {'constrained': 'none'}),
       );
       expect(
         ((declared.metadata['model'] as Map<String, dynamic>)['supports']
             as Map<String, dynamic>)['constrained'],
-        isTrue,
+        'none',
       );
     });
 
-    test('a declared constrained claim reaches the remote intact', () async {
-      // `defineRemoteModel` fills `metadata` by cascade, after the Model is
-      // constructed, so the claim has to be read when the model is called
-      // rather than captured while it is being built.
+    test('a constrained request reaches the remote intact', () async {
+      // Forwarded as-is, whatever the metadata says: the serving side decides
+      // what to do with the schema.
       ai.defineRemoteModel(
         name: 'constrained-remote-model',
         url: remoteUrl,
         httpClient: mockClient,
-        modelInfo: ModelInfo(supports: {'constrained': true}),
       );
 
       String? sentBody;

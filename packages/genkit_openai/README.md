@@ -455,9 +455,8 @@ Three things differ on the wire, and the plugin handles each:
   `max_completion_tokens` silently rather than rejecting it, so a limit sent
   under OpenAI's newer name would simply be lost.
 - Structured output asks for `json_object`. DeepSeek has no `json_schema`, so
-  the schema travels in the prompt instead — usually written by Genkit's own
-  simulated constrained generation, with the plugin appending an instruction
-  only when nothing in the prompt says "json", which DeepSeek requires.
+  the plugin writes the schema into the prompt instead, and makes sure the
+  prompt says "json", which DeepSeek requires.
 - When a request carries tools, previous turns' reasoning is replayed as
   `reasoning_content`. DeepSeek concatenates it into the context and loses the
   thread otherwise. Without tools it is not sent, because DeepSeek ignores it

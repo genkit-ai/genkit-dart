@@ -23,6 +23,7 @@ import 'ai/evaluator.dart';
 import 'ai/formatters/formatters.dart';
 import 'ai/generate.dart';
 import 'ai/generate_middleware.dart';
+import 'ai/middleware/simulate_constrained_generation.dart';
 import 'ai/model.dart';
 import 'ai/prompt.dart';
 import 'ai/prompt_loader.dart';
@@ -82,6 +83,14 @@ final class Genkit extends GenkitAI {
       schemaResolver: (name) async {
         return registry.lookupValue<Map<String, dynamic>>('schema', name);
       },
+    );
+
+    // Built-in middleware first, so a plugin's middleware of the same name
+    // takes precedence.
+    registry.registerValue(
+      'middleware',
+      simulateConstrainedGenerationDef.name,
+      simulateConstrainedGenerationDef,
     );
 
     // Register plugins
@@ -408,10 +417,8 @@ final class Genkit extends GenkitAI {
 
   /// Defines an AI model interface.
   ///
-  /// [info] declares what the model can do. `supports.constrained` is read
-  /// when the model is called, generate or otherwise: a model that does not
-  /// claim native constrained generation has it simulated for it, so a model
-  /// that does support it has to say so.
+  /// [info] describes what the model can do, as shown in the Developer UI
+  /// and by `listActions`.
   Model defineModel({
     required String name,
     required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk, void> fn,
