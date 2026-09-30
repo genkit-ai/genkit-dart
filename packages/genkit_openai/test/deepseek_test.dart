@@ -803,14 +803,20 @@ void main() {
       expect(prompt.toLowerCase(), contains('json'));
     });
 
-    test('adds nothing when core already wrote the instructions', () async {
-      // Core marks what it wrote with `purpose: 'output'`, and a second copy
-      // from here would send the schema twice.
+    test('adds nothing when the prompt already carries the schema', () async {
+      // The `simulateConstrainedGeneration` middleware renders the same JSON
+      // under different wording, and a second copy from here would send the
+      // schema twice.
       //
-      // Through the model action directly, with both the marked part and the
-      // schema: the `simulateConstrainedGeneration` middleware strips the
-      // schema when it writes the part, so the generate path never produces
-      // this shape.
+      // Through the model action directly: the middleware strips
+      // `output.schema` when it writes the part, so the generate path never
+      // produces this shape.
+      const schema = {
+        'type': 'object',
+        'properties': {
+          'name': {'type': 'string'},
+        },
+      };
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
@@ -829,9 +835,13 @@ void main() {
               content: [
                 TextPart(text: 'describe a person'),
                 TextPart(
+                  // What `simulateConstrainedGeneration` writes: the same
+                  // rendering of the same schema, under its own wording.
                   text:
                       'Output should be in JSON format and conform to the '
-                      'following schema:\n\n```\n{"properties":{"name":{}}}\n```',
+                      'following schema:\n\n```\n'
+                      '${const JsonEncoder.withIndent('  ').convert(schema)}'
+                      '\n```\n',
                   metadata: {'purpose': 'output'},
                 ),
               ],
@@ -840,23 +850,70 @@ void main() {
           output: OutputConfig(
             format: 'json',
             constrained: false,
-            schema: {
-              'type': 'object',
-              'properties': {
-                'name': {'type': 'string'},
-              },
-            },
+            schema: schema,
           ),
         ),
       );
 
       final prompt = jsonEncode(chatBodyOf(requests)['messages']);
-      // Once - core's copy - not twice.
+      // Once - the middleware's copy - not twice.
       expect(
         RegExp('conform to the following').allMatches(prompt),
         hasLength(1),
       );
       expect(chatBodyOf(requests)['messages'], hasLength(1));
+    });
+
+    test('keeps the schema when the caller writes their own '
+        'instructions', () async {
+      // `outputInstructions` is marked `purpose: 'output'` too, so keying the
+      // dedupe off that marker let a caller's own wording suppress the schema
+      // and the model never saw the shape it was asked for.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: DeepSeekModels.deepseekFlash,
+        prompt: 'describe a person',
+        outputFormat: 'json',
+        outputSchema: JsonOut.$schema,
+        outputInstructions: 'Answer tersely.',
+      );
+
+      final prompt = jsonEncode(chatBodyOf(requests)['messages']);
+      expect(prompt, contains(r'\"name\"'));
+      expect(prompt, contains('Answer tersely.'));
+    });
+
+    test('sends the schema once when the middleware also wrote it', () async {
+      // Both the middleware and the plugin can write the schema; only one of
+      // them should end up on the wire.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: DeepSeekModels.deepseekFlash,
+        prompt: 'describe a person',
+        outputFormat: 'json',
+        outputSchema: JsonOut.$schema,
+        use: [simulateConstrainedGeneration()],
+      );
+
+      final prompt = jsonEncode(chatBodyOf(requests)['messages']);
+      // The middleware's copy, and no second one from the plugin. Counted by
+      // the instruction preamble: the schema's own text repeats field names
+      // across `properties` and `required`.
+      expect(
+        RegExp('conform to the following').allMatches(prompt),
+        hasLength(1),
+      );
+      expect(prompt, contains(r'\"name\"'));
     });
 
     test('writes them itself when core wrote none', () async {
