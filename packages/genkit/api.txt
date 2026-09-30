@@ -2007,7 +2007,7 @@ package:genkit/genkit.dart:
     inverse (getter: String Function(dynamic))
   TextPart (see above)
   Tool (class<Input, Output> extends Action<Input, ToolResult<Output>, void, void>, base):
-    new (constructor: Tool<Input, Output> Function({required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? toolOutputSchema}))
+    new (constructor: Tool<Input, Output> Function({required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema}))
     manifestOutputSchema (getter: SchemanticType<dynamic>?)
     toolOutputSchema (getter: SchemanticType<Output>?)
   ToolChoice (see above)
