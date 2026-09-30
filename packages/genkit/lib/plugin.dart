@@ -44,7 +44,7 @@ export 'package:genkit/src/ai/tool.dart'
         Interrupt,
         Tool,
         ToolFn,
-        ToolFnArgs,
+        ToolFnArg,
         ToolInterruptResult,
         ToolResponseResult,
         ToolResult;

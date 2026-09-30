@@ -30,10 +30,10 @@ String shortToolName(String fullName) => fullName.contains('/')
     : fullName;
 
 /// Arguments passed to a tool function execution.
-final class ToolFnArgs<Input> {
+final class ToolFnArg<Input> {
   final ActionFnArg<void, Input, void> _base;
 
-  ToolFnArgs(this._base);
+  ToolFnArg(this._base);
 
   /// The execution context.
   Map<String, dynamic>? get context => _base.context;
@@ -206,7 +206,7 @@ final class ToolInterruptResult<Output> extends ToolResult<Output> {
 typedef ToolFn<Input, Output> =
     FutureOr<ToolResult<Output>> Function(
       Input input,
-      ToolFnArgs<Input> context,
+      ToolFnArg<Input> context,
     );
 
 base class Tool<Input, Output>
@@ -238,7 +238,7 @@ base class Tool<Input, Output>
            if (input == null && inputSchema != null && null is! Input) {
              throw ArgumentError('Tool "$name" requires a non-null input.');
            }
-           final result = await fn(input as Input, ToolFnArgs(ctx));
+           final result = await fn(input as Input, ToolFnArg(ctx));
            // Record the interrupt on the tool's telemetry span. This runs
            // inside the tool's span (see `Action.run` -> `runInNewSpan`).
            if (result is ToolInterruptResult<Output>) {
@@ -303,7 +303,7 @@ final class Interrupt<Input, Output> extends Tool<Input, Output> {
     /// Optional data attached to the `interrupt` metadata of the generated tool
     /// request. Receives the tool input and may return a value or a future.
     /// When omitted, the interrupt metadata defaults to `true`.
-    FutureOr<Object?> Function(Input input, ToolFnArgs<Input> ctx)?
+    FutureOr<Object?> Function(Input input, ToolFnArg<Input> ctx)?
     requestMetadata,
   }) : super(
          name: name,

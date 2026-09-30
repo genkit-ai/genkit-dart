@@ -456,7 +456,7 @@ void main() {
       // would otherwise mask it).
       Future<lite.ToolResult<String>> fn(
         Map<String, dynamic> input,
-        lite.ToolFnArgs<Map<String, dynamic>> ctx,
+        lite.ToolFnArg<Map<String, dynamic>> ctx,
       ) async => .response('ok');
       expect(fn, isA<lite.ToolFn<Map<String, dynamic>, String>>());
 

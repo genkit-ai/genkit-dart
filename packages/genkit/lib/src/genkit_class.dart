@@ -228,7 +228,7 @@ final class Genkit extends GenkitAI {
     /// Optional data attached to the `interrupt` metadata of the generated tool
     /// request. Receives the tool input and may return a value or a future.
     /// When omitted, the interrupt metadata defaults to `true`.
-    FutureOr<Object?> Function(Input input, ToolFnArgs<Input> ctx)?
+    FutureOr<Object?> Function(Input input, ToolFnArg<Input> ctx)?
     requestMetadata,
   }) {
     final interrupt = Interrupt<Input, Output>(
@@ -441,14 +441,14 @@ final class Genkit extends GenkitAI {
     required String url,
     FutureOr<Map<String, String>?> Function(Map<String, dynamic> context)?
     headers,
-    ModelInfo? modelInfo,
+    ModelInfo? info,
     http.Client? httpClient,
   }) {
     final model = remoteModel(
       name: name,
       url: url,
       headers: headers,
-      modelInfo: modelInfo,
+      info: info,
       httpClient: httpClient,
     );
     registry.register(model);

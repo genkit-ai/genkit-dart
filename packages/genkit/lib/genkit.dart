@@ -70,7 +70,7 @@ export 'src/ai/tool.dart'
         Interrupt,
         Tool,
         ToolFn,
-        ToolFnArgs,
+        ToolFnArg,
         ToolInterruptResult,
         ToolResponseResult,
         ToolResult;

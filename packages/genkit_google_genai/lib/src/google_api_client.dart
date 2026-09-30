@@ -85,7 +85,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
             return modelMetadata(
               '$name/$bareName',
               customOptions: GeminiModelFamily.of(bareName).customOptions,
-              modelInfo: modelInfoFor(bareName),
+              info: modelInfoFor(bareName),
             );
           })
           .toList();

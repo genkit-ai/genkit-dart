@@ -67,11 +67,11 @@ void main() {
       expect(supports['tools'], isTrue);
     });
 
-    test('a declared modelInfo is passed through verbatim', () {
+    test('declared info is passed through verbatim', () {
       final supports =
           modelMetadata(
                 'declared',
-                modelInfo: ModelInfo(supports: {'constrained': true}),
+                info: ModelInfo(supports: {'constrained': true}),
               ).metadata['model']['supports']
               as Map<String, dynamic>;
 
