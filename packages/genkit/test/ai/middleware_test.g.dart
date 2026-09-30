@@ -68,9 +68,13 @@ base class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestToolInput',
-    definition: $Schema
-        .object(properties: {'name': $Schema.string()}, required: ['name'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name'],
+    },
     dependencies: [],
   );
 }

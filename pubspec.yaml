@@ -98,7 +98,7 @@ melos:
     build-gen-plugins:
       exec: dart run build_runner build
       packageFilters:
-        scope: "{genkit_a2ui,genkit_anthropic,genkit_chrome,genkit_firebase_ai,genkit_google_genai,genkit_mcp,genkit_openai}"
+        scope: "{genkit_a2ui,genkit_anthropic,genkit_chrome,genkit_firebase_ai,genkit_google_genai,genkit_mcp,genkit_middleware,genkit_openai,genkit_shelf,genkit_vertexai}"
       description: Run build_runner for plugins.
 
     build-gen-testapps:

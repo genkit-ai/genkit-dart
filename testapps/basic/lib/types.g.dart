@@ -77,12 +77,14 @@ base class _ProcessObjectInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ProcessObjectInput',
-    definition: $Schema
-        .object(
-          properties: {'message': $Schema.string(), 'count': $Schema.integer()},
-          required: ['message', 'count'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'message': <String, Object?>{'type': 'string'},
+        'count': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['message', 'count'],
+    },
     dependencies: [],
   );
 }
@@ -143,15 +145,14 @@ base class _ProcessObjectOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ProcessObjectOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'reply': $Schema.string(),
-            'newCount': $Schema.integer(),
-          },
-          required: ['reply', 'newCount'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'reply': <String, Object?>{'type': 'string'},
+        'newCount': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['reply', 'newCount'],
+    },
     dependencies: [],
   );
 }
@@ -204,9 +205,13 @@ base class _StreamObjectsInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StreamObjectsInput',
-    definition: $Schema
-        .object(properties: {'prompt': $Schema.string()}, required: ['prompt'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'prompt': <String, Object?>{'type': 'string'},
+      },
+      'required': ['prompt'],
+    },
     dependencies: [],
   );
 }
@@ -267,12 +272,14 @@ base class _StreamObjectsOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StreamObjectsOutput',
-    definition: $Schema
-        .object(
-          properties: {'text': $Schema.string(), 'summary': $Schema.string()},
-          required: ['text', 'summary'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'text': <String, Object?>{'type': 'string'},
+        'summary': <String, Object?>{'type': 'string'},
+      },
+      'required': ['text', 'summary'],
+    },
     dependencies: [],
   );
 }
@@ -325,9 +332,13 @@ base class _StreamyThrowyChunkTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StreamyThrowyChunk',
-    definition: $Schema
-        .object(properties: {'count': $Schema.integer()}, required: ['count'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'count': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['count'],
+    },
     dependencies: [],
   );
 }

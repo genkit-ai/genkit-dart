@@ -164,7 +164,7 @@ Object? _asSchema(Object? value) => switch (value) {
 ///
 /// - an empty schema, which it rejects outright - "Empty schema ({}) that
 ///   accepts any JSON value is not supported. Please specify a concrete type."
-///   `$Schema.any()`, and so a `dynamic` or `Object?` field, is exactly that;
+///   A `dynamic` or `Object?` field compiles to exactly that;
 /// - an open map. `additionalProperties` may only be `false` here, so a
 ///   `Map<String, T>` field - which schemantic emits as
 ///   `additionalProperties: {...}` - would be closed to an object with no

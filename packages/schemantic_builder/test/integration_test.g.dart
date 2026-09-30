@@ -86,16 +86,15 @@ base class _UserTypeFactory extends SchemanticType<User> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'User',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'age': $Schema.integer(),
-            'isAdmin': $Schema.boolean(),
-          },
-          required: ['name', 'isAdmin'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'age': <String, Object?>{'type': 'integer'},
+        'isAdmin': <String, Object?>{'type': 'boolean'},
+      },
+      'required': ['name', 'isAdmin'],
+    },
     dependencies: [],
   );
 }
@@ -177,18 +176,18 @@ base class _GroupTypeFactory extends SchemanticType<Group> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Group',
-    definition: $Schema
-        .object(
-          properties: {
-            'groupName': $Schema.string(),
-            'members': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/User'}),
-            ),
-            'leader': $Schema.fromMap({'\$ref': r'#/$defs/User'}),
-          },
-          required: ['groupName', 'members'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'groupName': <String, Object?>{'type': 'string'},
+        'members': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/User'},
+        },
+        'leader': <String, Object?>{r'$ref': r'#/$defs/User'},
+      },
+      'required': ['groupName', 'members'],
+    },
     dependencies: [User.$schema],
   );
 }
@@ -252,17 +251,17 @@ base class _NodeTypeFactory extends SchemanticType<Node> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Node',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.string(),
-            'children': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Node'}),
-            ),
-          },
-          required: ['id'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'id': <String, Object?>{'type': 'string'},
+        'children': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Node'},
+        },
+      },
+      'required': ['id'],
+    },
     dependencies: [Node.$schema],
   );
 }
@@ -336,19 +335,27 @@ base class _KeyedTypeFactory extends SchemanticType<Keyed> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Keyed',
-    definition: $Schema
-        .object(
-          properties: {
-            'custom_name': $Schema.string(
-              description: 'A custom named field',
-              minLength: 3,
-            ),
-            'score': $Schema.integer(minimum: 10, maximum: 100),
-            'rating': $Schema.number(minimum: 0.5, maximum: 5.5),
-          },
-          required: ['custom_name'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'custom_name': <String, Object?>{
+          'type': 'string',
+          'description': 'A custom named field',
+          'minLength': 3,
+        },
+        'score': <String, Object?>{
+          'type': 'integer',
+          'minimum': 10,
+          'maximum': 100,
+        },
+        'rating': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.5,
+          'maximum': 5.5,
+        },
+      },
+      'required': ['custom_name'],
+    },
     dependencies: [],
   );
 }
@@ -424,37 +431,39 @@ base class _ComprehensiveTypeFactory extends SchemanticType<Comprehensive> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Comprehensive',
-    definition: $Schema
-        .object(
-          properties: {
-            's_field': $Schema.string(
-              description: 'A string field',
-              minLength: 1,
-              maxLength: 10,
-              pattern: r'^[a-z]+$',
-              format: 'email',
-              enumValues: ['a', 'b'],
-            ),
-            'i_field': $Schema.integer(
-              description: 'An integer field',
-              minimum: 0,
-              maximum: 100,
-              exclusiveMinimum: 0,
-              exclusiveMaximum: 100,
-              multipleOf: 5,
-            ),
-            'n_field': $Schema.number(
-              description: 'A number field',
-              minimum: 0.0,
-              maximum: 100.0,
-              exclusiveMinimum: 0.0,
-              exclusiveMaximum: 100.0,
-              multipleOf: 0.5,
-            ),
-          },
-          required: ['s_field', 'i_field', 'n_field'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        's_field': <String, Object?>{
+          'type': 'string',
+          'description': 'A string field',
+          'enum': ['a', 'b'],
+          'minLength': 1,
+          'maxLength': 10,
+          'pattern': r'^[a-z]+$',
+          'format': 'email',
+        },
+        'i_field': <String, Object?>{
+          'type': 'integer',
+          'description': 'An integer field',
+          'minimum': 0,
+          'maximum': 100,
+          'exclusiveMinimum': 0,
+          'exclusiveMaximum': 100,
+          'multipleOf': 5,
+        },
+        'n_field': <String, Object?>{
+          'type': 'number',
+          'description': 'A number field',
+          'minimum': 0.0,
+          'maximum': 100.0,
+          'exclusiveMinimum': 0.0,
+          'exclusiveMaximum': 100.0,
+          'multipleOf': 0.5,
+        },
+      },
+      'required': ['s_field', 'i_field', 'n_field'],
+    },
     dependencies: [],
   );
 }
@@ -505,13 +514,14 @@ base class _DescriptionTypeFactory extends SchemanticType<Description> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Description',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string()},
-          required: ['name'],
-          description: 'A schema with description',
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'description': 'A schema with description',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name'],
+    },
     dependencies: [],
   );
 }
@@ -563,14 +573,13 @@ base class _CrossFileParentTypeFactory extends SchemanticType<CrossFileParent> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CrossFileParent',
-    definition: $Schema
-        .object(
-          properties: {
-            'child': $Schema.fromMap({'\$ref': r'#/$defs/SharedChild'}),
-          },
-          required: ['child'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'child': <String, Object?>{r'$ref': r'#/$defs/SharedChild'},
+      },
+      'required': ['child'],
+    },
     dependencies: [SharedChild.$schema],
   );
 }
@@ -649,17 +658,16 @@ base class _DefaultsTypeFactory extends SchemanticType<Defaults> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Defaults',
-    definition: $Schema
-        .object(
-          properties: {
-            'env': $Schema.fromMap({'default': 'prod', 'type': 'string'}),
-            'port': $Schema.fromMap({'default': 8080, 'type': 'integer'}),
-            'ratio': $Schema.fromMap({'default': 1.5, 'type': 'number'}),
-            'flag': $Schema.fromMap({'default': true, 'type': 'boolean'}),
-          },
-          required: ['env', 'port', 'ratio', 'flag'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'env': <String, Object?>{'type': 'string', 'default': 'prod'},
+        'port': <String, Object?>{'type': 'integer', 'default': 8080},
+        'ratio': <String, Object?>{'type': 'number', 'default': 1.5},
+        'flag': <String, Object?>{'type': 'boolean', 'default': true},
+      },
+      'required': ['env', 'port', 'ratio', 'flag'],
+    },
     dependencies: [],
   );
 }
@@ -720,19 +728,18 @@ base class _PolyTypeFactory extends SchemanticType<Poly> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Poly',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.combined(
-              anyOf: [
-                $Schema.integer(),
-                $Schema.string(),
-                $Schema.fromMap({'\$ref': r'#/$defs/User'}),
-              ],
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'id': <String, Object?>{
+          'anyOf': [
+            <String, Object?>{'type': 'integer'},
+            <String, Object?>{'type': 'string'},
+            <String, Object?>{r'$ref': r'#/$defs/User'},
+          ],
+        },
+      },
+    },
     dependencies: [User.$schema],
   );
 }
@@ -802,19 +809,20 @@ base class _MapSchemaTypeFactory extends SchemanticType<MapSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MapSchema',
-    definition: $Schema
-        .object(
-          properties: {
-            'stringToInt': $Schema.object(
-              additionalProperties: $Schema.integer(),
-            ),
-            'stringToUser': $Schema.object(
-              additionalProperties: $Schema.fromMap({'\$ref': r'#/$defs/User'}),
-            ),
-          },
-          required: ['stringToInt'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'stringToInt': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{'type': 'integer'},
+        },
+        'stringToUser': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{r'$ref': r'#/$defs/User'},
+        },
+      },
+      'required': ['stringToInt'],
+    },
     dependencies: [User.$schema],
   );
 }
@@ -899,16 +907,18 @@ base class _StatusContainerTypeFactory extends SchemanticType<StatusContainer> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StatusContainer',
-    definition: $Schema
-        .object(
-          properties: {
-            'status': $Schema.any(),
-            'optionalStatus': $Schema.any(),
-            'statusList': $Schema.list(items: $Schema.any()),
-          },
-          required: ['status'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'status': <String, Object?>{},
+        'optionalStatus': <String, Object?>{},
+        'statusList': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{},
+        },
+      },
+      'required': ['status'],
+    },
     dependencies: [],
   );
 }
@@ -989,18 +999,21 @@ base class _OrderStatusTypeFactory extends SchemanticType<OrderStatus> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'OrderStatus',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.string(),
-            'color': $Schema.string(enumValues: ['red', 'green', 'blue']),
-            'nullableColor': $Schema.string(
-              enumValues: ['red', 'green', 'blue'],
-            ),
-          },
-          required: ['id', 'color'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'id': <String, Object?>{'type': 'string'},
+        'color': <String, Object?>{
+          'type': 'string',
+          'enum': ['red', 'green', 'blue'],
+        },
+        'nullableColor': <String, Object?>{
+          'type': 'string',
+          'enum': ['red', 'green', 'blue'],
+        },
+      },
+      'required': ['id', 'color'],
+    },
     dependencies: [],
   );
 }
@@ -1050,12 +1063,14 @@ base class _StrictUserTypeFactory extends SchemanticType<StrictUser> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StrictUser',
-    definition: $Schema.fromMap({
+    definition: <String, Object?>{
       'type': 'object',
-      'properties': {'name': $Schema.string()},
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+      },
       'required': ['name'],
       'additionalProperties': false,
-    }).value,
+    },
     dependencies: [],
   );
 }
@@ -1109,7 +1124,12 @@ base class _LocationTypeFactory extends SchemanticType<Location> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Location',
-    definition: $Schema.object(properties: {'address': $Schema.string()}).value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'address': <String, Object?>{'type': 'string'},
+      },
+    },
     dependencies: [],
   );
 }
@@ -1159,19 +1179,18 @@ base class _HouseTypeFactory extends SchemanticType<House> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'House',
-    definition: $Schema
-        .object(
-          properties: {
-            'location': $Schema.fromMap({
-              'allOf': [
-                $Schema.fromMap({'\$ref': r'#/$defs/Location'}),
-              ],
-              'description': 'The location of the house',
-            }),
-          },
-          required: ['location'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'location': <String, Object?>{
+          'description': 'The location of the house',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/Location'},
+          ],
+        },
+      },
+      'required': ['location'],
+    },
     dependencies: [Location.$schema],
   );
 }
@@ -1231,12 +1250,14 @@ base class _ItineraryDayTypeFactory extends SchemanticType<ItineraryDay> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ItineraryDay',
-    definition: $Schema
-        .object(
-          properties: {'day': $Schema.integer(), 'summary': $Schema.string()},
-          required: ['day', 'summary'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'day': <String, Object?>{'type': 'integer'},
+        'summary': <String, Object?>{'type': 'string'},
+      },
+      'required': ['day', 'summary'],
+    },
     dependencies: [],
   );
 }
@@ -1353,26 +1374,28 @@ base class _TripPlanTypeFactory extends SchemanticType<TripPlan> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TripPlan',
-    definition: $Schema
-        .object(
-          properties: {
-            'destination': $Schema.string(),
-            'itinerary': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/ItineraryDay'}),
-            ),
-            'optionalItinerary': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/ItineraryDay'}),
-            ),
-            'base': $Schema.fromMap({'\$ref': r'#/$defs/Location'}),
-            'keyedDays': $Schema.object(
-              additionalProperties: $Schema.fromMap({
-                '\$ref': r'#/$defs/ItineraryDay',
-              }),
-            ),
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'destination': <String, Object?>{'type': 'string'},
+        'itinerary': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/ItineraryDay'},
+        },
+        'optionalItinerary': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/ItineraryDay'},
+        },
+        'base': <String, Object?>{r'$ref': r'#/$defs/Location'},
+        'keyedDays': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{
+            r'$ref': r'#/$defs/ItineraryDay',
           },
-          required: ['destination', 'itinerary'],
-        )
-        .value,
+        },
+      },
+      'required': ['destination', 'itinerary'],
+    },
     dependencies: [ItineraryDay.$schema, Location.$schema],
   );
 }

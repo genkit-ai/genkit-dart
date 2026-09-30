@@ -71,9 +71,13 @@ base class _WeatherFlowInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherFlowInput',
-    definition: $Schema
-        .object(properties: {'prompt': $Schema.string()}, required: ['prompt'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'prompt': <String, Object?>{'type': 'string'},
+      },
+      'required': ['prompt'],
+    },
     dependencies: [],
   );
 }
@@ -142,15 +146,17 @@ base class _WeatherToolInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'location': $Schema.string(),
-            'unit': $Schema.string(enumValues: ['celsius', 'fahrenheit']),
-          },
-          required: ['location'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'location': <String, Object?>{'type': 'string'},
+        'unit': <String, Object?>{
+          'type': 'string',
+          'enum': ['celsius', 'fahrenheit'],
+        },
+      },
+      'required': ['location'],
+    },
     dependencies: [],
   );
 }
@@ -241,17 +247,16 @@ base class _WeatherToolOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'temperature': $Schema.number(),
-            'condition': $Schema.string(),
-            'unit': $Schema.string(),
-            'humidity': $Schema.integer(),
-          },
-          required: ['temperature', 'condition', 'unit'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'temperature': <String, Object?>{'type': 'number'},
+        'condition': <String, Object?>{'type': 'string'},
+        'unit': <String, Object?>{'type': 'string'},
+        'humidity': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['temperature', 'condition', 'unit'],
+    },
     dependencies: [],
   );
 }
@@ -320,12 +325,14 @@ base class _MovieReviewInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MovieReviewInput',
-    definition: $Schema
-        .object(
-          properties: {'title': $Schema.string(), 'year': $Schema.integer()},
-          required: ['title'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title': <String, Object?>{'type': 'string'},
+        'year': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['title'],
+    },
     dependencies: [],
   );
 }
@@ -442,26 +449,31 @@ base class _MovieReviewTypeFactory extends SchemanticType<MovieReview> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MovieReview',
-    definition: $Schema
-        .object(
-          properties: {
-            'title': $Schema.string(),
-            'rating': $Schema.number(),
-            'summary': $Schema.string(),
-            'pros': $Schema.list(items: $Schema.string()),
-            'cons': $Schema.list(items: $Schema.string()),
-            'recommendedFor': $Schema.string(),
-          },
-          required: [
-            'title',
-            'rating',
-            'summary',
-            'pros',
-            'cons',
-            'recommendedFor',
-          ],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title': <String, Object?>{'type': 'string'},
+        'rating': <String, Object?>{'type': 'number'},
+        'summary': <String, Object?>{'type': 'string'},
+        'pros': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'cons': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'recommendedFor': <String, Object?>{'type': 'string'},
+      },
+      'required': [
+        'title',
+        'rating',
+        'summary',
+        'pros',
+        'cons',
+        'recommendedFor',
+      ],
+    },
     dependencies: [],
   );
 }

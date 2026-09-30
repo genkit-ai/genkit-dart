@@ -82,16 +82,15 @@ base class _TaskItemTypeFactory extends SchemanticType<TaskItem> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TaskItem',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.integer(),
-            'title': $Schema.string(),
-            'done': $Schema.boolean(),
-          },
-          required: ['id', 'title', 'done'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'id': <String, Object?>{'type': 'integer'},
+        'title': <String, Object?>{'type': 'string'},
+        'done': <String, Object?>{'type': 'boolean'},
+      },
+      'required': ['id', 'title', 'done'],
+    },
     dependencies: [],
   );
 }
@@ -118,7 +117,7 @@ base class TaskState {
   }
 
   set tasks(List<TaskItem> value) {
-    _json['tasks'] = value.toList();
+    _json['tasks'] = value.map((e) => e.toJson()).toList();
   }
 
   int get nextId {
@@ -151,17 +150,17 @@ base class _TaskStateTypeFactory extends SchemanticType<TaskState> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TaskState',
-    definition: $Schema
-        .object(
-          properties: {
-            'tasks': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/TaskItem'}),
-            ),
-            'nextId': $Schema.integer(),
-          },
-          required: ['tasks', 'nextId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'tasks': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/TaskItem'},
+        },
+        'nextId': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['tasks', 'nextId'],
+    },
     dependencies: [TaskItem.$schema],
   );
 }
@@ -213,16 +212,16 @@ base class _AddTaskInputTypeFactory extends SchemanticType<AddTaskInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AddTaskInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'title': $Schema.string(
-              description: 'Short description of the task',
-            ),
-          },
-          required: ['title'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title': <String, Object?>{
+          'type': 'string',
+          'description': 'Short description of the task',
+        },
+      },
+      'required': ['title'],
+    },
     dependencies: [],
   );
 }
@@ -274,14 +273,16 @@ base class _ToggleTaskInputTypeFactory extends SchemanticType<ToggleTaskInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToggleTaskInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.integer(description: 'The task ID to toggle'),
-          },
-          required: ['id'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'id': <String, Object?>{
+          'type': 'integer',
+          'description': 'The task ID to toggle',
+        },
+      },
+      'required': ['id'],
+    },
     dependencies: [],
   );
 }
@@ -333,14 +334,16 @@ base class _RemoveTaskInputTypeFactory extends SchemanticType<RemoveTaskInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RemoveTaskInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.integer(description: 'The task ID to remove'),
-          },
-          required: ['id'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'id': <String, Object?>{
+          'type': 'integer',
+          'description': 'The task ID to remove',
+        },
+      },
+      'required': ['id'],
+    },
     dependencies: [],
   );
 }

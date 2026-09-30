@@ -22,6 +22,7 @@ part of 'shelf_handler_example.dart';
 // **************************************************************************
 
 base class HandlerInput {
+  /// Creates a [HandlerInput] from a JSON map.
   factory HandlerInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -33,6 +34,7 @@ base class HandlerInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [HandlerInput].
   static const SchemanticType<HandlerInput> $schema =
       _HandlerInputTypeFactory();
 
@@ -49,6 +51,7 @@ base class HandlerInput {
     return _json.toString();
   }
 
+  /// Serializes this [HandlerInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -65,17 +68,19 @@ base class _HandlerInputTypeFactory extends SchemanticType<HandlerInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'HandlerInput',
-    definition: $Schema
-        .object(
-          properties: {'message': $Schema.string()},
-          required: ['message'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'message': <String, Object?>{'type': 'string'},
+      },
+      'required': ['message'],
+    },
     dependencies: [],
   );
 }
 
 base class HandlerOutput {
+  /// Creates a [HandlerOutput] from a JSON map.
   factory HandlerOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -87,6 +92,7 @@ base class HandlerOutput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [HandlerOutput].
   static const SchemanticType<HandlerOutput> $schema =
       _HandlerOutputTypeFactory();
 
@@ -103,6 +109,7 @@ base class HandlerOutput {
     return _json.toString();
   }
 
+  /// Serializes this [HandlerOutput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -119,12 +126,13 @@ base class _HandlerOutputTypeFactory extends SchemanticType<HandlerOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'HandlerOutput',
-    definition: $Schema
-        .object(
-          properties: {'processedMessage': $Schema.string()},
-          required: ['processedMessage'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'processedMessage': <String, Object?>{'type': 'string'},
+      },
+      'required': ['processedMessage'],
+    },
     dependencies: [],
   );
 }

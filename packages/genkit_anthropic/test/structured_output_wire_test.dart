@@ -418,8 +418,8 @@ void main() {
     });
 
     test('an empty sub-schema travels in the prompt instead', () async {
-      // `$Schema.any()` - what a `dynamic` or `Object?` field compiles to - is
-      // `{}`, and the validator answers "Empty schema ({}) that accepts any
+      // A `dynamic` or `Object?` field compiles to the empty schema `{}`, and
+      // the validator answers "Empty schema ({}) that accepts any
       // JSON value is not supported. Please specify a concrete type." The
       // request still goes out, with the shape in the system prompt.
       final body = await requestOnTheWire(

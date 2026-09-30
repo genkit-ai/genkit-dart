@@ -244,23 +244,33 @@ base class _OpenAITranscriptionOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'OpenAITranscriptionOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'version': $Schema.string(),
-            'language': $Schema.string(),
-            'prompt': $Schema.string(),
-            'temperature': $Schema.number(minimum: 0.0, maximum: 1.0),
-            'responseFormat': $Schema.string(
-              enumValues: ['json', 'text', 'srt', 'verbose_json', 'vtt'],
-            ),
-            'timestampGranularities': $Schema.list(items: $Schema.string()),
-            'chunkingStrategy': $Schema.any(),
-            'include': $Schema.list(items: $Schema.string()),
-            'translate': $Schema.boolean(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'version': <String, Object?>{'type': 'string'},
+        'language': <String, Object?>{'type': 'string'},
+        'prompt': <String, Object?>{'type': 'string'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.0,
+          'maximum': 1.0,
+        },
+        'responseFormat': <String, Object?>{
+          'type': 'string',
+          'enum': ['json', 'text', 'srt', 'verbose_json', 'vtt'],
+        },
+        'timestampGranularities': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'chunkingStrategy': <String, Object?>{},
+        'include': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'translate': <String, Object?>{'type': 'boolean'},
+      },
+    },
     dependencies: [],
   );
 }

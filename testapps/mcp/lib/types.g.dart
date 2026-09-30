@@ -66,9 +66,13 @@ base class _PromptInputTypeFactory extends SchemanticType<PromptInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PromptInput',
-    definition: $Schema
-        .object(properties: {'input': $Schema.string()}, required: ['input'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'input': <String, Object?>{'type': 'string'},
+      },
+      'required': ['input'],
+    },
     dependencies: [],
   );
 }
@@ -120,16 +124,16 @@ base class _WeatherInputTypeFactory extends SchemanticType<WeatherInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'city': $Schema.string(
-              description: 'the city to get the weather for',
-            ),
-          },
-          required: ['city'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'city': <String, Object?>{
+          'type': 'string',
+          'description': 'the city to get the weather for',
+        },
+      },
+      'required': ['city'],
+    },
     dependencies: [],
   );
 }

@@ -300,37 +300,52 @@ base class _OpenAIChatOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'OpenAIChatOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'version': $Schema.string(),
-            'temperature': $Schema.number(minimum: 0.0, maximum: 2.0),
-            'topP': $Schema.number(minimum: 0.0, maximum: 1.0),
-            'maxTokens': $Schema.integer(),
-            'stop': $Schema.list(items: $Schema.string()),
-            'presencePenalty': $Schema.number(minimum: -2.0, maximum: 2.0),
-            'frequencyPenalty': $Schema.number(minimum: -2.0, maximum: 2.0),
-            'seed': $Schema.integer(),
-            'user': $Schema.string(),
-            'jsonMode': $Schema.boolean(),
-            'visualDetailLevel': $Schema.string(
-              enumValues: ['auto', 'low', 'high'],
-            ),
-            'reasoningEffort': $Schema.string(
-              enumValues: [
-                'none',
-                'minimal',
-                'low',
-                'medium',
-                'high',
-                'xhigh',
-                'max',
-              ],
-            ),
-            'verbosity': $Schema.string(enumValues: ['low', 'medium', 'high']),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'version': <String, Object?>{'type': 'string'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.0,
+          'maximum': 2.0,
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.0,
+          'maximum': 1.0,
+        },
+        'maxTokens': <String, Object?>{'type': 'integer'},
+        'stop': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'presencePenalty': <String, Object?>{
+          'type': 'number',
+          'minimum': -2.0,
+          'maximum': 2.0,
+        },
+        'frequencyPenalty': <String, Object?>{
+          'type': 'number',
+          'minimum': -2.0,
+          'maximum': 2.0,
+        },
+        'seed': <String, Object?>{'type': 'integer'},
+        'user': <String, Object?>{'type': 'string'},
+        'jsonMode': <String, Object?>{'type': 'boolean'},
+        'visualDetailLevel': <String, Object?>{
+          'type': 'string',
+          'enum': ['auto', 'low', 'high'],
+        },
+        'reasoningEffort': <String, Object?>{
+          'type': 'string',
+          'enum': ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+        },
+        'verbosity': <String, Object?>{
+          'type': 'string',
+          'enum': ['low', 'medium', 'high'],
+        },
+      },
+    },
     dependencies: [],
   );
 }

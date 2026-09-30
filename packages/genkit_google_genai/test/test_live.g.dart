@@ -74,12 +74,14 @@ base class _PersonTypeFactory extends SchemanticType<Person> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Person',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string(), 'age': $Schema.integer()},
-          required: ['name', 'age'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'age': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['name', 'age'],
+    },
     dependencies: [],
   );
 }
@@ -139,12 +141,14 @@ base class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CalculatorInput',
-    definition: $Schema
-        .object(
-          properties: {'a': $Schema.integer(), 'b': $Schema.integer()},
-          required: ['a', 'b'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'a': <String, Object?>{'type': 'integer'},
+        'b': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['a', 'b'],
+    },
     dependencies: [],
   );
 }

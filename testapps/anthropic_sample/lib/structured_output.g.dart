@@ -112,17 +112,19 @@ base class _RecipeTypeFactory extends SchemanticType<Recipe> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Recipe',
-    definition: $Schema
-        .object(
-          properties: {
-            'title': $Schema.string(),
-            'ingredients': $Schema.list(items: $Schema.string()),
-            'minutes': $Schema.integer(),
-            'tip': $Schema.string(),
-          },
-          required: ['title', 'ingredients', 'minutes'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title': <String, Object?>{'type': 'string'},
+        'ingredients': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'minutes': <String, Object?>{'type': 'integer'},
+        'tip': <String, Object?>{'type': 'string'},
+      },
+      'required': ['title', 'ingredients', 'minutes'],
+    },
     dependencies: [],
   );
 }
@@ -184,15 +186,17 @@ base class _ScorecardTypeFactory extends SchemanticType<Scorecard> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Scorecard',
-    definition: $Schema
-        .object(
-          properties: {
-            'student': $Schema.string(),
-            'scores': $Schema.object(additionalProperties: $Schema.integer()),
-          },
-          required: ['student', 'scores'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'student': <String, Object?>{'type': 'string'},
+        'scores': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{'type': 'integer'},
+        },
+      },
+      'required': ['student', 'scores'],
+    },
     dependencies: [],
   );
 }
@@ -261,17 +265,17 @@ base class _CategoryTypeFactory extends SchemanticType<Category> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Category',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'subcategories': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Category'}),
-            ),
-          },
-          required: ['name'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'subcategories': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Category'},
+        },
+      },
+      'required': ['name'],
+    },
     dependencies: [Category.$schema],
   );
 }
@@ -322,9 +326,13 @@ base class _PantryQueryTypeFactory extends SchemanticType<PantryQuery> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PantryQuery',
-    definition: $Schema
-        .object(properties: {'item': $Schema.string()}, required: ['item'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'item': <String, Object?>{'type': 'string'},
+      },
+      'required': ['item'],
+    },
     dependencies: [],
   );
 }

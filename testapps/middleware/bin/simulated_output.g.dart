@@ -86,16 +86,18 @@ base class _RecipeTypeFactory extends SchemanticType<Recipe> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Recipe',
-    definition: $Schema
-        .object(
-          properties: {
-            'title': $Schema.string(),
-            'ingredients': $Schema.list(items: $Schema.string()),
-            'minutes': $Schema.integer(),
-          },
-          required: ['title', 'ingredients', 'minutes'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'title': <String, Object?>{'type': 'string'},
+        'ingredients': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'minutes': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['title', 'ingredients', 'minutes'],
+    },
     dependencies: [],
   );
 }

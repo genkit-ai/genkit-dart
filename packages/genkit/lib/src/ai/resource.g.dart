@@ -68,9 +68,13 @@ base class _ResourceInputTypeFactory extends SchemanticType<ResourceInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ResourceInput',
-    definition: $Schema
-        .object(properties: {'uri': $Schema.string()}, required: ['uri'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'uri': <String, Object?>{'type': 'string'},
+      },
+      'required': ['uri'],
+    },
     dependencies: [],
   );
 }
@@ -124,16 +128,16 @@ base class _ResourceOutputTypeFactory extends SchemanticType<ResourceOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ResourceOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'content': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-            ),
-          },
-          required: ['content'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'content': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Part'},
+        },
+      },
+      'required': ['content'],
+    },
     dependencies: [Part.$schema],
   );
 }

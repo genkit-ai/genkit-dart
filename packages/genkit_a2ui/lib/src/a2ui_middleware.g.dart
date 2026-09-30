@@ -157,17 +157,16 @@ base class _A2uiOptionsTypeFactory extends SchemanticType<A2uiOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'A2uiOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'catalog': $Schema.string(),
-            'instructions': $Schema.string(),
-            'validate': $Schema.string(),
-            'surfaceId': $Schema.string(),
-            'version': $Schema.string(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'catalog': <String, Object?>{'type': 'string'},
+        'instructions': <String, Object?>{'type': 'string'},
+        'validate': <String, Object?>{'type': 'string'},
+        'surfaceId': <String, Object?>{'type': 'string'},
+        'version': <String, Object?>{'type': 'string'},
+      },
+    },
     dependencies: [],
   );
 }

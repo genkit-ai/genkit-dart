@@ -74,12 +74,14 @@ base class _TestObjectTypeFactory extends SchemanticType<TestObject> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestObject',
-    definition: $Schema
-        .object(
-          properties: {'foo': $Schema.string(), 'bar': $Schema.integer()},
-          required: ['foo', 'bar'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'foo': <String, Object?>{'type': 'string'},
+        'bar': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['foo', 'bar'],
+    },
     dependencies: [],
   );
 }
