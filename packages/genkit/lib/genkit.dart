@@ -50,19 +50,9 @@ export 'src/ai/middleware/simulate_constrained_generation.dart'
 // (`package:genkit/experimental.dart`) alongside generateBidi.
 export 'src/ai/model.dart' show Model, ModelRef, modelMetadata, modelRef;
 export 'src/ai/prompt.dart'
-    show
-        ExecutablePrompt,
-        PromptAction,
-        PromptConfig,
-        PromptFn,
-        PromptGenerateOptions;
+    show ExecutablePrompt, PromptAction, PromptFn, PromptGenerateOptions;
 export 'src/ai/resource.dart'
-    show
-        ResourceAction,
-        ResourceFn,
-        ResourceInput,
-        ResourceOutput,
-        createResourceMatcher;
+    show ResourceAction, ResourceFn, ResourceInput, ResourceOutput;
 export 'src/ai/template_helper.dart'
     show TemplateHelperFn, TemplateHelperOptions;
 export 'src/ai/tool.dart'
