@@ -18,6 +18,16 @@ follows the
 - Optional `execute_tool` spans, and generic spans for other Genkit action
   types so the trace tree stays connected.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Usage
 
 The application owns the OpenTelemetry SDK. Initialize it, then register the

@@ -20,6 +20,22 @@
 
 ---
 
+## Using a coding agent? Install the skill.
+
+Before you write a line of Genkit Dart with an agent, install the official
+Genkit Dart Agent Skill:
+
+```bash
+npx skills add genkit-ai/skills --skill developing-genkit-dart
+```
+
+It teaches your agent the current Genkit Dart APIs (flows, tools, agents,
+sessions, prompts, plugins, `schemantic`) and common gotchas. Source, manual
+install instructions, and skills for JS/TS, Go and Python:
+[github.com/genkit-ai/skills](https://github.com/genkit-ai/skills).
+
+---
+
 See the [Genkit package documentation](https://pub.dev/packages/genkit) for getting started, guides, and API reference.
 
 | Package | Description | Pub |

@@ -9,6 +9,16 @@ Together AI, OpenRouter and friends — by pointing it at a different
 `deepSeek()` and `xAI()`, which carry the key, catalog and request differences
 each host needs rather than leaving them to you.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Installation
 
 ```bash
