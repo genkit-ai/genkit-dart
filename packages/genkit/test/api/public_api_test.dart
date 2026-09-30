@@ -12,17 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Public API surface snapshot.
+/// Public API surface snapshot and export-closure checks.
 ///
-/// Resolves every public library of `package:genkit` and compares its export
-/// namespace (names, kinds, class modifiers, signatures) against a golden file
-/// in `test/api/goldens/`. Any change to the public surface shows up as a
-/// golden diff in review.
+/// Compares the public API surface of `package:genkit` against `api.txt` using
+/// `package:api_summary`, and verifies `@experimental` and per-library type
+/// availability invariants.
 ///
-/// To accept an intentional change, regenerate the goldens:
+/// To accept an intentional API change, regenerate `api.txt`:
 ///
 /// ```sh
-/// UPDATE_GOLDENS=1 dart test test/api/public_api_test.dart
+/// dart run api_summary --write
 /// ```
 @TestOn('vm')
 @Timeout(Duration(minutes: 3))
@@ -30,106 +29,8 @@ library;
 
 import 'dart:io';
 
-import 'package:analyzer/dart/analysis/analysis_context_collection.dart';
-import 'package:analyzer/dart/analysis/results.dart';
-import 'package:analyzer/dart/element/element.dart';
-import 'package:analyzer/dart/element/type.dart';
-import 'package:path/path.dart' as p;
+import 'package:api_summary/api_summary.dart';
 import 'package:test/test.dart';
-
-/// The public libraries whose surface is snapshotted.
-const _libraries = [
-  'genkit',
-  'client',
-  'lite',
-  'plugin',
-  'telemetry',
-  'experimental',
-  'experimental_client',
-  'experimental_io',
-];
-
-/// Libraries covered by the package's semver guarantees.
-const _stableLibraries = {'genkit', 'client', 'lite', 'plugin', 'telemetry'};
-
-final _update = Platform.environment['UPDATE_GOLDENS'] == '1';
-
-void main() {
-  late final Map<String, LibraryElement> resolved;
-
-  setUpAll(() async {
-    final libDir = p.normalize(p.join(Directory.current.absolute.path, 'lib'));
-    final collection = AnalysisContextCollection(includedPaths: [libDir]);
-    final session = collection.contextFor(libDir).currentSession;
-    resolved = {};
-    for (final name in _libraries) {
-      final result = await session.getLibraryByUri('package:genkit/$name.dart');
-      if (result is! LibraryElementResult) {
-        fail('Could not resolve package:genkit/$name.dart: $result');
-      }
-      resolved[name] = result.element;
-    }
-  });
-
-  for (final name in _libraries) {
-    test('package:genkit/$name.dart surface matches golden', () {
-      final actual = describeLibrary(resolved[name]!);
-      final golden = File(p.join('test', 'api', 'goldens', '$name.txt'));
-      if (_update) {
-        golden
-          ..createSync(recursive: true)
-          ..writeAsStringSync(actual);
-        return;
-      }
-      expect(
-        golden.existsSync(),
-        isTrue,
-        reason: 'Missing golden ${golden.path}. Run with UPDATE_GOLDENS=1.',
-      );
-      expect(
-        actual,
-        golden.readAsStringSync(),
-        reason:
-            'The public API of package:genkit/$name.dart changed. If this '
-            'is intentional, run `UPDATE_GOLDENS=1 dart test '
-            'test/api/public_api_test.dart` and commit the updated golden.',
-      );
-    });
-  }
-
-  test('stable libraries do not export @experimental declarations', () {
-    final leaks = <String>[];
-    for (final name in _stableLibraries) {
-      final namespace = resolved[name]!.exportNamespace.definedNames2;
-      for (final MapEntry(key: symbol, value: element) in namespace.entries) {
-        if (element.metadata.hasExperimental) leaks.add('$name.dart: $symbol');
-      }
-    }
-    expect(leaks, isEmpty);
-  });
-
-  // A public signature that mentions a type the library does not export
-  // forces callers to import `src/` (or leaves them unable to name the type
-  // at all, e.g. to store a returned value in a typed field).
-  test('public signatures only use types the library makes available', () {
-    final gaps = <String>[];
-    for (final MapEntry(key: name, value: companions) in _companions.entries) {
-      final available = {
-        for (final lib in [name, ...companions])
-          ...resolved[lib]!.exportNamespace.definedNames2.values,
-      };
-      final namespace = resolved[name]!.exportNamespace.definedNames2;
-      for (final MapEntry(key: symbol, value: element) in namespace.entries) {
-        for (final used in _referencedTypes(element)) {
-          if (!available.contains(used)) {
-            gaps.add('$name.dart: $symbol references ${used.name}');
-          }
-        }
-      }
-    }
-    expect(gaps.toSet(), isEmpty);
-  });
-}
 
 /// For each library, the libraries it is documented to be used together with.
 /// A type is "available" to callers if any of them exports it.
@@ -146,258 +47,149 @@ const _companions = {
   'experimental_io': ['experimental', 'genkit'],
 };
 
+void main() {
+  late final ApiSummary summary;
+  late final Map<String, ApiLibrary> librariesByName;
+
+  setUpAll(() async {
+    summary = await apiSummary(Directory.current.path);
+    librariesByName = {
+      for (final lib in summary.libraries)
+        if (lib.isPublicEntryPoint)
+          Uri.parse(lib.uri).pathSegments.last.replaceAll('.dart', ''): lib,
+    };
+  });
+
+  test('public API matches api.txt', expectApiSummaryClean);
+
+  test('stable libraries do not export @experimental declarations', () {
+    final leaks = <String>[];
+    for (final entry in librariesByName.entries) {
+      final library = entry.value;
+      if (_isExperimental(library.facets)) continue;
+      for (final decl in _declarations(library)) {
+        if (_isExperimental(decl.facets)) {
+          leaks.add('${entry.key}.dart: ${decl.name}');
+        }
+      }
+    }
+    expect(leaks, isEmpty);
+  });
+
+  // A public signature that mentions a type the library does not export
+  // forces callers to import `src/` (or leaves them unable to name the type
+  // at all, e.g. to store a returned value in a typed field).
+  test('public signatures only use types the library makes available', () {
+    expect(
+      librariesByName.keys.toSet(),
+      equals(_companions.keys.toSet()),
+      reason: 'Every public library under lib/ must be listed in _companions.',
+    );
+
+    final gaps = <String>[];
+    for (final MapEntry(key: name, value: companions) in _companions.entries) {
+      final available = {
+        for (final libName in [name, ...companions])
+          for (final decl in _declarations(librariesByName[libName]!))
+            '${decl.locationUri}#${decl.name}',
+      };
+      for (final decl in _declarations(librariesByName[name]!)) {
+        for (final used in _referencedTypes(decl)) {
+          if (!available.contains('${used.libraryUri}#${used.name}')) {
+            gaps.add('$name.dart: ${decl.name} references ${used.name}');
+          }
+        }
+      }
+    }
+    expect(gaps.toSet(), isEmpty);
+  });
+}
+
+bool _isExperimental(Iterable<ApiFacet> facets) => facets
+    .whereType<MetaContractFacet>()
+    .any((f) => f.contracts.contains(MetaContract.experimental));
+
+Iterable<ApiDeclaration> _declarations(ApiLibrary library) => [
+  ...library.classes,
+  ...library.enums,
+  ...library.mixins,
+  ...library.extensions,
+  ...library.extensionTypes,
+  ...library.functions,
+  ...library.typeAliases,
+];
+
 /// Public `package:genkit` declarations mentioned in the public signatures of
-/// [element] (supertypes, members, parameters, return types, aliased types).
+/// [decl] (supertypes, members, parameters, return types, aliased types).
 /// Members annotated `@experimental` are skipped: their types live in the
 /// experimental libraries by design.
-Iterable<Element> _referencedTypes(Element element) {
-  final found = <Element>{};
-  void visitType(DartType? type) {
-    if (type == null) return;
-    final alias = type.alias;
-    if (alias != null) {
-      found.add(alias.element);
-      alias.typeArguments.forEach(visitType);
-    }
+Iterable<ApiInterfaceType> _referencedTypes(ApiDeclaration decl) {
+  final found = <ApiInterfaceType>[];
+
+  void visitType(ApiType? type) {
     switch (type) {
-      case InterfaceType():
-        found.add(type.element);
+      case null:
+      case ApiDynamicType():
+      case ApiVoidType():
+      case ApiTypeParameterType():
+        break;
+      case ApiInterfaceType():
+        found.add(type);
         type.typeArguments.forEach(visitType);
-      case FunctionType():
-        for (final tp in type.typeParameters) {
-          visitType(tp.bound);
-        }
+      case ApiFunctionType():
+        type.typeParameters.values.forEach(visitType);
         visitType(type.returnType);
-        for (final p in type.formalParameters) {
+        for (final p in type.parameters) {
           visitType(p.type);
         }
-      case RecordType():
-        for (final f in type.positionalFields) {
-          visitType(f.type);
-        }
+      case ApiRecordType():
+        type.positionalFields.forEach(visitType);
         for (final f in type.namedFields) {
           visitType(f.type);
         }
-      default:
     }
   }
 
-  // Bounds are part of the signature too: `<T extends Hidden>` makes callers
-  // name `Hidden` to satisfy it.
-  void visitBounds(TypeParameterizedElement e) {
-    for (final tp in e.typeParameters) {
-      visitType(tp.bound);
-    }
+  void visitBounds(Map<String, ApiType?> typeParameters) {
+    typeParameters.values.forEach(visitType);
   }
 
-  void visitExecutable(ExecutableElement e) {
-    if (!e.isPublic || e.metadata.hasExperimental) return;
-    visitBounds(e);
+  void visitExecutable(ApiExecutable e) {
+    if (_isExperimental(e.facets)) return;
+    visitBounds(e.typeParameters);
     visitType(e.returnType);
-    for (final p in e.formalParameters) {
+    for (final p in e.parameters) {
       visitType(p.type);
     }
   }
 
-  switch (element) {
-    case InstanceElement():
-      visitBounds(element);
-      if (element is InterfaceElement) {
-        visitType(element.supertype);
-        element.interfaces.forEach(visitType);
-        element.constructors.forEach(visitExecutable);
-      }
-      element.methods.forEach(visitExecutable);
-      element.getters.forEach(visitExecutable);
-      element.setters.forEach(visitExecutable);
-    case ExecutableElement():
-      visitExecutable(element);
-    case TypeAliasElement():
-      visitBounds(element);
-      visitType(element.aliasedType);
-    case TopLevelVariableElement():
-      visitType(element.type);
-    default:
-  }
-  return found.where((e) {
-    final uri = e.library?.uri;
-    return e.isPublic &&
-        uri != null &&
-        uri.scheme == 'package' &&
-        uri.pathSegments.first == 'genkit';
-  });
-}
-
-/// Renders the export namespace of [library] as a stable, sorted text dump.
-String describeLibrary(LibraryElement library) {
-  final namespace = library.exportNamespace.definedNames2;
-  final names = namespace.keys.toList()..sort();
-  final buffer = StringBuffer()
-    ..writeln('# Public API of ${library.uri}')
-    ..writeln('# Generated by test/api/public_api_test.dart; do not edit.')
-    ..writeln();
-  for (final name in names) {
-    // Setters of exported top-level variables appear as `name=`; the variable
-    // line already covers them.
-    if (name.endsWith('=')) continue;
-    final element = namespace[name]!;
-    buffer.writeln(_describe(name, element));
-    if (element is InstanceElement && !_isGenerated(element)) {
-      for (final member in _members(element)) {
-        buffer.writeln('  $member');
-      }
-    }
-  }
-  return buffer.toString();
-}
-
-/// Schema types generated from the shared Genkit schema (or by the schemantic
-/// builder) get a declaration line only. Their members are mechanical and
-/// already visible as a diff of the generated source, and listing them would
-/// roughly triple the size of the goldens.
-bool _isGenerated(Element element) {
-  final path = element.library?.uri.path ?? '';
-  final source = element.firstFragment.libraryFragment?.source.uri.path ?? '';
-  return path.endsWith('/types.dart') ||
-      source.endsWith('.g.dart') ||
-      (element.name ?? '').startsWith(r'$');
-}
-
-String _describe(String name, Element element) {
-  final origin = ' [${_originOf(element)}]';
-  final body = switch (element) {
-    ClassElement() => _classHeader(element),
-    EnumElement() => 'enum $name',
-    MixinElement() => '${element.isBase ? 'base ' : ''}mixin $name',
-    ExtensionTypeElement() =>
-      'extension type $name${_typeParams(element.typeParameters)}'
-          '(${element.representation.type.getDisplayString()})',
-    ExtensionElement() =>
-      'extension $name${_typeParams(element.typeParameters)} on '
-          '${element.extendedType.getDisplayString()}',
-    TypeAliasElement() =>
-      'typedef $name${_typeParams(element.typeParameters)} = '
-          '${element.aliasedType.getDisplayString()}',
-    TopLevelFunctionElement() => 'function ${element.displayString()}',
-    GetterElement() => 'getter ${element.displayString()}',
-    TopLevelVariableElement() =>
-      '${element.isConst ? 'const' : 'var'} '
-          '${element.type.getDisplayString()} $name',
-    _ => '${element.kind.displayName} $name',
-  };
-  return '${_annotations(element)}$body$origin';
-}
-
-/// Public members of [element], one rendered line each: constructors first,
-/// then everything else sorted by name (so reordering source is not a diff).
-List<String> _members(InstanceElement element) {
-  final entries = <(int, String, String)>[];
-  void add(Element member, String rendered, {int group = 1}) {
-    if (!member.isPublic) return;
-    entries.add((group, member.name ?? '', '${_annotations(member)}$rendered'));
+  switch (decl) {
+    case ApiClass():
+      visitBounds(decl.typeParameters);
+      visitType(decl.supertype);
+      decl.interfaces.forEach(visitType);
+      decl.mixins.forEach(visitType);
+      decl.superclassConstraints.forEach(visitType);
+      decl.constructors.forEach(visitExecutable);
+      decl.methods.forEach(visitExecutable);
+    case ApiExtension():
+      visitBounds(decl.typeParameters);
+      visitType(decl.extendedType);
+      decl.methods.forEach(visitExecutable);
+    case ApiExtensionType():
+      visitBounds(decl.typeParameters);
+      visitType(decl.representationType);
+      decl.interfaces.forEach(visitType);
+      decl.constructors.forEach(visitExecutable);
+      decl.methods.forEach(visitExecutable);
+    case ApiExecutable():
+      visitExecutable(decl);
+    case ApiTypeAlias():
+      visitBounds(decl.typeParameters);
+      visitType(decl.aliasedType);
   }
 
-  if (element is InterfaceElement) {
-    for (final c in element.constructors) {
-      if (!c.isOriginDeclaration) continue;
-      final kind = [
-        if (c.isConst) 'const',
-        if (c.isFactory) 'factory',
-      ].join(' ');
-      final ctorName = (c.name == null || c.name == 'new')
-          ? element.displayName
-          : '${element.displayName}.${c.name}';
-      final params = c.displayString();
-      final rendered = params.substring(params.indexOf('('));
-      add(c, '${kind.isEmpty ? '' : '$kind '}$ctorName$rendered', group: 0);
-    }
-  }
-  if (element is EnumElement) {
-    for (final value in element.constants) {
-      add(value, 'value ${value.name}');
-    }
-  }
-  for (final field in element.fields) {
-    if (!field.isOriginDeclaration || field.isEnumConstant) continue;
-    final modifiers = [
-      if (field.isStatic) 'static',
-      if (field.isConst) 'const' else if (field.isFinal) 'final',
-      if (field.isLate) 'late',
-    ].join(' ');
-    add(
-      field,
-      '${modifiers.isEmpty ? '' : '$modifiers '}'
-      '${field.type.getDisplayString()} ${field.name}',
-    );
-  }
-  for (final getter in element.getters) {
-    if (!getter.isOriginDeclaration) continue;
-    add(getter, '${getter.isStatic ? 'static ' : ''}${getter.displayString()}');
-  }
-  for (final setter in element.setters) {
-    if (!setter.isOriginDeclaration) continue;
-    add(setter, '${setter.isStatic ? 'static ' : ''}${setter.displayString()}');
-  }
-  for (final method in element.methods) {
-    add(method, '${method.isStatic ? 'static ' : ''}${method.displayString()}');
-  }
-  entries.sort((a, b) {
-    if (a.$1 != b.$1) return a.$1.compareTo(b.$1);
-    final byName = a.$2.compareTo(b.$2);
-    return byName != 0 ? byName : a.$3.compareTo(b.$3);
-  });
-  return [for (final (_, _, line) in entries) line];
-}
-
-/// Annotations that change how (or whether) callers may use a declaration.
-String _annotations(Element element) {
-  final m = element.metadata;
-  return [
-    if (m.hasExperimental) '@experimental ',
-    if (m.hasDeprecated) '@deprecated ',
-    if (m.hasInternal) '@internal ',
-    if (m.hasVisibleForTesting) '@visibleForTesting ',
-    if (m.hasProtected) '@protected ',
-  ].join();
-}
-
-String _classHeader(ClassElement element) {
-  final modifiers = [
-    if (element.isSealed) 'sealed',
-    if (element.isAbstract && !element.isSealed) 'abstract',
-    if (element.isBase) 'base',
-    if (element.isInterface) 'interface',
-    if (element.isFinal) 'final',
-    if (element.isMixinClass) 'mixin',
-  ];
-  // `displayString` renders the type parameters and supertypes; drop any
-  // modifiers it includes so the list above is the single source of truth.
-  final header = element.displayString();
-  final classIndex = header.indexOf('class ');
-  final signature = classIndex == -1 ? header : header.substring(classIndex);
-  return [...modifiers, signature].join(' ');
-}
-
-/// The declaring library relative to the package (`src/...`), or the full URI
-/// for re-exports from other packages.
-String _originOf(Element element) {
-  final uri = element.library?.uri;
-  if (uri == null) return '?';
-  if (uri.scheme == 'package' && uri.pathSegments.first == 'genkit') {
-    return uri.pathSegments.skip(1).join('/');
-  }
-  return uri.toString();
-}
-
-// Name and bound only: `displayString` also renders inferred variance
-// (`in`/`out`), whose presence varies across analyzer versions.
-String _typeParams(List<TypeParameterElement> params) {
-  if (params.isEmpty) return '';
-  final rendered = params.map((t) {
-    final bound = t.bound;
-    return bound == null
-        ? t.displayName
-        : '${t.displayName} extends ${bound.getDisplayString()}';
-  });
-  return '<${rendered.join(', ')}>';
+  return found.where(
+    (t) => t.libraryUri != null && t.libraryUri!.startsWith('package:genkit/'),
+  );
 }
