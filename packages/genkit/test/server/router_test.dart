@@ -16,24 +16,25 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_shelf/genkit_shelf.dart';
-// The middleware is internal; tested directly to control the inner response.
-import 'package:genkit_shelf/src/cors.dart' show corsMiddleware;
+import 'package:genkit/io.dart';
+// withCors is internal; tested directly to control the inner response.
+import 'package:genkit/src/server/cors.dart' show withCors;
 import 'package:http/http.dart' as http;
-import 'package:shelf/shelf.dart';
-import 'package:shelf_router/shelf_router.dart';
 import 'package:test/test.dart';
 
-Request _post(String path, Object? data, {Map<String, String>? headers}) =>
-    Request(
-      'POST',
-      Uri.parse('http://localhost$path'),
-      body: jsonEncode({'data': data}),
-      headers: {'content-type': 'application/json', ...?headers},
-    );
+GenkitHttpRequest _post(
+  String path,
+  Object? data, {
+  Map<String, String> headers = const {},
+}) => GenkitHttpRequest(
+  method: 'POST',
+  path: path,
+  headers: {'content-type': 'application/json', ...headers},
+  body: Stream.value(utf8.encode(jsonEncode({'data': data}))),
+);
 
-Future<Object?> _result(Response response) async =>
-    (jsonDecode(await response.readAsString()) as Map)['result'];
+Future<Object?> _result(GenkitHttpResponse? response) async =>
+    (jsonDecode(await utf8.decodeStream(response!.body)) as Map)['result'];
 
 void main() {
   late Genkit ai;
@@ -53,9 +54,9 @@ void main() {
     test('defaults the path to the action name', () async {
       final router = GenkitRouter()..addAction(echo);
 
-      final response = await router.call(_post('/echo', 'hi'));
+      final response = await router.handle(_post('/echo', 'hi'));
 
-      expect(response.statusCode, 200);
+      expect(response!.statusCode, 200);
       expect(await _result(response), 'Echo: hi');
     });
 
@@ -63,10 +64,10 @@ void main() {
       final router = GenkitRouter()..addAction(echo, path: '/v1/say');
 
       expect(
-        await _result(await router.call(_post('/v1/say', 'x'))),
+        await _result(await router.handle(_post('/v1/say', 'x'))),
         'Echo: x',
       );
-      expect((await router.call(_post('/echo', 'x'))).statusCode, 404);
+      expect(await router.handle(_post('/echo', 'x')), isNull);
     });
 
     test('serves action names that contain slashes', () async {
@@ -82,7 +83,7 @@ void main() {
       );
       final router = GenkitRouter()..addAction(model);
 
-      final response = await router.call(
+      final response = await router.handle(
         _post(
           '/acme/fancy-model',
           ModelRequest(
@@ -96,7 +97,7 @@ void main() {
         ),
       );
 
-      expect(response.statusCode, 200);
+      expect(response!.statusCode, 200);
     });
 
     test('applies the per-route context provider', () async {
@@ -115,12 +116,12 @@ void main() {
         )
         ..addAction(echo);
 
-      final authed = await router.call(
+      final authed = await router.handle(
         _post('/whoami', '', headers: {'authorization': 'alice'}),
       );
       expect(await _result(authed), 'alice');
       expect(
-        await _result(await router.call(_post('/whoami', ''))),
+        await _result(await router.handle(_post('/whoami', ''))),
         'anonymous',
       );
     });
@@ -129,9 +130,9 @@ void main() {
       final router = GenkitRouter()
         ..addAction(echo, contextProvider: (_) => throw Exception('no token'));
 
-      final response = await router.call(_post('/echo', 'hi'));
+      final response = await router.handle(_post('/echo', 'hi'));
 
-      expect(response.statusCode, 403);
+      expect(response!.statusCode, 403);
     });
 
     test('throws on a duplicate path', () {
@@ -159,35 +160,122 @@ void main() {
     });
   });
 
-  group('call', () {
-    test('returns 404 for unknown paths', () async {
+  group('handle', () {
+    test('returns null for unknown paths', () async {
       final router = GenkitRouter()..addAction(echo);
 
-      final response = await router.call(_post('/nope', 'hi'));
-
-      expect(response.statusCode, 404);
-    });
-
-    test('works when mounted under a prefix', () async {
-      final genkit = GenkitRouter()..addAction(echo);
-      final app = Router()
-        ..get('/health', (Request _) => Response.ok('OK'))
-        ..mount('/api/', genkit.call);
-
-      final response = await app.call(_post('/api/echo', 'mounted'));
-
-      expect(response.statusCode, 200);
-      expect(await _result(response), 'Echo: mounted');
-      expect((await app.call(_post('/echo', 'x'))).statusCode, 404);
+      expect(await router.handle(_post('/nope', 'hi')), isNull);
     });
 
     test('picks up routes added after construction', () async {
       final router = GenkitRouter();
-      expect((await router.call(_post('/echo', 'x'))).statusCode, 404);
+      expect(await router.handle(_post('/echo', 'x')), isNull);
 
       router.addAction(echo);
 
-      expect((await router.call(_post('/echo', 'x'))).statusCode, 200);
+      expect((await router.handle(_post('/echo', 'x')))!.statusCode, 200);
+    });
+  });
+
+  group('handleHttpRequest', () {
+    HttpServer? server;
+    tearDown(() async => server?.close(force: true));
+
+    /// A raw dart:io server that tries [router] under [basePath] first and
+    /// answers everything else itself.
+    Future<String> serveRaw(
+      GenkitRouter router, {
+      String basePath = '',
+      CorsOptions? cors,
+    }) async {
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server!.listen((request) async {
+        if (await router.handleHttpRequest(
+          request,
+          basePath: basePath,
+          cors: cors,
+        )) {
+          return;
+        }
+        request.response
+          ..statusCode = HttpStatus.notFound
+          ..write('app 404');
+        await request.response.close();
+      });
+      return 'http://127.0.0.1:${server!.port}';
+    }
+
+    Future<http.Response> post(String url, {Map<String, String>? headers}) =>
+        http.post(
+          Uri.parse(url),
+          headers: {'content-type': 'application/json', ...?headers},
+          body: jsonEncode({'data': 'x'}),
+        );
+
+    test('serves routes below basePath and falls through otherwise', () async {
+      final base = await serveRaw(
+        GenkitRouter()..addAction(echo),
+        basePath: '/api',
+      );
+
+      final hit = await post('$base/api/echo');
+      expect(hit.statusCode, 200);
+      expect(jsonDecode(hit.body), {'result': 'Echo: x'});
+
+      for (final path in ['/echo', '/api/nope', '/apiecho', '/api']) {
+        final miss = await post('$base$path');
+        expect(miss.statusCode, 404, reason: path);
+        expect(miss.body, 'app 404', reason: path);
+      }
+    });
+
+    test('maps basePath itself to the root route', () async {
+      final base = await serveRaw(
+        GenkitRouter()..addAction(echo, path: '/'),
+        basePath: '/echo',
+      );
+
+      expect(jsonDecode((await post('$base/echo')).body), {
+        'result': 'Echo: x',
+      });
+    });
+
+    test('applies CORS to its own routes only', () async {
+      final base = await serveRaw(
+        GenkitRouter()..addAction(echo),
+        cors: const CorsOptions(),
+      );
+
+      final hit = await post(
+        '$base/echo',
+        headers: {'origin': 'https://a.dev'},
+      );
+      expect(hit.headers['access-control-allow-origin'], '*');
+      final miss = await post(
+        '$base/nope',
+        headers: {'origin': 'https://a.dev'},
+      );
+      expect(miss.headers['access-control-allow-origin'], isNull);
+    });
+
+    test('throws on an invalid basePath', () async {
+      final router = GenkitRouter()..addAction(echo);
+      server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      final errors = <Object>[];
+      server!.listen((request) async {
+        for (final basePath in ['api', '/api/']) {
+          try {
+            await router.handleHttpRequest(request, basePath: basePath);
+          } catch (e) {
+            errors.add(e);
+          }
+        }
+        await request.response.close();
+      });
+
+      await http.post(Uri.parse('http://127.0.0.1:${server!.port}/echo'));
+
+      expect(errors, [isArgumentError, isArgumentError]);
     });
   });
 
@@ -271,17 +359,27 @@ void main() {
       expect(deniedPost.headers['access-control-allow-origin'], isNull);
     });
 
+    test('returns 404 for unknown paths', () async {
+      server = await (GenkitRouter()..addAction(echo)).serve(port: 0);
+
+      final response = await http.post(
+        Uri.parse('http://localhost:${server!.port}/nope'),
+      );
+
+      expect(response.statusCode, 404);
+    });
+
     test('CORS appends to an existing Vary header', () async {
       Future<String?> varyFor(String innerVary) async {
-        final handler = corsMiddleware(
+        final response = await withCors(
           const CorsOptions(allowedOrigins: ['https://a.dev']),
-        )((_) => Response.ok('', headers: {'Vary': innerVary}));
-        final response = await handler(
-          Request(
-            'POST',
-            Uri.parse('http://localhost/x'),
+          GenkitHttpRequest(
+            method: 'POST',
+            path: '/x',
             headers: {'origin': 'https://a.dev'},
           ),
+          (_) async =>
+              GenkitHttpResponse(statusCode: 200, headers: {'vary': innerVary}),
         );
         return response.headers['vary'];
       }

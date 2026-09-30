@@ -16,6 +16,7 @@ import 'dart:io';
 
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
+import 'package:genkit/io.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:shelf/shelf.dart';
@@ -34,17 +35,21 @@ abstract class $HandlerOutput {
   String get processedMessage;
 }
 
-// This example demonstrates how to use the shelfHandler directly to integrate
-// Genkit flows into an existing Shelf application or with custom routing.
+// This example integrates Genkit flows into an existing Shelf application:
+// single actions via `shelfHandler`, and a whole `GenkitRouter` via
+// `asShelfHandler`.
 //
 // To run this example:
 // 1. dart run example/shelf_handler_example.dart
 //
 // To test the endpoint:
-// curl -X POST http://localhost:8080/api/custom-flow -H "Content-Type: application/json" -d '{"data": "Dart"}'
+// curl -X POST http://localhost:8080/api/custom-flow -H "Content-Type: application/json" -d '{"data": {"message": "Dart"}}'
 //
 // To test the client flow:
 // curl -X POST http://localhost:8080/api/client -H "Content-Type: application/json" -d '{"data": "start"}'
+//
+// To test a flow served by the mounted GenkitRouter:
+// curl -X POST http://localhost:8080/genkit/customFlow -H "Content-Type: application/json" -d '{"data": {"message": "Dart"}}'
 
 void main() async {
   final ai = Genkit();
@@ -85,6 +90,10 @@ void main() async {
   router.post('/api/custom-flow', shelfHandler(customFlow));
   router.post('/api/client', shelfHandler(clientFlow));
 
+  // Or mount a whole GenkitRouter under a prefix: POST /genkit/customFlow.
+  final genkit = GenkitRouter()..addAction(customFlow);
+  router.mount('/genkit/', genkit.asShelfHandler);
+
   // Add other application routes
   router.get('/health', (Request request) => Response.ok('OK'));
 
@@ -99,4 +108,5 @@ void main() async {
   print('Health check: http://localhost:${server.port}/health');
   print('Flow endpoint: http://localhost:${server.port}/api/custom-flow');
   print('Client endpoint: http://localhost:${server.port}/api/client');
+  print('Router endpoint: http://localhost:${server.port}/genkit/customFlow');
 }

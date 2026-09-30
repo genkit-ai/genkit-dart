@@ -15,28 +15,28 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'shelf_test.dart';
+part of 'action_handler_test.dart';
 
 // **************************************************************************
 // SchemaGenerator
 // **************************************************************************
 
-base class ShelfTestOutput {
-  /// Creates a [ShelfTestOutput] from a JSON map.
-  factory ShelfTestOutput.fromJson(Map<String, dynamic> json) =>
+base class HandlerTestOutput {
+  /// Creates a [HandlerTestOutput] from a JSON map.
+  factory HandlerTestOutput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ShelfTestOutput._(this._json);
+  HandlerTestOutput._(this._json);
 
-  ShelfTestOutput({required String greeting}) {
+  HandlerTestOutput({required String greeting}) {
     _json = {'greeting': greeting};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [ShelfTestOutput].
-  static const SchemanticType<ShelfTestOutput> $schema =
-      _ShelfTestOutputTypeFactory();
+  /// The JSON schema and type descriptor for [HandlerTestOutput].
+  static const SchemanticType<HandlerTestOutput> $schema =
+      _HandlerTestOutputTypeFactory();
 
   String get greeting {
     return _json['greeting'] as String;
@@ -51,23 +51,24 @@ base class ShelfTestOutput {
     return _json.toString();
   }
 
-  /// Serializes this [ShelfTestOutput] to a JSON map.
+  /// Serializes this [HandlerTestOutput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
-  const _ShelfTestOutputTypeFactory();
+base class _HandlerTestOutputTypeFactory
+    extends SchemanticType<HandlerTestOutput> {
+  const _HandlerTestOutputTypeFactory();
 
   @override
-  ShelfTestOutput parse(Object? json) {
-    return ShelfTestOutput._(json as Map<String, dynamic>);
+  HandlerTestOutput parse(Object? json) {
+    return HandlerTestOutput._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ShelfTestOutput',
+    name: 'HandlerTestOutput',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
@@ -79,22 +80,22 @@ base class _ShelfTestOutputTypeFactory extends SchemanticType<ShelfTestOutput> {
   );
 }
 
-base class ShelfTestStream {
-  /// Creates a [ShelfTestStream] from a JSON map.
-  factory ShelfTestStream.fromJson(Map<String, dynamic> json) =>
+base class HandlerTestStream {
+  /// Creates a [HandlerTestStream] from a JSON map.
+  factory HandlerTestStream.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ShelfTestStream._(this._json);
+  HandlerTestStream._(this._json);
 
-  ShelfTestStream({required String chunk}) {
+  HandlerTestStream({required String chunk}) {
     _json = {'chunk': chunk};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [ShelfTestStream].
-  static const SchemanticType<ShelfTestStream> $schema =
-      _ShelfTestStreamTypeFactory();
+  /// The JSON schema and type descriptor for [HandlerTestStream].
+  static const SchemanticType<HandlerTestStream> $schema =
+      _HandlerTestStreamTypeFactory();
 
   String get chunk {
     return _json['chunk'] as String;
@@ -109,23 +110,24 @@ base class ShelfTestStream {
     return _json.toString();
   }
 
-  /// Serializes this [ShelfTestStream] to a JSON map.
+  /// Serializes this [HandlerTestStream] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _ShelfTestStreamTypeFactory extends SchemanticType<ShelfTestStream> {
-  const _ShelfTestStreamTypeFactory();
+base class _HandlerTestStreamTypeFactory
+    extends SchemanticType<HandlerTestStream> {
+  const _HandlerTestStreamTypeFactory();
 
   @override
-  ShelfTestStream parse(Object? json) {
-    return ShelfTestStream._(json as Map<String, dynamic>);
+  HandlerTestStream parse(Object? json) {
+    return HandlerTestStream._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ShelfTestStream',
+    name: 'HandlerTestStream',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{

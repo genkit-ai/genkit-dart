@@ -34,7 +34,8 @@ import 'package:agents_sample/weather_agent.dart';
 import 'package:agents_sample/weather_agent_stateless.dart';
 import 'package:agents_sample/workspace_agent.dart';
 import 'package:agents_sample/workspace_browser.dart';
-import 'package:genkit_shelf/agents.dart';
+import 'package:genkit/experimental_io.dart';
+import 'package:genkit/io.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
@@ -85,7 +86,7 @@ void main() async {
       );
     })
     // `mount` strips the prefix, so agents are served at `/api/<agentName>`.
-    ..mount('/api/', api.call);
+    ..mount('/api/', api.asShelfHandler);
 
   final handler = const Pipeline()
       .addMiddleware(logRequests())

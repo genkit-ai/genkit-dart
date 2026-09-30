@@ -12,21 +12,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Shelf integration for Genkit: serve flows, models and other actions over
-/// HTTP.
+/// Shelf adapter for Genkit's HTTP serving (`package:genkit/io.dart`).
 ///
 /// ```dart
+/// import 'package:genkit/io.dart';
+/// import 'package:genkit_shelf/genkit_shelf.dart';
+///
 /// final genkit = GenkitRouter()
 ///   ..addAction(helloFlow)
 ///   ..addAction(secureFlow, contextProvider: bearerAuth);
 ///
-/// await genkit.serve();
+/// final app = Router()
+///   ..get('/health', (Request _) => Response.ok('OK'))
+///   ..post('/hello', shelfHandler(helloFlow))
+///   ..mount('/api/', genkit.asShelfHandler);
 /// ```
-///
-/// Agents are served with `addAgent` from the experimental
-/// `package:genkit_shelf/agents.dart`.
 library;
 
-export 'src/cors.dart' show CorsOptions;
-export 'src/handler.dart' show ContextProvider, shelfHandler;
-export 'src/router.dart' show GenkitRouter;
+export 'src/handler.dart' show GenkitRouterShelf, shelfHandler;

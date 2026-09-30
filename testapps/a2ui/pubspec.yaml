@@ -1,5 +1,5 @@
 name: a2ui_sample
-description: "A2UI (Agent-to-UI) sample: a shelf server hosting an A2UI-enabled Genkit agent, plus a Flutter client that renders surfaces with genui."
+description: "A2UI (Agent-to-UI) sample: a dart:io server hosting an A2UI-enabled Genkit agent, plus a Flutter client that renders surfaces with genui."
 publish_to: 'none'
 
 version: 1.0.0+1
@@ -22,15 +22,10 @@ dependencies:
     path: ../../packages/genkit_a2ui
   genkit_google_genai:
     path: ../../packages/genkit_google_genai
-  genkit_shelf:
-    path: ../../packages/genkit_shelf
   genkit_middleware:
     path: ../../packages/genkit_middleware
   schemantic:
     path: ../../packages/schemantic
-  shelf: ^1.4.0
-  shelf_router: ^1.1.0
-  shelf_cors_headers: ^0.1.5
 
 dependency_overrides:
   genkit:
@@ -39,8 +34,6 @@ dependency_overrides:
     path: ../../packages/genkit_a2ui
   genkit_google_genai:
     path: ../../packages/genkit_google_genai
-  genkit_shelf:
-    path: ../../packages/genkit_shelf
   genkit_middleware:
     path: ../../packages/genkit_middleware
   schemantic:

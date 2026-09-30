@@ -16,11 +16,10 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/experimental.dart';
+import 'package:genkit/experimental_io.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit_shelf/agents.dart';
-import 'package:genkit_shelf/genkit_shelf.dart';
+import 'package:genkit/io.dart';
 import 'package:http/http.dart' as http;
-import 'package:shelf/shelf.dart';
 import 'package:test/test.dart';
 
 /// A custom agent that replies with the caller's `user` context value.
@@ -65,7 +64,7 @@ final class _NonNotifyingStore implements SessionStore {
   }) => _inner.saveSnapshot(snapshotId, mutator, context: context);
 }
 
-Map<String, dynamic> _bearerAuth(Request request) {
+Map<String, dynamic> _bearerAuth(RequestData request) {
   final auth = request.headers['authorization'];
   if (auth != 'Bearer secret') throw Exception('unauthorized');
   return {'user': 'alice'};

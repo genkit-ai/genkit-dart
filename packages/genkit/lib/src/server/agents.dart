@@ -12,16 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:genkit/experimental.dart';
-
-import 'handler.dart';
+import '../ai/agents/agent.dart';
+import '../experimental_types.dart';
+import 'http.dart';
 import 'router.dart';
 
 /// Agent support for [GenkitRouter].
 ///
 /// Lives in an extension (exported only from the experimental
-/// `package:genkit_shelf/agents.dart`) so the stable [GenkitRouter] API never
-/// references the experimental [Agent] type.
+/// `package:genkit/experimental_io.dart`) so the stable [GenkitRouter] API
+/// never references the experimental [Agent] type.
 extension GenkitRouterAgents on GenkitRouter {
   /// Serves [agent] using the layout `remoteAgent(url: '<base><path>')`
   /// expects. Companion routes are mounted only when the agent supports them:

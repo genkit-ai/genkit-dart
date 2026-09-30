@@ -13,16 +13,18 @@
 // limitations under the License.
 
 import 'package:genkit/experimental.dart';
+import 'package:genkit/experimental_io.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:genkit_shelf/agents.dart';
-import 'package:genkit_shelf/genkit_shelf.dart';
-import 'package:shelf/shelf.dart';
+import 'package:genkit/io.dart';
 
-// This example serves Genkit agents over HTTP.
+// This example serves Genkit agents over HTTP (dart:io, no extra packages).
 //
 // To run it:
-//   GEMINI_API_KEY=... dart run example/shelf_agent_example.dart
+//   dart run example/http_agent_example.dart
+//
+// It uses a tiny local echo model so it runs without an API key; swap in any
+// real model (e.g. `googleAI.gemini('gemini-flash-latest')` from
+// `package:genkit_google_genai`).
 //
 // Each agent gets a turn route, plus `/getSnapshot` and `/abort` when it has a
 // session store. That's the layout `remoteAgent` from
@@ -37,13 +39,23 @@ import 'package:shelf/shelf.dart';
 //     -d '{"data": {"message": {"role": "user", "content": [{"text": "Hi!"}]}}}'
 
 void main() async {
-  final ai = Genkit(plugins: [googleAI()]);
+  final ai = Genkit();
+  final model = ai.defineModel(
+    name: 'echo',
+    fn: (request, _) async => ModelResponse(
+      finishReason: FinishReason.stop,
+      message: Message(
+        role: Role.model,
+        content: [TextPart(text: 'You said: ${request.messages.last.text}')],
+      ),
+    ),
+  );
 
   // Server-managed agent: conversation state lives in the session store, so
   // clients resume by sessionId/snapshotId and can read or abort snapshots.
   final assistant = ai.defineAgent(
     name: 'assistant',
-    model: googleAI.gemini('gemini-flash-latest'),
+    model: modelRef(model.name),
     system: 'You are a concise, friendly assistant.',
     store: InMemorySessionStore(),
   );
@@ -53,7 +65,7 @@ void main() async {
   // the turn route.
   final statelessAssistant = ai.defineAgent(
     name: 'statelessAssistant',
-    model: googleAI.gemini('gemini-flash-latest'),
+    model: modelRef(model.name),
     system: 'You are a concise, friendly assistant.',
   );
 
@@ -82,7 +94,7 @@ void main() async {
   await genkit.serve(port: 3400, cors: const CorsOptions());
 }
 
-Map<String, dynamic> _bearerAuth(Request request) {
+Map<String, dynamic> _bearerAuth(RequestData request) {
   // Replace with real token verification.
   if (request.headers['authorization'] != 'Bearer secret') {
     throw GenkitException('Unauthorized', status: StatusCodes.UNAUTHENTICATED);
