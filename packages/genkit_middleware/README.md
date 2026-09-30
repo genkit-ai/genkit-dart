@@ -278,6 +278,18 @@ final response = await ai.generate(
 );
 ```
 
+A default list can also be set on the plugin. It applies whenever
+`toolApproval()` is called without `approved:`; a call-level list replaces it
+rather than adding to it.
+
+```dart
+final ai = Genkit(
+  plugins: [ToolApprovalPlugin(approvedTools: ['read_file', 'list_files'])],
+);
+
+await ai.generate(prompt: '...', use: [toolApproval()]);
+```
+
 #### Handling Interrupts
 
 When a protected tool is called, `generate` will return with `FinishReason.interrupted`. You must handle this interrupt to approve or deny the tool execution.
