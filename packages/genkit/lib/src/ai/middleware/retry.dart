@@ -183,7 +183,8 @@ final class RetryMiddleware extends GenerateMiddleware {
   /// [backoffFactor].
   final Duration initialDelay;
 
-  /// The upper bound on the backoff delay.
+  /// The upper bound on the backoff delay. A provider's
+  /// [GenkitException.retryAfter] hint can still exceed it.
   final Duration maxDelay;
 
   /// The factor by which the delay increases with each retry.
@@ -345,17 +346,20 @@ final class RetryMiddleware extends GenerateMiddleware {
     if (delayMs > maxDelayMs) {
       delayMs = maxDelayMs.toDouble();
     }
+    if (!noJitter) {
+      // Simple jitter: 0.5x to 1.5x
+      delayMs = delayMs * (0.5 + _random.nextDouble());
+    }
+    // The floor is applied after jitter: jittering after the comparison could
+    // pull a backoff just above retryAfter back below it.
     final retryAfterMs = retryAfter?.inMilliseconds;
-    if (retryAfterMs != null && retryAfterMs >= delayMs) {
+    if (retryAfterMs != null && delayMs < retryAfterMs) {
       delayMs = retryAfterMs.toDouble();
       // Jitter only adds on top, so clients told the same Retry-After don't
       // stampede together and none of them undercuts the server's hint.
       if (!noJitter) {
         delayMs += initialDelayMs * _random.nextDouble();
       }
-    } else if (!noJitter) {
-      // Simple jitter: 0.5x to 1.5x
-      delayMs = delayMs * (0.5 + _random.nextDouble());
     }
     return Duration(milliseconds: delayMs.toInt());
   }

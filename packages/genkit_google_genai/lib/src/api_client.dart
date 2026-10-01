@@ -182,7 +182,14 @@ GenkitException parseGoogleError(
   String body, [
   Map<String, String> headers = const {},
 ]) {
-  final headerRetryAfter = parseRetryAfter(headers['retry-after']);
+  // package:http lowercases response header names, but this also takes
+  // caller-built maps, and header names are case-insensitive.
+  final headerRetryAfter = parseRetryAfter(
+    headers.entries
+        .where((e) => e.key.toLowerCase() == 'retry-after')
+        .map((e) => e.value)
+        .firstOrNull,
+  );
   try {
     final json = jsonDecode(body) as Map<String, dynamic>;
     if (json['error'] is Map) {

@@ -86,6 +86,13 @@ void main() {
       expect(e.retryAfter, const Duration(seconds: 5));
     });
 
+    test('matches the Retry-After header case-insensitively', () {
+      final e = parseGoogleError(503, 'Service Unavailable', {
+        'Retry-After': '4',
+      });
+      expect(e.retryAfter, const Duration(seconds: 4));
+    });
+
     test('reads Retry-After for a non-JSON body', () {
       final e = parseGoogleError(503, 'Service Unavailable', {
         'retry-after': '2',

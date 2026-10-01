@@ -426,6 +426,20 @@ void main() {
           expect(d.inMilliseconds, inInclusiveRange(500, 600));
         }
       });
+
+      test('jitter never undercuts a retryAfter just below the backoff', () {
+        // Backoff is 1000ms; jitter alone would range 500..1500ms.
+        final m = RetryMiddleware(
+          initialDelay: const Duration(milliseconds: 1000),
+        );
+        for (var i = 0; i < 200; i++) {
+          final d = m.calculateDelay(
+            1,
+            retryAfter: const Duration(milliseconds: 900),
+          );
+          expect(d.inMilliseconds, greaterThanOrEqualTo(900));
+        }
+      });
     });
 
     test('retry() maps Durations onto the wire config', () {
