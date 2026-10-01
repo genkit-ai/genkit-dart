@@ -353,7 +353,7 @@ void main() {
     final client = GenkitMcpClient(
       McpClientOptions(
         name: 'test-client',
-        cacheTtlMillis: 60000,
+        cacheTtl: const Duration(minutes: 1),
         mcpServer: McpServerConfig(transport: transport),
       ),
     );
@@ -375,7 +375,7 @@ void main() {
     final client = GenkitMcpClient(
       McpClientOptions(
         name: 'test-client',
-        cacheTtlMillis: 60000,
+        cacheTtl: const Duration(minutes: 1),
         mcpServer: McpServerConfig(transport: transport),
       ),
     );
@@ -420,7 +420,7 @@ void main() {
     final client = GenkitMcpClient(
       McpClientOptions(
         name: 'test-client',
-        cacheTtlMillis: 60000,
+        cacheTtl: const Duration(minutes: 1),
         mcpServer: McpServerConfig(transport: transport),
       ),
     );
@@ -471,7 +471,7 @@ void main() {
     final client = GenkitMcpClient(
       McpClientOptions(
         name: 'test-client',
-        cacheTtlMillis: 60000,
+        cacheTtl: const Duration(minutes: 1),
         mcpServer: McpServerConfig(transport: transport),
       ),
     );
@@ -481,6 +481,56 @@ void main() {
 
     expect(transport.requestCount('tools/list'), 1);
     await client.close();
+  });
+
+  test('a null cache TTL honors a positive server hint', () async {
+    final transport = FakeClientTransport(supportsDiscovery: true)
+      ..capabilities = {'tools': {}}
+      ..latestListTtlMs = 60000;
+    final client = GenkitMcpClient(
+      McpClientOptions(
+        name: 'test-client',
+        mcpServer: McpServerConfig(transport: transport),
+      ),
+    );
+
+    expect(await client.getCachedActions(), isEmpty);
+    expect(await client.getCachedActions(), isEmpty);
+
+    expect(transport.requestCount('tools/list'), 1);
+    await client.close();
+  });
+
+  test('Duration.zero disables caching despite a server hint', () async {
+    final transport = FakeClientTransport(supportsDiscovery: true)
+      ..capabilities = {'tools': {}}
+      ..latestListTtlMs = 60000;
+    final client = GenkitMcpClient(
+      McpClientOptions(
+        name: 'test-client',
+        cacheTtl: Duration.zero,
+        mcpServer: McpServerConfig(transport: transport),
+      ),
+    );
+
+    expect(await client.getCachedActions(), isEmpty);
+    expect(await client.getCachedActions(), isEmpty);
+
+    expect(transport.requestCount('tools/list'), 2);
+    await client.close();
+  });
+
+  test('a negative cache TTL is rejected', () {
+    expect(
+      () => GenkitMcpClient(
+        McpClientOptions(
+          name: 'test-client',
+          cacheTtl: const Duration(seconds: -1),
+          mcpServer: McpServerConfig(transport: FakeClientTransport()),
+        ),
+      ),
+      throwsArgumentError,
+    );
   });
 
   test('client lists tools and forwards _meta on calls', () async {

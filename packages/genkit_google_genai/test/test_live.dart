@@ -66,7 +66,7 @@ void main() {
     });
 
     test('should embed text', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello world')]),
@@ -80,7 +80,7 @@ void main() {
     });
 
     test('should embed multiple texts', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello')]),
@@ -94,7 +94,7 @@ void main() {
     });
 
     test('should embed with options', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello')]),
@@ -125,7 +125,7 @@ void main() {
     });
 
     test('should embed text with gemini-embedding-2', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-2'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello world')]),
@@ -137,7 +137,7 @@ void main() {
     });
 
     test('should embed an image with gemini-embedding-2', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-2'),
         documents: [
           DocumentData(
@@ -151,7 +151,7 @@ void main() {
     });
 
     test('should embed mixed text and image with gemini-embedding-2', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-2'),
         documents: [
           DocumentData(

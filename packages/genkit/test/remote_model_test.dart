@@ -252,12 +252,12 @@ void main() {
       ).called(1);
     });
 
-    test('passes a declared modelInfo through', () {
+    test('passes declared info through', () {
       final declared = ai.defineRemoteModel(
         name: 'declared-remote-model',
         url: remoteUrl,
         httpClient: mockClient,
-        modelInfo: ModelInfo(supports: {'constrained': 'none'}),
+        info: ModelInfo(supports: {'constrained': 'none'}),
       );
       expect(
         ((declared.metadata['model'] as Map<String, dynamic>)['supports']
