@@ -1359,9 +1359,9 @@ class GenkitMcpClient {
   Future<List<ActionMetadata>> getCachedActions() async {
     while (true) {
       final now = DateTime.now();
-      if (_shouldUseCache() &&
-          _cacheExpiresAt != null &&
-          now.isBefore(_cacheExpiresAt!)) {
+      // A zero TTL (caching off) never sets _cacheExpiresAt, so this misses.
+      final expiresAt = _cacheExpiresAt;
+      if (expiresAt != null && now.isBefore(expiresAt)) {
         return _cachedActions;
       }
 
@@ -1548,8 +1548,6 @@ class GenkitMcpClient {
         : null;
     return actions;
   }
-
-  bool _shouldUseCache() => cacheTtl != Duration.zero;
 
   Duration _effectiveCacheTtl(int? serverTtlMillis) {
     final configured = cacheTtl;
