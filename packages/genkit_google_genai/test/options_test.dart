@@ -236,6 +236,32 @@ void main() {
       expect(tools, hasLength(1));
       expect(tools.first.googleSearch, isNotNull);
     });
+
+    test('maps file search', () {
+      final options = GeminiOptions(
+        fileSearch: FileSearch(
+          fileSearchStoreNames: ['fileSearchStores/my-store'],
+        ),
+      );
+      final tools = toGeminiTools(null, fileSearch: options.fileSearch);
+
+      expect(tools, hasLength(1));
+      expect(tools.first.fileSearch?.fileSearchStoreNames, [
+        'fileSearchStores/my-store',
+      ]);
+    });
+
+    test('maps url context', () {
+      final options = GeminiOptions(urlContext: true);
+      final tools = toGeminiTools(null, urlContext: options.urlContext);
+
+      expect(tools, hasLength(1));
+      expect(tools.first.urlContext, isNotNull);
+    });
+
+    test('omits url context when false', () {
+      expect(toGeminiTools(null, urlContext: false), isEmpty);
+    });
   });
 
   group('toGeminiToolConfig', () {

@@ -290,6 +290,23 @@ void main(List<String> args) async {
     },
   );
 
+  // --- URL Context Flow ---
+  ai.defineFlow(
+    name: 'urlContext',
+    inputSchema: .string(
+      defaultValue: 'Summarize https://genkit.dev/docs/dart/get-started/',
+    ),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: vertexAI.gemini('gemini-flash-latest'),
+        prompt: prompt,
+        config: GeminiOptions(urlContext: true),
+      );
+      return response.text;
+    },
+  );
+
   // --- Code Execution Flow ---
   ai.defineFlow(
     name: 'codeExecution',

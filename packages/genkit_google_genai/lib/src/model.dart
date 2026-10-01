@@ -19,9 +19,6 @@ part 'model.g.dart';
 @Schema()
 abstract class $GeminiOptions {
   String? get apiKey;
-  // TODO: Add apiVersion, baseUrl
-  // String? get apiVersion;
-  // String? get baseUrl;
 
   List<$SafetySettings>? get safetySettings;
 
@@ -33,7 +30,13 @@ abstract class $GeminiOptions {
   // Retrieval
   $GoogleSearch? get googleSearch;
   $FileSearch? get fileSearch;
-  // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
+
+  @Field(
+    description:
+        'Lets the model fetch URLs included in the prompt and ground its '
+        'response in their content.',
+  )
+  bool? get urlContext;
 
   @DoubleField(minimum: 0.0, maximum: 2.0)
   double? get temperature;
@@ -127,9 +130,6 @@ abstract class $FileSearch {
 @Schema()
 abstract class $GeminiTtsOptions {
   String? get apiKey;
-  // TODO: Add apiVersion, baseUrl
-  // String? get apiVersion;
-  // String? get baseUrl;
 
   List<$SafetySettings>? get safetySettings;
 
@@ -141,7 +141,13 @@ abstract class $GeminiTtsOptions {
   // Retrieval
   $GoogleSearch? get googleSearch;
   $FileSearch? get fileSearch;
-  // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
+
+  @Field(
+    description:
+        'Lets the model fetch URLs included in the prompt and ground its '
+        'response in their content.',
+  )
+  bool? get urlContext;
 
   @DoubleField(minimum: 0.0, maximum: 2.0)
   double? get temperature;

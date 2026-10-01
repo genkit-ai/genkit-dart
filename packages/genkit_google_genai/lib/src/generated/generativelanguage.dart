@@ -3127,10 +3127,14 @@ extension type Tool._(Map<String, Object?> _data) {
     List<FunctionDeclaration>? functionDeclarations,
     GoogleSearch? googleSearch,
     CodeExecution? codeExecution,
+    UrlContext? urlContext,
+    FileSearch? fileSearch,
   }) : this._({
          'functionDeclarations': ?functionDeclarations,
          'googleSearch': ?googleSearch,
          'codeExecution': ?codeExecution,
+         'urlContext': ?urlContext,
+         'fileSearch': ?fileSearch,
        });
 
   Tool.fromJson(Map<String, dynamic> json) : this._(json);
@@ -3160,6 +3164,20 @@ extension type Tool._(Map<String, Object?> _data) {
   }
 
   set codeExecution(CodeExecution? value) => _data['codeExecution'] = value;
+  UrlContext? get urlContext {
+    final v = _data['urlContext'];
+    if (v == null) return null;
+    return UrlContext._(v as Map<String, Object?>);
+  }
+
+  set urlContext(UrlContext? value) => _data['urlContext'] = value;
+  FileSearch? get fileSearch {
+    final v = _data['fileSearch'];
+    if (v == null) return null;
+    return FileSearch._(v as Map<String, Object?>);
+  }
+
+  set fileSearch(FileSearch? value) => _data['fileSearch'] = value;
 }
 
 extension type ToolConfig._(Map<String, Object?> _data) {
@@ -3353,4 +3371,25 @@ extension type GoogleSearch._(Map<String, Object?> _data) {
 
 extension type CodeExecution._(Map<String, Object?> _data) {
   CodeExecution() : this._({});
+}
+
+extension type UrlContext._(Map<String, Object?> _data) {
+  UrlContext() : this._({});
+}
+
+extension type FileSearch._(Map<String, Object?> _data) {
+  FileSearch({List<String>? fileSearchStoreNames})
+    : this._({'fileSearchStoreNames': ?fileSearchStoreNames});
+
+  FileSearch.fromJson(Map<String, dynamic> json) : this._(json);
+  Map<String, dynamic> toJson() => _data as Map<String, dynamic>;
+
+  List<String>? get fileSearchStoreNames {
+    final v = _data['fileSearchStoreNames'];
+    if (v == null) return null;
+    return (v as List).cast<String>();
+  }
+
+  set fileSearchStoreNames(List<String>? value) =>
+      _data['fileSearchStoreNames'] = value;
 }
