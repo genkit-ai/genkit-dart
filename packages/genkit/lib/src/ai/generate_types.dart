@@ -15,34 +15,59 @@
 import '../schema_extensions.dart';
 import '../types.dart';
 
-/// A chunk of a response from a generate action.
-final class GenerateResponseChunk<Output> extends ModelResponseChunk {
+/// A chunk of a response from a generate action: the model's chunk plus the
+/// partially parsed [output] and the chunks streamed before it.
+///
+/// A read-only view over [modelChunk], deliberately not a [ModelResponseChunk]
+/// subtype: the wire type has setters, and writing through them would not
+/// update this view's derived getters. Use [modelChunk] where the wire type is
+/// needed (e.g. to serialize it).
+final class GenerateResponseChunk<Output> {
   final ModelResponseChunk _chunk;
+
+  /// The chunks streamed before this one, in order.
   final List<ModelResponseChunk> previousChunks;
+
+  /// The output parsed from everything streamed so far, or null while it is
+  /// not yet parseable.
   final Output? output;
 
   GenerateResponseChunk(
     this._chunk, {
     this.previousChunks = const [],
     this.output,
-  }) : super(
-         index: _chunk.index,
-         role: _chunk.role,
-         content: _chunk.content,
-         custom: _chunk.custom,
-       );
+  });
 
-  // Derived properties
-  String get text =>
-      content.where((p) => p.isText).map((p) => p.text!).join('');
+  /// The underlying wire chunk, as emitted by the model.
+  ModelResponseChunk get modelChunk => _chunk;
 
+  /// The parts in this chunk.
+  List<Part> get content => _chunk.content;
+
+  /// The role of the message this chunk belongs to.
+  Role? get role => _chunk.role;
+
+  /// The index of the message this chunk belongs to, when the model streams
+  /// more than one message.
+  int? get index => _chunk.index;
+
+  /// Provider-specific data attached to the chunk.
+  Map<String, dynamic>? get custom => _chunk.custom;
+
+  /// The text in this chunk.
+  String get text => _chunk.text;
+
+  /// The media in this chunk, if any.
+  Media? get media => _chunk.media;
+
+  /// The text of all chunks so far, including this one.
   String get accumulatedText {
     final prev = previousChunks.map((c) => c.text).join('');
     return prev + text;
   }
 
-  /// The underlying wire chunk, as emitted by the model.
-  ModelResponseChunk get modelChunk => _chunk;
+  @override
+  String toString() => 'GenerateResponseChunk(${_chunk.toJson()})';
 }
 
 /// A response to an interrupted tool request.
@@ -66,10 +91,15 @@ final class InterruptResponse {
 /// The result of `generate`: the final model response plus the parsed
 /// [output], the full conversation [messages], and the originating request.
 ///
-/// [modelResponse] is the underlying wire [ModelResponse].
-final class GenerateResult<Output> extends GenerateResponse {
+/// A read-only view over [modelResponse], deliberately not a wire-type
+/// subtype: the wire types have setters, and writing through them would not
+/// update this view's derived getters. Use [modelResponse] where the wire type
+/// is needed (e.g. to serialize it).
+final class GenerateResult<Output> {
   final ModelResponse _response;
   final ModelRequest? _request;
+
+  /// The structured output, parsed with the output schema when one was given.
   final Output? output;
 
   /// The original thrown error a failed response resolved from, for callers
@@ -78,36 +108,41 @@ final class GenerateResult<Output> extends GenerateResponse {
   /// does NOT survive the reflection/HTTP boundary (like [modelRequest]).
   final Object? cause;
 
-  GenerateResult(this._response, {this._request, this.output, this.cause})
-    : super(
-        message: _response.message,
-        finishReason: _response.finishReason,
-        finishMessage: _response.finishMessage,
-        // Forward the structured error so a failed response
-        // (`finishReason: failed`) carries its cause; null on success.
-        error: _response.error,
-        latencyMs: _response.latencyMs,
-        usage: _response.usage,
-        custom: _response.custom,
-        raw: _response.raw,
-        request: _response.request, // This uses ModelResponse.request
-        operation: _response.operation,
-        // Only build a candidate when a message is present. An aborted response
-        // (`finishReason: aborted`) carries no message, so there is no candidate
-        // to report.
-        candidates: _response.message == null
-            ? null
-            : [
-                Candidate(
-                  index: 0,
-                  message: _response.message!,
-                  finishReason: _response.finishReason,
-                  finishMessage: _response.finishMessage,
-                  usage: _response.usage,
-                  custom: _response.custom,
-                ),
-              ],
-      );
+  GenerateResult(this._response, {this._request, this.output, this.cause});
+
+  /// The underlying wire response, as returned by the model.
+  ModelResponse get modelResponse => _response;
+
+  /// The request sent to the model on the final turn, when known.
+  ModelRequest? get modelRequest => _request;
+
+  /// The model's reply, or null when the turn produced none (e.g. aborted).
+  Message? get message => _response.message;
+
+  /// Why the model stopped generating.
+  FinishReason get finishReason => _response.finishReason;
+
+  /// A human-readable explanation of [finishReason], if the model gave one.
+  String? get finishMessage => _response.finishMessage;
+
+  /// The structured error of a failed response (`finishReason: failed`);
+  /// null on success.
+  RuntimeError? get error => _response.error;
+
+  /// Token and media usage reported by the model.
+  GenerationUsage? get usage => _response.usage;
+
+  /// How long the model call took, in milliseconds.
+  double? get latencyMs => _response.latencyMs;
+
+  /// Provider-specific data attached to the response.
+  Map<String, dynamic>? get custom => _response.custom;
+
+  /// The provider's raw response payload, if the plugin attached it.
+  Map<String, dynamic>? get raw => _response.raw;
+
+  /// The long-running operation started by the model, if any.
+  Operation? get operation => _response.operation;
 
   /// The full history of the conversation, including the request messages and
   /// the final model response.
@@ -120,9 +155,6 @@ final class GenerateResult<Output> extends GenerateResponse {
     ...(_request?.messages ?? _response.request?.messages ?? []),
     if (_response.message != null) _response.message!,
   ];
-
-  ModelResponse get modelResponse => _response;
-  ModelRequest? get modelRequest => _request;
 
   /// The text content of the response.
   String get text => _response.text;
@@ -147,4 +179,7 @@ final class GenerateResult<Output> extends GenerateResponse {
             .toList() ??
         [];
   }
+
+  @override
+  String toString() => 'GenerateResult(${_response.toJson()})';
 }
