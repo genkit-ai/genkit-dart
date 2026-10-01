@@ -279,7 +279,7 @@ final response = await ai.generate(
 ```
 
 A default list can also be set on the plugin. It applies whenever
-`toolApproval()` is called without `approved:`; a plugin-level list replaces it
+`toolApproval()` is called without `approved:`; a call-level list replaces it
 rather than adding to it.
 
 ```dart
