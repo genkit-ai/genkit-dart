@@ -334,7 +334,6 @@ final response = await ai.generate(
       maxRetries: 3,
       initialDelay: const Duration(milliseconds: 500), // default: 1s
       maxDelay: const Duration(seconds: 30), // default: 1 minute
-      retryModel: true, // Retry model validation errors (default: true)
       retryTools: false, // Retry tool execution errors (default: false)
       statuses: [StatusCode.unavailable], // Retry only on specific errors
     ),

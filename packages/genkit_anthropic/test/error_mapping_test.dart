@@ -77,7 +77,7 @@ void main() {
           retry(
             maxRetries: 1,
             initialDelay: const Duration(milliseconds: 1),
-            jitter: false,
+            noJitter: true,
           ),
         ],
       );

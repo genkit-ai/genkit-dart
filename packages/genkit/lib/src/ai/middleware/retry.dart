@@ -44,13 +44,13 @@ abstract class $RetryOptions {
   )
   List<String>? get statuses;
 
-  // The JSON config keeps the cross-SDK names and units (JS uses the same
-  // fields). [retry] and [RetryMiddleware] expose `Duration`s and `jitter`.
+  // Delays stay in milliseconds here to match the JS SDK and the Dev UI;
+  // [retry] and [RetryMiddleware] take `Duration`s.
   int? get initialDelayMs;
   int? get maxDelayMs;
   double? get backoffFactor;
   bool? get noJitter;
-  bool? get retryModel;
+  bool? get noRetryModel;
   bool? get retryTools;
 }
 
@@ -77,8 +77,8 @@ final retryDef = defineMiddleware<RetryOptions>(
       null => RetryMiddleware.defaultMaxDelay,
     },
     backoffFactor: config?.backoffFactor ?? 2.0,
-    jitter: !(config?.noJitter ?? false),
-    retryModel: config?.retryModel ?? true,
+    noJitter: config?.noJitter ?? false,
+    noRetryModel: config?.noRetryModel ?? false,
     retryTools: config?.retryTools ?? false,
   ),
 );
@@ -124,8 +124,8 @@ GenerateMiddlewareRef<RetryOptions> retry({
   Duration? initialDelay,
   Duration? maxDelay,
   double? backoffFactor,
-  bool? jitter,
-  bool? retryModel,
+  bool? noJitter,
+  bool? noRetryModel,
   bool? retryTools,
 }) {
   return middlewareRef(
@@ -136,8 +136,8 @@ GenerateMiddlewareRef<RetryOptions> retry({
       initialDelayMs: initialDelay?.inMilliseconds,
       maxDelayMs: maxDelay?.inMilliseconds,
       backoffFactor: backoffFactor,
-      noJitter: jitter == null ? null : !jitter,
-      retryModel: retryModel,
+      noJitter: noJitter,
+      noRetryModel: noRetryModel,
       retryTools: retryTools,
     ),
   );
@@ -168,9 +168,8 @@ final class RetryMiddleware extends GenerateMiddleware {
   /// The factor by which the delay increases with each retry.
   final double backoffFactor;
 
-  /// Whether to randomize each delay (0.5x to 1.5x) so concurrent clients
-  /// don't retry in lockstep. Defaults to `true`.
-  final bool jitter;
+  /// Whether to disable jitter. Jitter is enabled by default.
+  final bool noJitter;
 
   /// An optional callback that is called on each error.
   ///
@@ -179,8 +178,9 @@ final class RetryMiddleware extends GenerateMiddleware {
   /// If it returns `true` (or if it is null), retrying continues.
   final bool Function(Object error, int attempt)? onError;
 
-  /// Whether to retry model requests. Defaults to `true`.
-  final bool retryModel;
+  /// Whether to skip retrying model requests (e.g. to retry only tools).
+  /// Model requests are retried by default.
+  final bool noRetryModel;
 
   /// Whether to retry tool requests. Defaults to `false`.
   final bool retryTools;
@@ -207,9 +207,9 @@ final class RetryMiddleware extends GenerateMiddleware {
     this.initialDelay = defaultInitialDelay,
     this.maxDelay = defaultMaxDelay,
     this.backoffFactor = 2.0,
-    this.jitter = true,
+    this.noJitter = false,
     this.onError,
-    this.retryModel = true,
+    this.noRetryModel = false,
     this.retryTools = false,
   });
 
@@ -223,7 +223,7 @@ final class RetryMiddleware extends GenerateMiddleware {
     )
     next,
   ) {
-    if (!retryModel) {
+    if (noRetryModel) {
       return next(request, ctx);
     }
     return _retry(() => next(request, ctx), ctx.cancel);
@@ -303,7 +303,7 @@ final class RetryMiddleware extends GenerateMiddleware {
     if (delayMs > maxDelayMs) {
       delayMs = maxDelayMs.toDouble();
     }
-    if (jitter) {
+    if (!noJitter) {
       // Simple jitter: 0.5x to 1.5x
       delayMs = delayMs * (0.5 + Random().nextDouble());
     }

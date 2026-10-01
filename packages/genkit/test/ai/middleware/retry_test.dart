@@ -52,7 +52,7 @@ void main() {
               maxRetries: 3,
               initialDelay: const Duration(milliseconds: 1),
               maxDelay: const Duration(milliseconds: 5),
-              jitter: false,
+              noJitter: true,
             ),
           ],
         );
@@ -95,7 +95,7 @@ void main() {
             maxRetries: 3,
             initialDelay: const Duration(milliseconds: 1),
             maxDelay: const Duration(milliseconds: 5),
-            jitter: false,
+            noJitter: true,
           ),
         ],
       );
@@ -127,7 +127,7 @@ void main() {
               maxRetries: 3,
               initialDelay: const Duration(milliseconds: 1),
               maxDelay: const Duration(milliseconds: 5),
-              jitter: false,
+              noJitter: true,
               statuses: [StatusCode.unavailable], // Only retry UNAVAILABLE
             ),
           ],
@@ -139,7 +139,7 @@ void main() {
       expect(attempts, 1);
     });
 
-    test('should NOT retry model if retryModel is false', () async {
+    test('should NOT retry model if noRetryModel is true', () async {
       var attempts = 0;
 
       genkit.defineModel(
@@ -161,8 +161,8 @@ void main() {
             retry(
               maxRetries: 3,
               initialDelay: const Duration(milliseconds: 1),
-              jitter: false,
-              retryModel: false,
+              noJitter: true,
+              noRetryModel: true,
             ),
           ],
         );
@@ -225,7 +225,7 @@ void main() {
             retry(
               maxRetries: 3,
               initialDelay: const Duration(milliseconds: 1),
-              jitter: false,
+              noJitter: true,
               retryTools: true,
             ),
           ],
@@ -259,7 +259,7 @@ void main() {
             retry(
               maxRetries: 3,
               initialDelay: const Duration(milliseconds: 1),
-              jitter: false,
+              noJitter: true,
               statuses: [], // Empty list should trigger defaults
             ),
           ],
@@ -294,7 +294,7 @@ void main() {
             retry(
               maxRetries: 2,
               initialDelay: const Duration(milliseconds: 1),
-              jitter: false,
+              noJitter: true,
             ),
           ],
         );
@@ -306,11 +306,11 @@ void main() {
       expect(attempts, 3);
     });
 
-    test('retry() maps Durations and jitter onto the wire config', () {
+    test('retry() maps Durations onto the wire config', () {
       final ref = retry(
         initialDelay: const Duration(milliseconds: 250),
         maxDelay: const Duration(seconds: 10),
-        jitter: false,
+        noJitter: true,
       );
       final json =
           jsonDecode(jsonEncode(ref.config!.toJson())) as Map<String, dynamic>;
@@ -337,14 +337,24 @@ void main() {
               as RetryMiddleware;
       expect(m.initialDelay, const Duration(milliseconds: 250));
       expect(m.maxDelay, const Duration(seconds: 10));
-      expect(m.jitter, isFalse);
+      expect(m.noJitter, isTrue);
+
+      final noModel =
+          retryDef.create(
+                RetryOptions.fromJson({'noRetryModel': true}),
+                GenerateMiddlewareContext(ai: genkit),
+              )
+              as RetryMiddleware;
+      expect(noModel.noRetryModel, isTrue);
 
       final defaults =
           retryDef.create(null, GenerateMiddlewareContext(ai: genkit))
               as RetryMiddleware;
       expect(defaults.initialDelay, RetryMiddleware.defaultInitialDelay);
       expect(defaults.maxDelay, RetryMiddleware.defaultMaxDelay);
-      expect(defaults.jitter, isTrue);
+      expect(defaults.noJitter, isFalse);
+      expect(defaults.noRetryModel, isFalse);
+      expect(defaults.retryTools, isFalse);
     });
 
     test('retry() serializes statuses as wire names', () {
