@@ -14,6 +14,8 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+
 import 'action.dart';
 
 /// Default cache lifetime for a [DynamicActionProvider]'s listing, matching
@@ -98,8 +100,19 @@ class _DapCache {
 /// The provider is itself an [Action]: refreshing its listing runs inside a
 /// span so each refresh is traced (matching JS, where the DAP is a
 /// `dynamic-action-provider` action and the cache calls `dap.run()`).
-/// Reflection listing uses [getActionMetadataRecord], which skips the trace so
-/// the Dev UI does not create a span every time it lists actions.
+/// Reflection (Dev UI) listing skips the trace so it does not create a span
+/// every time it lists actions.
+///
+/// ```dart
+/// final dap = ai.defineDynamicActionProvider(
+///   name: 'my-tools',
+///   listActionsFn: () => [for (final t in tools) t],
+///   getActionFn: (type, name) => type == .tool ? toolsByName[name] : null,
+/// );
+/// await dap.listActions();          // cached listing
+/// await dap.getAction(.tool, 'x');  // resolve one action
+/// dap.invalidateCache();            // force the next listing to refetch
+/// ```
 base class DynamicActionProvider
     extends Action<void, List<ActionMetadata>, void, void> {
   final FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn;
@@ -190,6 +203,9 @@ base class DynamicActionProvider
   /// Returns metadata for actions of [actionType] matching [name], supporting
   /// `*` (all), a `prefix*` wildcard, and exact matches. Mirrors JS's
   /// `listActionMetadata`.
+  ///
+  /// Used by the registry and tool resolution to expand wildcard tool refs.
+  @internal
   Future<List<ActionMetadata>> listActionMetadata(
     ActionType actionType,
     String name,
@@ -207,6 +223,7 @@ base class DynamicActionProvider
   /// Expands the provider into a map of DAP key to metadata, used by reflection
   /// (Dev UI) to surface individual dynamic actions. Skips the trace so listing
   /// does not create a span. Mirrors JS's `getActionMetadataRecord`.
+  @internal
   Future<Map<String, ActionMetadata>> getActionMetadataRecord() async {
     final result = <String, ActionMetadata>{};
     for (final meta in await listActions(skipTrace: true)) {
