@@ -85,7 +85,7 @@ Future<List<Embedding>> embedWith(
     plugins: [openAI(apiKey: 'test-key', httpClient: client)],
   );
   addTearDown(ai.shutdown);
-  return ai.embedMany(
+  return ai.embed(
     embedder: openAI.embedder(embedderName),
     documents: documents,
     options: options,
@@ -222,7 +222,7 @@ void main() {
         ),
         throwsA(
           isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.INTERNAL)
+              .having((e) => e.status, 'status', StatusCode.internal)
               .having((e) => e.message, 'message', contains('2 input')),
         ),
       );
@@ -252,7 +252,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.UNAUTHENTICATED,
+            StatusCode.unauthenticated,
           ),
         ),
       );
@@ -277,7 +277,7 @@ void main() {
         ),
         throwsA(
           isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
               .having((e) => e.message, 'message', contains('index 1')),
         ),
       );
@@ -296,7 +296,7 @@ void main() {
         ),
         throwsA(
           isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
               .having((e) => e.message, 'message', contains('1536')),
         ),
       );
@@ -314,7 +314,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.INVALID_ARGUMENT,
+            StatusCode.invalidArgument,
           ),
         ),
       );

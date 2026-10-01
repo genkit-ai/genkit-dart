@@ -66,10 +66,7 @@ void main() {
       });
       final genkit = Genkit(
         isDevEnv: false,
-        plugins: [
-          AnthropicPluginImpl(apiKey: 'test-key', httpClient: client),
-          RetryPlugin(),
-        ],
+        plugins: [AnthropicPluginImpl(apiKey: 'test-key', httpClient: client)],
       );
       addTearDown(genkit.shutdown);
 
@@ -110,7 +107,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.UNAVAILABLE,
+            StatusCode.unavailable,
           ),
         ),
       );
@@ -142,7 +139,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.INVALID_ARGUMENT,
+            StatusCode.invalidArgument,
           ),
         ),
       );

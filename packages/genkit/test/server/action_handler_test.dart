@@ -239,7 +239,7 @@ void main() {
         if (user == null) {
           throw GenkitException(
             'Unauthorized',
-            status: StatusCodes.PERMISSION_DENIED,
+            status: StatusCode.permissionDenied,
           );
         }
         return 'Hello $user';
@@ -292,7 +292,7 @@ void main() {
       fn: (input, _) async {
         throw GenkitException(
           'You shall not pass',
-          status: StatusCodes.PERMISSION_DENIED,
+          status: StatusCode.permissionDenied,
         );
       },
       inputSchema: .string(),
@@ -321,7 +321,7 @@ void main() {
       fn: (input, _) async {
         throw GenkitException(
           'Bad stream input',
-          status: StatusCodes.INVALID_ARGUMENT,
+          status: StatusCode.invalidArgument,
         );
       },
       inputSchema: .string(),
@@ -360,7 +360,7 @@ void main() {
         name: 'failing',
         fn: (input, ctx) async {
           ctx.sendChunk('partial');
-          throw GenkitException('Bad input', status: StatusCodes.NOT_FOUND);
+          throw GenkitException('Bad input', status: StatusCode.notFound);
         },
         inputSchema: .string(),
         outputSchema: .string(),
@@ -615,7 +615,7 @@ void main() {
           echoFlow,
           contextProvider: (_) => throw GenkitException(
             'Unauthorized',
-            status: StatusCodes.UNAUTHENTICATED,
+            status: StatusCode.unauthenticated,
           ),
         );
 

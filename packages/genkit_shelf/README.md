@@ -82,7 +82,7 @@ works with shelf, plain `dart:io`, or any other adapter.
 Future<Map<String, dynamic>> bearerAuth(RequestData request) async {
   final user = await checkUserToken(request.headers['authorization']);
   if (user == null) {
-    throw GenkitException('Unauthorized', status: StatusCodes.UNAUTHENTICATED); // 401
+    throw GenkitException('Unauthorized', status: StatusCode.unauthenticated); // 401
   }
   return {'userId': user.id};
 }

@@ -184,7 +184,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.statusCode,
             'statusCode',
-            StatusCodes.INTERNAL.value,
+            StatusCode.internal.value,
           ),
         ),
       );

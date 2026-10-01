@@ -91,7 +91,7 @@ void main() {
         echo,
         contextProvider: (_) => throw GenkitException(
           'Unauthorized',
-          status: StatusCodes.UNAUTHENTICATED,
+          status: StatusCode.unauthenticated,
         ),
       );
 
@@ -110,7 +110,7 @@ void main() {
     final failing = ai.defineFlow(
       name: 'failing',
       fn: (String _, _) async =>
-          throw GenkitException('nope', status: StatusCodes.NOT_FOUND),
+          throw GenkitException('nope', status: StatusCode.notFound),
       streamSchema: .string(),
     );
     Future<String> lastFrame(Handler handler) async {

@@ -104,7 +104,7 @@ void main(List<String> args) async {
       if (user == null) {
         throw GenkitException(
           'Unauthorized access',
-          status: StatusCodes.UNAUTHENTICATED,
+          status: StatusCode.unauthenticated,
         );
       }
       return 'Secure data for $user: $input';

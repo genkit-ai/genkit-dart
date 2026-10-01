@@ -23,6 +23,10 @@ abstract class $ToolApprovalOptions {
   List<String> get approved;
 }
 
+/// Registers the `toolApproval` middleware.
+///
+/// [approvedTools] is the default allow-list, used when [toolApproval] is
+/// called without `approved:`.
 class ToolApprovalPlugin extends GenkitPlugin {
   final List<String>? approvedTools;
 
@@ -45,12 +49,18 @@ class ToolApprovalPlugin extends GenkitPlugin {
   ];
 }
 
+/// Interrupts any tool call whose name is not in the allow-list, so a human
+/// can approve it (by restarting with `{'tool-approved': true}`).
+///
+/// [approved] replaces the plugin's `approvedTools` for this call (the two are
+/// not merged). When omitted, the plugin's list applies.
 GenerateMiddlewareRef<ToolApprovalOptions> toolApproval({
   List<String>? approved,
 }) {
   return middlewareRef(
     name: 'toolApproval',
-    config: ToolApprovalOptions(approved: approved ?? []),
+    // A null config lets the plugin fall back to its `approvedTools`.
+    config: approved == null ? null : ToolApprovalOptions(approved: approved),
   );
 }
 

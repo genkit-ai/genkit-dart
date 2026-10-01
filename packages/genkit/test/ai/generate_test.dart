@@ -40,7 +40,7 @@ class _ThrowingHookMiddleware extends GenerateMiddleware {
   ) {
     throw GenkitException(
       'hook exploded before delegating',
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
 }
@@ -387,7 +387,7 @@ void main() {
               name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              toolOutputSchema: .dynamicSchema(),
+              outputSchema: .dynamicSchema(),
               fn: (input, context) async => .response('sunny'),
             );
           }
@@ -451,7 +451,7 @@ void main() {
               name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              toolOutputSchema: .dynamicSchema(),
+              outputSchema: .dynamicSchema(),
               fn: (input, context) async => .response('sunny'),
             );
           }
@@ -515,7 +515,7 @@ void main() {
               name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              toolOutputSchema: .dynamicSchema(),
+              outputSchema: .dynamicSchema(),
               fn: (input, context) async => .response('sunny explicit'),
             );
           }
@@ -581,7 +581,7 @@ void main() {
                 name: 'weatherTool',
                 description: 'get weather',
                 inputSchema: TestToolInput.$schema,
-                toolOutputSchema: .dynamicSchema(),
+                outputSchema: .dynamicSchema(),
                 fn: (input, context) async =>
                     .response('sunny explicit prefix'),
               );
@@ -656,7 +656,7 @@ void main() {
               name: 'wea/weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              toolOutputSchema: .dynamicSchema(),
+              outputSchema: .dynamicSchema(),
               fn: (input, context) async => .response('sunny prefix wildcard'),
             );
           }
@@ -1265,7 +1265,7 @@ void main() {
           fn: (request, context) async {
             throw GenkitException(
               'model exploded',
-              status: StatusCodes.UNAVAILABLE,
+              status: StatusCode.unavailable,
             );
           },
         );
@@ -1278,7 +1278,7 @@ void main() {
         expect(res.finishReason, FinishReason.failed);
         expect(res.message, isNull);
         expect(res.error, isNotNull);
-        expect(res.error!.status, StatusCodes.UNAVAILABLE.name);
+        expect(res.error!.status, StatusCode.unavailable.wireName);
         expect(res.error!.message, contains('model exploded'));
         // The raw thrown error is available for in-process inspection.
         expect(res.cause, isA<GenkitException>());
@@ -1301,7 +1301,7 @@ void main() {
             fn: (input, ctx) async {
               throw GenkitException(
                 'tool exploded',
-                status: StatusCodes.FAILED_PRECONDITION,
+                status: StatusCode.failedPrecondition,
               );
             },
           );
@@ -1339,7 +1339,7 @@ void main() {
           // A tool's failure is not a failure of the caller's request: its own
           // status (FAILED_PRECONDITION) is reclassified to INTERNAL so a retry
           // client does not act on the tool's status as the whole run's.
-          expect(res.error!.status, StatusCodes.INTERNAL.name);
+          expect(res.error!.status, StatusCode.internal.wireName);
           // The message names the failing tool and still carries the original.
           expect(res.error!.message, contains('explodingTool'));
           expect(res.error!.message, contains('tool exploded'));
@@ -1353,7 +1353,7 @@ void main() {
             ((res.cause as GenkitException).underlyingException
                     as GenkitException)
                 .status,
-            StatusCodes.FAILED_PRECONDITION,
+            StatusCode.failedPrecondition,
           );
           // The failing turn's model tool-request message is dropped; the user
           // turn remains as the last-good resume point.
@@ -1388,7 +1388,7 @@ void main() {
         );
 
         expect(res.finishReason, FinishReason.failed);
-        expect(res.error!.status, StatusCodes.NOT_FOUND.name);
+        expect(res.error!.status, StatusCode.notFound.wireName);
         expect(res.error!.message, contains('ghostTool'));
       });
 
@@ -1410,7 +1410,7 @@ void main() {
 
           expect(res.finishReason, FinishReason.failed);
           expect(res.error, isNotNull);
-          expect(res.error!.status, StatusCodes.INTERNAL.name);
+          expect(res.error!.status, StatusCode.internal.wireName);
           expect(res.error!.message, contains('boom'));
         },
       );
@@ -1452,7 +1452,7 @@ void main() {
             // Turn 2 (post-tool): the model errors.
             throw GenkitException(
               'model exploded after tool',
-              status: StatusCodes.UNAVAILABLE,
+              status: StatusCode.unavailable,
             );
           },
         );
@@ -1491,7 +1491,7 @@ void main() {
             fn: (input, ctx) async {
               throw GenkitException(
                 'tool exploded',
-                status: StatusCodes.FAILED_PRECONDITION,
+                status: StatusCode.failedPrecondition,
               );
             },
           );
@@ -1542,10 +1542,7 @@ void main() {
           description: 'always throws',
           inputSchema: TestToolInput.$schema,
           fn: (input, ctx) async {
-            throw GenkitException(
-              'tool exploded',
-              status: StatusCodes.INTERNAL,
-            );
+            throw GenkitException('tool exploded', status: StatusCode.internal);
           },
         );
 
@@ -1607,7 +1604,7 @@ void main() {
 
         expect(res.finishReason, FinishReason.failed);
         expect(res.error, isNotNull);
-        expect(res.error!.status, StatusCodes.FAILED_PRECONDITION.name);
+        expect(res.error!.status, StatusCode.failedPrecondition.wireName);
         expect(res.error!.message, contains('hook exploded'));
       });
 
@@ -1665,7 +1662,7 @@ void main() {
         expect(res.finishReason, FinishReason.stop);
         expect(res.text, contains('not json'));
         expect(res.error, isNotNull);
-        expect(res.error!.status, StatusCodes.INTERNAL.name);
+        expect(res.error!.status, StatusCode.internal.wireName);
         expect(res.error!.message, contains('expected schema'));
       });
     });
@@ -1692,7 +1689,7 @@ void main() {
                   name: 'weatherTool',
                   description: 'get weather',
                   inputSchema: TestToolInput.$schema,
-                  toolOutputSchema: .dynamicSchema(),
+                  outputSchema: .dynamicSchema(),
                   fn: (input, context) async => .response('sunny'),
                 );
               }
@@ -1882,7 +1879,7 @@ void main() {
                 name: 'weatherTool',
                 description: 'get weather',
                 inputSchema: TestToolInput.$schema,
-                toolOutputSchema: .dynamicSchema(),
+                outputSchema: .dynamicSchema(),
                 fn: (input, context) async => .response('sunny'),
               );
             }
@@ -1947,7 +1944,7 @@ void main() {
                 name: 'weatherTool',
                 description: 'get weather',
                 inputSchema: TestToolInput.$schema,
-                toolOutputSchema: .dynamicSchema(),
+                outputSchema: .dynamicSchema(),
                 fn: (input, context) async => .response('sunny'),
               );
             }

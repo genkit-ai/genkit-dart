@@ -42,8 +42,7 @@ export 'src/ai/generate_middleware.dart'
         middlewareRef;
 export 'src/ai/generate_types.dart'
     show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
-export 'src/ai/middleware/retry.dart'
-    show RetryMiddleware, RetryOptions, RetryPlugin, retry;
+export 'src/ai/middleware/retry.dart' show RetryMiddleware, RetryOptions, retry;
 export 'src/ai/middleware/simulate_constrained_generation.dart'
     show SimulateConstrainedGenerationMiddleware, simulateConstrainedGeneration;
 // BidiModel / bidiModelRef live in the experimental surface
@@ -53,16 +52,11 @@ export 'src/ai/prompt.dart'
     show
         ExecutablePrompt,
         PromptAction,
-        PromptConfig,
         PromptFn,
-        PromptGenerateOptions;
+        PromptGenerateOptions,
+        PromptRef;
 export 'src/ai/resource.dart'
-    show
-        ResourceAction,
-        ResourceFn,
-        ResourceInput,
-        ResourceOutput,
-        createResourceMatcher;
+    show ResourceAction, ResourceFn, ResourceInput, ResourceOutput;
 export 'src/ai/template_helper.dart'
     show TemplateHelperFn, TemplateHelperOptions;
 export 'src/ai/tool.dart'
@@ -70,7 +64,7 @@ export 'src/ai/tool.dart'
         Interrupt,
         Tool,
         ToolFn,
-        ToolFnArgs,
+        ToolFnArg,
         ToolInterruptResult,
         ToolResponseResult,
         ToolResult;
@@ -92,7 +86,7 @@ export 'src/core/dynamic_action_provider.dart' show DynamicActionProvider;
 export 'src/core/flow.dart';
 export 'src/core/plugin.dart' show GenkitPlugin;
 export 'src/core/registry.dart' show Registry;
-export 'src/exception.dart' show GenkitException, StatusCodes;
+export 'src/exception.dart' show GenkitException, StatusCode;
 export 'src/genkit_ai.dart' show GenkitAI;
 export 'src/genkit_class.dart';
 export 'src/schema_extensions.dart';

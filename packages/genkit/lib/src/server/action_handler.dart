@@ -61,7 +61,7 @@ GenkitHttpHandler actionHandler(
       bodyStr = await utf8.decodeStream(request.body);
     } catch (_) {
       return _errorResponse(
-        StatusCodes.INVALID_ARGUMENT,
+        StatusCode.invalidArgument,
         'Failed to read request body',
       );
     }
@@ -73,7 +73,7 @@ GenkitHttpHandler actionHandler(
         final jsonBody = jsonDecode(bodyStr);
         if (jsonBody is! Map || !jsonBody.containsKey('data')) {
           return _errorResponse(
-            StatusCodes.INVALID_ARGUMENT,
+            StatusCode.invalidArgument,
             'Request body must be a JSON object with a "data" field.',
           );
         }
@@ -87,7 +87,7 @@ GenkitHttpHandler actionHandler(
         init = action.initSchema!.parse(init);
       }
     } catch (e) {
-      return _errorResponse(StatusCodes.INVALID_ARGUMENT, 'Invalid input: $e');
+      return _errorResponse(StatusCode.invalidArgument, 'Invalid input: $e');
     }
 
     Map<String, dynamic>? context;
@@ -103,7 +103,7 @@ GenkitHttpHandler actionHandler(
       } on GenkitException catch (e) {
         return _errorResponse(e.status, e.message);
       } catch (e) {
-        return _errorResponse(StatusCodes.PERMISSION_DENIED, e.toString());
+        return _errorResponse(StatusCode.permissionDenied, e.toString());
       }
     }
 
@@ -212,17 +212,17 @@ Map<String, String> _traceHeaders(String traceId, String spanId) => {
 
 /// Only [GenkitException] messages reach the client; anything else may carry
 /// internals (credentials, provider errors), so it becomes a generic 500.
-(StatusCodes, String) _clientError(Object error) => error is GenkitException
+(StatusCode, String) _clientError(Object error) => error is GenkitException
     ? (error.status, error.message)
-    : (StatusCodes.INTERNAL, _internalErrorMessage);
+    : (StatusCode.internal, _internalErrorMessage);
 
-Map<String, dynamic> _errorBody(StatusCodes status, String message) => {
+Map<String, dynamic> _errorBody(StatusCode status, String message) => {
   'code': status.httpStatus,
-  'status': status.name,
+  'status': status.wireName,
   'message': message,
 };
 
-GenkitHttpResponse _errorResponse(StatusCodes status, String message) =>
+GenkitHttpResponse _errorResponse(StatusCode status, String message) =>
     GenkitHttpResponse(
       statusCode: status.httpStatus,
       headers: const {'content-type': 'application/json'},

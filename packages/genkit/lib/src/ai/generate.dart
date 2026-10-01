@@ -58,7 +58,7 @@ GenerateAction defineGenerateAction(Registry registry) {
       if (options == null) {
         throw GenkitException(
           'Generate action called with null options',
-          status: StatusCodes.INVALID_ARGUMENT,
+          status: StatusCode.invalidArgument,
         );
       }
       final response = await runGenerateAction(
@@ -109,7 +109,7 @@ void _assertValidToolNames(Iterable<Tool> tools) {
     if (existing != null && existing != full) {
       throw GenkitException(
         "Cannot provide two tools with the same name: '$full' and '$existing'",
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     seen[short] = full;
@@ -139,7 +139,7 @@ abstract class GenerateConfig {}
         if (def == null) {
           throw GenkitException(
             'Middleware ${mw.middlewareRef!.name} not found',
-            status: StatusCodes.NOT_FOUND,
+            status: StatusCode.notFound,
           );
         }
 
@@ -158,7 +158,7 @@ abstract class GenerateConfig {}
       } else {
         throw GenkitException(
           'Invalid middleware type: ${mw.runtimeType}. Expected GenerateMiddleware or GenerateMiddlewareRef.',
-          status: StatusCodes.INVALID_ARGUMENT,
+          status: StatusCode.invalidArgument,
         );
       }
     }
@@ -287,10 +287,10 @@ extension _AbnormalFinish on FinishReason {
 /// the classified status and message (no nested details).
 RuntimeError _toRuntimeError(Object cause) {
   if (cause is GenkitException) {
-    return RuntimeError(status: cause.status.name, message: cause.message);
+    return RuntimeError(status: cause.status.wireName, message: cause.message);
   }
   return RuntimeError(
-    status: StatusCodes.INTERNAL.name,
+    status: StatusCode.internal.wireName,
     message: cause.toString(),
   );
 }
@@ -305,7 +305,7 @@ GenkitException _toolFailureError(String toolName, Object cause) {
   final detail = cause is GenkitException ? cause.message : cause.toString();
   return GenkitException(
     'tool "$toolName" failed: $detail',
-    status: StatusCodes.INTERNAL,
+    status: StatusCode.internal,
     underlyingException: cause,
   );
 }
@@ -371,7 +371,7 @@ GenerateResponseHelper _abortedResponse({
       : (reason?.toString() ?? 'Generation was cancelled');
   final error = reason is GenkitException
       ? _toRuntimeError(reason)
-      : RuntimeError(status: StatusCodes.ABORTED.name, message: message);
+      : RuntimeError(status: StatusCode.aborted.wireName, message: message);
   return _abnormalResponse(
     finishReason: FinishReason.aborted,
     history: history,
@@ -479,7 +479,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   if (options.model == null) {
     throw GenkitException(
       'Model must be provided',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -502,7 +502,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   if (model == null) {
     throw GenkitException(
       'Model $modelName not found',
-      status: StatusCodes.NOT_FOUND,
+      status: StatusCode.notFound,
     );
   }
 
@@ -679,7 +679,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       // INTERNAL error, rather than throwing out of `generate`. Mirrors Go's
       // `ErrInvalidOutput` parse-failure path.
       response.error = RuntimeError(
-        status: StatusCodes.INTERNAL.name,
+        status: StatusCode.internal.wireName,
         message: 'model failed to generate output matching expected schema: $e',
       );
       return GenerateResponseHelper(
@@ -1238,7 +1238,7 @@ _resolveResume(
     if (output == null) {
       throw GenkitException(
         'Unresolved tool request ${req.name}. You must supply replies or restarts for all interrupted tool requests.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -1386,7 +1386,7 @@ _executeTools(
     if (tool == null) {
       throw GenkitException(
         'Tool $requestedName not found',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       );
     }
 

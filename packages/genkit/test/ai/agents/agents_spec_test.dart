@@ -560,7 +560,7 @@ Future<void> _executeSend(
         'Expected the turn to throw $expectError, but it resolved normally.',
       );
     }
-    final status = thrown is GenkitException ? thrown.status.name : null;
+    final status = thrown is GenkitException ? thrown.status.wireName : null;
     final message = thrown is GenkitException
         ? thrown.message
         : thrown.toString();

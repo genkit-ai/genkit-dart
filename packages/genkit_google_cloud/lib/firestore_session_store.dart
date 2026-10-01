@@ -26,7 +26,9 @@ import 'dart:typed_data';
 
 import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
-import 'package:google_cloud_firestore/google_cloud_firestore.dart';
+// Firestore exports its own gRPC StatusCode enum; Genkit's is the one used here.
+import 'package:google_cloud_firestore/google_cloud_firestore.dart'
+    hide StatusCode;
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 
@@ -263,7 +265,7 @@ int _byteLength(Object? value) => utf8.encode(jsonEncode(value)).length;
       "getSnapshot requires exactly one of 'snapshotId' or 'sessionId' "
       "(got ${hasSnapshot ? 'snapshotId' : 'neither'}"
       "${hasSession ? ' and sessionId' : ''}).",
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return (
@@ -426,7 +428,7 @@ class FirestoreSessionStore
       throw GenkitException(
         "FirestoreSessionStore: invalid snapshotPathPrefix '$prefix' - it must "
         "be a non-blank string that is not '.' / '..' and contains no '/'.",
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     return prefix;
@@ -562,7 +564,7 @@ class FirestoreSessionStore
         throw GenkitException(
           "FirestoreSessionStore requires 'sessionId' to be set on the "
           'snapshot.',
-          status: StatusCodes.INVALID_ARGUMENT,
+          status: StatusCode.invalidArgument,
         );
       }
       final newState = result.state?.toJson() ?? <String, dynamic>{};
@@ -600,7 +602,7 @@ class FirestoreSessionStore
             "in a terminal state ('${existing.doc.status}'). Terminal snapshots "
             'are immutable and may have descendants; write a new child snapshot '
             'instead.',
-            status: StatusCodes.FAILED_PRECONDITION,
+            status: StatusCode.failedPrecondition,
           );
         }
         if (existing.doc.kind == 'checkpoint') {
@@ -994,7 +996,7 @@ class FirestoreSessionStore
       if (!s.exists) {
         throw GenkitException(
           "FirestoreSessionStore: missing checkpoint shard '${s.id}'.",
-          status: StatusCodes.DATA_LOSS,
+          status: StatusCode.dataLoss,
         );
       }
       builder.add((s.data()!['chunk'] as List).cast<int>());

@@ -462,7 +462,7 @@ void main() {
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );
       expect(local.finishReason, FinishReason.failed);
-      expect(local.error?.status, StatusCodes.INVALID_ARGUMENT.name);
+      expect(local.error?.status, StatusCode.invalidArgument.wireName);
 
       // The same request with the guard bypassed. Naming OpenAI's own URL no
       // longer does it - that is the same host, so the catalog and its checks
@@ -557,7 +557,7 @@ void main() {
         ),
       ];
 
-      final full = await ai.embedMany(
+      final full = await ai.embed(
         embedder: OpenAIEmbedders.textEmbedding3Small,
         documents: documents,
       );

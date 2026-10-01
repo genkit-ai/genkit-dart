@@ -18,7 +18,18 @@ import 'action.dart';
 
 /// Default cache lifetime for a [DynamicActionProvider]'s listing, matching
 /// JS's `SimpleCache` default of three seconds.
-const _defaultDapTtlMillis = 3 * 1000;
+const _defaultDapTtl = Duration(seconds: 3);
+
+Duration? _checkTtl(Duration? ttl) {
+  if (ttl != null && ttl.isNegative) {
+    throw ArgumentError.value(
+      ttl,
+      'cacheTtl',
+      'must not be negative; use Duration.zero to disable caching',
+    );
+  }
+  return ttl;
+}
 
 /// Builds the DAP key stamped onto actions resolved through a provider so their
 /// provenance survives into tool definitions, traces, and reflection. Mirrors
@@ -29,25 +40,26 @@ String dapActionKey(String host, ActionType actionType, String name) =>
 /// Caches a [DynamicActionProvider]'s listing with a TTL and de-duplicates
 /// concurrent refreshes, mirroring JS's `SimpleCache`.
 class _DapCache {
-  final int ttlMillis;
+  /// Listing lifetime; [Duration.zero] disables caching.
+  final Duration ttl;
   List<ActionMetadata>? _value;
   DateTime? _expiresAt;
   Future<List<ActionMetadata>>? _inflight;
 
-  _DapCache(this.ttlMillis);
+  _DapCache(this.ttl);
 
   bool get _isStale {
     final value = _value;
     final expiresAt = _expiresAt;
     return value == null ||
         expiresAt == null ||
-        ttlMillis < 0 ||
+        ttl == Duration.zero ||
         DateTime.now().isAfter(expiresAt);
   }
 
   void setValue(List<ActionMetadata> value) {
     _value = value;
-    _expiresAt = DateTime.now().add(Duration(milliseconds: ttlMillis));
+    _expiresAt = DateTime.now().add(ttl);
   }
 
   void invalidate() {
@@ -96,14 +108,15 @@ base class DynamicActionProvider
 
   final _DapCache _cache;
 
-  /// Creates a dynamic action provider. [cacheTtlMillis] controls the listing
-  /// cache lifetime (defaults to three seconds; negative disables caching).
+  /// Creates a dynamic action provider. [cacheTtl] controls the listing cache
+  /// lifetime: three seconds when null, and [Duration.zero] disables caching.
+  /// A negative value throws [ArgumentError].
   factory DynamicActionProvider({
     required String name,
     FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn,
     FutureOr<Action?> Function(ActionType actionType, String name)? getActionFn,
     Map<String, dynamic>? metadata,
-    int? cacheTtlMillis,
+    Duration? cacheTtl,
   }) {
     // Bind `fn` to the instance so running the provider action directly (e.g.
     // via the reflection `runAction` path) performs the same stamped fetch as
@@ -114,7 +127,7 @@ base class DynamicActionProvider
       listActionsFn: listActionsFn,
       getActionFn: getActionFn,
       metadata: metadata,
-      cacheTtlMillis: cacheTtlMillis,
+      cacheTtl: cacheTtl,
       fn: (input, context) => provider._fetchAndStamp(),
     );
     return provider;
@@ -125,9 +138,9 @@ base class DynamicActionProvider
     this.listActionsFn,
     this.getActionFn,
     super.metadata,
-    int? cacheTtlMillis,
+    Duration? cacheTtl,
     required super.fn,
-  }) : _cache = _DapCache(cacheTtlMillis ?? _defaultDapTtlMillis),
+  }) : _cache = _DapCache(_checkTtl(cacheTtl) ?? _defaultDapTtl),
        super(actionType: .dynamicActionProvider);
 
   Future<List<ActionMetadata>> _fetchAndStamp() async {

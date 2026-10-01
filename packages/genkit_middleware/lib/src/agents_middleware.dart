@@ -490,9 +490,9 @@ Message? _lastModelMessage(SessionSnapshot snap) {
 bool _deadEndRead(Object err) {
   if (err is! GenkitException) return false;
   final s = err.status;
-  return s == StatusCodes.NOT_FOUND ||
-      s == StatusCodes.FAILED_PRECONDITION ||
-      s == StatusCodes.INVALID_ARGUMENT;
+  return s == StatusCode.notFound ||
+      s == StatusCode.failedPrecondition ||
+      s == StatusCode.invalidArgument;
 }
 
 // ---------------------------------------------------------------------------
@@ -684,7 +684,7 @@ class AgentsMiddleware extends GenerateMiddleware {
             name: toolName,
             description: description,
             inputSchema: AsyncDelegateInput.$schema,
-            toolOutputSchema: AgentDelegationResult.$schema,
+            outputSchema: AgentDelegationResult.$schema,
             fn: (input, _) async => .response(
               input.background == true
                   ? await _launchDelegation(agentName, input.task, input.name)
@@ -698,7 +698,7 @@ class AgentsMiddleware extends GenerateMiddleware {
             name: toolName,
             description: description,
             inputSchema: DelegateInput.$schema,
-            toolOutputSchema: AgentDelegationResult.$schema,
+            outputSchema: AgentDelegationResult.$schema,
             fn: (input, _) async => .response(
               await _runDelegation(agentName, input.task, input.name),
             ),

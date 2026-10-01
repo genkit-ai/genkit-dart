@@ -114,7 +114,7 @@ final class RequestData {
 /// Future<Map<String, dynamic>> bearerAuth(RequestData request) async {
 ///   final user = await verifyToken(request.headers['authorization']);
 ///   if (user == null) {
-///     throw GenkitException('Unauthorized', status: StatusCodes.UNAUTHENTICATED);
+///     throw GenkitException('Unauthorized', status: StatusCode.unauthenticated);
 ///   }
 ///   return {'userId': user.id};
 /// }

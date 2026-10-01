@@ -97,7 +97,7 @@ void main() async {
 Map<String, dynamic> _bearerAuth(RequestData request) {
   // Replace with real token verification.
   if (request.headers['authorization'] != 'Bearer secret') {
-    throw GenkitException('Unauthorized', status: StatusCodes.UNAUTHENTICATED);
+    throw GenkitException('Unauthorized', status: StatusCode.unauthenticated);
   }
   return {'user': 'Admin'};
 }

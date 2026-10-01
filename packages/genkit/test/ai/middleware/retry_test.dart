@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
 
@@ -20,7 +22,7 @@ void main() {
     late Genkit genkit;
 
     setUp(() {
-      genkit = Genkit(isDevEnv: false, plugins: [RetryPlugin()]);
+      genkit = Genkit(isDevEnv: false);
     });
 
     tearDown(() async {
@@ -35,7 +37,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
-            status: StatusCodes.UNAVAILABLE,
+            status: StatusCode.unavailable,
           );
         },
       );
@@ -71,7 +73,7 @@ void main() {
           if (attempts < 3) {
             throw GenkitException(
               'Simulated Failure',
-              status: StatusCodes.UNAVAILABLE,
+              status: StatusCode.unavailable,
             );
           }
           return ModelResponse(
@@ -110,7 +112,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Fatal Error',
-            status: StatusCodes.INVALID_ARGUMENT,
+            status: StatusCode.invalidArgument,
           ); // INVALID_ARGUMENT
         },
       );
@@ -125,7 +127,7 @@ void main() {
               initialDelayMs: 1,
               maxDelayMs: 5,
               noJitter: true,
-              statuses: [StatusCodes.UNAVAILABLE], // Only retry UNAVAILABLE
+              statuses: [StatusCode.unavailable], // Only retry UNAVAILABLE
             ),
           ],
         );
@@ -145,7 +147,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
-            status: StatusCodes.UNAVAILABLE,
+            status: StatusCode.unavailable,
           );
         },
       );
@@ -209,10 +211,7 @@ void main() {
         inputSchema: null,
         fn: (input, ctx) async {
           attempts++;
-          throw GenkitException(
-            'Tool Failure',
-            status: StatusCodes.UNAVAILABLE,
-          );
+          throw GenkitException('Tool Failure', status: StatusCode.unavailable);
         },
       );
 
@@ -246,7 +245,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
-            status: StatusCodes.UNAVAILABLE,
+            status: StatusCode.unavailable,
           ); // UNAVAILABLE (in default list)
         },
       );
@@ -281,7 +280,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
-            status: StatusCodes.UNAVAILABLE,
+            status: StatusCode.unavailable,
           );
         },
       );
@@ -299,5 +298,163 @@ void main() {
       // Should retry: 1 + 2 = 3
       expect(attempts, 3);
     });
+
+    test('retry() serializes statuses as wire names', () {
+      final ref = retry(
+        statuses: [StatusCode.unavailable, StatusCode.resourceExhausted],
+      );
+      final json =
+          jsonDecode(jsonEncode(ref.config!.toJson())) as Map<String, dynamic>;
+
+      expect(json['statuses'], ['UNAVAILABLE', 'RESOURCE_EXHAUSTED']);
+    });
+
+    test('honors statuses from JSON config', () async {
+      var attempts = 0;
+      genkit.defineModel(
+        name: 'json-config-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException('nope', status: StatusCode.notFound);
+        },
+      );
+
+      // Same shape as config arriving from JSON (e.g. the Dev UI).
+      final config = RetryOptions.fromJson({
+        'maxRetries': 2,
+        'initialDelayMs': 1,
+        'noJitter': true,
+        'statuses': ['NOT_FOUND'],
+      });
+
+      // Model errors surface as a `failed` response rather than a throw.
+      final res = await genkit.generate(
+        model: modelRef('json-config-model'),
+        prompt: 'test',
+        use: [middlewareRef(name: 'retry', config: config)],
+      );
+
+      // NOT_FOUND is not retried by default, so 3 attempts proves the JSON
+      // config was applied.
+      expect(attempts, 3);
+      expect(res.error!.status, 'NOT_FOUND');
+    });
+
+    group('rejects unrecognized status names in config', () {
+      for (final name in ['UNAVALIABLE', 'unavailable']) {
+        test(name, () async {
+          var attempts = 0;
+          genkit.defineModel(
+            name: 'bad-status-model',
+            fn: (req, ctx) async {
+              attempts++;
+              return ModelResponse(finishReason: .stop);
+            },
+          );
+
+          await expectLater(
+            genkit.generate(
+              model: modelRef('bad-status-model'),
+              prompt: 'test',
+              use: [
+                middlewareRef(
+                  name: 'retry',
+                  config: RetryOptions.fromJson({
+                    'statuses': [name],
+                  }),
+                ),
+              ],
+            ),
+            throwsA(
+              isA<GenkitException>()
+                  .having((e) => e.status, 'status', StatusCode.invalidArgument)
+                  .having((e) => e.message, 'message', contains('"$name"')),
+            ),
+          );
+          // Rejected while resolving middleware, before any model call.
+          expect(attempts, 0);
+        });
+      }
+    });
+
+    test('accepts UNKNOWN as a configured status', () async {
+      var attempts = 0;
+      genkit.defineModel(
+        name: 'unknown-status-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException('nope', status: StatusCode.unknown);
+        },
+      );
+
+      final res = await genkit.generate(
+        model: modelRef('unknown-status-model'),
+        prompt: 'test',
+        use: [
+          middlewareRef(
+            name: 'retry',
+            config: RetryOptions.fromJson({
+              'maxRetries': 2,
+              'initialDelayMs': 1,
+              'noJitter': true,
+              'statuses': ['UNKNOWN'],
+            }),
+          ),
+        ],
+      );
+
+      // UNKNOWN is a real wire name, so it is honored rather than rejected.
+      expect(attempts, 3);
+      expect(res.error!.status, 'UNKNOWN');
+    });
+
+    test('a plugin middleware named retry overrides the built-in', () async {
+      var overrideUsed = false;
+      final ai = Genkit(
+        isDevEnv: false,
+        plugins: [
+          _MiddlewarePlugin([
+            defineMiddleware<Object?>(
+              name: 'retry',
+              create: (_, _) {
+                overrideUsed = true;
+                return RetryMiddleware(maxRetries: 0);
+              },
+            ),
+          ]),
+        ],
+      );
+      addTearDown(ai.shutdown);
+
+      var attempts = 0;
+      ai.defineModel(
+        name: 'override-fail-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException('fail', status: StatusCode.unavailable);
+        },
+      );
+
+      final response = await ai.generate(
+        model: modelRef('override-fail-model'),
+        prompt: 'test',
+        use: [retry(maxRetries: 5, initialDelayMs: 1)],
+      );
+      expect(response.finishReason, FinishReason.failed);
+      expect(overrideUsed, isTrue);
+      expect(attempts, 1);
+    });
   });
+}
+
+final class _MiddlewarePlugin extends GenkitPlugin {
+  final List<GenerateMiddlewareDef> _middleware;
+
+  _MiddlewarePlugin(this._middleware);
+
+  @override
+  String get name => 'retry-override';
+
+  @override
+  List<GenerateMiddlewareDef> middleware() => _middleware;
 }

@@ -23,6 +23,7 @@ import 'ai/evaluator.dart';
 import 'ai/formatters/formatters.dart';
 import 'ai/generate.dart';
 import 'ai/generate_middleware.dart';
+import 'ai/middleware/retry.dart';
 import 'ai/middleware/simulate_constrained_generation.dart';
 import 'ai/model.dart';
 import 'ai/prompt.dart';
@@ -55,7 +56,7 @@ import 'utils.dart' as utils;
 /// [definePrompt], and [defineResource].
 ///
 /// It extends [GenkitAI], inheriting the model-orchestration veneer
-/// ([generate], [generateStream], [embed], [embedMany], [run]).
+/// ([generate], [generateStream], [embed], [run]).
 ///
 /// If `isDevEnv` is true, or `GENKIT_ENV` is set to 'dev' in the process
 /// environment or as a `--dart-define`, initializing [Genkit] also starts a
@@ -87,11 +88,9 @@ final class Genkit extends GenkitAI {
 
     // Built-in middleware first, so a plugin's middleware of the same name
     // takes precedence.
-    registry.registerValue(
-      'middleware',
-      simulateConstrainedGenerationDef.name,
-      simulateConstrainedGenerationDef,
-    );
+    for (final def in [simulateConstrainedGenerationDef, retryDef]) {
+      registry.registerValue('middleware', def.name, def);
+    }
 
     // Register plugins
     for (final plugin in plugins) {
@@ -190,7 +189,7 @@ final class Genkit extends GenkitAI {
       description: description,
       fn: fn,
       inputSchema: inputSchema,
-      toolOutputSchema: outputSchema,
+      outputSchema: outputSchema,
     );
     registry.register(tool);
     return tool;
@@ -228,7 +227,7 @@ final class Genkit extends GenkitAI {
     /// Optional data attached to the `interrupt` metadata of the generated tool
     /// request. Receives the tool input and may return a value or a future.
     /// When omitted, the interrupt metadata defaults to `true`.
-    FutureOr<Object?> Function(Input input, ToolFnArgs<Input> ctx)?
+    FutureOr<Object?> Function(Input input, ToolFnArg<Input> ctx)?
     requestMetadata,
   }) {
     final interrupt = Interrupt<Input, Output>(
@@ -397,7 +396,7 @@ final class Genkit extends GenkitAI {
     if (resourceName == null) {
       throw GenkitException(
         'Resource must specify a name, uri, or template.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     final resourceMetadata = <String, dynamic>{
@@ -441,14 +440,14 @@ final class Genkit extends GenkitAI {
     required String url,
     FutureOr<Map<String, String>?> Function(Map<String, dynamic> context)?
     headers,
-    ModelInfo? modelInfo,
+    ModelInfo? info,
     http.Client? httpClient,
   }) {
     final model = remoteModel(
       name: name,
       url: url,
       headers: headers,
-      modelInfo: modelInfo,
+      info: info,
       httpClient: httpClient,
     );
     registry.register(model);
@@ -473,22 +472,22 @@ final class Genkit extends GenkitAI {
   /// Defines a dynamic provider for actions.
   ///
   /// [getActionFn] receives the requested [ActionType] and name so a single
-  /// provider can serve tools, prompts, and resources. [cacheTtlMillis]
-  /// controls how long the provider's listing is cached (defaults to three
-  /// seconds; a negative value disables caching).
+  /// provider can serve tools, prompts, and resources. [cacheTtl] controls how
+  /// long the provider's listing is cached: three seconds when null, and
+  /// [Duration.zero] disables caching.
   DynamicActionProvider defineDynamicActionProvider({
     required String name,
     FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn,
     FutureOr<Action?> Function(ActionType actionType, String name)? getActionFn,
     Map<String, dynamic>? metadata,
-    int? cacheTtlMillis,
+    Duration? cacheTtl,
   }) {
     final provider = DynamicActionProvider(
       name: name,
       listActionsFn: listActionsFn,
       getActionFn: getActionFn,
       metadata: metadata,
-      cacheTtlMillis: cacheTtlMillis,
+      cacheTtl: cacheTtl,
     );
     registry.register(provider);
     return provider;

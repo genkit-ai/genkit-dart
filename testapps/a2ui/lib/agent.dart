@@ -51,7 +51,7 @@ abstract class $GetWeatherOutput {
 }
 
 /// The shared Genkit instance. `A2uiPlugin()` registers the `a2ui()` middleware.
-final Genkit ai = Genkit(plugins: [googleAI(), A2uiPlugin(), RetryPlugin()]);
+final Genkit ai = Genkit(plugins: [googleAI(), A2uiPlugin()]);
 
 /// The app's custom A2UI catalog.
 ///
