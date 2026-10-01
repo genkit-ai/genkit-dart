@@ -34,7 +34,7 @@ import 'tool.dart';
 /// Configuration for defining a prompt.
 ///
 /// This holds all the metadata needed to define an executable prompt action.
-class PromptConfig<CustomOptions, Input> {
+final class PromptConfig<CustomOptions, Input> {
   /// The name of the prompt.
   final String name;
 
@@ -124,7 +124,7 @@ class PromptConfig<CustomOptions, Input> {
 
 /// Options for generating from a prompt (everything except prompt/system
 /// content, which is defined by the prompt itself).
-class PromptGenerateOptions<CustomOptions> {
+final class PromptGenerateOptions<CustomOptions> {
   final ModelRef<CustomOptions>? model;
   final CustomOptions? config;
   final List<Tool>? tools;

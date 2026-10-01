@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart' show createResourceMatcher;
 import 'package:mcp_dart/mcp_dart.dart' as mcp;
 
 import '../util/common.dart';
