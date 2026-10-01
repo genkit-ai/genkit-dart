@@ -15,7 +15,6 @@
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/common.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -177,7 +176,7 @@ void main() {
     (
       name: 'Google AI Gemma',
       model: googleAI.gemma,
-      modelName: KnownGemmaModel.gemma431b.id,
+      modelName: 'gemma-4-31b-it',
     ),
   ];
 

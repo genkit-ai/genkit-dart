@@ -95,7 +95,7 @@ void main() {
     test('TTS model text-mode request with an output schema sends no '
         'responseJsonSchema', () async {
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-2.5-flash-preview-tts',
+        model: 'gemini-3.8-flash-tts',
         output: OutputConfig(
           format: 'text',
           schema: _schema,
@@ -108,7 +108,7 @@ void main() {
     test('TTS model JSON-mode unconstrained request sends no '
         'responseJsonSchema', () async {
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-2.5-flash-preview-tts',
+        model: 'gemini-3.8-flash-tts',
         output: OutputConfig(
           format: 'json',
           schema: _schema,
@@ -126,7 +126,7 @@ void main() {
       // schema in the prompt add the `simulateConstrainedGeneration`
       // middleware.
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-2.5-flash-preview-tts',
+        model: 'gemini-3.8-flash-tts',
         output: OutputConfig(
           format: 'json',
           schema: _schema,
@@ -166,7 +166,7 @@ void main() {
 
     test('TTS model seed in config reaches the wire', () async {
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-2.5-flash-preview-tts',
+        model: 'gemini-3.8-flash-tts',
         config: {'seed': 42},
       );
       expect(config['seed'], 42);

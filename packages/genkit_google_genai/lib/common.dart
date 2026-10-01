@@ -31,5 +31,8 @@ library;
 
 export 'src/api_client.dart';
 export 'src/common_plugin.dart' hide toGeminiPart;
-export 'src/known_models.dart';
+// The catalog enums stay in src/: vertexai only needs the resulting map and
+// the family rules, and the enums would invite users to switch over them.
+export 'src/known_models.dart'
+    show GeminiModelFamily, geminiTtsSupports, knownGeminiModels;
 export 'src/model.dart';
