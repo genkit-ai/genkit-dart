@@ -1721,7 +1721,7 @@ package:genkit/genkit.dart:
   DataPart (see above)
   DocumentData (see above)
   DynamicActionProvider (class extends Action<void, List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>, void, void>, base):
-    new (constructor: DynamicActionProvider Function({int? cacheTtlMillis, FutureOr<Action<dynamic, dynamic, dynamic, dynamic>?> Function(ActionType, String)? getActionFn, FutureOr<Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function()? listActionsFn, Map<String, dynamic>? metadata, required String name}))
+    new (constructor: DynamicActionProvider Function({Duration? cacheTtl, FutureOr<Action<dynamic, dynamic, dynamic, dynamic>?> Function(ActionType, String)? getActionFn, FutureOr<Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function()? listActionsFn, Map<String, dynamic>? metadata, required String name}))
     getActionFn (getter: FutureOr<Action<dynamic, dynamic, dynamic, dynamic>?> Function(ActionType, String)?)
     listActionsFn (getter: FutureOr<Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function()?)
     getAction (method: Future<Action<dynamic, dynamic, dynamic, dynamic>?> Function(ActionType, String))
@@ -1807,7 +1807,7 @@ package:genkit/genkit.dart:
   Genkit (class extends GenkitAI, final):
     new (constructor: Genkit Function({bool? isDevEnv, ModelRef<dynamic>? model, List<GenkitPlugin> plugins, String? promptDir, int? reflectionPort}))
     defineCustomPrompt (method: PromptAction<Input> Function<Input>({String? description, required Future<GenerateActionOptions> Function(Input, ActionFnArg<void, Input, void>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name}))
-    defineDynamicActionProvider (method: DynamicActionProvider Function({int? cacheTtlMillis, FutureOr<Action<dynamic, dynamic, dynamic, dynamic>?> Function(ActionType, String)? getActionFn, FutureOr<Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function()? listActionsFn, Map<String, dynamic>? metadata, required String name}))
+    defineDynamicActionProvider (method: DynamicActionProvider Function({Duration? cacheTtl, FutureOr<Action<dynamic, dynamic, dynamic, dynamic>?> Function(ActionType, String)? getActionFn, FutureOr<Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function()? listActionsFn, Map<String, dynamic>? metadata, required String name}))
     defineEmbedder (method: Embedder<dynamic> Function({required Future<EmbedResponse> Function(EmbedRequest, ActionFnArg<void, EmbedRequest, void>) fn, required String name}))
     defineEvaluator (method: Evaluator Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest, ActionFnArg<void, EvalRequest, void>) fn, required String name}))
     defineFlow (method: Flow<Input, Output, Chunk, Init> Function<Input, Output, Chunk, Init>({required Future<Output> Function(Input, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Init>? initSchema, SchemanticType<Input>? inputSchema, required String name, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema}))

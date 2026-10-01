@@ -535,6 +535,41 @@ void main() {
       expect(await registry.lookupActionByKey('nope'), isNull);
     });
   });
+
+  group('DynamicActionProvider cacheTtl', () {
+    DynamicActionProvider counting(List<int> calls, {Duration? cacheTtl}) =>
+        DynamicActionProvider(
+          name: 'host',
+          cacheTtl: cacheTtl,
+          listActionsFn: () {
+            calls.add(1);
+            return [ActionMetadata(actionType: .tool, name: 't')];
+          },
+        );
+
+    test('caches the listing by default', () async {
+      final calls = <int>[];
+      final dap = counting(calls);
+      await dap.listActions(skipTrace: true);
+      await dap.listActions(skipTrace: true);
+      expect(calls, hasLength(1));
+    });
+
+    test('Duration.zero disables caching', () async {
+      final calls = <int>[];
+      final dap = counting(calls, cacheTtl: Duration.zero);
+      await dap.listActions(skipTrace: true);
+      await dap.listActions(skipTrace: true);
+      expect(calls, hasLength(2));
+    });
+
+    test('a negative TTL is rejected', () {
+      expect(
+        () => counting([], cacheTtl: const Duration(seconds: -1)),
+        throwsArgumentError,
+      );
+    });
+  });
 }
 
 class _FailingPlugin extends GenkitPlugin {
