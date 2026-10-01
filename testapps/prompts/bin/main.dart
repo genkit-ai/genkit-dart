@@ -159,15 +159,16 @@ void main() {
 
   // Flow: summarize text using the .prompt file, looked up with types.
   //
-  // The file's frontmatter carries the JSON schema, but not a Dart type, so
-  // `outputSchema` supplies one and `response.output` comes back a `Summary?`.
+  // The file's frontmatter carries the schema the model is asked for, but not
+  // a Dart type, so `outputParserSchema` supplies the parser and
+  // `response.output` comes back a `Summary?`.
   ai.defineFlow(
     name: 'summarizeText',
     outputSchema: Summary.schema,
     fn: (Map<String, dynamic>? input, ctx) async {
-      final summarizePrompt = await ai.prompt<Map<String, dynamic>, Summary>(
+      final summarizePrompt = await ai.prompt(
         'summarize',
-        outputSchema: Summary.schema,
+        outputParserSchema: Summary.schema,
       );
       final response = await summarizePrompt({
         'text': input?['text'] ?? 'No text provided.',

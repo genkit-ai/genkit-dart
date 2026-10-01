@@ -352,32 +352,40 @@ final class Genkit extends GenkitAI {
   /// and optional variant.
   ///
   /// Supply `Input` / `Output` to get a typed handle. `Input` is asserted by
-  /// the caller (the registry does not retain it), while `Output` must be
-  /// backed by a schema: either the one the prompt was defined with, or
-  /// [outputSchema] here. A prompt loaded from a `.prompt` file has a JSON
-  /// schema but no Dart type, so it needs [outputSchema].
+  /// the caller (the registry does not retain it). `Output` needs a parser:
+  /// the schema the prompt was defined with, or [outputParserSchema] here.
+  ///
+  /// [outputParserSchema] is for prompts whose schema has no Dart type, such
+  /// as a `.prompt` file's `output.schema`. It only parses the response and is
+  /// never sent to the model: the request always carries the schema the prompt
+  /// defines, and the lookup throws if the prompt defines none. `Output` is
+  /// inferred from it, so no type arguments are needed.
   ///
   /// Example:
   /// ```dart
   /// final hi = await ai.prompt('hi');
   /// final response = await hi({'name': 'Sparky'});
   ///
-  /// // Typed: parses `.output` into a Joke.
-  /// final joke = await ai.prompt<JokeInput, Joke>(
-  ///   'joke',
-  ///   outputSchema: Joke.$schema,
+  /// // Defined in code (`definePrompt`) with outputSchema: Joke.$schema, so already typed.
+  /// final joke = await ai.prompt<JokeInput, Joke>('joke');
+  ///
+  /// // A .prompt file with an output.schema: supply the Dart parser.
+  /// // Inferred as ExecutablePrompt<dynamic, Summary>.
+  /// final summarize = await ai.prompt(
+  ///   'summarize',
+  ///   outputParserSchema: Summary.$schema,
   /// );
   /// ```
   Future<ExecutablePrompt<Input, Output>> prompt<Input, Output>(
     String name, {
     String? variant,
-    SchemanticType<Output>? outputSchema,
+    SchemanticType<Output>? outputParserSchema,
   }) {
     return lookupPrompt<Input, Output>(
       registry,
       name,
       variant: variant,
-      outputSchema: outputSchema,
+      outputParserSchema: outputParserSchema,
     );
   }
 

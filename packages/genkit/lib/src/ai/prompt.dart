@@ -175,6 +175,23 @@ final class PromptGenerateOptions<CustomOptions> {
   final ToolChoice? toolChoice;
   final bool? returnToolRequests;
   final int? maxTurns;
+
+  /// Per-call output settings, merged over the prompt's own output config.
+  ///
+  /// Fields set here win; unset fields keep the prompt's values, so tweaking
+  /// `constrained` or `instructions` does not drop the prompt's format or
+  /// schema:
+  ///
+  /// ```dart
+  /// // joke defined with outputSchema: Joke.$schema
+  /// await joke(input, PromptGenerateOptions(
+  ///   output: GenerateActionOutputConfig(constrained: false),
+  /// )); // still json + the Joke schema, still parsed into a Joke
+  /// ```
+  ///
+  /// This override does not change how the response is parsed into `Output`,
+  /// so a `jsonSchema` set here that does not match `Output` fails at parse
+  /// time.
   final GenerateActionOutputConfig? output;
   final Map<String, dynamic>? context;
   final List<GenerateMiddlewareRef>? use;
@@ -356,9 +373,7 @@ final class ExecutablePrompt<Input, Output> {
           returnToolRequests:
               opts?.returnToolRequests ?? _config.returnToolRequests,
           maxTurns: opts?.maxTurns ?? _config.maxTurns,
-          // `_config.resolvedOutput` folds the typed `outputSchema` into the
-          // wire config; a per-call `output` still overrides it wholesale.
-          output: opts?.output ?? _config.resolvedOutput,
+          output: _mergeOutput(_config.resolvedOutput, opts?.output),
           use: resolvedUse.isNotEmpty ? resolvedUse : null,
         );
       },
@@ -757,20 +772,24 @@ Map<String, dynamic> _promptActionMetadata(
 ///
 /// The registry does not retain the prompt's input type, so [Input] is purely
 /// the caller's assertion; rendering serializes whatever it is handed.
-/// [Output] is backed by a real schema, resolved in this order:
+/// [Output] is parsed with, in order:
 ///
-/// 1. [outputSchema], when the caller supplies one (the usual case for a
-///    `.prompt` file, which has a JSON schema but no Dart type);
+/// 1. [outputParserSchema], when the caller supplies one (the usual case for a
+///    `.prompt` file, whose schema has no Dart type);
 /// 2. the schema the prompt was defined with, when it produces an [Output];
-/// 3. otherwise this throws, unless [Output] is unconstrained (`dynamic`).
+/// 3. nothing, when [Output] is a type raw decoded JSON already fits
+///    (`dynamic`, `Map<String, dynamic>`, ...). Otherwise this throws.
 ///
-/// Failing here, rather than on a cast inside the eventual response, keeps the
-/// error at the call that has to change.
+/// [outputParserSchema] only parses: the request always carries the schema the
+/// prompt defines, so a prompt that defines none is rejected rather than
+/// silently never asking the model for structured output. Failing here, rather
+/// than on a cast inside the eventual response, keeps the error at the call
+/// that has to change.
 Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
   Registry registry,
   String name, {
   String? variant,
-  SchemanticType<Output>? outputSchema,
+  SchemanticType<Output>? outputParserSchema,
 }) async {
   final label = 'Prompt $name${variant != null ? ' (variant $variant)' : ''}';
   final lookupName = variant != null ? '$name.$variant' : name;
@@ -781,17 +800,49 @@ Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
     throw GenkitException('$label not found', status: StatusCodes.NOT_FOUND);
   }
 
+  // Covers every way a prompt defines its wire schema: `outputSchema`, a
+  // `jsonSchema` on `output`, and a `.prompt` file's `output.schema`.
+  if (outputParserSchema != null &&
+      found._config.resolvedOutput?.jsonSchema == null) {
+    throw GenkitException(
+      '$label does not define an output schema, so the model is not asked for '
+      'structured output. outputParserSchema only parses the response; define '
+      'the schema on the prompt (outputSchema: in definePrompt, or '
+      'output.schema in the .prompt file).',
+      status: StatusCodes.INVALID_ARGUMENT,
+    );
+  }
+
   final defined = found._outputSchema;
   final resolved =
-      outputSchema ?? (defined is SchemanticType<Output> ? defined : null);
+      outputParserSchema ??
+      (defined is SchemanticType<Output> ? defined : null);
   if (resolved == null && !_isJsonAssignable<Output>()) {
     throw GenkitException(
       '$label was not defined with an output schema for $Output. Pass '
-      'outputSchema: to prompt<$Input, $Output>(), or look it up untyped.',
+      'outputParserSchema: to prompt<$Input, $Output>(), or look it up '
+      'untyped.',
       status: StatusCodes.INVALID_ARGUMENT,
     );
   }
   return ExecutablePrompt<Input, Output>._retyped(found, resolved);
+}
+
+/// Merges a per-call output override over the prompt's own output config.
+///
+/// Field-wise rather than wholesale, so an override that only sets e.g.
+/// `constrained` keeps the prompt's format and schema. Null when neither side
+/// configures output, so the rendered options stay free of an empty block.
+GenerateActionOutputConfig? _mergeOutput(
+  GenerateActionOutputConfig? base,
+  GenerateActionOutputConfig? override,
+) {
+  if (override == null) return base;
+  if (base == null) return override;
+  return GenerateActionOutputConfig.fromJson({
+    ...base.toJson(),
+    ...override.toJson(),
+  });
 }
 
 /// Whether a raw decoded JSON value can inhabit [T] without a schema to parse

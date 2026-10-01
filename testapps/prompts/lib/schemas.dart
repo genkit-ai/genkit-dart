@@ -88,7 +88,8 @@ class EmailInput {
 /// Output schema for the `summarize.prompt` file.
 ///
 /// The file declares the same shape in its `output.schema` frontmatter; this
-/// is the Dart side, handed to `ai.prompt<Input, Output>()` at lookup.
+/// is the Dart parser, handed to `ai.prompt<Input, Output>()` at lookup as
+/// `outputParserSchema`.
 @JsonSerializable(createJsonSchema: true)
 class Summary {
   /// The summary text.

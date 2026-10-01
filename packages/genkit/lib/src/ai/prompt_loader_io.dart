@@ -196,8 +196,9 @@ void _loadPrompt(
   // metadata (`type`, `prompt`) from these fields, so `use`/`toolChoice` are
   // surfaced for the Developer UI without building the metadata map here.
   // Output is `dynamic`: the frontmatter gives a JSON schema (carried on
-  // `output`) but no Dart type to parse into. `ai.prompt<I, O>(name,
-  // outputSchema: ...)` supplies one at lookup.
+  // `output`, and sent to the model) but no Dart type to parse into.
+  // `ai.prompt<I, O>(name, outputParserSchema: ...)` supplies the parser at
+  // lookup.
   final promptConfig =
       PromptConfig<Map<String, dynamic>, dynamic, Map<String, dynamic>>(
         name: _registryDefinitionKey(name, null, ns),

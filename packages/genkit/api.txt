@@ -1820,7 +1820,7 @@ package:genkit/genkit.dart:
     defineResource (method: ResourceAction Function({String? description, required Future<ResourceOutput> Function(ResourceInput, ActionFnArg<void, ResourceInput, void>) fn, Map<String, dynamic>? metadata, String? name, String? template, String? uri}))
     defineSchema (method: void Function(String, Map<String, dynamic>))
     defineTool (method: Tool<Input, Output> Function<Input, Output>({required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, required String name, SchemanticType<Output>? outputSchema}))
-    prompt (method: Future<ExecutablePrompt<Input, Output>> Function<Input, Output>(String, {SchemanticType<Output>? outputSchema, String? variant}))
+    prompt (method: Future<ExecutablePrompt<Input, Output>> Function<Input, Output>(String, {SchemanticType<Output>? outputParserSchema, String? variant}))
     shutdown (method: Future<void> Function())
   GenkitAI (class extends Object, base):
     new (constructor: GenkitAI Function(Registry))
