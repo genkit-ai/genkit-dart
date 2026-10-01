@@ -17,6 +17,8 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/known_embedders.dart';
+import 'package:genkit_openai/src/known_models.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -411,7 +413,7 @@ void main() {
       // The mocks prove the parameter reaches the wire; only OpenAI can say
       // whether it accepts the level for this model.
       final response = await ai.generate(
-        model: OpenAIModels.o4Mini,
+        model: openAI.model('o4-mini'),
         prompt: 'What is 17 * 23? Answer with the number only.',
         config: OpenAIChatOptions(reasoningEffort: 'low'),
       );
@@ -434,7 +436,7 @@ void main() {
       final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
       final response = await ai.generate(
-        model: OpenAIModels.gpt5Mini,
+        model: openAI.model('gpt-5-mini'),
         prompt: 'Name the capital of France.',
         config: OpenAIChatOptions(verbosity: 'low', reasoningEffort: 'low'),
       );
@@ -457,7 +459,7 @@ void main() {
       // of the test is the other half: that OpenAI would have refused it too,
       // so the local check is not inventing a restriction.
       final local = await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );
@@ -558,7 +560,7 @@ void main() {
       ];
 
       final full = await ai.embed(
-        embedder: OpenAIEmbedders.textEmbedding3Small,
+        embedder: openAI.embedder('text-embedding-3-small'),
         documents: documents,
       );
 
@@ -571,7 +573,7 @@ void main() {
       );
 
       final shortened = await ai.embed(
-        embedder: OpenAIEmbedders.textEmbedding3Small,
+        embedder: openAI.embedder('text-embedding-3-small'),
         document: documents.first,
         options: OpenAIEmbedderOptions(dimensions: 256),
       );

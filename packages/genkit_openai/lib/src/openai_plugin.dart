@@ -159,14 +159,11 @@ class OpenAIPlugin extends GenkitPlugin {
       // A custom speech or transcription model has to be routed here as well
       // as in resolve(): the registry prefers an eager registration, so a name
       // registered as chat would never reach resolve() to be corrected.
-      if (_kindOf(model.name, info: model.info, declared: model.kind) ==
-          OpenAIModelKind.speech)
-        _createSpeechModel(model.name, model.info)
-      else if (_kindOf(model.name, info: model.info, declared: model.kind) ==
-          OpenAIModelKind.transcription)
-        _createTranscriptionModel(model.name, model.info)
-      else
-        _createModel(model.name, model.info),
+      _createForKind(
+        model.name,
+        model.info,
+        _kindOf(model.name, info: model.info, declared: model.kind),
+      ),
   ];
 
   /// Fetch available model IDs from OpenAI API
@@ -456,11 +453,11 @@ class OpenAIPlugin extends GenkitPlugin {
     if (actionType == .model) {
       final declared = _customModelFor(name);
       final info = declared?.info;
-      return switch (_kindOf(name, info: info, declared: declared?.kind)) {
-        OpenAIModelKind.speech => _createSpeechModel(name, info),
-        OpenAIModelKind.transcription => _createTranscriptionModel(name, info),
-        OpenAIModelKind.chat => _createModel(name, info),
-      };
+      return _createForKind(
+        name,
+        info,
+        _kindOf(name, info: info, declared: declared?.kind),
+      );
     }
     // A provider with no embeddings API declines the lookup rather than
     // building an embedder whose every call would 404.
@@ -469,6 +466,18 @@ class OpenAIPlugin extends GenkitPlugin {
     }
     return null;
   }
+
+  /// Builds the model for [kind], the one place a kind maps to an API.
+  Model _createForKind(String name, ModelInfo? info, OpenAIModelKind kind) =>
+      switch (kind) {
+        OpenAIModelKind.chat => _createModel(name, info),
+        OpenAIModelKind.speech => _createSpeechModel(name, info),
+        OpenAIModelKind.transcription => _createTranscriptionModel(name, info),
+        // OpenAIModelKind is a class, so the compiler cannot check this switch
+        // is exhaustive: fail loudly rather than quietly serving a new kind
+        // through chat completions.
+        _ => throw StateError('Unhandled $kind for model "$name"'),
+      };
 
   /// The caller's declaration for [modelName], if they registered one.
   CustomModelDefinition? _customModelFor(String modelName) {
@@ -545,7 +554,7 @@ class OpenAIPlugin extends GenkitPlugin {
         'model': {..._embedderInfoFor(embedderName)},
       },
       fn: (req, ctx) async {
-        if (req == null || req.input.isEmpty) {
+        if (req.input.isEmpty) {
           // Nothing to embed, and an empty `input` is a 400. Answering
           // directly keeps `embed(documents: [])` from costing a request.
           return EmbedResponse(embeddings: []);
@@ -610,8 +619,7 @@ class OpenAIPlugin extends GenkitPlugin {
       name: '$_pluginName/$modelName',
       customOptions: chat.chatModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
-      fn: (req, ctx) async {
-        final modelRequest = req!;
+      fn: (modelRequest, ctx) async {
         final options = chat.parseChatModelOptions(modelRequest.config);
         // `version` overrides the resolved action's id, so it - not
         // [modelName] - is the model that will answer, and the model the
@@ -886,8 +894,7 @@ class OpenAIPlugin extends GenkitPlugin {
       name: '$_pluginName/$modelName',
       customOptions: speech.speechModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
-      fn: (req, ctx) async {
-        final modelRequest = req!;
+      fn: (modelRequest, ctx) async {
         final options = speech.parseSpeechModelOptions(modelRequest.config);
         speech.validateSpeechOptions(options);
         final input = _speechInputText(modelRequest);
@@ -1021,8 +1028,7 @@ class OpenAIPlugin extends GenkitPlugin {
       name: '$_pluginName/$modelName',
       customOptions: transcription.transcriptionModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
-      fn: (req, ctx) async {
-        final modelRequest = req!;
+      fn: (modelRequest, ctx) async {
         final options = transcription.parseTranscriptionModelOptions(
           modelRequest.config,
         );

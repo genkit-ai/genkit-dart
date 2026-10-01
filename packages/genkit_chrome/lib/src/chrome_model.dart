@@ -49,17 +49,10 @@ final class ChromeModel extends Model<LanguageModelOptions> {
   }
 
   static Future<ModelResponse> _processRequest(
-    ModelRequest? req,
+    ModelRequest req,
     ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
     LanguageModelOptions? defaultOptions,
   ) async {
-    if (req == null) {
-      throw GenkitException(
-        'Request is null',
-        status: StatusCode.invalidArgument,
-      );
-    }
-
     final config = req.config ?? const {};
     final systemPrompt = config['systemPrompt'] as String?;
 

@@ -102,9 +102,28 @@ void main() {
       );
     });
 
+    test('picks up new Gemini API text entries but not their TTS', () {
+      expect(vertexAiKnownModels, contains('gemini-3.8-flash'));
+      expect(knownGeminiModels, contains('gemini-3.8-flash-tts'));
+      expect(vertexAiKnownModels, isNot(contains('gemini-3.8-flash-tts')));
+    });
+
     test('shares the Gemini API entries rather than copying them', () {
       for (final MapEntry(:key, :value) in vertexAiKnownModels.entries) {
+        if (!knownGeminiModels.containsKey(key)) continue; // Vertex-only
         expect(value, same(knownGeminiModels[key]), reason: key);
+      }
+    });
+
+    test('keeps 2.5 Pro and Flash, which only Vertex still serves', () {
+      for (final id in ['gemini-2.5-pro', 'gemini-2.5-flash']) {
+        expect(knownGeminiModels, isNot(contains(id)), reason: id);
+        expect(vertexAiKnownModels[id]?.stage, 'stable', reason: id);
+        expect(
+          vertexAiKnownModels[id]?.supports,
+          GeminiModelFamily.text.supports,
+          reason: id,
+        );
       }
     });
   });
@@ -130,7 +149,10 @@ void main() {
     });
 
     test('includes curated models missing from discovery', () async {
-      final actions = await plugin().list();
+      final client = MockHttpClient(
+        publisherModelsResponse: '{"publisherModels": []}',
+      );
+      final actions = await plugin(client: client).list();
       final names = actions.map((a) => a.name).toList();
 
       expect(names, contains('vertexai/gemini-2.5-pro'));

@@ -49,7 +49,7 @@ void main() {
     expect(response.text, '{"result": "success"}');
     // `Output` is inferred from the schema: `response.output` is statically a
     // `Map<String, String>?`, not `dynamic`.
-    expect(response, isA<GenerateResponseHelper<Map<String, String>>>());
+    expect(response, isA<GenerateResult<Map<String, String>>>());
     expect(response.output, {'result': 'success'});
   });
 
@@ -237,7 +237,7 @@ void main() {
       final model = Model<void>(
         name: 'toolModel',
         fn: (request, context) async {
-          if (request!.messages.last.role == Role.tool) {
+          if (request.messages.last.role == Role.tool) {
             final toolResponse =
                 request.messages.last.content.first.toolResponse!;
 
@@ -402,7 +402,7 @@ void main() {
         fn: (request, context) async {
           modelCallCount++;
 
-          if (request!.messages.last.role == Role.tool) {
+          if (request.messages.last.role == Role.tool) {
             final toolResponse =
                 request.messages.last.content.first.toolResponse!;
             return ModelResponse(

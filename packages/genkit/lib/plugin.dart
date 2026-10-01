@@ -33,7 +33,7 @@ export 'package:genkit/src/ai/generate_middleware.dart'
         defineMiddleware,
         middlewareRef;
 export 'package:genkit/src/ai/generate_types.dart'
-    show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
+    show GenerateResponseChunk, GenerateResult, InterruptResponse;
 // BidiModel / bidiModelRef live in the experimental surface
 // (`package:genkit/experimental.dart`); plugin authors implementing live
 // (bidi) models import that alongside this library.
@@ -63,7 +63,7 @@ export 'package:genkit/src/core/action.dart'
         ActionMetadata,
         ActionStream,
         ActionType,
-        InternalActionFn,
+        RawActionFn,
         RunResult,
         StreamingCallback,
         TraceStartCallback;

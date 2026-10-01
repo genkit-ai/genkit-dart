@@ -316,6 +316,29 @@ void main() {
     expect(body['message'], 'You shall not pass');
   });
 
+  test('Unary flow rejects a null input with 400', () async {
+    final echoFlow = ai.defineFlow(
+      name: 'echoNonNull',
+      fn: (String input, _) async => input,
+      inputSchema: .string(),
+      outputSchema: .string(),
+    );
+
+    server = await (GenkitRouter()..addAction(echoFlow)).serve(port: 0);
+    port = server!.port;
+
+    final response = await http.post(
+      Uri.parse('http://localhost:$port/echoNonNull'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({'data': null}),
+    );
+
+    expect(response.statusCode, 400);
+    final body = jsonDecode(response.body) as Map<String, dynamic>;
+    expect(body['status'], 'INVALID_ARGUMENT');
+    expect(body['message'], contains('non-null input'));
+  });
+
   test('Streaming flow sends mapped SSE error payload', () async {
     final streamErrorFlow = ai.defineFlow(
       name: 'streamError',

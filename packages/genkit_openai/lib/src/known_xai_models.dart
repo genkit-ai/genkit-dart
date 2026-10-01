@@ -133,7 +133,9 @@ final ModelInfo dynamicXaiModelInfo = ModelInfo(
   supports: Map.unmodifiable(multimodalSupports),
 );
 
-/// Capability metadata for any xAI model name.
+/// Capability metadata for any xAI model name, as `modelInfoFor` does for
+/// OpenAI. The result follows the curated list and can change between
+/// releases.
 ModelInfo xaiModelInfoFor(String model) =>
     knownXaiModelFor(model)?.info ?? dynamicXaiModelInfo;
 

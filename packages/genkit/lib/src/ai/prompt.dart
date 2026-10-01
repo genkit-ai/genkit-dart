@@ -284,21 +284,18 @@ final class ExecutablePrompt<Input> {
   }
 
   /// Generates a response by rendering the prompt and calling the model.
-  Future<GenerateResponseHelper> call(
-    Input? input, [
-    PromptGenerateOptions? opts,
-  ]) => _generate(input, opts);
+  Future<GenerateResult> call(Input? input, [PromptGenerateOptions? opts]) =>
+      _generate(input, opts);
 
   /// Streams a response by rendering the prompt and calling the model.
-  ActionStream<GenerateResponseChunk, GenerateResponseHelper> stream(
+  ActionStream<GenerateResponseChunk, GenerateResult> stream(
     Input? input, [
     PromptGenerateOptions? opts,
   ]) {
     final streamController = StreamController<GenerateResponseChunk>();
-    final actionStream =
-        ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
-          streamController.stream,
-        );
+    final actionStream = ActionStream<GenerateResponseChunk, GenerateResult>(
+      streamController.stream,
+    );
 
     _generate(
       input,
@@ -328,7 +325,7 @@ final class ExecutablePrompt<Input> {
   }
 
   /// Internal generate implementation shared by [call] and [stream].
-  Future<GenerateResponseHelper> _generate(
+  Future<GenerateResult> _generate(
     Input? input,
     PromptGenerateOptions? opts, {
     StreamingCallback<GenerateResponseChunk>? onChunk,
@@ -564,10 +561,7 @@ base class PromptAction<Input>
              return executablePrompt.render(input);
            }
            if (fn != null) {
-             if (input == null && inputSchema != null && null is! Input) {
-               throw ArgumentError('Prompt "$name" requires a non-null input.');
-             }
-             return fn(input as Input, ctx);
+             return requireInput('Prompt', name, fn)(input, ctx);
            }
            throw StateError('PromptAction has no executable prompt or fn');
          },
