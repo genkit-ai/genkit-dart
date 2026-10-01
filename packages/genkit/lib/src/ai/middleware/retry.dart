@@ -20,7 +20,6 @@ import 'package:schemantic/schemantic.dart';
 
 import '../../core/action.dart';
 import '../../core/cancellation.dart';
-import '../../core/plugin.dart';
 import '../../exception.dart';
 import '../../types.dart';
 import '../generate_middleware.dart';
@@ -42,29 +41,39 @@ abstract class $RetryOptions {
   bool? get retryTools;
 }
 
-class RetryPlugin extends GenkitPlugin {
-  @override
-  String get name => 'retry';
+/// Name under which [RetryMiddleware] is registered.
+const _name = 'retry';
 
-  @override
-  List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<RetryOptions>(
-      name: 'retry',
-      configSchema: RetryOptions.$schema,
-      create: (config, ctx) => RetryMiddleware(
-        maxRetries: config?.maxRetries ?? 3,
-        statuses: config?.statuses ?? RetryMiddleware.defaultRetryStatuses,
-        initialDelayMs: config?.initialDelayMs ?? 1000,
-        maxDelayMs: config?.maxDelayMs ?? 60000,
-        backoffFactor: config?.backoffFactor ?? 2.0,
-        noJitter: config?.noJitter ?? false,
-        retryModel: config?.retryModel ?? true,
-        retryTools: config?.retryTools ?? false,
-      ),
-    ),
-  ];
-}
+/// Lets [retry] refs resolve. Core registers it on every `Genkit` instance,
+/// so callers never add it themselves.
+final retryDef = defineMiddleware<RetryOptions>(
+  name: _name,
+  configSchema: RetryOptions.$schema,
+  create: (config, ctx) => RetryMiddleware(
+    maxRetries: config?.maxRetries ?? 3,
+    statuses: config?.statuses ?? RetryMiddleware.defaultRetryStatuses,
+    initialDelayMs: config?.initialDelayMs ?? 1000,
+    maxDelayMs: config?.maxDelayMs ?? 60000,
+    backoffFactor: config?.backoffFactor ?? 2.0,
+    noJitter: config?.noJitter ?? false,
+    retryModel: config?.retryModel ?? true,
+    retryTools: config?.retryTools ?? false,
+  ),
+);
 
+/// Retries failed model (and optionally tool) calls with exponential backoff.
+///
+/// Built in: no plugin needs to be registered.
+///
+/// ```dart
+/// final response = await ai.generate(
+///   model: googleAI.gemini('gemini-flash-latest'),
+///   prompt: 'Reliable request',
+///   use: [retry(maxRetries: 3)],
+/// );
+/// ```
+///
+/// With the Lite API, pass a [RetryMiddleware] instance instead.
 GenerateMiddlewareRef<RetryOptions> retry({
   int? maxRetries,
   List<StatusCodes>? statuses,
@@ -76,7 +85,7 @@ GenerateMiddlewareRef<RetryOptions> retry({
   bool? retryTools,
 }) {
   return middlewareRef(
-    name: 'retry',
+    name: _name,
     config: RetryOptions(
       maxRetries: maxRetries,
       statuses: statuses,
@@ -97,7 +106,7 @@ GenerateMiddlewareRef<RetryOptions> retry({
 /// [StatusCodes.RESOURCE_EXHAUSTED], [StatusCodes.ABORTED], and [StatusCodes.INTERNAL].
 ///
 /// It uses exponential backoff with jitter to calculate the delay between retries.
-class RetryMiddleware extends GenerateMiddleware {
+final class RetryMiddleware extends GenerateMiddleware {
   /// The maximum number of retry attempts.
   final int maxRetries;
 

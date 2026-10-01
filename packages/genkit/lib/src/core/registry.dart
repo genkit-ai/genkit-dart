@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 import '../ai/generate_middleware.dart';
 import './action.dart';
@@ -84,7 +85,17 @@ ParsedRegistryKey? parseRegistryKey(String key) {
   );
 }
 
-class Registry {
+/// Holds the actions, plugins, and named values of a Genkit instance.
+///
+/// Reach it through `ai.registry`. Plugins and middleware use it to look up
+/// actions ([lookupAction], [listActions]), register their own ([register]),
+/// and keep plugin-scoped values ([registerValue], [lookupValue],
+/// [listValues]).
+///
+/// A child registry ([Registry.childOf]) sees everything in its parent and
+/// shadows it with its own entries; `generate` uses one to scope inline tools
+/// to a single call.
+final class Registry {
   final Map<String, Action> _actions = {};
   final Map<String, dynamic> _values = {};
   final List<GenkitPlugin> _plugins = [];
@@ -113,6 +124,8 @@ class Registry {
     }
   }
 
+  /// Adds [plugin]; the `Genkit` constructor does this for its `plugins`.
+  @internal
   void registerPlugin(GenkitPlugin plugin) {
     _plugins.add(_ListActionsCachingPluginAdapter(plugin));
   }
@@ -121,11 +134,19 @@ class Registry {
     return '/$type/$name';
   }
 
+  /// Stores [value] under [name] in the [type] namespace, replacing any
+  /// previous value with the same key.
+  ///
+  /// Genkit uses the `middleware`, `format`, `schema`, and `defaultModel`
+  /// namespaces. A plugin keeping its own values should use a namespace
+  /// unlikely to collide, e.g. one prefixed with the plugin name.
   void registerValue(String type, String name, dynamic value) {
     final key = _getKey(type, name);
     _values[key] = value;
   }
 
+  /// Returns the value registered under [name] in the [type] namespace, here
+  /// or in a parent registry, or null when there is none.
   T? lookupValue<T>(String type, String name) {
     final key = _getKey(type, name);
     if (_values.containsKey(key)) {
@@ -134,6 +155,8 @@ class Registry {
     return parent?.lookupValue<T>(type, name);
   }
 
+  /// Returns every value in the [type] namespace, keyed by registry path
+  /// (`/<type>/<name>`), with this registry's entries shadowing the parent's.
   Map<String, T> listValues<T>(String type) {
     final prefix = '/$type/';
     final result = <String, T>{};
@@ -214,6 +237,7 @@ class Registry {
   /// keys (`/dynamic-action-provider/<host>:<actionType>/<name>`). Mirrors JS's
   /// key-based `lookupAction`, which the Dev UI relies on to run DAP-expanded
   /// actions (their keys are the DAP keys returned by [listResolvableActions]).
+  @internal
   Future<Action?> lookupActionByKey(String key) async {
     final parsed = parseRegistryKey(key);
     if (parsed?.dynamicActionHost != null) {
@@ -246,6 +270,7 @@ class Registry {
   /// A dynamic-action-provider key with a `*` or `prefix*` name expands to one
   /// key per matching action; any other resolvable key returns itself. Mirrors
   /// JS's `resolveActionNames`.
+  @internal
   Future<List<String>> resolveActionNames(String key) async {
     final parsed = parseRegistryKey(key);
     final host = parsed?.dynamicActionHost;
@@ -278,6 +303,7 @@ class Registry {
   /// dynamic action providers expanded into their individual actions. Used by
   /// the reflection API / Dev UI so DAP-provided tools, prompts, and resources
   /// are individually listable. Mirrors JS's `listResolvableActions`.
+  @internal
   Future<Map<String, ActionMetadata>> listResolvableActions() async {
     final resolvable = <String, ActionMetadata>{};
     for (final action in await listActions()) {

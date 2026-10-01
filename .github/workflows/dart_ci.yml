@@ -12,6 +12,10 @@ jobs:
   test:
     name: Run Dart Tests
     runs-on: ubuntu-latest
+    # Dart dev can break tooling before upstream catches up (e.g. 3.14's
+    # Platform.script change breaks cli_launcher/melos, see
+    # https://github.com/blaugold/cli_launcher/issues/28). Don't block PRs on it.
+    continue-on-error: ${{ matrix.sdk == 'dev' }}
 
     strategy:
       fail-fast: false
