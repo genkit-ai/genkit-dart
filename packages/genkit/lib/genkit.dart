@@ -42,8 +42,7 @@ export 'src/ai/generate_middleware.dart'
         middlewareRef;
 export 'src/ai/generate_types.dart'
     show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
-export 'src/ai/middleware/retry.dart'
-    show RetryMiddleware, RetryOptions, RetryPlugin, retry;
+export 'src/ai/middleware/retry.dart' show RetryMiddleware, RetryOptions, retry;
 export 'src/ai/middleware/simulate_constrained_generation.dart'
     show SimulateConstrainedGenerationMiddleware, simulateConstrainedGeneration;
 // BidiModel / bidiModelRef live in the experimental surface
@@ -55,7 +54,8 @@ export 'src/ai/prompt.dart'
         PromptAction,
         PromptConfig,
         PromptFn,
-        PromptGenerateOptions;
+        PromptGenerateOptions,
+        PromptRef;
 export 'src/ai/resource.dart'
     show
         ResourceAction,

@@ -22,7 +22,7 @@ void main() {
     late Genkit genkit;
 
     setUp(() {
-      genkit = Genkit(isDevEnv: false, plugins: [RetryPlugin()]);
+      genkit = Genkit(isDevEnv: false);
     });
 
     tearDown(() async {
@@ -339,5 +339,54 @@ void main() {
       expect(attempts, 3);
       expect(res.error!.status, 'NOT_FOUND');
     });
+
+    test('a plugin middleware named retry overrides the built-in', () async {
+      var overrideUsed = false;
+      final ai = Genkit(
+        isDevEnv: false,
+        plugins: [
+          _MiddlewarePlugin([
+            defineMiddleware<Object?>(
+              name: 'retry',
+              create: (_, _) {
+                overrideUsed = true;
+                return RetryMiddleware(maxRetries: 0);
+              },
+            ),
+          ]),
+        ],
+      );
+      addTearDown(ai.shutdown);
+
+      var attempts = 0;
+      ai.defineModel(
+        name: 'override-fail-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException('fail', status: StatusCode.unavailable);
+        },
+      );
+
+      final response = await ai.generate(
+        model: modelRef('override-fail-model'),
+        prompt: 'test',
+        use: [retry(maxRetries: 5, initialDelayMs: 1)],
+      );
+      expect(response.finishReason, FinishReason.failed);
+      expect(overrideUsed, isTrue);
+      expect(attempts, 1);
+    });
   });
+}
+
+final class _MiddlewarePlugin extends GenkitPlugin {
+  final List<GenerateMiddlewareDef> _middleware;
+
+  _MiddlewarePlugin(this._middleware);
+
+  @override
+  String get name => 'retry-override';
+
+  @override
+  List<GenerateMiddlewareDef> middleware() => _middleware;
 }
