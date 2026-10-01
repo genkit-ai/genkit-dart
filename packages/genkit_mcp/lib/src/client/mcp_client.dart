@@ -15,6 +15,7 @@
 import 'dart:async';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart' show createResourceMatcher;
 import 'package:mcp_dart/mcp_dart.dart' as mcp;
 
 import '../util/common.dart';
@@ -1071,7 +1072,7 @@ class GenkitMcpClient {
       name: '$serverName/$name',
       description: description,
       inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-      toolOutputSchema: .dynamicSchema(),
+      outputSchema: .dynamicSchema(),
       metadata: {
         if (meta != null) 'mcp': {'_meta': meta},
       },

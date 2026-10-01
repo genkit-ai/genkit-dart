@@ -211,9 +211,12 @@ typedef ToolFn<Input, Output> =
 
 base class Tool<Input, Output>
     extends Action<Input, ToolResult<Output>, void, void> {
-  /// The user-declared output schema (the schema of `Output`, not
-  /// [ToolResult]). Used to build the model-facing tool definition and the
-  /// action manifest (see [manifestOutputSchema]).
+  /// The schema of `Output`, as passed to the constructor's `outputSchema`.
+  /// Used to build the model-facing tool definition and the action manifest
+  /// (see [manifestOutputSchema]).
+  ///
+  /// Read this rather than the inherited [outputSchema], which would describe
+  /// the [ToolResult] wrapper and is always null on a tool.
   final SchemanticType<Output>? toolOutputSchema;
 
   // Uses an explicit super call (not super parameters) because the base `fn`
@@ -224,9 +227,10 @@ base class Tool<Input, Output>
     required String description,
     required ToolFn<Input, Output> fn,
     SchemanticType<Input>? inputSchema,
-    this.toolOutputSchema,
+    SchemanticType<Output>? outputSchema,
     Map<String, dynamic>? metadata,
-  }) : super(
+  }) : toolOutputSchema = outputSchema,
+       super(
          name: name,
          description: description,
          inputSchema: inputSchema,
@@ -309,7 +313,7 @@ final class Interrupt<Input, Output> extends Tool<Input, Output> {
          name: name,
          description: description,
          inputSchema: inputSchema,
-         toolOutputSchema: outputSchema,
+         outputSchema: outputSchema,
          metadata: {
            ...?metadata,
            'tool': {
