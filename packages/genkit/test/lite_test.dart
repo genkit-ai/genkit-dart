@@ -49,7 +49,7 @@ void main() {
     expect(response.text, '{"result": "success"}');
     // `Output` is inferred from the schema: `response.output` is statically a
     // `Map<String, String>?`, not `dynamic`.
-    expect(response, isA<GenerateResponseHelper<Map<String, String>>>());
+    expect(response, isA<GenerateResult<Map<String, String>>>());
     expect(response.output, {'result': 'success'});
   });
 

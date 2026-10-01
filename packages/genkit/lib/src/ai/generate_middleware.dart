@@ -87,10 +87,10 @@ abstract class GenerateMiddleware {
   /// Wraps the entire generation process, including the tool loop.
   ///
   /// [next] is the function to call to proceed with the generation.
-  Future<GenerateResponseHelper> generate(
+  Future<GenerateResult> generate(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )

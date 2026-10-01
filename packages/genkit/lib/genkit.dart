@@ -41,7 +41,7 @@ export 'src/ai/generate_middleware.dart'
         defineMiddleware,
         middlewareRef;
 export 'src/ai/generate_types.dart'
-    show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
+    show GenerateResponseChunk, GenerateResult, InterruptResponse;
 export 'src/ai/middleware/retry.dart' show RetryMiddleware, RetryOptions, retry;
 export 'src/ai/middleware/simulate_constrained_generation.dart'
     show SimulateConstrainedGenerationMiddleware, simulateConstrainedGeneration;

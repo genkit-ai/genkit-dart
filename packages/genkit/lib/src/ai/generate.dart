@@ -282,7 +282,7 @@ extension _AbnormalFinish on FinishReason {
 /// Maps a thrown value to the structured [RuntimeError] carried on an abnormal
 /// response's `error` field. Preserves a [GenkitException]'s status; anything
 /// else is reported as `INTERNAL`. The structured `error` is the serializable
-/// view; the raw thrown object rides along on [GenerateResponseHelper.cause]
+/// view; the raw thrown object rides along on [GenerateResult.cause]
 /// for in-process inspection. Mirrors Go's `responseError`, which carries only
 /// the classified status and message (no nested details).
 RuntimeError _toRuntimeError(Object cause) {
@@ -310,7 +310,7 @@ GenkitException _toolFailureError(String toolName, Object cause) {
   );
 }
 
-/// Builds an abnormal-finish [GenerateResponseHelper] carrying [history] as the
+/// Builds an abnormal-finish [GenerateResult] carrying [history] as the
 /// resumable message list and [error] as the structured cause. Used for every
 /// non-success terminal the loop resolves to rather than throws: a model or tool
 /// failure ([FinishReason.failed]) and a cooperative stop such as a cancel or a
@@ -323,7 +323,7 @@ GenkitException _toolFailureError(String toolName, Object cause) {
 /// payload. [base], when non-null, supplies the accounting the turn already
 /// earned (usage/custom/raw/latency/operation) so a failure still reports what
 /// the run spent before it broke.
-GenerateResponseHelper _abnormalResponse({
+GenerateResult _abnormalResponse({
   required FinishReason finishReason,
   required List<Message> history,
   required RuntimeError error,
@@ -333,7 +333,7 @@ GenerateResponseHelper _abnormalResponse({
   Object? cause,
 }) {
   final request = ModelRequest(messages: history, config: config);
-  return GenerateResponseHelper(
+  return GenerateResult(
     ModelResponse(
       finishReason: finishReason,
       finishMessage: finishMessage ?? error.message,
@@ -360,7 +360,7 @@ GenerateResponseHelper _abnormalResponse({
 /// status when a genuine failure raced the cancel, so this path reports an
 /// `error` like the failed path does. [reason] is a status message string, the
 /// exception that raced the cancel, or null.
-GenerateResponseHelper _abortedResponse({
+GenerateResult _abortedResponse({
   required List<Message> history,
   Map<String, dynamic>? config,
   Object? reason,
@@ -388,7 +388,7 @@ GenerateResponseHelper _abortedResponse({
 /// [FinishReason.failed] and no message, carrying [cause] as the structured
 /// `error` (and the raw object on `cause`), so the caller can inspect
 /// `response.error` and resume from `response.messages`.
-GenerateResponseHelper _failedResponse({
+GenerateResult _failedResponse({
   required List<Message> history,
   required Object cause,
   Map<String, dynamic>? config,
@@ -407,7 +407,7 @@ GenerateResponseHelper _failedResponse({
 /// Decides whether an exception [e] raised during a generation turn should be
 /// converted into an aborted response, or rethrown.
 ///
-/// Returns a [GenerateResponseHelper] (the abort) when:
+/// Returns a [GenerateResult] (the abort) when:
 /// - [e] is a [CancelledException] produced by *this* turn's [cancel] token
 ///   (matched by identity, or by the token being cancelled), or
 /// - [cancel] is cancelled and [e] is a generic failure surfaced because the
@@ -423,7 +423,7 @@ GenerateResponseHelper _failedResponse({
 /// All abort sites pass the same [history] shape (the turn's accumulated,
 /// pre-format-injection `options.messages`) so the resumable state a caller
 /// feeds back does not depend on *when* the cancel fired.
-GenerateResponseHelper? _abortResponseIfCancelled(
+GenerateResult? _abortResponseIfCancelled(
   Object e,
   CancellationToken? cancel, {
   required List<Message> history,
@@ -450,12 +450,12 @@ GenerateResponseHelper? _abortResponseIfCancelled(
   return null;
 }
 
-Future<GenerateResponseHelper> _runGenerateLoop(
+Future<GenerateResult> _runGenerateLoop(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
   required List<GenerateMiddleware> resolvedMiddleware,
-  required Future<GenerateResponseHelper> Function(GenerateTurnState envelope)
+  required Future<GenerateResult> Function(GenerateTurnState envelope)
   composedGenerate,
   int currentTurn = 0,
   int messageIndex = 0,
@@ -569,7 +569,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       resolvedMiddleware,
     );
     if (resumed.interruptedResponse != null) {
-      return GenerateResponseHelper(
+      return GenerateResult(
         resumed.interruptedResponse!,
         request: currentRequest,
         output: null,
@@ -642,11 +642,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       .parseMessage;
 
   if (requestOptions.returnToolRequests ?? false) {
-    return GenerateResponseHelper(
-      response,
-      request: currentRequest,
-      output: null,
-    );
+    return GenerateResult(response, request: currentRequest, output: null);
   }
 
   final toolRequests = response.message?.content
@@ -660,14 +656,10 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     // the caller reads the finish reason rather than a schema error. Mirrors
     // Go's `FinishReason.isAbnormal` guard.
     if (parser == null || response.finishReason.isAbnormal) {
-      return GenerateResponseHelper(
-        response,
-        request: currentRequest,
-        output: null,
-      );
+      return GenerateResult(response, request: currentRequest, output: null);
     }
     try {
-      return GenerateResponseHelper(
+      return GenerateResult(
         response,
         request: currentRequest,
         output: _parseOutput(response.message, parser),
@@ -682,7 +674,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
         status: StatusCode.internal.wireName,
         message: 'model failed to generate output matching expected schema: $e',
       );
-      return GenerateResponseHelper(
+      return GenerateResult(
         response,
         request: currentRequest,
         output: null,
@@ -740,11 +732,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       originalResponse: response,
     );
 
-    return GenerateResponseHelper(
-      newResponse,
-      request: currentRequest,
-      output: null,
-    );
+    return GenerateResult(newResponse, request: currentRequest, output: null);
   }
 
   // If the loop will continue, stream out the tool response message so clients
@@ -790,7 +778,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   );
 }
 
-Future<GenerateResponseHelper> runGenerateAction(
+Future<GenerateResult> runGenerateAction(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
@@ -810,7 +798,7 @@ Future<GenerateResponseHelper> runGenerateAction(
   );
 }
 
-Future<GenerateResponseHelper> _runGenerateAction(
+Future<GenerateResult> _runGenerateAction(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
@@ -854,13 +842,13 @@ Future<GenerateResponseHelper> _runGenerateAction(
   final generateRegistry = resolved.registry;
   final resolvedMiddleware = resolved.middleware;
 
-  late Future<GenerateResponseHelper> Function(
+  late Future<GenerateResult> Function(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
   )
   composedGenerate;
 
-  Future<GenerateResponseHelper> coreGenerate(
+  Future<GenerateResult> coreGenerate(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
   ) async {
@@ -916,7 +904,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
               'One or more restarted tools triggered interrupts while resuming generation. The model was not called.',
         );
 
-        return GenerateResponseHelper(
+        return GenerateResult(
           newResponse,
           request: ModelRequest(messages: opts.messages, config: opts.config),
           output: null,
@@ -1011,7 +999,7 @@ typedef GenerateMiddlewareOneof = ({
 
 /// A helper that takes loose generate arguments, contstructs GenerateActionOptions
 /// and runs the generate action.
-Future<GenerateResponseHelper> generateHelper<CustomOptions>(
+Future<GenerateResult> generateHelper<CustomOptions>(
   Registry registry, {
   String? system,
   String? prompt,
