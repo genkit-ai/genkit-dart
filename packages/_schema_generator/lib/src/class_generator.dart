@@ -198,16 +198,32 @@ class ClassGenerator {
     // `case` patterns in a `switch` (a getter is not a constant expression).
     buffer.writeln('extension type const $enumName(String value) {');
     for (final value in values) {
-      // Not `_sanitizeFieldName`: its `required` -> `isRequired` rename exists
-      // for property getters, but `required` is only a contextual keyword and
-      // reads naturally as an enum value (`toolChoice: .required`).
-      final fieldName = value.toString().replaceAll('-', '_');
+      final fieldName = _enumFieldName(value.toString());
       buffer.writeln(
         "  static const $enumName $fieldName = $enumName('$value');",
       );
     }
     buffer.writeln('}');
     b.body.add(Code(buffer.toString()));
+  }
+
+  /// The Dart identifier for an enum wire value: lowerCamelCase, so
+  /// `bidi-model` becomes `bidiModel` and `PASS` becomes `pass`. The wire
+  /// value itself is kept as-is in the constant.
+  ///
+  /// Not `_sanitizeFieldName`: its `required` -> `isRequired` rename exists for
+  /// property getters, but `required` is only a contextual keyword and reads
+  /// naturally as an enum value (`toolChoice: .required`).
+  String _enumFieldName(String value) {
+    final words = value
+        .split(RegExp(r'[-_\s]+'))
+        .where((w) => w.isNotEmpty)
+        .map((w) => w == w.toUpperCase() ? w.toLowerCase() : w)
+        .toList();
+    if (words.isEmpty) return value;
+    return words.first[0].toLowerCase() +
+        words.first.substring(1) +
+        words.skip(1).map((w) => w[0].toUpperCase() + w.substring(1)).join();
   }
 
   void _generateUnionClass(

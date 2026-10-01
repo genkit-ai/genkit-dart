@@ -60,11 +60,18 @@ void main() {
       expect(res.finishReason, FinishReason.stop);
     });
 
-    test('ToolChoice and EvalStatusEnum are constant too', () {
+    test('ToolChoice and EvalStatus are constant too', () {
       const choices = {ToolChoice.auto, ToolChoice.none, ToolChoice.required};
       expect(choices, hasLength(3));
-      const status = EvalStatusEnum.PASS;
+      const status = EvalStatus.pass;
       expect(status.value, 'PASS');
+    });
+
+    test('EvalStatus keeps the upper-case wire values', () {
+      final score = Score(status: .fail);
+      expect(score.toJson(), {'status': 'FAIL'});
+      expect(Score.fromJson({'status': 'PASS'}).status, EvalStatus.pass);
+      expect(EvalStatus.unknown.value, 'UNKNOWN');
     });
   });
 }

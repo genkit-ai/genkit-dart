@@ -1738,7 +1738,7 @@ base class Score {
   Score({
     String? id,
     ScoreScore? score,
-    EvalStatusEnum? status,
+    EvalStatus? status,
     String? error,
     Map<String, dynamic>? details,
   }) {
@@ -1777,11 +1777,11 @@ base class Score {
     return _json['score'] as Object?;
   }
 
-  EvalStatusEnum? get status {
-    return _json['status'] as EvalStatusEnum?;
+  EvalStatus? get status {
+    return _json['status'] as EvalStatus?;
   }
 
-  set status(EvalStatusEnum? value) {
+  set status(EvalStatus? value) {
     if (value == null) {
       _json.remove('status');
     } else {
