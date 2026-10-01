@@ -15,23 +15,23 @@
 import 'package:genkit/plugin.dart';
 import 'package:genkit_google_genai/common.dart';
 
-/// Gemini models the Vertex AI plugin curates capability metadata for.
-///
-/// The text and image subset of [KnownGeminiModel]. Vertex AI serves
-/// text-to-speech under IDs of its own (`gemini-2.5-flash-tts` rather than
-/// `gemini-2.5-flash-preview-tts`), so the Gemini API's TTS entries stay out;
-/// those names still get the TTS profile through `modelInfoFor`. Any other
-/// model name still resolves dynamically with the common fallback metadata;
-/// these entries only give the listed models accurate per-model `supports`
-/// and keep them in listings even when model discovery omits them.
-final vertexAiKnownGeminiModels = List<KnownGeminiModel>.unmodifiable(
-  KnownGeminiModel.values.where(
-    (model) => model.family != GeminiModelFamily.tts,
-  ),
-);
-
 /// Curated capability metadata for the Vertex AI plugin, keyed by bare model
-/// name. Derived from [vertexAiKnownGeminiModels].
-final vertexAiKnownModels = <String, ModelInfo>{
-  for (final model in vertexAiKnownGeminiModels) model.id: model.info,
-};
+/// name.
+///
+/// The Gemini text and image subset of the Gemini API catalog. Any other model
+/// name still resolves dynamically with the common fallback metadata; these
+/// entries only give the listed models accurate per-model `supports` and keep
+/// them in listings even when model discovery omits them.
+// Filtered by name, the same rule GeminiModelFamily.of uses, because the
+// catalog's enums are internal to genkit_google_genai. Two things stay out:
+// - Gemma, which Vertex serves through Model Garden rather than as a
+//   publisher Gemini model; it still resolves on the Gemini path.
+// - TTS, which Vertex serves under IDs of its own (`gemini-2.5-flash-tts`
+//   rather than `gemini-2.5-flash-preview-tts`); those names still get the
+//   TTS profile through `modelInfoFor`.
+final vertexAiKnownModels = Map<String, ModelInfo>.unmodifiable({
+  for (final MapEntry(:key, :value) in knownGeminiModels.entries)
+    if (key.startsWith('gemini-') &&
+        GeminiModelFamily.of(key) != GeminiModelFamily.tts)
+      key: value,
+});

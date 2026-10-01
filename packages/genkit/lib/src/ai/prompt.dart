@@ -797,7 +797,7 @@ Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
 
   final found = action is PromptAction ? action.executablePrompt : null;
   if (found == null) {
-    throw GenkitException('$label not found', status: StatusCodes.NOT_FOUND);
+    throw GenkitException('$label not found', status: StatusCode.notFound);
   }
 
   // Covers every way a prompt defines its wire schema: `outputSchema`, a
@@ -809,7 +809,7 @@ Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
       'structured output. outputParserSchema only parses the response; define '
       'the schema on the prompt (outputSchema: in definePrompt, or '
       'output.schema in the .prompt file).',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -822,7 +822,7 @@ Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
       '$label was not defined with an output schema for $Output. Pass '
       'outputParserSchema: to prompt<$Input, $Output>(), or look it up '
       'untyped.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return ExecutablePrompt<Input, Output>._retyped(found, resolved);

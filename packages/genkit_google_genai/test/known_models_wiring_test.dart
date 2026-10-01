@@ -31,7 +31,7 @@ class _UnconfiguredPlugin extends GoogleGenAiPluginImpl {
   ]) async {
     throw GenkitException(
       'apiKey must be set to an API key',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }

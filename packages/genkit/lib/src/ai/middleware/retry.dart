@@ -32,7 +32,17 @@ final _logger = Logger('genkit.middleware.retry');
 @Schema()
 abstract class $RetryOptions {
   int? get maxRetries;
-  List<StatusCodes>? get statuses;
+
+  // Wire names (see [StatusCode.wireName]) rather than `List<StatusCode>`:
+  // schemantic serializes enums by Dart name, which would leak lowerCamelCase
+  // into the JSON config. [retry] provides the typed API.
+  // TODO: restore the `enum` constraint on items once schemantic supports
+  // per-item string constraints (`@StringField` is String-only today).
+  @Field(
+    description:
+        'Canonical status names that trigger a retry (e.g. UNAVAILABLE).',
+  )
+  List<String>? get statuses;
   int? get initialDelayMs;
   int? get maxDelayMs;
   double? get backoffFactor;
@@ -51,7 +61,10 @@ final retryDef = defineMiddleware<RetryOptions>(
   configSchema: RetryOptions.$schema,
   create: (config, ctx) => RetryMiddleware(
     maxRetries: config?.maxRetries ?? 3,
-    statuses: config?.statuses ?? RetryMiddleware.defaultRetryStatuses,
+    statuses: switch (config?.statuses) {
+      final names? => _parseStatuses(names),
+      null => RetryMiddleware.defaultRetryStatuses,
+    },
     initialDelayMs: config?.initialDelayMs ?? 1000,
     maxDelayMs: config?.maxDelayMs ?? 60000,
     backoffFactor: config?.backoffFactor ?? 2.0,
@@ -60,6 +73,25 @@ final retryDef = defineMiddleware<RetryOptions>(
     retryTools: config?.retryTools ?? false,
   ),
 );
+
+/// Parses configured status names, rejecting any that are not a wire name.
+///
+/// Config arrives as JSON (Dev UI, raw middleware maps), so a typo or a Dart
+/// name like `unavailable` must fail loudly. [StatusCode.fromWireName] maps
+/// unrecognized names to `unknown`, which suits statuses from newer peers but
+/// here would silently retry UNKNOWN errors instead. Matches on the exact
+/// wire name so `UNKNOWN` itself stays valid.
+List<StatusCode> _parseStatuses(List<String> names) => [
+  for (final name in names)
+    StatusCode.values.firstWhere(
+      (c) => c.wireName == name,
+      orElse: () => throw GenkitException(
+        'Unknown retry status "$name". Expected one of: '
+        '${StatusCode.values.map((c) => c.wireName).join(', ')}.',
+        status: StatusCode.invalidArgument,
+      ),
+    ),
+];
 
 /// Retries failed model (and optionally tool) calls with exponential backoff.
 ///
@@ -76,7 +108,7 @@ final retryDef = defineMiddleware<RetryOptions>(
 /// With the Lite API, pass a [RetryMiddleware] instance instead.
 GenerateMiddlewareRef<RetryOptions> retry({
   int? maxRetries,
-  List<StatusCodes>? statuses,
+  List<StatusCode>? statuses,
   int? initialDelayMs,
   int? maxDelayMs,
   double? backoffFactor,
@@ -88,7 +120,7 @@ GenerateMiddlewareRef<RetryOptions> retry({
     name: _name,
     config: RetryOptions(
       maxRetries: maxRetries,
-      statuses: statuses,
+      statuses: statuses?.map((s) => s.wireName).toList(),
       initialDelayMs: initialDelayMs,
       maxDelayMs: maxDelayMs,
       backoffFactor: backoffFactor,
@@ -102,8 +134,9 @@ GenerateMiddlewareRef<RetryOptions> retry({
 /// A middleware that retries model and tool requests on failure.
 ///
 /// Only [GenkitException]s with specific status codes are retried.
-/// By default, it retries on [StatusCodes.UNAVAILABLE], [StatusCodes.DEADLINE_EXCEEDED],
-/// [StatusCodes.RESOURCE_EXHAUSTED], [StatusCodes.ABORTED], and [StatusCodes.INTERNAL].
+/// By default, it retries on [StatusCode.unavailable],
+/// [StatusCode.deadlineExceeded], [StatusCode.resourceExhausted],
+/// [StatusCode.aborted], and [StatusCode.internal].
 ///
 /// It uses exponential backoff with jitter to calculate the delay between retries.
 final class RetryMiddleware extends GenerateMiddleware {
@@ -111,7 +144,7 @@ final class RetryMiddleware extends GenerateMiddleware {
   final int maxRetries;
 
   /// The list of status codes that should trigger a retry.
-  final List<StatusCodes> statuses;
+  final List<StatusCode> statuses;
 
   /// The initial delay in milliseconds for the first retry.
   final int initialDelayMs;
@@ -140,11 +173,11 @@ final class RetryMiddleware extends GenerateMiddleware {
 
   /// The default list of status codes that trigger a retry.
   static const defaultRetryStatuses = [
-    StatusCodes.UNAVAILABLE,
-    StatusCodes.DEADLINE_EXCEEDED,
-    StatusCodes.RESOURCE_EXHAUSTED,
-    StatusCodes.ABORTED,
-    StatusCodes.INTERNAL,
+    StatusCode.unavailable,
+    StatusCode.deadlineExceeded,
+    StatusCode.resourceExhausted,
+    StatusCode.aborted,
+    StatusCode.internal,
   ];
 
   /// Creates a [RetryMiddleware].

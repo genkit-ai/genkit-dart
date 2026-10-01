@@ -114,7 +114,7 @@ class AgentErrorDetails {
 AgentErrorDetails toErrorDetails(Object? e) {
   if (e is GenkitException) {
     return AgentErrorDetails(
-      status: e.status.name,
+      status: e.status.wireName,
       message: e.message,
       details: e.details ?? e.underlyingException ?? e.message,
     );
@@ -181,7 +181,7 @@ void _requireStore(SessionStore? store, String operation, String agentName) {
     throw GenkitException(
       "$operation requires a persistent store. Provide a 'store' when "
       "defining '$agentName'.",
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
 }
@@ -295,14 +295,14 @@ void _assertResumable(SessionSnapshot snapshot) {
             "Snapshot '$id' is still '$status' but its worker stopped "
             'heartbeating and is presumed dead; resume from its parent '
             "snapshot '$parent'.",
-            status: StatusCodes.FAILED_PRECONDITION,
+            status: StatusCode.failedPrecondition,
           );
         }
         throw GenkitException(
           "Snapshot '$id' is still '$status' but its worker stopped "
           'heartbeating and is presumed dead. It recorded no progress, so '
           'there is nothing to resume.',
-          status: StatusCodes.FAILED_PRECONDITION,
+          status: StatusCode.failedPrecondition,
         );
       }
       if (status == 'aborting') {
@@ -310,13 +310,13 @@ void _assertResumable(SessionSnapshot snapshot) {
           "Snapshot '$id' is still being finalized: its invocation was "
           'aborted and has not recorded the state yet; retry this same '
           'snapshot id.',
-          status: StatusCodes.FAILED_PRECONDITION,
+          status: StatusCode.failedPrecondition,
         );
       }
       throw GenkitException(
         "Snapshot '$id' is still pending: its detached invocation is still "
         'running; wait for it to finalize or abort it before resuming.',
-        status: StatusCodes.FAILED_PRECONDITION,
+        status: StatusCode.failedPrecondition,
       );
     case 'completed':
     case 'failed':
@@ -330,7 +330,7 @@ void _assertResumable(SessionSnapshot snapshot) {
           "Snapshot '${snapshot.snapshotId}' is '$status' but carries no "
           'state to resume from'
           '${parent != null ? "; resume from its parent snapshot '$parent'." : ' and has no parent.'}',
-          status: StatusCodes.FAILED_PRECONDITION,
+          status: StatusCode.failedPrecondition,
         );
       }
       return;
@@ -338,7 +338,7 @@ void _assertResumable(SessionSnapshot snapshot) {
       throw GenkitException(
         "Snapshot '${snapshot.snapshotId}' is not resumable (status: "
         "${status ?? 'unknown'}).",
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
   }
 }
@@ -574,7 +574,7 @@ class SessionRunner<State> {
               lastTurnError = toErrorDetails(
                 GenkitException(
                   turnResult?.finishMessage ?? 'Turn aborted.',
-                  status: StatusCodes.ABORTED,
+                  status: StatusCode.aborted,
                 ),
               );
               final snapshotId = await maybeSnapshot(
@@ -600,7 +600,7 @@ class SessionRunner<State> {
                   toErrorDetails(
                     GenkitException(
                       turnResult?.finishMessage ?? 'Turn failed.',
-                      status: StatusCodes.INTERNAL,
+                      status: StatusCode.internal,
                     ),
                   );
               final snapshotId = await maybeSnapshot(
@@ -841,14 +841,14 @@ void _assertInitMatchesStateManagement(_AgentConfig config, AgentInit? init) {
     throw AgentInitError(
       "Cannot use '$which' with agent '${config.name}': this agent has no "
       "store configured (client-managed state). Send 'state' instead.",
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
   if (init?.state != null && config.store != null) {
     throw AgentInitError(
       "Cannot send 'state' to agent '${config.name}': this agent uses a "
       "server-managed store. Send 'snapshotId' or 'sessionId' instead.",
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
 }
@@ -881,7 +881,7 @@ _resolveSession<State>(
     if (snapshot == null) {
       throw GenkitException(
         'Snapshot ${init.snapshotId} not found',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       );
     }
     // When both `snapshotId` and `sessionId` are supplied, `snapshotId` selects
@@ -896,7 +896,7 @@ _resolveSession<State>(
         'Snapshot ${init.snapshotId} does not belong to session '
         '${init.sessionId} (it belongs to '
         '${snapshotSessionId ?? 'an unknown session'}).',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -935,7 +935,7 @@ _resolveSession<State>(
         "Session '${init.sessionId}' has an in-flight leaf snapshot "
         "'${snapshot!.snapshotId}' (status: $leafStatus); wait for it to "
         'finalize before resuming, or abort it first.',
-        status: StatusCodes.FAILED_PRECONDITION,
+        status: StatusCode.failedPrecondition,
       );
     }
     final visited = <String>{};
@@ -945,7 +945,7 @@ _resolveSession<State>(
           "Session '${init.sessionId}' has a cyclic snapshot parent chain "
           "(snapshot '${snapshot.snapshotId}' was visited twice). Resume by "
           'snapshotId instead.',
-          status: StatusCodes.FAILED_PRECONDITION,
+          status: StatusCode.failedPrecondition,
         );
       }
       visited.add(snapshot.snapshotId);
@@ -1011,7 +1011,7 @@ void _pipeInputWithDetach(
             rejectDetach(
               GenkitException(
                 'Detach is only supported when a session store is provided.',
-                status: StatusCodes.FAILED_PRECONDITION,
+                status: StatusCode.failedPrecondition,
               ),
             );
           } else {
@@ -1814,14 +1814,14 @@ Agent<State> definePromptAgent<State>(
           throw GenkitException(
             "Prompt '$promptName' not found. Ensure it is defined before the "
             'agent is invoked.',
-            status: StatusCodes.NOT_FOUND,
+            status: StatusCode.notFound,
           );
         }
         cachedPrompt = action.executablePrompt;
         if (cachedPrompt == null) {
           throw GenkitException(
             "Prompt '$promptName' is not an executable prompt.",
-            status: StatusCodes.NOT_FOUND,
+            status: StatusCode.notFound,
           );
         }
       }
@@ -1926,12 +1926,12 @@ Agent<State> definePromptAgent<State>(
       final error = failed
           ? (res.error != null
                 ? AgentErrorDetails(
-                    status: res.error!.status ?? StatusCodes.INTERNAL.name,
+                    status: res.error!.status ?? StatusCode.internal.wireName,
                     message: res.error!.message,
                     details: res.error!.details,
                   )
                 : AgentErrorDetails(
-                    status: StatusCodes.INTERNAL.name,
+                    status: StatusCode.internal.wireName,
                     message: res.finishMessage ?? 'Generation failed.',
                   ))
           : null;
@@ -1997,7 +1997,7 @@ void validateResumeAgainstHistory(AgentResume resume, List<Message> history) {
         "resume.restart references tool '${tr.name}'"
         '${tr.ref != null ? ' (ref: ${tr.ref})' : ''}'
         ' which was not found in session history.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     if (!_deepEqual(tr.input, match.input)) {
@@ -2007,7 +2007,7 @@ void validateResumeAgainstHistory(AgentResume resume, List<Message> history) {
         ' has modified inputs that do not match the original tool request '
         'in session history. Restart inputs must exactly match the '
         'interrupted tool request.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
   }
@@ -2026,7 +2026,7 @@ void validateResumeAgainstHistory(AgentResume resume, List<Message> history) {
         "resume.respond references tool '${tr.name}'"
         '${tr.ref != null ? ' (ref: ${tr.ref})' : ''}'
         ' which was not found in session history.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
   }

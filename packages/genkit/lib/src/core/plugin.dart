@@ -62,7 +62,7 @@ abstract class GenkitPlugin {
     if (m == null || m is! Model) {
       throw GenkitException(
         'Model $name not found',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       );
     }
     return m;

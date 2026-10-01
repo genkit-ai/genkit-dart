@@ -114,8 +114,7 @@ void main() {
       throwsA(
         predicate(
           (e) =>
-              e is GenkitException &&
-              e.status == StatusCodes.FAILED_PRECONDITION,
+              e is GenkitException && e.status == StatusCode.failedPrecondition,
         ),
       ),
     );
@@ -176,7 +175,7 @@ void main() {
         predicate(
           (error) =>
               error is GenkitException &&
-              error.status == StatusCodes.FAILED_PRECONDITION,
+              error.status == StatusCode.failedPrecondition,
         ),
       ),
     );
@@ -256,7 +255,7 @@ void main() {
       () => toMcpPromptMessage(message),
       throwsA(
         predicate(
-          (e) => e is GenkitException && e.status == StatusCodes.UNIMPLEMENTED,
+          (e) => e is GenkitException && e.status == StatusCode.unimplemented,
         ),
       ),
     );
@@ -271,7 +270,7 @@ void main() {
       () => toMcpPromptMessage(message),
       throwsA(
         predicate(
-          (e) => e is GenkitException && e.status == StatusCodes.UNIMPLEMENTED,
+          (e) => e is GenkitException && e.status == StatusCode.unimplemented,
         ),
       ),
     );
@@ -286,8 +285,7 @@ void main() {
       () => toMcpPromptMessage(message),
       throwsA(
         predicate(
-          (e) =>
-              e is GenkitException && e.status == StatusCodes.INVALID_ARGUMENT,
+          (e) => e is GenkitException && e.status == StatusCode.invalidArgument,
         ),
       ),
     );
@@ -299,7 +297,7 @@ void main() {
       () => toMcpResourceContent('my://resource', part),
       throwsA(
         predicate(
-          (e) => e is GenkitException && e.status == StatusCodes.UNIMPLEMENTED,
+          (e) => e is GenkitException && e.status == StatusCode.unimplemented,
         ),
       ),
     );
@@ -333,8 +331,7 @@ void main() {
       ),
       throwsA(
         predicate(
-          (e) =>
-              e is GenkitException && e.status == StatusCodes.INVALID_ARGUMENT,
+          (e) => e is GenkitException && e.status == StatusCode.invalidArgument,
         ),
       ),
     );
@@ -347,8 +344,7 @@ void main() {
       ),
       throwsA(
         predicate(
-          (e) =>
-              e is GenkitException && e.status == StatusCodes.INVALID_ARGUMENT,
+          (e) => e is GenkitException && e.status == StatusCode.invalidArgument,
         ),
       ),
     );
@@ -383,7 +379,7 @@ void main() {
       ),
       throwsA(
         predicate(
-          (e) => e is GenkitException && e.status == StatusCodes.UNIMPLEMENTED,
+          (e) => e is GenkitException && e.status == StatusCode.unimplemented,
         ),
       ),
     );

@@ -1569,7 +1569,7 @@ void main() {
           ),
           throwsA(
             isA<GenkitException>()
-                .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+                .having((e) => e.status, 'status', StatusCode.invalidArgument)
                 .having(
                   (e) => e.message,
                   'message',

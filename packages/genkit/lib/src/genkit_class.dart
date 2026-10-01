@@ -439,7 +439,7 @@ final class Genkit extends GenkitAI {
     if (resourceName == null) {
       throw GenkitException(
         'Resource must specify a name, uri, or template.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     final resourceMetadata = <String, dynamic>{

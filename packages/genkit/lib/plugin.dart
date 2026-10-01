@@ -71,7 +71,7 @@ export 'package:genkit/src/core/cancellation.dart'
     show CancellationController, CancellationToken, CancelledException;
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/src/core/registry.dart' show Registry;
-export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;
+export 'package:genkit/src/exception.dart' show GenkitException, StatusCode;
 export 'package:genkit/src/genkit_ai.dart' show GenkitAI;
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/types.dart';

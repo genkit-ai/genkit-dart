@@ -559,10 +559,7 @@ void main() {
       description: 'fail tool',
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
-        throw GenkitException(
-          'bad input',
-          status: StatusCodes.INVALID_ARGUMENT,
-        );
+        throw GenkitException('bad input', status: StatusCode.invalidArgument);
       },
     );
 
@@ -850,10 +847,7 @@ void main() {
       description: 'boom tool',
       inputSchema: .map(.string(), .dynamicSchema()),
       fn: (_, _) async {
-        throw GenkitException(
-          'bad input',
-          status: StatusCodes.INVALID_ARGUMENT,
-        );
+        throw GenkitException('bad input', status: StatusCode.invalidArgument);
       },
     );
     ai.defineCustomPrompt<Map<String, dynamic>>(

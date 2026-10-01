@@ -172,7 +172,7 @@ List<gcl.Part> _embedParts(int index, DocumentData doc) {
     // The parser's source can contain media payloads; keep only its message.
     throw GenkitException(
       'Cannot embed the document at index $index: ${e.message}',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }

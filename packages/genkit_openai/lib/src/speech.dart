@@ -120,7 +120,7 @@ void validateSpeechOptions(OpenAISpeechOptions options) {
     throw GenkitException(
       'Unknown responseFormat "$format". Accepted formats: '
       '${speechResponseFormatMediaTypes.keys.join(', ')}.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -128,7 +128,7 @@ void validateSpeechOptions(OpenAISpeechOptions options) {
   if (speed != null && (speed < 0.25 || speed > 4.0)) {
     throw GenkitException(
       'speed must be between 0.25 and 4.0; got $speed.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }
