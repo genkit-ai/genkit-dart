@@ -237,7 +237,7 @@ void main() {
       final model = Model<void>(
         name: 'toolModel',
         fn: (request, context) async {
-          if (request!.messages.last.role == Role.tool) {
+          if (request.messages.last.role == Role.tool) {
             final toolResponse =
                 request.messages.last.content.first.toolResponse!;
 
@@ -402,7 +402,7 @@ void main() {
         fn: (request, context) async {
           modelCallCount++;
 
-          if (request!.messages.last.role == Role.tool) {
+          if (request.messages.last.role == Role.tool) {
             final toolResponse =
                 request.messages.last.content.first.toolResponse!;
             return ModelResponse(

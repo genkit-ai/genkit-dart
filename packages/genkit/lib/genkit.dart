@@ -76,7 +76,7 @@ export 'src/core/action.dart'
         ActionMetadata,
         ActionStream,
         ActionType,
-        InternalActionFn,
+        RawActionFn,
         RunResult,
         StreamingCallback,
         TraceStartCallback;

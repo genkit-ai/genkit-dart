@@ -60,7 +60,7 @@ Embedder createVertexEmbedder({
   return Embedder(
     name: '$pluginName/$embedderName',
     fn: (req, ctx) async {
-      if (req == null || req.input.isEmpty) {
+      if (req.input.isEmpty) {
         return EmbedResponse(embeddings: []);
       }
 

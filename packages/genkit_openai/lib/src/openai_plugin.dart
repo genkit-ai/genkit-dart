@@ -554,7 +554,7 @@ class OpenAIPlugin extends GenkitPlugin {
         'model': {..._embedderInfoFor(embedderName)},
       },
       fn: (req, ctx) async {
-        if (req == null || req.input.isEmpty) {
+        if (req.input.isEmpty) {
           // Nothing to embed, and an empty `input` is a 400. Answering
           // directly keeps `embed(documents: [])` from costing a request.
           return EmbedResponse(embeddings: []);
@@ -619,8 +619,7 @@ class OpenAIPlugin extends GenkitPlugin {
       name: '$_pluginName/$modelName',
       customOptions: chat.chatModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
-      fn: (req, ctx) async {
-        final modelRequest = req!;
+      fn: (modelRequest, ctx) async {
         final options = chat.parseChatModelOptions(modelRequest.config);
         // `version` overrides the resolved action's id, so it - not
         // [modelName] - is the model that will answer, and the model the
@@ -895,8 +894,7 @@ class OpenAIPlugin extends GenkitPlugin {
       name: '$_pluginName/$modelName',
       customOptions: speech.speechModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
-      fn: (req, ctx) async {
-        final modelRequest = req!;
+      fn: (modelRequest, ctx) async {
         final options = speech.parseSpeechModelOptions(modelRequest.config);
         speech.validateSpeechOptions(options);
         final input = _speechInputText(modelRequest);
@@ -1030,8 +1028,7 @@ class OpenAIPlugin extends GenkitPlugin {
       name: '$_pluginName/$modelName',
       customOptions: transcription.transcriptionModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
-      fn: (req, ctx) async {
-        final modelRequest = req!;
+      fn: (modelRequest, ctx) async {
         final options = transcription.parseTranscriptionModelOptions(
           modelRequest.config,
         );

@@ -63,7 +63,7 @@ export 'package:genkit/src/core/action.dart'
         ActionMetadata,
         ActionStream,
         ActionType,
-        InternalActionFn,
+        RawActionFn,
         RunResult,
         StreamingCallback,
         TraceStartCallback;

@@ -223,7 +223,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
       customOptions: AnthropicOptions.$schema,
       metadata: {'model': modelInfoFor(modelName).toJson()},
       fn: (req, ctx) async {
-        final options = req!.config == null
+        final options = req.config == null
             ? AnthropicOptions()
             : AnthropicOptions.$schema.parse(req.config!);
 

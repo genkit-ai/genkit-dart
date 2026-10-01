@@ -56,10 +56,11 @@ base class Model<CustomOptions>
 
   Model({
     required super.name,
-    required super.fn,
+    required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk, void> fn,
     super.metadata,
     this.customOptions,
   }) : super(
+         fn: requireInput('Model', name, fn),
          actionType: .model,
          inputSchema: ModelRequest.$schema,
          outputSchema: ModelResponse.$schema,
@@ -156,10 +157,17 @@ base class BidiModel<CustomOptions>
 
   BidiModel({
     required super.name,
-    required super.fn,
+    required BidiActionFn<
+      ModelRequest,
+      ModelResponse,
+      ModelResponseChunk,
+      ModelRequest
+    >
+    fn,
     super.metadata,
     this.customOptions,
   }) : super(
+         fn: bidiInput('Bidi model', name, fn),
          actionType: .bidiModel,
          inputSchema: ModelRequest.$schema,
          initSchema: ModelRequest.$schema,

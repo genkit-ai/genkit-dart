@@ -39,10 +39,6 @@ Model remoteModel({
   return Model(
       name: name,
       fn: (request, context) async {
-        if (request == null) {
-          throw ArgumentError('Model request cannot be null');
-        }
-
         final resolvedHeaders = await headers?.call(context.context ?? {});
 
         if (context.streamingRequested) {
