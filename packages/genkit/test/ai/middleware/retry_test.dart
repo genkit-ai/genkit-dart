@@ -340,6 +340,74 @@ void main() {
       expect(res.error!.status, 'NOT_FOUND');
     });
 
+    group('rejects unrecognized status names in config', () {
+      for (final name in ['UNAVALIABLE', 'unavailable']) {
+        test(name, () async {
+          var attempts = 0;
+          genkit.defineModel(
+            name: 'bad-status-model',
+            fn: (req, ctx) async {
+              attempts++;
+              return ModelResponse(finishReason: .stop);
+            },
+          );
+
+          await expectLater(
+            genkit.generate(
+              model: modelRef('bad-status-model'),
+              prompt: 'test',
+              use: [
+                middlewareRef(
+                  name: 'retry',
+                  config: RetryOptions.fromJson({
+                    'statuses': [name],
+                  }),
+                ),
+              ],
+            ),
+            throwsA(
+              isA<GenkitException>()
+                  .having((e) => e.status, 'status', StatusCode.invalidArgument)
+                  .having((e) => e.message, 'message', contains('"$name"')),
+            ),
+          );
+          // Rejected while resolving middleware, before any model call.
+          expect(attempts, 0);
+        });
+      }
+    });
+
+    test('accepts UNKNOWN as a configured status', () async {
+      var attempts = 0;
+      genkit.defineModel(
+        name: 'unknown-status-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException('nope', status: StatusCode.unknown);
+        },
+      );
+
+      final res = await genkit.generate(
+        model: modelRef('unknown-status-model'),
+        prompt: 'test',
+        use: [
+          middlewareRef(
+            name: 'retry',
+            config: RetryOptions.fromJson({
+              'maxRetries': 2,
+              'initialDelayMs': 1,
+              'noJitter': true,
+              'statuses': ['UNKNOWN'],
+            }),
+          ),
+        ],
+      );
+
+      // UNKNOWN is a real wire name, so it is honored rather than rejected.
+      expect(attempts, 3);
+      expect(res.error!.status, 'UNKNOWN');
+    });
+
     test('a plugin middleware named retry overrides the built-in', () async {
       var overrideUsed = false;
       final ai = Genkit(

@@ -61,9 +61,10 @@ final retryDef = defineMiddleware<RetryOptions>(
   configSchema: RetryOptions.$schema,
   create: (config, ctx) => RetryMiddleware(
     maxRetries: config?.maxRetries ?? 3,
-    statuses:
-        config?.statuses?.map(StatusCode.fromWireName).toList() ??
-        RetryMiddleware.defaultRetryStatuses,
+    statuses: switch (config?.statuses) {
+      final names? => _parseStatuses(names),
+      null => RetryMiddleware.defaultRetryStatuses,
+    },
     initialDelayMs: config?.initialDelayMs ?? 1000,
     maxDelayMs: config?.maxDelayMs ?? 60000,
     backoffFactor: config?.backoffFactor ?? 2.0,
@@ -72,6 +73,25 @@ final retryDef = defineMiddleware<RetryOptions>(
     retryTools: config?.retryTools ?? false,
   ),
 );
+
+/// Parses configured status names, rejecting any that are not a wire name.
+///
+/// Config arrives as JSON (Dev UI, raw middleware maps), so a typo or a Dart
+/// name like `unavailable` must fail loudly. [StatusCode.fromWireName] maps
+/// unrecognized names to `unknown`, which suits statuses from newer peers but
+/// here would silently retry UNKNOWN errors instead. Matches on the exact
+/// wire name so `UNKNOWN` itself stays valid.
+List<StatusCode> _parseStatuses(List<String> names) => [
+  for (final name in names)
+    StatusCode.values.firstWhere(
+      (c) => c.wireName == name,
+      orElse: () => throw GenkitException(
+        'Unknown retry status "$name". Expected one of: '
+        '${StatusCode.values.map((c) => c.wireName).join(', ')}.',
+        status: StatusCode.invalidArgument,
+      ),
+    ),
+];
 
 /// Retries failed model (and optionally tool) calls with exponential backoff.
 ///
