@@ -28,7 +28,7 @@ import '../ai/tool.dart' show Tool;
 import '../core/action.dart' show BidiActionFn;
 import '../core/cancellation.dart' show CancellationToken;
 import '../core/flow.dart' show Flow;
-import '../exception.dart' show GenkitException, StatusCodes;
+import '../exception.dart' show GenkitException, StatusCode;
 import '../genkit_ai.dart' show GenkitAI, resolveInlineTools;
 import '../genkit_class.dart' show Genkit;
 import '../types.dart' show ModelRequest, ModelResponse, ModelResponseChunk;
@@ -83,7 +83,7 @@ extension GenkitBidiModel on Genkit {
         if (context.inputStream == null) {
           throw GenkitException(
             'Bidi flow $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
+            status: StatusCode.invalidArgument,
           );
         }
         return fn(context.inputStream!, context);
@@ -114,7 +114,7 @@ extension GenkitBidiModel on Genkit {
         if (context.inputStream == null) {
           throw GenkitException(
             'Bidi model $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
+            status: StatusCode.invalidArgument,
           );
         }
         return fn(context.inputStream!, context);

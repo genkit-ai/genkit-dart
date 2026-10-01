@@ -445,7 +445,7 @@ void main() {
 
       expect(response.finishReason, FinishReason.failed);
       expect(response.error, isNotNull);
-      expect(response.error!.status, StatusCodes.INVALID_ARGUMENT.name);
+      expect(response.error!.status, StatusCode.invalidArgument.wireName);
       expect(response.error!.message, contains('API key is required'));
 
       await ai.shutdown();

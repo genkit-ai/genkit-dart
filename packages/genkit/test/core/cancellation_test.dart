@@ -64,7 +64,7 @@ void main() {
         controller.token.throwIfCancelled,
         throwsA(
           isA<CancelledException>()
-              .having((e) => e.status, 'status', StatusCodes.CANCELLED)
+              .having((e) => e.status, 'status', StatusCode.cancelled)
               .having((e) => e.message, 'message', 'nope'),
         ),
       );

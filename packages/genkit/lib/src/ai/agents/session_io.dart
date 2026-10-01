@@ -51,7 +51,7 @@ void _assertSafeId(String id, String label) {
     throw GenkitException(
       'Invalid $label: "$id". A $label must be a plain file name (no path '
       'separators or "..").',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }
@@ -121,7 +121,7 @@ class FileSessionStore
   ///   so one tenant can never see another's snapshots. Defaults to `"global"`.
   /// - [rejectBranchingSessions]: when `true`, a `sessionId` lookup that
   ///   resolves to a branched history (more than one leaf) throws
-  ///   [StatusCodes.FAILED_PRECONDITION] instead of returning the latest leaf.
+  ///   [StatusCode.failedPrecondition] instead of returning the latest leaf.
   ///   Defaults to `false`; opt in (e.g. in dev) to surface accidental
   ///   branching early.
   /// - [_snapshotWatchPollInterval]: polling interval for the

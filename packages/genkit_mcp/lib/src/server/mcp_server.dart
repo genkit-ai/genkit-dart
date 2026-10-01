@@ -611,7 +611,7 @@ class GenkitMcpServer {
       // Protocol error: missing tool name → JSON-RPC error.
       throw GenkitException(
         '[MCP Server] Tool name must be provided.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     final tool = _toolActions.firstWhere(
@@ -619,7 +619,7 @@ class GenkitMcpServer {
       // Protocol error: unknown tool → JSON-RPC error.
       orElse: () => throw GenkitException(
         '[MCP Server] Tool "$name" not found.',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       ),
     );
     final input = params['arguments'];
@@ -698,14 +698,14 @@ class GenkitMcpServer {
     if (name is! String) {
       throw GenkitException(
         '[MCP Server] Prompt name must be provided.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     final prompt = _promptActions.firstWhere(
       (p) => p.name == name,
       orElse: () => throw GenkitException(
         '[MCP Server] Prompt "$name" not found.',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       ),
     );
     final args = params['arguments'];
@@ -779,7 +779,7 @@ class GenkitMcpServer {
     if (uri is! String) {
       throw GenkitException(
         '[MCP Server] Resource uri must be provided.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     final input = ResourceInput(uri: uri);
@@ -787,7 +787,7 @@ class GenkitMcpServer {
       (r) => r.matches(input),
       orElse: () => throw GenkitException(
         '[MCP Server] Resource "$uri" not found.',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       ),
     );
     final result = await resource.runRaw({'uri': uri});
@@ -803,7 +803,7 @@ class GenkitMcpServer {
     if (argumentName == null || argumentName.isEmpty) {
       throw GenkitException(
         '[MCP Server] Completion argument name must be provided.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -814,14 +814,14 @@ class GenkitMcpServer {
       if (promptName == null) {
         throw GenkitException(
           '[MCP Server] Completion prompt name must be provided.',
-          status: StatusCodes.INVALID_ARGUMENT,
+          status: StatusCode.invalidArgument,
         );
       }
       final prompt = _promptActions.firstWhere(
         (p) => p.name == promptName,
         orElse: () => throw GenkitException(
           '[MCP Server] Prompt "$promptName" not found.',
-          status: StatusCodes.NOT_FOUND,
+          status: StatusCode.notFound,
         ),
       );
       final schema = prompt.inputSchema?.jsonSchema(useRefs: false);
@@ -867,7 +867,7 @@ class GenkitMcpServer {
     if (uri == null) {
       throw GenkitException(
         '[MCP Server] Resource uri must be provided.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     _resourceSubscriptions.add(uri);
@@ -879,7 +879,7 @@ class GenkitMcpServer {
     if (uri == null) {
       throw GenkitException(
         '[MCP Server] Resource uri must be provided.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     _resourceSubscriptions.remove(uri);
@@ -935,7 +935,7 @@ class GenkitMcpServer {
     if (task == null) {
       throw GenkitException(
         '[MCP Server] Task "$taskId" not found.',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       );
     }
     return task.toJson();
@@ -948,7 +948,7 @@ class GenkitMcpServer {
     if (task == null) {
       throw GenkitException(
         '[MCP Server] Task "$taskId" not found.',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       );
     }
     task.cancel('Cancelled by request');

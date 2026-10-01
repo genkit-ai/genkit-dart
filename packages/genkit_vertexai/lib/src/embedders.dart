@@ -106,13 +106,13 @@ List<Map<String, dynamic>> _requirePredictions(
   if (rawPredictions is! List || rawPredictions.isEmpty) {
     throw GenkitException(
       'Vertex AI returned no predictions.',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
     );
   }
   if (rawPredictions.length != expectedCount) {
     throw GenkitException(
       'Vertex AI returned ${rawPredictions.length} predictions for $expectedCount input documents.',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
     );
   }
 
@@ -120,7 +120,7 @@ List<Map<String, dynamic>> _requirePredictions(
     if (prediction is! Map) {
       throw GenkitException(
         'Vertex AI returned an invalid prediction payload.',
-        status: StatusCodes.INTERNAL,
+        status: StatusCode.internal,
       );
     }
     return prediction.cast<String, dynamic>();
@@ -225,7 +225,7 @@ Embedding _textPredictionEmbedding(Map<String, dynamic> prediction) {
   if (values is! List) {
     throw GenkitException(
       'Vertex AI returned an invalid prediction payload.',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
     );
   }
 
@@ -270,7 +270,7 @@ _MultimodalInstance _toMultimodalInstance(
     if (instance.containsKey(mediaField.key)) {
       throw GenkitException(
         'Vertex multimodalembedding supports at most one ${mediaField.key} part per input document.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -292,7 +292,7 @@ _MultimodalInstance _toMultimodalInstance(
   if (instance.isEmpty) {
     throw GenkitException(
       'Vertex multimodalembedding requires text, image, or video input.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -312,7 +312,7 @@ MapEntry<String, Map<String, dynamic>> _toMultimodalMediaField(Media media) {
     if (data == null) {
       throw GenkitException(
         'Vertex multimodalembedding media inputs require a valid data URI.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -331,7 +331,7 @@ MapEntry<String, Map<String, dynamic>> _toMultimodalMediaField(Media media) {
 
   throw GenkitException(
     'Vertex multimodalembedding media inputs must use gs:// URIs or inline data URIs.',
-    status: StatusCodes.INVALID_ARGUMENT,
+    status: StatusCode.invalidArgument,
   );
 }
 
@@ -351,7 +351,7 @@ String _multimodalFieldName(String? mimeType) {
   if (mimeType == null || mimeType.isEmpty) {
     throw GenkitException(
       'Vertex multimodalembedding media inputs require a MIME type.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -364,7 +364,7 @@ String _multimodalFieldName(String? mimeType) {
 
   throw GenkitException(
     'Unsupported Vertex multimodalembedding media MIME type: $mimeType',
-    status: StatusCodes.INVALID_ARGUMENT,
+    status: StatusCode.invalidArgument,
   );
 }
 
@@ -394,7 +394,7 @@ List<Embedding> _multimodalPredictionEmbeddings(
         if (videoEmbeddings == null || videoEmbeddings.isEmpty) {
           throw GenkitException(
             'Vertex multimodalembedding did not return a video embedding.',
-            status: StatusCodes.INTERNAL,
+            status: StatusCode.internal,
           );
         }
 
@@ -403,7 +403,7 @@ List<Embedding> _multimodalPredictionEmbeddings(
           if (videoEmbedding is! Map) {
             throw GenkitException(
               'Vertex multimodalembedding returned an invalid video embedding.',
-              status: StatusCodes.INTERNAL,
+              status: StatusCode.internal,
             );
           }
           embeddings.add(
@@ -434,7 +434,7 @@ Embedding _embeddingFromMultimodalValues(
   if (values == null) {
     throw GenkitException(
       'Vertex multimodalembedding did not return a ${expectedOutput.output.name} embedding.',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
     );
   }
 

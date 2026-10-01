@@ -26,7 +26,7 @@ Map<String, dynamic> toMcpTool(
   if (tool.inputSchema != null && inputSchema == null) {
     throw GenkitException(
       'MCP tool "${tool.name}" input schema must have root type "object".',
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
   // A tool's base `outputSchema` describes the `ToolResult` wrapper, so use

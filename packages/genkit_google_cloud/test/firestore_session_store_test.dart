@@ -37,7 +37,9 @@ import 'dart:io';
 import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_cloud/firestore_session_store.dart';
-import 'package:google_cloud_firestore/google_cloud_firestore.dart';
+// Firestore exports its own gRPC StatusCode enum; Genkit's is the one used here.
+import 'package:google_cloud_firestore/google_cloud_firestore.dart'
+    hide StatusCode;
 import 'package:test/test.dart';
 
 /// The emulator host (e.g. `localhost:8080`), or `null` when not configured.
@@ -176,7 +178,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.INVALID_ARGUMENT,
+            StatusCode.invalidArgument,
           ),
         ),
       );
@@ -382,7 +384,7 @@ void main() {
             isA<GenkitException>().having(
               (e) => e.status,
               'status',
-              StatusCodes.INVALID_ARGUMENT,
+              StatusCode.invalidArgument,
             ),
           ),
         );
@@ -396,7 +398,7 @@ void main() {
             isA<GenkitException>().having(
               (e) => e.status,
               'status',
-              StatusCodes.INVALID_ARGUMENT,
+              StatusCode.invalidArgument,
             ),
           ),
         );
@@ -411,7 +413,7 @@ void main() {
               isA<GenkitException>().having(
                 (e) => e.status,
                 'status',
-                StatusCodes.INVALID_ARGUMENT,
+                StatusCode.invalidArgument,
               ),
             ),
             reason: 'prefix "$bad" should be rejected',
@@ -442,7 +444,7 @@ void main() {
             isA<GenkitException>().having(
               (e) => e.status,
               'status',
-              StatusCodes.FAILED_PRECONDITION,
+              StatusCode.failedPrecondition,
             ),
           ),
         );

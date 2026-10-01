@@ -347,7 +347,7 @@ class ReflectionServerV1 {
         _logger.severe('Error running action: $e', stack);
         final errorResponse = RunActionResponse(
           error: Status(
-            code: StatusCodes.INTERNAL.value,
+            code: StatusCode.internal.value,
             message: e.toString(),
             details: {'stack': stack.toString()},
           ),
@@ -378,7 +378,7 @@ class ReflectionServerV1 {
       } catch (e, stack) {
         _logger.severe('Error running action: $e', stack);
         final errorResponse = Status(
-          code: StatusCodes.INTERNAL.value,
+          code: StatusCode.internal.value,
           message: e.toString(),
           details: {'stack': stack.toString()},
         );

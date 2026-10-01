@@ -97,7 +97,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.NOT_FOUND,
+            StatusCode.notFound,
           ),
         ),
       );
