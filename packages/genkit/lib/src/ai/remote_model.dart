@@ -24,7 +24,7 @@ Model remoteModel({
   required String url,
   FutureOr<Map<String, String>?> Function(Map<String, dynamic> context)?
   headers,
-  ModelInfo? modelInfo,
+  ModelInfo? info,
   http.Client? httpClient,
 }) {
   final remoteAction =
@@ -57,8 +57,8 @@ Model remoteModel({
         return await remoteAction(input: request, headers: resolvedHeaders);
       },
     )
-    // A caller that omits [modelInfo] gets `modelMetadata`'s defaults. The
+    // A caller that omits [info] gets `modelMetadata`'s defaults. The
     // request is forwarded as-is either way; the serving side decides what to
     // do with an output schema.
-    ..metadata.addAll(modelMetadata(name, modelInfo: modelInfo).metadata);
+    ..metadata.addAll(modelMetadata(name, info: info).metadata);
 }

@@ -89,7 +89,7 @@ await for (final chunk in stream) {
 Turn text into vector embeddings for search and retrieval tasks:
 
 ```dart
-final embeddings = await ai.embedMany(
+final embeddings = await ai.embed(
   documents: [
     DocumentData(content: [TextPart(text: 'Hello world')]),
   ],
@@ -321,15 +321,10 @@ Intercept and modify requests and responses with middleware. Genkit provides bui
 
 #### Retry Middleware
 
-Automatically retry failed requests with exponential backoff and jitter:
+Automatically retry failed requests with exponential backoff and jitter. `retry` is built in, so there is no plugin to register:
 
 ```dart
-final ai = Genkit(
-  plugins: [
-    googleAI(),
-    RetryPlugin(), // Required for retry middleware
-  ],
-);
+final ai = Genkit(plugins: [googleAI()]);
 
 final response = await ai.generate(
   model: googleAI.gemini('gemini-flash-latest'),

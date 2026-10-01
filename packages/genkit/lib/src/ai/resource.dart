@@ -69,6 +69,12 @@ Map<String, dynamic> _resourceMetadata(
   return result;
 }
 
+/// Builds the `matches` predicate for a [ResourceAction] from exactly one of
+/// a fixed [uri] or a simple URI [template] (e.g. `file://{path}`).
+///
+/// Throws a [GenkitException] when both or neither are given, or when the
+/// template uses an RFC 6570 operator (`{+path}`, `{?q}`, ...), which is not
+/// supported.
 bool Function(ResourceInput input) createResourceMatcher({
   required String? uri,
   required String? template,

@@ -102,7 +102,7 @@ ModelInfo _defaultModelInfo({String? label}) => ModelInfo(
 
 ActionMetadata modelMetadata(
   String name, {
-  ModelInfo? modelInfo,
+  ModelInfo? info,
   SchemanticType<dynamic>? customOptions,
 }) {
   return ActionMetadata(
@@ -113,7 +113,7 @@ ActionMetadata modelMetadata(
       'label': name,
       'description': name,
       'model': {
-        ...(modelInfo ?? _defaultModelInfo(label: name)).toJson(),
+        ...(info ?? _defaultModelInfo(label: name)).toJson(),
         if (customOptions != null)
           'customOptions': toJsonSchema(type: customOptions, useRefs: false),
       },

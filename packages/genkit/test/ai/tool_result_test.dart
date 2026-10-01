@@ -78,6 +78,21 @@ void main() {
     });
   });
 
+  group('Tool', () {
+    test('outputSchema declares the Output schema, not the wrapper', () {
+      final tool = Tool<String, String>(
+        name: 'shout',
+        description: 'upper-cases input',
+        inputSchema: .string(),
+        outputSchema: .string(),
+        fn: (input, ctx) => .response(input.toUpperCase()),
+      );
+
+      expect(tool.toolOutputSchema?.jsonSchema(), {'type': 'string'});
+      expect(tool.manifestOutputSchema, same(tool.toolOutputSchema));
+    });
+  });
+
   group('defineTool with ToolResult', () {
     late Genkit genkit;
 

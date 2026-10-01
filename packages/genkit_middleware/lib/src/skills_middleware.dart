@@ -143,7 +143,7 @@ class SkillsMiddleware extends GenerateMiddleware {
         name: 'use_skill',
         description: 'Use a skill by its name.',
         inputSchema: UseSkillInput.$schema,
-        toolOutputSchema: .string(),
+        outputSchema: .string(),
         fn: (input, _) async {
           await _ensureSkillsScanned();
           final skillName = input.skillName;

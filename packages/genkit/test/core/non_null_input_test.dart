@@ -78,7 +78,7 @@ void main() {
   });
 
   test('Evaluator rejects a null request', () {
-    final evaluator = Evaluator<void>(
+    final evaluator = Evaluator(
       name: 'ev',
       description: 'test evaluator',
       fn: (req, ctx) async => [],

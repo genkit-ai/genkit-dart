@@ -15,7 +15,7 @@
 import '../core/action.dart';
 import '../types.dart';
 
-base class Evaluator<CustomOptions>
+base class Evaluator
     extends Action<EvalRequest, List<EvalFnResponse>, void, void> {
   Evaluator({
     required super.name,

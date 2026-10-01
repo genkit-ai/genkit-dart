@@ -195,3 +195,14 @@ Map<String, dynamic>? extractObjectSchema(Object? schema) {
   }
   return null;
 }
+
+/// Rejects a negative MCP cache TTL. [Duration.zero] is the "disabled" value.
+void checkCacheTtl(Duration? ttl) {
+  if (ttl != null && ttl.isNegative) {
+    throw ArgumentError.value(
+      ttl,
+      'cacheTtl',
+      'must not be negative; use Duration.zero to disable caching',
+    );
+  }
+}

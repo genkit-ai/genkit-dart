@@ -30,10 +30,10 @@ String shortToolName(String fullName) => fullName.contains('/')
     : fullName;
 
 /// Arguments passed to a tool function execution.
-final class ToolFnArgs<Input> {
+final class ToolFnArg<Input> {
   final ActionFnArg<void, Input, void> _base;
 
-  ToolFnArgs(this._base);
+  ToolFnArg(this._base);
 
   /// The execution context.
   Map<String, dynamic>? get context => _base.context;
@@ -206,14 +206,17 @@ final class ToolInterruptResult<Output> extends ToolResult<Output> {
 typedef ToolFn<Input, Output> =
     FutureOr<ToolResult<Output>> Function(
       Input input,
-      ToolFnArgs<Input> context,
+      ToolFnArg<Input> context,
     );
 
 base class Tool<Input, Output>
     extends Action<Input, ToolResult<Output>, void, void> {
-  /// The user-declared output schema (the schema of `Output`, not
-  /// [ToolResult]). Used to build the model-facing tool definition and the
-  /// action manifest (see [manifestOutputSchema]).
+  /// The schema of `Output`, as passed to the constructor's `outputSchema`.
+  /// Used to build the model-facing tool definition and the action manifest
+  /// (see [manifestOutputSchema]).
+  ///
+  /// Read this rather than the inherited [outputSchema], which would describe
+  /// the [ToolResult] wrapper and is always null on a tool.
   final SchemanticType<Output>? toolOutputSchema;
 
   // Uses an explicit super call (not super parameters) because the base `fn`
@@ -224,9 +227,10 @@ base class Tool<Input, Output>
     required String description,
     required ToolFn<Input, Output> fn,
     SchemanticType<Input>? inputSchema,
-    this.toolOutputSchema,
+    SchemanticType<Output>? outputSchema,
     Map<String, dynamic>? metadata,
-  }) : super(
+  }) : toolOutputSchema = outputSchema,
+       super(
          name: name,
          description: description,
          inputSchema: inputSchema,
@@ -235,7 +239,7 @@ base class Tool<Input, Output>
          metadata: {...?metadata, 'type': ActionType.tool.value},
          actionType: .tool,
          fn: requireInput('Tool', name, (input, ctx) async {
-           final result = await fn(input, ToolFnArgs(ctx));
+           final result = await fn(input, ToolFnArg(ctx));
            // Record the interrupt on the tool's telemetry span. This runs
            // inside the tool's span (see `Action.run` -> `runInNewSpan`).
            if (result is ToolInterruptResult<Output>) {
@@ -300,13 +304,13 @@ final class Interrupt<Input, Output> extends Tool<Input, Output> {
     /// Optional data attached to the `interrupt` metadata of the generated tool
     /// request. Receives the tool input and may return a value or a future.
     /// When omitted, the interrupt metadata defaults to `true`.
-    FutureOr<Object?> Function(Input input, ToolFnArgs<Input> ctx)?
+    FutureOr<Object?> Function(Input input, ToolFnArg<Input> ctx)?
     requestMetadata,
   }) : super(
          name: name,
          description: description,
          inputSchema: inputSchema,
-         toolOutputSchema: outputSchema,
+         outputSchema: outputSchema,
          metadata: {
            ...?metadata,
            'tool': {

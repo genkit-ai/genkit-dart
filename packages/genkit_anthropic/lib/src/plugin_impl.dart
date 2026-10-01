@@ -168,7 +168,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
   ActionMetadata _curatedMetadata(String name, ModelInfo info) => modelMetadata(
     'anthropic/$name',
     customOptions: AnthropicOptions.$schema,
-    modelInfo: info,
+    info: info,
   );
 
   @override

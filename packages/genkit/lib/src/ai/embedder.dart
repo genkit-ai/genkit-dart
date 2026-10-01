@@ -43,7 +43,7 @@ base class Embedder<CustomOptions>
     extends Action<EmbedRequest, EmbedResponse, void, void>
     implements EmbedderRef<CustomOptions> {
   @override
-  SchemanticType<CustomOptions>? customOptions;
+  final SchemanticType<CustomOptions>? customOptions;
 
   Embedder({
     required super.name,

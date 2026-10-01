@@ -75,7 +75,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           (entry) => modelMetadata(
             '$name/${entry.key}',
             customOptions: GeminiModelFamily.of(entry.key).customOptions,
-            modelInfo: entry.value,
+            info: entry.value,
           ),
         );
   }
