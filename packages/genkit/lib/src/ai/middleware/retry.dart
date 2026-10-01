@@ -43,6 +43,9 @@ abstract class $RetryOptions {
         'Canonical status names that trigger a retry (e.g. UNAVAILABLE).',
   )
   List<String>? get statuses;
+
+  // The JSON config keeps the cross-SDK names and units (JS uses the same
+  // fields). [retry] and [RetryMiddleware] expose `Duration`s and `jitter`.
   int? get initialDelayMs;
   int? get maxDelayMs;
   double? get backoffFactor;
@@ -65,10 +68,16 @@ final retryDef = defineMiddleware<RetryOptions>(
       final names? => _parseStatuses(names),
       null => RetryMiddleware.defaultRetryStatuses,
     },
-    initialDelayMs: config?.initialDelayMs ?? 1000,
-    maxDelayMs: config?.maxDelayMs ?? 60000,
+    initialDelay: switch (config?.initialDelayMs) {
+      final ms? => Duration(milliseconds: ms),
+      null => RetryMiddleware.defaultInitialDelay,
+    },
+    maxDelay: switch (config?.maxDelayMs) {
+      final ms? => Duration(milliseconds: ms),
+      null => RetryMiddleware.defaultMaxDelay,
+    },
     backoffFactor: config?.backoffFactor ?? 2.0,
-    noJitter: config?.noJitter ?? false,
+    jitter: !(config?.noJitter ?? false),
     retryModel: config?.retryModel ?? true,
     retryTools: config?.retryTools ?? false,
   ),
@@ -105,14 +114,17 @@ List<StatusCode> _parseStatuses(List<String> names) => [
 /// );
 /// ```
 ///
+/// Delays are whole milliseconds on the wire, so [initialDelay] and [maxDelay]
+/// are truncated to milliseconds.
+///
 /// With the Lite API, pass a [RetryMiddleware] instance instead.
 GenerateMiddlewareRef<RetryOptions> retry({
   int? maxRetries,
   List<StatusCode>? statuses,
-  int? initialDelayMs,
-  int? maxDelayMs,
+  Duration? initialDelay,
+  Duration? maxDelay,
   double? backoffFactor,
-  bool? noJitter,
+  bool? jitter,
   bool? retryModel,
   bool? retryTools,
 }) {
@@ -121,10 +133,10 @@ GenerateMiddlewareRef<RetryOptions> retry({
     config: RetryOptions(
       maxRetries: maxRetries,
       statuses: statuses?.map((s) => s.wireName).toList(),
-      initialDelayMs: initialDelayMs,
-      maxDelayMs: maxDelayMs,
+      initialDelayMs: initialDelay?.inMilliseconds,
+      maxDelayMs: maxDelay?.inMilliseconds,
       backoffFactor: backoffFactor,
-      noJitter: noJitter,
+      noJitter: jitter == null ? null : !jitter,
       retryModel: retryModel,
       retryTools: retryTools,
     ),
@@ -146,17 +158,19 @@ final class RetryMiddleware extends GenerateMiddleware {
   /// The list of status codes that should trigger a retry.
   final List<StatusCode> statuses;
 
-  /// The initial delay in milliseconds for the first retry.
-  final int initialDelayMs;
+  /// The delay before the first retry. Later retries multiply it by
+  /// [backoffFactor].
+  final Duration initialDelay;
 
-  /// The maximum delay in milliseconds between retries.
-  final int maxDelayMs;
+  /// The upper bound on the backoff delay.
+  final Duration maxDelay;
 
   /// The factor by which the delay increases with each retry.
   final double backoffFactor;
 
-  /// Whether to disable jitter. Jitter is enabled by default.
-  final bool noJitter;
+  /// Whether to randomize each delay (0.5x to 1.5x) so concurrent clients
+  /// don't retry in lockstep. Defaults to `true`.
+  final bool jitter;
 
   /// An optional callback that is called on each error.
   ///
@@ -180,14 +194,20 @@ final class RetryMiddleware extends GenerateMiddleware {
     StatusCode.internal,
   ];
 
+  /// The default [initialDelay].
+  static const defaultInitialDelay = Duration(seconds: 1);
+
+  /// The default [maxDelay].
+  static const defaultMaxDelay = Duration(minutes: 1);
+
   /// Creates a [RetryMiddleware].
   RetryMiddleware({
     this.maxRetries = 3,
     this.statuses = defaultRetryStatuses,
-    this.initialDelayMs = 1000,
-    this.maxDelayMs = 60000,
+    this.initialDelay = defaultInitialDelay,
+    this.maxDelay = defaultMaxDelay,
     this.backoffFactor = 2.0,
-    this.noJitter = false,
+    this.jitter = true,
     this.onError,
     this.retryModel = true,
     this.retryTools = false,
@@ -277,11 +297,13 @@ final class RetryMiddleware extends GenerateMiddleware {
   }
 
   Duration _calculateDelay(int attempt) {
-    var delayMs = initialDelayMs * pow(backoffFactor, attempt - 1);
+    final initialDelayMs = initialDelay.inMilliseconds;
+    final maxDelayMs = maxDelay.inMilliseconds;
+    var delayMs = initialDelayMs * pow(backoffFactor, attempt - 1).toDouble();
     if (delayMs > maxDelayMs) {
       delayMs = maxDelayMs.toDouble();
     }
-    if (!noJitter) {
+    if (jitter) {
       // Simple jitter: 0.5x to 1.5x
       delayMs = delayMs * (0.5 + Random().nextDouble());
     }
