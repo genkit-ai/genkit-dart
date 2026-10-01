@@ -38,7 +38,7 @@ import 'package:genkit_mcp/genkit_mcp.dart';
 ///  - run any of them directly; and
 ///  - run the `askWithMcpTools` flow, which lets Gemini call the MCP tools.
 void main(List<String> args) async {
-  final ai = Genkit(plugins: [googleAI(), RetryPlugin()]);
+  final ai = Genkit(plugins: [googleAI()]);
 
   final host = defineMcpHost(
     ai,

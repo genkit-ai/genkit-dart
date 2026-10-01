@@ -1946,7 +1946,7 @@ package:genkit/genkit.dart:
     toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
   ResourcePart (see above)
-  RetryMiddleware (class extends GenerateMiddleware):
+  RetryMiddleware (class extends GenerateMiddleware, final):
     defaultRetryStatuses (static const getter: List<StatusCodes>)
     new (constructor: RetryMiddleware Function({double backoffFactor, int initialDelayMs, int maxDelayMs, int maxRetries, bool noJitter, bool Function(Object, int)? onError, bool retryModel, bool retryTools, List<StatusCodes> statuses}))
     backoffFactor (getter: double)
@@ -1982,10 +1982,6 @@ package:genkit/genkit.dart:
     statuses= (setter: List<StatusCodes>?)
     toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
-  RetryPlugin (class extends GenkitPlugin):
-    new (constructor: RetryPlugin Function())
-    name (getter: String)
-    middleware (method: List<GenerateMiddlewareDef<dynamic>> Function())
   Role (see above)
   RunResult (class<Output> extends Object, final):
     new (constructor: RunResult<Output> Function({required Output result, required String spanId, required String traceId}))

@@ -135,7 +135,7 @@ final getFlightInfo = ai.defineTool(
 /// Model middleware is declared directly in the `.prompt` frontmatter via the
 /// `use:` field (see `prompts/tripPlanner.prompt`, which applies the `retry`
 /// middleware). The referenced middleware must be registered on the shared
-/// Genkit instance (see `genkit.dart`, which registers `RetryPlugin`).
+/// Genkit instance; `retry` is built in, so there is nothing to add.
 final tripPlannerAgent = ai.definePromptAgent(
   promptName: 'tripPlanner',
   promptInput: {'tone': 'enthusiastic'},

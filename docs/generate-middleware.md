@@ -50,7 +50,7 @@ class PrintMiddleware extends GenerateMiddleware {
 
 While you can pass raw middleware instances directly to `generate` (e.g. `use: [PrintMiddleware()]`), Genkit encourages using the **Registered Middleware Architecture**. **Crucially, only registered middleware can be configured and utilized via the Genkit Developer UI.** Unregistered, raw middleware instances cannot be represented or configured in the Dev UI.
 
-This pattern, used by official plugins like `RetryMiddleware`, also provides the best Developer Experience (DX) in code by supporting:
+This pattern, used by built-in middleware like `retry` and by the `genkit_middleware` plugins, also provides the best Developer Experience (DX) in code by supporting:
 
 1. **Dev UI Integration:** Allowing full visibility and configurability from the Developer UI.
 2. **Type-Safe Configurations:** Using Schemantic to define validated configuration schemas.
