@@ -194,15 +194,15 @@ class ClassGenerator {
     List<dynamic> values,
   ) {
     final buffer = StringBuffer();
-    buffer.writeln('extension type $enumName(String value) {');
+    // `const` constructor and `static const` values so the values work as
+    // `case` patterns in a `switch` (a getter is not a constant expression).
+    buffer.writeln('extension type const $enumName(String value) {');
     for (final value in values) {
       // Not `_sanitizeFieldName`: its `required` -> `isRequired` rename exists
       // for property getters, but `required` is only a contextual keyword and
       // reads naturally as an enum value (`toolChoice: .required`).
       final fieldName = value.toString().replaceAll('-', '_');
-      buffer.writeln(
-        "  static $enumName get $fieldName => $enumName('$value');",
-      );
+      buffer.writeln("  static const $fieldName = $enumName('$value');");
     }
     buffer.writeln('}');
     b.body.add(Code(buffer.toString()));

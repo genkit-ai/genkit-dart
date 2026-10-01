@@ -20,16 +20,16 @@ import 'package:schemantic/schemantic.dart';
 import 'types.dart';
 part 'experimental_types.g.dart';
 
-extension type AgentFinishReason(String value) {
-  static AgentFinishReason get stop => AgentFinishReason('stop');
-  static AgentFinishReason get length => AgentFinishReason('length');
-  static AgentFinishReason get blocked => AgentFinishReason('blocked');
-  static AgentFinishReason get interrupted => AgentFinishReason('interrupted');
-  static AgentFinishReason get other => AgentFinishReason('other');
-  static AgentFinishReason get unknown => AgentFinishReason('unknown');
-  static AgentFinishReason get aborted => AgentFinishReason('aborted');
-  static AgentFinishReason get detached => AgentFinishReason('detached');
-  static AgentFinishReason get failed => AgentFinishReason('failed');
+extension type const AgentFinishReason(String value) {
+  static const stop = AgentFinishReason('stop');
+  static const length = AgentFinishReason('length');
+  static const blocked = AgentFinishReason('blocked');
+  static const interrupted = AgentFinishReason('interrupted');
+  static const other = AgentFinishReason('other');
+  static const unknown = AgentFinishReason('unknown');
+  static const aborted = AgentFinishReason('aborted');
+  static const detached = AgentFinishReason('detached');
+  static const failed = AgentFinishReason('failed');
 }
 
 @Schema()
@@ -103,9 +103,9 @@ abstract class $AgentMetadata {
   Map<String, dynamic>? get stateSchema;
 }
 
-extension type AgentStateManagement(String value) {
-  static AgentStateManagement get server => AgentStateManagement('server');
-  static AgentStateManagement get client => AgentStateManagement('client');
+extension type const AgentStateManagement(String value) {
+  static const server = AgentStateManagement('server');
+  static const client = AgentStateManagement('client');
 }
 
 @Schema()
@@ -128,13 +128,13 @@ abstract class $GetSnapshotDataInput {
   bool? get metadataOnly;
 }
 
-extension type JsonPatchOp(String value) {
-  static JsonPatchOp get add => JsonPatchOp('add');
-  static JsonPatchOp get remove => JsonPatchOp('remove');
-  static JsonPatchOp get replace => JsonPatchOp('replace');
-  static JsonPatchOp get move => JsonPatchOp('move');
-  static JsonPatchOp get copy => JsonPatchOp('copy');
-  static JsonPatchOp get test => JsonPatchOp('test');
+extension type const JsonPatchOp(String value) {
+  static const add = JsonPatchOp('add');
+  static const remove = JsonPatchOp('remove');
+  static const replace = JsonPatchOp('replace');
+  static const move = JsonPatchOp('move');
+  static const copy = JsonPatchOp('copy');
+  static const test = JsonPatchOp('test');
 }
 
 @Schema()
@@ -167,11 +167,11 @@ abstract class $SessionState {
   List<$Artifact>? get artifacts;
 }
 
-extension type SnapshotStatus(String value) {
-  static SnapshotStatus get pending => SnapshotStatus('pending');
-  static SnapshotStatus get aborting => SnapshotStatus('aborting');
-  static SnapshotStatus get completed => SnapshotStatus('completed');
-  static SnapshotStatus get aborted => SnapshotStatus('aborted');
-  static SnapshotStatus get failed => SnapshotStatus('failed');
-  static SnapshotStatus get expired => SnapshotStatus('expired');
+extension type const SnapshotStatus(String value) {
+  static const pending = SnapshotStatus('pending');
+  static const aborting = SnapshotStatus('aborting');
+  static const completed = SnapshotStatus('completed');
+  static const aborted = SnapshotStatus('aborted');
+  static const failed = SnapshotStatus('failed');
+  static const expired = SnapshotStatus('expired');
 }
