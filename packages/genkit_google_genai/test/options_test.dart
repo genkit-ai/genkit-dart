@@ -251,6 +251,15 @@ void main() {
       ]);
     });
 
+    test('drops file search with no stores', () {
+      final tools = toGeminiTools(
+        null,
+        fileSearch: FileSearch(fileSearchStoreNames: []),
+      );
+
+      expect(tools, isEmpty);
+    });
+
     test('maps url context', () {
       final options = GeminiOptions(urlContext: true);
       final tools = toGeminiTools(null, urlContext: options.urlContext);

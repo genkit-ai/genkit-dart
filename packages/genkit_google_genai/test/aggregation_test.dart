@@ -178,5 +178,42 @@ void main() {
       expect(aggregated.usageMetadata, isNotNull);
       expect(aggregated.usageMetadata!.totalTokenCount, 10);
     });
+
+    test('preserves url context metadata', () {
+      final responses = [
+        gcl.GenerateContentResponse(
+          candidates: [
+            gcl.Candidate(
+              index: 0,
+              content: gcl.Content(parts: [gcl.Part(text: 'A')]),
+              urlContextMetadata: gcl.UrlContextMetadata(
+                urlMetadata: [
+                  gcl.UrlMetadata(retrievedUrl: 'https://genkit.dev'),
+                ],
+              ),
+            ),
+          ],
+        ),
+        gcl.GenerateContentResponse(
+          candidates: [
+            gcl.Candidate(
+              index: 0,
+              content: gcl.Content(parts: [gcl.Part(text: 'B')]),
+            ),
+          ],
+        ),
+      ];
+
+      final aggregated = aggregateResponses(responses);
+      expect(
+        aggregated
+            .candidates![0]
+            .urlContextMetadata
+            ?.urlMetadata
+            ?.single
+            .retrievedUrl,
+        'https://genkit.dev',
+      );
+    });
   });
 }

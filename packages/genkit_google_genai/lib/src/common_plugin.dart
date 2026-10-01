@@ -516,15 +516,20 @@ List<gcl.Tool> toGeminiTools(
   FileSearch? fileSearch,
   bool? urlContext,
 }) {
+  final fileSearchStoreNames = fileSearch?.fileSearchStoreNames;
+  if (fileSearchStoreNames != null && fileSearchStoreNames.isEmpty) {
+    logger.warning(
+      'Dropping fileSearch with no fileSearchStoreNames: '
+      'the API requires at least one store.',
+    );
+  }
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
     if (googleSearch != null) gcl.Tool(googleSearch: gcl.GoogleSearch()),
-    if (fileSearch != null)
+    if (fileSearchStoreNames != null && fileSearchStoreNames.isNotEmpty)
       gcl.Tool(
-        fileSearch: gcl.FileSearch(
-          fileSearchStoreNames: fileSearch.fileSearchStoreNames,
-        ),
+        fileSearch: gcl.FileSearch(fileSearchStoreNames: fileSearchStoreNames),
       ),
     if (urlContext == true) gcl.Tool(urlContext: gcl.UrlContext()),
   ];

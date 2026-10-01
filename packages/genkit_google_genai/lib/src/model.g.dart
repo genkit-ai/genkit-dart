@@ -736,8 +736,8 @@ base class FileSearch {
 
   FileSearch._(this._json);
 
-  FileSearch({List<String>? fileSearchStoreNames}) {
-    _json = {'fileSearchStoreNames': ?fileSearchStoreNames};
+  FileSearch({required List<String> fileSearchStoreNames}) {
+    _json = {'fileSearchStoreNames': fileSearchStoreNames};
   }
 
   late final Map<String, dynamic> _json;
@@ -745,16 +745,12 @@ base class FileSearch {
   /// The JSON schema and type descriptor for [FileSearch].
   static const SchemanticType<FileSearch> $schema = _FileSearchTypeFactory();
 
-  List<String>? get fileSearchStoreNames {
-    return (_json['fileSearchStoreNames'] as List?)?.cast<String>();
+  List<String> get fileSearchStoreNames {
+    return (_json['fileSearchStoreNames'] as List).cast<String>();
   }
 
-  set fileSearchStoreNames(List<String>? value) {
-    if (value == null) {
-      _json.remove('fileSearchStoreNames');
-    } else {
-      _json['fileSearchStoreNames'] = value;
-    }
+  set fileSearchStoreNames(List<String> value) {
+    _json['fileSearchStoreNames'] = value;
   }
 
   @override
@@ -781,12 +777,17 @@ base class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
     name: 'FileSearch',
     definition: <String, Object?>{
       'type': 'object',
+      'description':
+          'Grounds responses in File Search stores. Gemini API only, not supported on Vertex AI.',
       'properties': <String, Object?>{
         'fileSearchStoreNames': <String, Object?>{
           'type': 'array',
+          'description':
+              'The File Search stores to retrieve from, e.g. "fileSearchStores/my-store".',
           'items': <String, Object?>{'type': 'string'},
         },
       },
+      'required': ['fileSearchStoreNames'],
     },
     dependencies: [],
   );

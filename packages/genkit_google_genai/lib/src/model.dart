@@ -122,9 +122,21 @@ abstract class $FunctionCallingConfig {
   List<String>? get allowedFunctionNames;
 }
 
-@Schema()
+// Gemini API only: Vertex AI's Tool has no fileSearch (it uses RAG Engine
+// instead), so Vertex rejects requests that set it. GeminiOptions is shared
+// with genkit_vertexai, so this is documented rather than enforced.
+@Schema(
+  description:
+      'Grounds responses in File Search stores. Gemini API only, not '
+      'supported on Vertex AI.',
+)
 abstract class $FileSearch {
-  List<String>? get fileSearchStoreNames;
+  @Field(
+    description:
+        'The File Search stores to retrieve from, e.g. '
+        '"fileSearchStores/my-store".',
+  )
+  List<String> get fileSearchStoreNames;
 }
 
 @Schema()
