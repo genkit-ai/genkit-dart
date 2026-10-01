@@ -564,10 +564,7 @@ base class PromptAction<Input>
              return executablePrompt.render(input);
            }
            if (fn != null) {
-             if (input == null && inputSchema != null && null is! Input) {
-               throw ArgumentError('Prompt "$name" requires a non-null input.');
-             }
-             return fn(input as Input, ctx);
+             return requireInput('Prompt', name, fn)(input, ctx);
            }
            throw StateError('PromptAction has no executable prompt or fn');
          },

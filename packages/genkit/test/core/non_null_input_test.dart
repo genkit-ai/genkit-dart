@@ -95,6 +95,34 @@ void main() {
     expect(tool.run(null), rejectsNull);
   });
 
+  test('ResourceAction rejects a null input', () {
+    final resource = ResourceAction(
+      name: 'r',
+      matches: (_) => true,
+      fn: (input, ctx) async => ResourceOutput(content: []),
+    );
+    expect(resource.run(null), rejectsNull);
+  });
+
+  test('a custom PromptAction rejects a null input', () {
+    var called = false;
+    final prompt = PromptAction<String>(
+      name: 'p',
+      inputSchema: .string(),
+      fn: (input, ctx) async {
+        called = true;
+        return GenerateActionOptions(messages: []);
+      },
+    );
+    expect(prompt.run(null), rejectsNull);
+    expect(called, isFalse);
+  });
+
+  test('runRaw rejects a null input instead of failing to parse it', () {
+    final model = Model<void>(name: 'm', fn: (req, ctx) async => response);
+    expect(model.runRaw(null), rejectsNull);
+  });
+
   group('Flow', () {
     test('rejects a null input when Input is non-nullable', () {
       final flow = Flow<String, String, void, void>(

@@ -404,7 +404,12 @@ base class Action<Input, Output, Chunk, Init>
     CancellationToken? cancel,
   }) async {
     return await run(
-      inputSchema != null ? inputSchema!.parse(input) : input as Input?,
+      // A null input skips parsing so typed actions reject it with a clear
+      // INVALID_ARGUMENT (see requireInput) instead of a schema type error.
+      // Mirrors the `init` handling below and genkit_shelf.
+      (inputSchema != null && input != null)
+          ? inputSchema!.parse(input)
+          : input as Input?,
       onChunk: onChunk,
       context: context,
       inputStream: inputStream,
