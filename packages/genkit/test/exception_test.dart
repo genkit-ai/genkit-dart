@@ -16,37 +16,58 @@ import 'package:genkit/client.dart';
 import 'package:test/test.dart';
 
 void main() {
-  group('StatusCodes', () {
+  group('StatusCode', () {
     test('should map to expected HTTP status codes', () {
-      final expected = <StatusCodes, int>{
-        StatusCodes.OK: 200,
-        StatusCodes.CANCELLED: 499,
-        StatusCodes.UNKNOWN: 500,
-        StatusCodes.INVALID_ARGUMENT: 400,
-        StatusCodes.DEADLINE_EXCEEDED: 504,
-        StatusCodes.NOT_FOUND: 404,
-        StatusCodes.ALREADY_EXISTS: 409,
-        StatusCodes.PERMISSION_DENIED: 403,
-        StatusCodes.UNAUTHENTICATED: 401,
-        StatusCodes.RESOURCE_EXHAUSTED: 429,
-        StatusCodes.FAILED_PRECONDITION: 400,
-        StatusCodes.ABORTED: 409,
-        StatusCodes.OUT_OF_RANGE: 400,
-        StatusCodes.UNIMPLEMENTED: 501,
-        StatusCodes.INTERNAL: 500,
-        StatusCodes.UNAVAILABLE: 503,
-        StatusCodes.DATA_LOSS: 500,
+      final expected = <StatusCode, int>{
+        StatusCode.ok: 200,
+        StatusCode.cancelled: 499,
+        StatusCode.unknown: 500,
+        StatusCode.invalidArgument: 400,
+        StatusCode.deadlineExceeded: 504,
+        StatusCode.notFound: 404,
+        StatusCode.alreadyExists: 409,
+        StatusCode.permissionDenied: 403,
+        StatusCode.unauthenticated: 401,
+        StatusCode.resourceExhausted: 429,
+        StatusCode.failedPrecondition: 400,
+        StatusCode.aborted: 409,
+        StatusCode.outOfRange: 400,
+        StatusCode.unimplemented: 501,
+        StatusCode.internal: 500,
+        StatusCode.unavailable: 503,
+        StatusCode.dataLoss: 500,
       };
 
       expect(
         expected.length,
-        StatusCodes.values.length,
-        reason: 'Ensure all StatusCodes are tested.',
+        StatusCode.values.length,
+        reason: 'Ensure all StatusCode are tested.',
       );
 
       for (final entry in expected.entries) {
         expect(entry.key.httpStatus, entry.value);
       }
+    });
+
+    test('wireName is the canonical gRPC name, independent of Dart name', () {
+      expect(StatusCode.notFound.wireName, 'NOT_FOUND');
+      expect(StatusCode.invalidArgument.wireName, 'INVALID_ARGUMENT');
+      expect(StatusCode.ok.wireName, 'OK');
+      for (final code in StatusCode.values) {
+        expect(code.wireName, matches(RegExp(r'^[A-Z]+(_[A-Z]+)*$')));
+      }
+    });
+
+    test('fromWireName round-trips every value', () {
+      for (final code in StatusCode.values) {
+        expect(StatusCode.fromWireName(code.wireName), code);
+      }
+    });
+
+    test('fromWireName maps unrecognized names to unknown', () {
+      expect(StatusCode.fromWireName('NOT_A_STATUS'), StatusCode.unknown);
+      // Dart names are not wire names.
+      expect(StatusCode.fromWireName('notFound'), StatusCode.unknown);
     });
   });
 
@@ -55,8 +76,8 @@ void main() {
       final exception = GenkitException('Test error message');
 
       expect(exception.message, 'Test error message');
-      expect(exception.status, StatusCodes.INTERNAL);
-      expect(exception.statusCode, StatusCodes.INTERNAL.value);
+      expect(exception.status, StatusCode.internal);
+      expect(exception.statusCode, StatusCode.internal.value);
       expect(exception.details, isNull);
       expect(exception.underlyingException, isNull);
       expect(exception.stackTrace, isNull);
@@ -68,15 +89,15 @@ void main() {
 
       final exception = GenkitException(
         'Main error message',
-        status: StatusCodes.INTERNAL,
+        status: StatusCode.internal,
         details: 'Error details',
         underlyingException: underlyingException,
         stackTrace: stackTrace,
       );
 
       expect(exception.message, 'Main error message');
-      expect(exception.status, StatusCodes.INTERNAL);
-      expect(exception.statusCode, StatusCodes.INTERNAL.value);
+      expect(exception.status, StatusCode.internal);
+      expect(exception.statusCode, StatusCode.internal.value);
       expect(exception.details, 'Error details');
       expect(exception.underlyingException, underlyingException);
       expect(exception.stackTrace, stackTrace);
@@ -85,7 +106,7 @@ void main() {
     test('should return properly formatted string from toString()', () {
       final exception = GenkitException(
         'Test error',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
         details: 'Not found',
       );
 
@@ -148,7 +169,7 @@ void main() {
 
       final exception = GenkitException(
         'JSON parsing failed',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
         details: 'Response body: {"invalid": json}',
         underlyingException: underlyingException,
         stackTrace: stackTrace,

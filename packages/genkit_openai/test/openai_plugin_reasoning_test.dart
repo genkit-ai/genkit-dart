@@ -76,10 +76,10 @@ MockClient reasoningClient(
 ///
 /// The action layer still throws; `ai.generate()` reports the failure on the
 /// response instead (see #413), so a rejected `reasoningEffort` lands here.
-Matcher failsWith(StatusCodes status, {String? message}) =>
+Matcher failsWith(StatusCode status, {String? message}) =>
     isA<GenerateResponse>()
         .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
-        .having((r) => r.error?.status, 'error.status', status.name)
+        .having((r) => r.error?.status, 'error.status', status.wireName)
         .having(
           (r) => r.error?.message ?? '',
           'error.message',
@@ -183,7 +183,7 @@ void main() {
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'high'),
         ),
-        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o')),
+        completion(failsWith(StatusCode.invalidArgument, message: 'gpt-4o')),
       );
       expect(captured, isEmpty, reason: 'rejected before any request');
     });
@@ -195,7 +195,7 @@ void main() {
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'low'),
         ),
-        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'o1-mini')),
+        completion(failsWith(StatusCode.invalidArgument, message: 'o1-mini')),
       );
     });
 
@@ -221,7 +221,7 @@ void main() {
           prompt: 'hi',
           config: OpenAIChatOptions(version: 'gpt-4o', reasoningEffort: 'high'),
         ),
-        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o')),
+        completion(failsWith(StatusCode.invalidArgument, message: 'gpt-4o')),
       );
       expect(captured, isEmpty);
 
@@ -264,7 +264,7 @@ void main() {
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'none'),
         ),
-        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o')),
+        completion(failsWith(StatusCode.invalidArgument, message: 'gpt-4o')),
       );
     });
 
@@ -299,7 +299,7 @@ void main() {
           config: OpenAIChatOptions(reasoningEffort: 'extreme'),
         ),
         completion(
-          failsWith(StatusCodes.INVALID_ARGUMENT, message: 'Known levels'),
+          failsWith(StatusCode.invalidArgument, message: 'Known levels'),
         ),
       );
     });
@@ -317,7 +317,7 @@ void main() {
           ),
         ),
         completion(
-          failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o-2024-11-20'),
+          failsWith(StatusCode.invalidArgument, message: 'gpt-4o-2024-11-20'),
         ),
       );
     });
@@ -334,7 +334,7 @@ void main() {
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'high'),
         ),
-        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o')),
+        completion(failsWith(StatusCode.invalidArgument, message: 'gpt-4o')),
       );
     });
 
@@ -346,7 +346,7 @@ void main() {
           config: OpenAIChatOptions(reasoningEffort: 'extreme'),
         ),
         completion(
-          failsWith(StatusCodes.INVALID_ARGUMENT, message: 'Known levels'),
+          failsWith(StatusCode.invalidArgument, message: 'Known levels'),
         ),
       );
     });

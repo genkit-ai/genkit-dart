@@ -38,9 +38,9 @@ final commonModelInfo = ModelInfo(supports: claudeSupports);
 /// Anthropic returns 529 when the API is overloaded.
 const _overloadedStatusCode = 529;
 
-StatusCodes _statusForHttpCode(int code) => code == _overloadedStatusCode
-    ? StatusCodes.UNAVAILABLE
-    : StatusCodes.fromHttpStatus(code);
+StatusCode _statusForHttpCode(int code) => code == _overloadedStatusCode
+    ? StatusCode.unavailable
+    : StatusCode.fromHttpStatus(code);
 
 /// Beta features requested when a request resolves to the beta API surface.
 ///
@@ -69,7 +69,7 @@ bool _isBeta(String? apiVersion) {
   if (apiVersion != 'beta' && apiVersion != 'stable') {
     throw GenkitException(
       'Invalid apiVersion "$apiVersion". Expected "beta" or "stable".',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return apiVersion == 'beta';
@@ -279,7 +279,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
           }
         } catch (e, stackTrace) {
           if (e is GenkitException) rethrow;
-          StatusCodes? status;
+          StatusCode? status;
           String? details;
           if (e is sdk.ApiException) {
             status = _statusForHttpCode(e.statusCode);
@@ -371,7 +371,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
         !(req.tools?.any((t) => t.name == forceTool) ?? false)) {
       throw GenkitException(
         'forceTool "$forceTool" is not one of the tools in this request.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     toolChoice = forceTool != null
@@ -624,7 +624,7 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
       throw GenkitException(
         'Invalid media data URL for Anthropic: expected '
         '"data:<mime>;base64,<data>", got "$preview".',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     final urlMime = _cleanMimeType(
@@ -691,7 +691,7 @@ sdk.ImageMediaType _requireImageMediaType(String? mimeType) {
       'Unsupported media type for Anthropic: ${mimeType ?? '(none)'}. '
       'Supported: image/jpeg, image/png, image/gif, image/webp, '
       'application/pdf.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     ),
   };
 }
@@ -769,7 +769,7 @@ String _resolveThinkingType(ThinkingConfig config, String modelName) {
   if (type == null) {
     throw GenkitException(
       'Set thinking.type explicitly for unknown Anthropic model "$modelName".',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return type;
@@ -792,7 +792,7 @@ sdk.ThinkingConfig? _mapThinkingConfig(
     ),
     _ => throw GenkitException(
       'Unsupported Anthropic thinking type "$type".',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     ),
   };
 }
@@ -815,7 +815,7 @@ sdk.OutputConfig? _mapOutputConfig(
       'max' => sdk.EffortLevel.max,
       _ => throw GenkitException(
         'Unsupported Anthropic output effort "$effort".',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       ),
     },
   );
@@ -852,7 +852,7 @@ void _handleStreamEvent(
     case sdk.ErrorEvent(:final message):
       throw GenkitException(
         'Anthropic stream error: $message',
-        status: StatusCodes.INTERNAL,
+        status: StatusCode.internal,
       );
     default:
   }

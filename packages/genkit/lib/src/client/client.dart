@@ -57,7 +57,7 @@ Future<Output?> streamFlow<Output, Chunk>({
 
     throw GenkitException(
       'Server returned error: ${streamedResponse.statusCode}',
-      status: StatusCodes.fromHttpStatus(streamedResponse.statusCode),
+      status: StatusCode.fromHttpStatus(streamedResponse.statusCode),
       details: body,
     );
   }
@@ -286,7 +286,7 @@ interface class RemoteAction<Input, Output, Chunk, Init> {
     if (response.statusCode != 200) {
       throw GenkitException(
         'Server returned error: ${response.statusCode}',
-        status: StatusCodes.fromHttpStatus(response.statusCode),
+        status: StatusCode.fromHttpStatus(response.statusCode),
         details: response.body,
       );
     }

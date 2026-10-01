@@ -12,148 +12,164 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: constant_identifier_names
-
 import 'dart:convert';
 
 import 'package:stack_trace/stack_trace.dart';
 
-/// Exception thrown for errors encountered during Genkit flow operations.
-/// Common status codes for Genkit operations.
+/// Canonical status codes for Genkit operations.
 ///
-/// These correspond to gRPC status codes.
-enum StatusCodes {
+/// These correspond to gRPC status codes. Use [wireName] (e.g. `NOT_FOUND`)
+/// when a status crosses a process boundary; [name] follows Dart naming and is
+/// not part of the wire format.
+enum StatusCode {
   /// The operation completed successfully.
-  OK(0),
+  ok(0, 'OK'),
 
   /// The operation was cancelled, typically by the caller.
-  CANCELLED(1),
+  cancelled(1, 'CANCELLED'),
 
   /// Unknown error.
-  UNKNOWN(2),
+  unknown(2, 'UNKNOWN'),
 
   /// The client specified an invalid argument.
-  INVALID_ARGUMENT(3),
+  invalidArgument(3, 'INVALID_ARGUMENT'),
 
   /// The deadline expired before the operation could complete.
-  DEADLINE_EXCEEDED(4),
+  deadlineExceeded(4, 'DEADLINE_EXCEEDED'),
 
   /// Some requested entity (e.g., file or directory) was not found.
-  NOT_FOUND(5),
+  notFound(5, 'NOT_FOUND'),
 
   /// The entity that a client attempted to create (e.g., file or directory)
   /// already exists.
-  ALREADY_EXISTS(6),
+  alreadyExists(6, 'ALREADY_EXISTS'),
 
   /// The caller does not have permission to execute the specified operation.
-  PERMISSION_DENIED(7),
+  permissionDenied(7, 'PERMISSION_DENIED'),
 
   /// The request does not have valid authentication credentials for the
   /// operation.
-  UNAUTHENTICATED(16),
+  unauthenticated(16, 'UNAUTHENTICATED'),
 
   /// Some resource has been exhausted, perhaps a per-user quota.
-  RESOURCE_EXHAUSTED(8),
+  resourceExhausted(8, 'RESOURCE_EXHAUSTED'),
 
   /// The operation was rejected because the system is not in a state
   /// required for the operation's execution.
-  FAILED_PRECONDITION(9),
+  failedPrecondition(9, 'FAILED_PRECONDITION'),
 
   /// The operation was aborted, typically due to a concurrency issue.
-  ABORTED(10),
+  aborted(10, 'ABORTED'),
 
   /// The operation was attempted past the valid range.
-  OUT_OF_RANGE(11),
+  outOfRange(11, 'OUT_OF_RANGE'),
 
   /// The operation is not implemented or is not supported/enabled.
-  UNIMPLEMENTED(12),
+  unimplemented(12, 'UNIMPLEMENTED'),
 
   /// Internal errors.
-  INTERNAL(13),
+  internal(13, 'INTERNAL'),
 
   /// The service is currently unavailable.
-  UNAVAILABLE(14),
+  unavailable(14, 'UNAVAILABLE'),
 
   /// Unrecoverable data loss or corruption.
-  DATA_LOSS(15);
+  dataLoss(15, 'DATA_LOSS');
 
+  const StatusCode(this.value, this.wireName);
+
+  /// The numeric gRPC status code.
   final int value;
-  const StatusCodes(this.value);
+
+  /// The canonical gRPC status name (e.g. `NOT_FOUND`), as used in JSON
+  /// payloads, HTTP error bodies and other Genkit SDKs.
+  final String wireName;
+
+  /// Parses a canonical status name (see [wireName]).
+  ///
+  /// Unrecognized names map to [StatusCode.unknown] rather than throwing, so
+  /// that statuses from newer peers degrade gracefully.
+  static StatusCode fromWireName(String wireName) {
+    for (final code in values) {
+      if (code.wireName == wireName) return code;
+    }
+    return unknown;
+  }
 
   int get httpStatus {
     switch (this) {
-      case StatusCodes.OK:
+      case StatusCode.ok:
         return 200;
-      case StatusCodes.CANCELLED:
+      case StatusCode.cancelled:
         return 499;
-      case StatusCodes.UNKNOWN:
+      case StatusCode.unknown:
         return 500;
-      case StatusCodes.INVALID_ARGUMENT:
+      case StatusCode.invalidArgument:
         return 400;
-      case StatusCodes.DEADLINE_EXCEEDED:
+      case StatusCode.deadlineExceeded:
         return 504;
-      case StatusCodes.NOT_FOUND:
+      case StatusCode.notFound:
         return 404;
-      case StatusCodes.ALREADY_EXISTS:
+      case StatusCode.alreadyExists:
         return 409;
-      case StatusCodes.PERMISSION_DENIED:
+      case StatusCode.permissionDenied:
         return 403;
-      case StatusCodes.UNAUTHENTICATED:
+      case StatusCode.unauthenticated:
         return 401;
-      case StatusCodes.RESOURCE_EXHAUSTED:
+      case StatusCode.resourceExhausted:
         return 429;
-      case StatusCodes.FAILED_PRECONDITION:
+      case StatusCode.failedPrecondition:
         return 400;
-      case StatusCodes.ABORTED:
+      case StatusCode.aborted:
         return 409;
-      case StatusCodes.OUT_OF_RANGE:
+      case StatusCode.outOfRange:
         return 400;
-      case StatusCodes.UNIMPLEMENTED:
+      case StatusCode.unimplemented:
         return 501;
-      case StatusCodes.INTERNAL:
+      case StatusCode.internal:
         return 500;
-      case StatusCodes.UNAVAILABLE:
+      case StatusCode.unavailable:
         return 503;
-      case StatusCodes.DATA_LOSS:
+      case StatusCode.dataLoss:
         return 500;
     }
   }
 
-  /// Maps an HTTP status code to the closest [StatusCodes] value.
+  /// Maps an HTTP status code to the closest [StatusCode] value.
   ///
   /// This mapping is intentionally canonical and not fully reversible:
-  /// multiple [StatusCodes] values can share one HTTP status.
-  /// For example, `400` maps to [StatusCodes.INVALID_ARGUMENT],
-  /// `409` maps to [StatusCodes.ABORTED], and `500` maps to
-  /// [StatusCodes.INTERNAL].
-  static StatusCodes fromHttpStatus(int code) {
+  /// multiple [StatusCode] values can share one HTTP status.
+  /// For example, `400` maps to [StatusCode.invalidArgument],
+  /// `409` maps to [StatusCode.aborted], and `500` maps to
+  /// [StatusCode.internal].
+  static StatusCode fromHttpStatus(int code) {
     switch (code) {
       case 200:
-        return StatusCodes.OK;
+        return StatusCode.ok;
       case 400:
-        return StatusCodes.INVALID_ARGUMENT;
+        return StatusCode.invalidArgument;
       case 401:
-        return StatusCodes.UNAUTHENTICATED;
+        return StatusCode.unauthenticated;
       case 403:
-        return StatusCodes.PERMISSION_DENIED;
+        return StatusCode.permissionDenied;
       case 404:
-        return StatusCodes.NOT_FOUND;
+        return StatusCode.notFound;
       case 409:
-        return StatusCodes.ABORTED; // Or ALREADY_EXISTS
+        return StatusCode.aborted; // Or alreadyExists
       case 429:
-        return StatusCodes.RESOURCE_EXHAUSTED;
+        return StatusCode.resourceExhausted;
       case 499:
-        return StatusCodes.CANCELLED;
+        return StatusCode.cancelled;
       case 500:
-        return StatusCodes.INTERNAL;
+        return StatusCode.internal;
       case 501:
-        return StatusCodes.UNIMPLEMENTED;
+        return StatusCode.unimplemented;
       case 503:
-        return StatusCodes.UNAVAILABLE;
+        return StatusCode.unavailable;
       case 504:
-        return StatusCodes.DEADLINE_EXCEEDED;
+        return StatusCode.deadlineExceeded;
       default:
-        return StatusCodes.UNKNOWN;
+        return StatusCode.unknown;
     }
   }
 }
@@ -161,18 +177,18 @@ enum StatusCodes {
 /// Exception thrown for errors encountered during Genkit flow operations.
 class GenkitException implements Exception {
   final String message;
-  final StatusCodes status;
+  final StatusCode status;
   final String? details; // Further details, potentially response body
   final Object? underlyingException; // For wrapping other exceptions
   final StackTrace? stackTrace; // For capturing the stack trace
 
   GenkitException(
     this.message, {
-    StatusCodes? status,
+    StatusCode? status,
     this.details,
     this.underlyingException,
     this.stackTrace,
-  }) : status = status ?? StatusCodes.INTERNAL;
+  }) : status = status ?? StatusCode.internal;
 
   /// Returns the integer value of the status code.
   int get statusCode => status.value;
@@ -181,8 +197,8 @@ class GenkitException implements Exception {
   String toString() {
     // section 1: message and status
     final sb = StringBuffer('GenkitException: $message');
-    if (status != StatusCodes.UNKNOWN) {
-      sb.write(' (Status: ${status.name}, Code: ${status.value})');
+    if (status != StatusCode.unknown) {
+      sb.write(' (Status: ${status.wireName}, Code: ${status.value})');
     }
 
     // section 2: details

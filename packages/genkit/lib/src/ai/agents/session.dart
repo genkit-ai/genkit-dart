@@ -109,7 +109,7 @@ abstract interface class SessionStore {
   /// resolves to the session's latest leaf snapshot (the most recent snapshot
   /// that no other snapshot points to as its parent). A branched history (more
   /// than one leaf) resolves to the most-recently created leaf by default, or
-  /// is rejected with [StatusCodes.FAILED_PRECONDITION] when the store is
+  /// is rejected with [StatusCode.failedPrecondition] when the store is
   /// configured to reject branching.
   ///
   /// [context] carries the ambient request/action context (e.g. the
@@ -374,7 +374,7 @@ final class InMemorySessionStore
   ///
   /// When [rejectBranchingSessions] is `true`, a `sessionId` lookup that
   /// resolves to a branched history (more than one leaf) throws
-  /// [StatusCodes.FAILED_PRECONDITION] instead of returning the latest leaf.
+  /// [StatusCode.failedPrecondition] instead of returning the latest leaf.
   /// Defaults to `false`; opt in (e.g. in dev) to surface accidental branching
   /// early.
   InMemorySessionStore({this.rejectBranchingSessions = false});
@@ -503,7 +503,7 @@ void assertValidSessionId(String sessionId) {
   if (sessionId.trim().isEmpty) {
     throw GenkitException(
       'Invalid sessionId: expected a non-empty string, got "$sessionId".',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }
@@ -557,7 +557,7 @@ NormalizedGetSnapshot normalizeGetSnapshotOptions({
       "getSnapshot requires exactly one of 'snapshotId' or 'sessionId' "
       "(got ${hasSnapshot ? 'snapshotId' : 'neither'}"
       "${hasSession ? ' and sessionId' : ''}).",
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   if (hasSession) {
@@ -580,7 +580,7 @@ NormalizedGetSnapshot normalizeGetSnapshotOptions({
 ///   regenerate) the behavior depends on [rejectBranching]:
 ///   - `false` (default): returns the most-recently created leaf (by
 ///     `createdAt`).
-///   - `true`: throws [StatusCodes.FAILED_PRECONDITION], since there is no
+///   - `true`: throws [StatusCode.failedPrecondition], since there is no
 ///     unambiguous "latest".
 SessionSnapshot? selectLeafSnapshot(
   List<SessionSnapshot> snapshots,
@@ -606,7 +606,7 @@ SessionSnapshot? selectLeafSnapshot(
     throw GenkitException(
       "Session '$sessionId' has no leaf snapshot (corrupt or cyclic "
       'history). Resume by snapshotId instead.',
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
 
@@ -616,7 +616,7 @@ SessionSnapshot? selectLeafSnapshot(
       'leaves), so there is no single latest snapshot. This happens when a '
       'conversation is branched (e.g. regenerate). Resume by snapshotId '
       'instead.',
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
 

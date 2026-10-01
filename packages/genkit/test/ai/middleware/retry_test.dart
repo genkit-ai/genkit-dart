@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
 
@@ -35,7 +37,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
-            status: StatusCodes.UNAVAILABLE,
+            status: StatusCode.unavailable,
           );
         },
       );
@@ -71,7 +73,7 @@ void main() {
           if (attempts < 3) {
             throw GenkitException(
               'Simulated Failure',
-              status: StatusCodes.UNAVAILABLE,
+              status: StatusCode.unavailable,
             );
           }
           return ModelResponse(
@@ -110,7 +112,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Fatal Error',
-            status: StatusCodes.INVALID_ARGUMENT,
+            status: StatusCode.invalidArgument,
           ); // INVALID_ARGUMENT
         },
       );
@@ -125,7 +127,7 @@ void main() {
               initialDelayMs: 1,
               maxDelayMs: 5,
               noJitter: true,
-              statuses: [StatusCodes.UNAVAILABLE], // Only retry UNAVAILABLE
+              statuses: [StatusCode.unavailable], // Only retry UNAVAILABLE
             ),
           ],
         );
@@ -145,7 +147,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
-            status: StatusCodes.UNAVAILABLE,
+            status: StatusCode.unavailable,
           );
         },
       );
@@ -209,10 +211,7 @@ void main() {
         inputSchema: null,
         fn: (input, ctx) async {
           attempts++;
-          throw GenkitException(
-            'Tool Failure',
-            status: StatusCodes.UNAVAILABLE,
-          );
+          throw GenkitException('Tool Failure', status: StatusCode.unavailable);
         },
       );
 
@@ -246,7 +245,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
-            status: StatusCodes.UNAVAILABLE,
+            status: StatusCode.unavailable,
           ); // UNAVAILABLE (in default list)
         },
       );
@@ -281,7 +280,7 @@ void main() {
           attempts++;
           throw GenkitException(
             'Simulated Failure',
-            status: StatusCodes.UNAVAILABLE,
+            status: StatusCode.unavailable,
           );
         },
       );
@@ -298,6 +297,47 @@ void main() {
 
       // Should retry: 1 + 2 = 3
       expect(attempts, 3);
+    });
+
+    test('retry() serializes statuses as wire names', () {
+      final ref = retry(
+        statuses: [StatusCode.unavailable, StatusCode.resourceExhausted],
+      );
+      final json =
+          jsonDecode(jsonEncode(ref.config!.toJson())) as Map<String, dynamic>;
+
+      expect(json['statuses'], ['UNAVAILABLE', 'RESOURCE_EXHAUSTED']);
+    });
+
+    test('honors statuses from JSON config', () async {
+      var attempts = 0;
+      genkit.defineModel(
+        name: 'json-config-model',
+        fn: (req, ctx) async {
+          attempts++;
+          throw GenkitException('nope', status: StatusCode.notFound);
+        },
+      );
+
+      // Same shape as config arriving from JSON (e.g. the Dev UI).
+      final config = RetryOptions.fromJson({
+        'maxRetries': 2,
+        'initialDelayMs': 1,
+        'noJitter': true,
+        'statuses': ['NOT_FOUND'],
+      });
+
+      // Model errors surface as a `failed` response rather than a throw.
+      final res = await genkit.generate(
+        model: modelRef('json-config-model'),
+        prompt: 'test',
+        use: [middlewareRef(name: 'retry', config: config)],
+      );
+
+      // NOT_FOUND is not retried by default, so 3 attempts proves the JSON
+      // config was applied.
+      expect(attempts, 3);
+      expect(res.error!.status, 'NOT_FOUND');
     });
   });
 }

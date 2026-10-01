@@ -990,7 +990,7 @@ class GenkitMcpClient {
     if (command == null) {
       throw GenkitException(
         '[MCP Client] Could not determine valid transport config from supplied options.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     return mcp.StdioClientTransport(
@@ -1168,8 +1168,8 @@ class GenkitMcpClient {
     return GenkitException(
       error.message,
       status: error.code >= 100
-          ? StatusCodes.fromHttpStatus(error.code)
-          : StatusCodes.INTERNAL,
+          ? StatusCode.fromHttpStatus(error.code)
+          : StatusCode.internal,
       details: error.data?.toString(),
     );
   }

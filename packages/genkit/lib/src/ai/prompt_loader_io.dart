@@ -238,7 +238,7 @@ T? _typedRawField<T>(Map<String, dynamic>? raw, String key, String promptName) {
   throw GenkitException(
     "Invalid '$key' in prompt '$promptName': expected $T, got "
     '${value.runtimeType}.',
-    status: StatusCodes.INVALID_ARGUMENT,
+    status: StatusCode.invalidArgument,
   );
 }
 

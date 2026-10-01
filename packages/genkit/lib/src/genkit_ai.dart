@@ -284,7 +284,7 @@ base class GenkitAI {
     if (action == null) {
       throw GenkitException(
         'Embedder ${embedder.name} not found',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       );
     }
 

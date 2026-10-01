@@ -490,9 +490,9 @@ Message? _lastModelMessage(SessionSnapshot snap) {
 bool _deadEndRead(Object err) {
   if (err is! GenkitException) return false;
   final s = err.status;
-  return s == StatusCodes.NOT_FOUND ||
-      s == StatusCodes.FAILED_PRECONDITION ||
-      s == StatusCodes.INVALID_ARGUMENT;
+  return s == StatusCode.notFound ||
+      s == StatusCode.failedPrecondition ||
+      s == StatusCode.invalidArgument;
 }
 
 // ---------------------------------------------------------------------------

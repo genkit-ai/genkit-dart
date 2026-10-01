@@ -291,7 +291,7 @@ void main() {
               sess.updateCustom((_) => {'ok': true});
               return TurnResult(finishReason: AgentFinishReason.stop);
             }
-            throw GenkitException('boom', status: StatusCodes.INTERNAL);
+            throw GenkitException('boom', status: StatusCode.internal);
           });
           final msgs = sess.getMessages();
           return AgentResult(
@@ -792,7 +792,7 @@ void main() {
           if (shouldFail) {
             throw GenkitException(
               'model temporarily unavailable',
-              status: StatusCodes.UNAVAILABLE,
+              status: StatusCode.unavailable,
             );
           }
           return ModelResponse(
@@ -825,7 +825,7 @@ void main() {
             onError: (Object e) => e as AgentError,
           );
       expect(error, isNotNull);
-      expect(error!.status, StatusCodes.UNAVAILABLE.name);
+      expect(error!.status, StatusCode.unavailable.wireName);
       expect(error.snapshotId, isNotNull);
 
       final failedSnap = await agent.getSnapshotData(
@@ -1006,7 +1006,7 @@ void main() {
           if (failNow) {
             throw GenkitException(
               'model broke on turn 2',
-              status: StatusCodes.UNAVAILABLE,
+              status: StatusCode.unavailable,
             );
           }
           return ModelResponse(
@@ -1040,7 +1040,7 @@ void main() {
             onError: (Object e) => e as AgentError,
           );
       expect(error, isNotNull);
-      expect(error!.status, StatusCodes.UNAVAILABLE.name);
+      expect(error!.status, StatusCode.unavailable.wireName);
 
       // The reported snapshot is this turn's own `failed` row, not a fresh
       // `completed` one from the turn-1 state.

@@ -101,7 +101,7 @@ void main() async {
       if (user == null) {
         throw GenkitException(
           'Unauthorized access',
-          status: StatusCodes.INTERNAL,
+          status: StatusCode.internal,
         );
       }
       return 'Secure data for $user: $input';

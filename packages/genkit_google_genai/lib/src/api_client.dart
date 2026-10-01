@@ -172,21 +172,21 @@ class GenerativeLanguageBaseClient {
         final message = err['message'] as String? ?? 'Unknown error';
         final statusStr = err['status'] as String?;
         // Map HTTP / Google statuses to Genkit status
-        var status = StatusCodes.INTERNAL;
+        var status = StatusCode.internal;
         if (statusCode == 400 || statusStr == 'INVALID_ARGUMENT') {
-          status = StatusCodes.INVALID_ARGUMENT;
+          status = StatusCode.invalidArgument;
         }
         if (statusCode == 401 || statusStr == 'UNAUTHENTICATED') {
-          status = StatusCodes.UNAUTHENTICATED;
+          status = StatusCode.unauthenticated;
         }
         if (statusCode == 403 || statusStr == 'PERMISSION_DENIED') {
-          status = StatusCodes.PERMISSION_DENIED;
+          status = StatusCode.permissionDenied;
         }
         if (statusCode == 404 || statusStr == 'NOT_FOUND') {
-          status = StatusCodes.NOT_FOUND;
+          status = StatusCode.notFound;
         }
         if (statusCode == 429 || statusStr == 'RESOURCE_EXHAUSTED') {
-          status = StatusCodes.RESOURCE_EXHAUSTED;
+          status = StatusCode.resourceExhausted;
         }
 
         return GenkitException('Google AI Error: $message', status: status);
@@ -194,7 +194,7 @@ class GenerativeLanguageBaseClient {
     } catch (_) {}
     return GenkitException(
       'API Error $statusCode: $body',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
     );
   }
 }

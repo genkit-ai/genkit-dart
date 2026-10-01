@@ -583,6 +583,6 @@ Future<ExecutablePrompt> lookupPrompt(
   }
   throw GenkitException(
     'Prompt $name${variant != null ? ' (variant $variant)' : ''} not found',
-    status: StatusCodes.NOT_FOUND,
+    status: StatusCode.notFound,
   );
 }

@@ -30,7 +30,7 @@ base class RetryOptions {
 
   RetryOptions({
     int? maxRetries,
-    List<StatusCodes>? statuses,
+    List<String>? statuses,
     int? initialDelayMs,
     int? maxDelayMs,
     double? backoffFactor,
@@ -68,11 +68,11 @@ base class RetryOptions {
     }
   }
 
-  List<StatusCodes>? get statuses {
-    return (_json['statuses'] as List?)?.cast<StatusCodes>();
+  List<String>? get statuses {
+    return (_json['statuses'] as List?)?.cast<String>();
   }
 
-  set statuses(List<StatusCodes>? value) {
+  set statuses(List<String>? value) {
     if (value == null) {
       _json.remove('statuses');
     } else {
@@ -180,28 +180,9 @@ base class _RetryOptionsTypeFactory extends SchemanticType<RetryOptions> {
         'maxRetries': <String, Object?>{'type': 'integer'},
         'statuses': <String, Object?>{
           'type': 'array',
-          'items': <String, Object?>{
-            'type': 'string',
-            'enum': [
-              'OK',
-              'CANCELLED',
-              'UNKNOWN',
-              'INVALID_ARGUMENT',
-              'DEADLINE_EXCEEDED',
-              'NOT_FOUND',
-              'ALREADY_EXISTS',
-              'PERMISSION_DENIED',
-              'UNAUTHENTICATED',
-              'RESOURCE_EXHAUSTED',
-              'FAILED_PRECONDITION',
-              'ABORTED',
-              'OUT_OF_RANGE',
-              'UNIMPLEMENTED',
-              'INTERNAL',
-              'UNAVAILABLE',
-              'DATA_LOSS',
-            ],
-          },
+          'description':
+              'Canonical status names that trigger a retry (e.g. UNAVAILABLE).',
+          'items': <String, Object?>{'type': 'string'},
         },
         'initialDelayMs': <String, Object?>{'type': 'integer'},
         'maxDelayMs': <String, Object?>{'type': 'integer'},
