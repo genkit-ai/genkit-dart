@@ -42,6 +42,20 @@ StatusCode _statusForHttpCode(int code) => code == _overloadedStatusCode
     ? StatusCode.unavailable
     : StatusCode.fromHttpStatus(code);
 
+/// The server's `Retry-After` hint for [e], if any.
+///
+/// Parsed from the raw response header rather than the SDK's
+/// `RateLimitException.retryAfter`: the SDK only fills that in for 429 (not
+/// 529 overloaded or 503) and does not handle RFC 9110 HTTP-dates.
+Duration? _retryAfterOf(sdk.ApiException e) {
+  final headers = e.responseMetadata?.headers;
+  if (headers == null) return null;
+  for (final MapEntry(:key, :value) in headers.entries) {
+    if (key.toLowerCase() == 'retry-after') return parseRetryAfter(value);
+  }
+  return null;
+}
+
 /// Beta features requested when a request resolves to the beta API surface.
 ///
 /// Sent as the `anthropic-beta` header. Limited to the features this plugin
@@ -281,9 +295,11 @@ class AnthropicPluginImpl extends GenkitPlugin {
           if (e is GenkitException) rethrow;
           StatusCode? status;
           String? details;
+          Duration? retryAfter;
           if (e is sdk.ApiException) {
             status = _statusForHttpCode(e.statusCode);
             details = e.message;
+            retryAfter = _retryAfterOf(e);
           }
           throw GenkitException(
             'Anthropic API error: $e',
@@ -291,6 +307,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
             details: details ?? e.toString(),
             cause: e,
             stackTrace: stackTrace,
+            retryAfter: retryAfter,
           );
         } finally {
           if (options.apiKey != null) {

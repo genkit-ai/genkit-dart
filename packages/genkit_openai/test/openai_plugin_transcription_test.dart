@@ -589,6 +589,47 @@ void main() {
 
       await ai.shutdown();
     });
+
+    test('a Retry-After on a 429 is honored by retry()', () async {
+      // The transcription upload bypasses the SDK (and its own retries), so
+      // the header reaches the retry middleware as GenkitException.retryAfter.
+      var attempts = 0;
+      final ai = Genkit(
+        plugins: [
+          openAI(
+            apiKey: 'test-key',
+            httpClient: MockClient((request) async {
+              attempts++;
+              return attempts == 1
+                  ? http.Response(
+                      '{"error":{"message":"slow down"}}',
+                      429,
+                      headers: {'retry-after': '0.3'},
+                    )
+                  : http.Response('{"text":"ok"}', 200);
+            }),
+          ),
+        ],
+      );
+      addTearDown(ai.shutdown);
+
+      final sw = Stopwatch()..start();
+      final response = await ai.generate(
+        model: openAI.transcriptionModel('whisper-1'),
+        promptParts: [audioPart()],
+        use: [
+          retry(
+            maxRetries: 1,
+            initialDelay: const Duration(milliseconds: 1),
+            maxDelay: const Duration(milliseconds: 5),
+          ),
+        ],
+      );
+
+      expect(response.text, 'ok');
+      expect(attempts, 2);
+      expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(300));
+    });
   });
 
   group('transcription input validation', () {

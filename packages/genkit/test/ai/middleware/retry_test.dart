@@ -306,6 +306,128 @@ void main() {
       expect(attempts, 3);
     });
 
+    group('retryAfter', () {
+      test('waits at least the server-provided retryAfter', () async {
+        var attempts = 0;
+        genkit.defineModel(
+          name: 'rate-limited-model',
+          fn: (req, ctx) async {
+            attempts++;
+            if (attempts == 1) {
+              throw GenkitException(
+                'Slow down',
+                status: StatusCode.resourceExhausted,
+                retryAfter: const Duration(milliseconds: 300),
+              );
+            }
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'Success')],
+              ),
+            );
+          },
+        );
+
+        final sw = Stopwatch()..start();
+        final result = await genkit.generate(
+          model: modelRef('rate-limited-model'),
+          prompt: 'test',
+          // Backoff alone would wait ~1ms.
+          use: [
+            retry(
+              maxRetries: 1,
+              initialDelay: const Duration(milliseconds: 1),
+              maxDelay: const Duration(milliseconds: 5),
+            ),
+          ],
+        );
+        sw.stop();
+
+        expect(result.text, 'Success');
+        expect(attempts, 2);
+        expect(sw.elapsedMilliseconds, greaterThanOrEqualTo(300));
+      });
+
+      test('cancelling during a long retryAfter returns promptly', () async {
+        genkit.defineModel(
+          name: 'long-wait-model',
+          fn: (req, ctx) async {
+            throw GenkitException(
+              'Slow down',
+              status: StatusCode.resourceExhausted,
+              retryAfter: const Duration(minutes: 5),
+            );
+          },
+        );
+
+        final controller = CancellationController();
+        final sw = Stopwatch()..start();
+        final future = genkit.generate(
+          model: modelRef('long-wait-model'),
+          prompt: 'test',
+          cancel: controller.token,
+          use: [
+            retry(maxRetries: 1, initialDelay: const Duration(milliseconds: 1)),
+          ],
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        controller.cancel();
+
+        final result = await future;
+        expect(result.finishReason, FinishReason.aborted);
+        expect(sw.elapsed, lessThan(const Duration(seconds: 5)));
+      });
+    });
+
+    group('calculateDelay', () {
+      test('uses backoff when there is no retryAfter', () {
+        final m = RetryMiddleware(
+          initialDelay: const Duration(milliseconds: 100),
+          noJitter: true,
+        );
+        expect(m.calculateDelay(1), const Duration(milliseconds: 100));
+        expect(m.calculateDelay(3), const Duration(milliseconds: 400));
+      });
+
+      test('retryAfter is a floor, not capped by maxDelay', () {
+        final m = RetryMiddleware(
+          initialDelay: const Duration(milliseconds: 100),
+          maxDelay: const Duration(milliseconds: 1000),
+          noJitter: true,
+        );
+        expect(
+          m.calculateDelay(1, retryAfter: const Duration(seconds: 30)),
+          const Duration(seconds: 30),
+        );
+      });
+
+      test('backoff wins when it is longer than retryAfter', () {
+        final m = RetryMiddleware(
+          initialDelay: const Duration(milliseconds: 1000),
+          noJitter: true,
+        );
+        expect(
+          m.calculateDelay(3, retryAfter: const Duration(milliseconds: 10)),
+          const Duration(milliseconds: 4000),
+        );
+      });
+
+      test('jitter never undercuts retryAfter', () {
+        final m = RetryMiddleware(
+          initialDelay: const Duration(milliseconds: 100),
+        );
+        for (var i = 0; i < 200; i++) {
+          final d = m.calculateDelay(
+            1,
+            retryAfter: const Duration(milliseconds: 500),
+          );
+          expect(d.inMilliseconds, inInclusiveRange(500, 600));
+        }
+      });
+    });
+
     test('retry() maps Durations onto the wire config', () {
       final ref = retry(
         initialDelay: const Duration(milliseconds: 250),

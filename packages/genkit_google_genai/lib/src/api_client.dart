@@ -16,7 +16,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/plugin.dart' show parseRetryAfter;
 import 'package:http/http.dart' as http;
+import 'package:meta/meta.dart';
 
 import 'generated/generativelanguage.dart';
 
@@ -125,7 +127,11 @@ class GenerativeLanguageBaseClient {
       if (response.body.isEmpty) return {};
       return jsonDecode(response.body) as Map<String, dynamic>;
     } else {
-      throw _parseGoogleError(response.statusCode, response.body);
+      throw parseGoogleError(
+        response.statusCode,
+        response.body,
+        response.headers,
+      );
     }
   }
 
@@ -160,28 +166,59 @@ class GenerativeLanguageBaseClient {
       }
     } else {
       final body = await response.stream.bytesToString();
-      throw _parseGoogleError(response.statusCode, body);
+      throw parseGoogleError(response.statusCode, body, response.headers);
     }
   }
+}
 
-  GenkitException _parseGoogleError(int statusCode, String body) {
-    try {
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      if (json['error'] is Map) {
-        final err = json['error'] as Map;
-        final message = err['message'] as String? ?? 'Unknown error';
-        final statusStr = err['status'] as String?;
-        return GenkitException(
-          'Google AI Error: $message',
-          status: _errorStatus(statusCode, statusStr),
-        );
-      }
-    } catch (_) {}
-    return GenkitException(
-      'API Error $statusCode: $body',
-      status: _errorStatus(statusCode, null),
-    );
+/// Converts a non-2xx Google API response into a [GenkitException].
+///
+/// The retry hint comes from the `Retry-After` header, or failing that from a
+/// `google.rpc.RetryInfo` entry in `error.details`, which is where Google APIs
+/// usually put it.
+@visibleForTesting
+GenkitException parseGoogleError(
+  int statusCode,
+  String body, [
+  Map<String, String> headers = const {},
+]) {
+  final headerRetryAfter = parseRetryAfter(headers['retry-after']);
+  try {
+    final json = jsonDecode(body) as Map<String, dynamic>;
+    if (json['error'] is Map) {
+      final err = json['error'] as Map;
+      final message = err['message'] as String? ?? 'Unknown error';
+      final statusStr = err['status'] as String?;
+      return GenkitException(
+        'Google AI Error: $message',
+        status: _errorStatus(statusCode, statusStr),
+        retryAfter: headerRetryAfter ?? _retryInfoDelay(err['details']),
+      );
+    }
+  } catch (_) {}
+  return GenkitException(
+    'API Error $statusCode: $body',
+    status: _errorStatus(statusCode, null),
+    retryAfter: headerRetryAfter,
+  );
+}
+
+/// Extracts `retryDelay` (a protobuf Duration in JSON form, e.g. `"37s"` or
+/// `"1.5s"`) from a `google.rpc.RetryInfo` detail.
+Duration? _retryInfoDelay(Object? details) {
+  if (details is! List) return null;
+  for (final d in details) {
+    if (d is Map &&
+        d['@type'] == 'type.googleapis.com/google.rpc.RetryInfo' &&
+        d['retryDelay'] is String) {
+      final raw = d['retryDelay'] as String;
+      if (!raw.endsWith('s')) return null;
+      final seconds = double.tryParse(raw.substring(0, raw.length - 1));
+      if (seconds == null || seconds.isNaN || seconds < 0) return null;
+      return Duration(milliseconds: (seconds * 1000).round());
+    }
   }
+  return null;
 }
 
 /// Maps a failed Google API response to a Genkit status.
