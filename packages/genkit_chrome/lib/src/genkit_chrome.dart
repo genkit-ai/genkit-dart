@@ -35,7 +35,7 @@ class ChromeAIPlugin extends GenkitPlugin {
   Future<List<ActionMetadata>> list() async {
     // We can check availability here
     // But listing usually just returns what *could* be available.
-    return [modelMetadata('chrome/gemini-nano', modelInfo: chromeModelInfo)];
+    return [modelMetadata('chrome/gemini-nano', info: chromeModelInfo)];
   }
 
   @override

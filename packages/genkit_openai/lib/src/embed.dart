@@ -57,7 +57,7 @@ OpenAIEmbedderOptions parseEmbedderOptions(Map<String, dynamic>? config) {
 
 /// Maximum inputs OpenAI accepts in one `POST /v1/embeddings` call.
 ///
-/// A larger `embedMany` is split across requests rather than rejected, since a
+/// A larger `embed` is split across requests rather than rejected, since a
 /// corpus of more than 2048 documents is an ordinary thing to embed.
 ///
 /// The array limit is the only one enforced here. A request is also capped at

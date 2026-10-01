@@ -85,7 +85,7 @@ Future<List<Embedding>> embedWith(
     plugins: [openAI(apiKey: 'test-key', httpClient: client)],
   );
   addTearDown(ai.shutdown);
-  return ai.embedMany(
+  return ai.embed(
     embedder: openAI.embedder(embedderName),
     documents: documents,
     options: options,

@@ -405,7 +405,7 @@ void main() {
         name: 'waits',
         description: 'waits for cancellation',
         fn: (input, ctx) async {
-          // The token is exposed on ToolFnArgs and can be raced/observed.
+          // The token is exposed on ToolFnArg and can be raced/observed.
           final cancel = ctx.cancel!;
           controller.cancel('stop it');
           await cancel.whenCancelled;

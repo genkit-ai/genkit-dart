@@ -52,17 +52,11 @@ export 'src/ai/prompt.dart'
     show
         ExecutablePrompt,
         PromptAction,
-        PromptConfig,
         PromptFn,
         PromptGenerateOptions,
         PromptRef;
 export 'src/ai/resource.dart'
-    show
-        ResourceAction,
-        ResourceFn,
-        ResourceInput,
-        ResourceOutput,
-        createResourceMatcher;
+    show ResourceAction, ResourceFn, ResourceInput, ResourceOutput;
 export 'src/ai/template_helper.dart'
     show TemplateHelperFn, TemplateHelperOptions;
 export 'src/ai/tool.dart'
@@ -70,7 +64,7 @@ export 'src/ai/tool.dart'
         Interrupt,
         Tool,
         ToolFn,
-        ToolFnArgs,
+        ToolFnArg,
         ToolInterruptResult,
         ToolResponseResult,
         ToolResult;

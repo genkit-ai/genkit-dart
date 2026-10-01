@@ -397,7 +397,7 @@ class OpenAIPlugin extends GenkitPlugin {
       for (final id in ids)
         modelMetadata(
           '$_pluginName/$id',
-          modelInfo: infoOverrides[id] ?? _infoFor(id),
+          info: infoOverrides[id] ?? _infoFor(id),
           customOptions: chat.chatModelOptionsSchema(),
         ),
       for (final id in speechIds) _speechModelMetadata(id, infoOverrides[id]),
@@ -518,7 +518,7 @@ class OpenAIPlugin extends GenkitPlugin {
   ]) {
     return modelMetadata(
       '$_pluginName/$modelId',
-      modelInfo: info ?? speech.speechModelInfo(modelId),
+      info: info ?? speech.speechModelInfo(modelId),
       customOptions: speech.speechModelOptionsSchema(),
     );
   }
@@ -527,7 +527,7 @@ class OpenAIPlugin extends GenkitPlugin {
   _transcriptionModelMetadata(String modelId, [ModelInfo? info]) {
     return modelMetadata(
       '$_pluginName/$modelId',
-      modelInfo: info ?? transcription.transcriptionModelInfo(modelId),
+      info: info ?? transcription.transcriptionModelInfo(modelId),
       customOptions: transcription.transcriptionModelOptionsSchema(),
     );
   }
@@ -547,7 +547,7 @@ class OpenAIPlugin extends GenkitPlugin {
       fn: (req, ctx) async {
         if (req == null || req.input.isEmpty) {
           // Nothing to embed, and an empty `input` is a 400. Answering
-          // directly keeps `embedMany([])` from costing a request.
+          // directly keeps `embed(documents: [])` from costing a request.
           return EmbedResponse(embeddings: []);
         }
 

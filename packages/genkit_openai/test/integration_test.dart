@@ -557,7 +557,7 @@ void main() {
         ),
       ];
 
-      final full = await ai.embedMany(
+      final full = await ai.embed(
         embedder: OpenAIEmbedders.textEmbedding3Small,
         documents: documents,
       );

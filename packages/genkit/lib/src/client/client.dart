@@ -382,10 +382,10 @@ interface class RemoteAction<Input, Output, Chunk, Init> {
     return actionStream;
   }
 
-  /// Disposes of the underlying HTTP client if it was created by this [RemoteAction].
-  /// Call this when the [RemoteAction] is no longer needed to free up resources,
-  /// but only if an `httpClient` was not provided at construction.
-  void dispose() {
+  /// Closes the underlying HTTP client if this [RemoteAction] created it.
+  ///
+  /// A caller-provided `httpClient` is left open; its owner closes it.
+  void close() {
     if (_ownsHttpClient) {
       _httpClient.close();
     }
