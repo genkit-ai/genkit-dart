@@ -21,15 +21,15 @@ import 'types.dart';
 part 'experimental_types.g.dart';
 
 extension type const AgentFinishReason(String value) {
-  static const stop = AgentFinishReason('stop');
-  static const length = AgentFinishReason('length');
-  static const blocked = AgentFinishReason('blocked');
-  static const interrupted = AgentFinishReason('interrupted');
-  static const other = AgentFinishReason('other');
-  static const unknown = AgentFinishReason('unknown');
-  static const aborted = AgentFinishReason('aborted');
-  static const detached = AgentFinishReason('detached');
-  static const failed = AgentFinishReason('failed');
+  static const AgentFinishReason stop = AgentFinishReason('stop');
+  static const AgentFinishReason length = AgentFinishReason('length');
+  static const AgentFinishReason blocked = AgentFinishReason('blocked');
+  static const AgentFinishReason interrupted = AgentFinishReason('interrupted');
+  static const AgentFinishReason other = AgentFinishReason('other');
+  static const AgentFinishReason unknown = AgentFinishReason('unknown');
+  static const AgentFinishReason aborted = AgentFinishReason('aborted');
+  static const AgentFinishReason detached = AgentFinishReason('detached');
+  static const AgentFinishReason failed = AgentFinishReason('failed');
 }
 
 @Schema()
@@ -104,8 +104,8 @@ abstract class $AgentMetadata {
 }
 
 extension type const AgentStateManagement(String value) {
-  static const server = AgentStateManagement('server');
-  static const client = AgentStateManagement('client');
+  static const AgentStateManagement server = AgentStateManagement('server');
+  static const AgentStateManagement client = AgentStateManagement('client');
 }
 
 @Schema()
@@ -129,12 +129,12 @@ abstract class $GetSnapshotDataInput {
 }
 
 extension type const JsonPatchOp(String value) {
-  static const add = JsonPatchOp('add');
-  static const remove = JsonPatchOp('remove');
-  static const replace = JsonPatchOp('replace');
-  static const move = JsonPatchOp('move');
-  static const copy = JsonPatchOp('copy');
-  static const test = JsonPatchOp('test');
+  static const JsonPatchOp add = JsonPatchOp('add');
+  static const JsonPatchOp remove = JsonPatchOp('remove');
+  static const JsonPatchOp replace = JsonPatchOp('replace');
+  static const JsonPatchOp move = JsonPatchOp('move');
+  static const JsonPatchOp copy = JsonPatchOp('copy');
+  static const JsonPatchOp test = JsonPatchOp('test');
 }
 
 @Schema()
@@ -168,10 +168,10 @@ abstract class $SessionState {
 }
 
 extension type const SnapshotStatus(String value) {
-  static const pending = SnapshotStatus('pending');
-  static const aborting = SnapshotStatus('aborting');
-  static const completed = SnapshotStatus('completed');
-  static const aborted = SnapshotStatus('aborted');
-  static const failed = SnapshotStatus('failed');
-  static const expired = SnapshotStatus('expired');
+  static const SnapshotStatus pending = SnapshotStatus('pending');
+  static const SnapshotStatus aborting = SnapshotStatus('aborting');
+  static const SnapshotStatus completed = SnapshotStatus('completed');
+  static const SnapshotStatus aborted = SnapshotStatus('aborted');
+  static const SnapshotStatus failed = SnapshotStatus('failed');
+  static const SnapshotStatus expired = SnapshotStatus('expired');
 }

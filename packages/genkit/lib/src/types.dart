@@ -140,9 +140,9 @@ abstract class $EvalFnResponse {
 }
 
 extension type const EvalStatusEnum(String value) {
-  static const UNKNOWN = EvalStatusEnum('UNKNOWN');
-  static const PASS = EvalStatusEnum('PASS');
-  static const FAIL = EvalStatusEnum('FAIL');
+  static const EvalStatusEnum UNKNOWN = EvalStatusEnum('UNKNOWN');
+  static const EvalStatusEnum PASS = EvalStatusEnum('PASS');
+  static const EvalStatusEnum FAIL = EvalStatusEnum('FAIL');
 }
 
 @Schema()
@@ -295,27 +295,27 @@ abstract class $OutputConfig {
 }
 
 extension type const FinishReason(String value) {
-  static const stop = FinishReason('stop');
-  static const length = FinishReason('length');
-  static const blocked = FinishReason('blocked');
-  static const aborted = FinishReason('aborted');
-  static const failed = FinishReason('failed');
-  static const interrupted = FinishReason('interrupted');
-  static const other = FinishReason('other');
-  static const unknown = FinishReason('unknown');
+  static const FinishReason stop = FinishReason('stop');
+  static const FinishReason length = FinishReason('length');
+  static const FinishReason blocked = FinishReason('blocked');
+  static const FinishReason aborted = FinishReason('aborted');
+  static const FinishReason failed = FinishReason('failed');
+  static const FinishReason interrupted = FinishReason('interrupted');
+  static const FinishReason other = FinishReason('other');
+  static const FinishReason unknown = FinishReason('unknown');
 }
 
 extension type const ToolChoice(String value) {
-  static const auto = ToolChoice('auto');
-  static const required = ToolChoice('required');
-  static const none = ToolChoice('none');
+  static const ToolChoice auto = ToolChoice('auto');
+  static const ToolChoice required = ToolChoice('required');
+  static const ToolChoice none = ToolChoice('none');
 }
 
 extension type const Role(String value) {
-  static const system = Role('system');
-  static const user = Role('user');
-  static const model = Role('model');
-  static const tool = Role('tool');
+  static const Role system = Role('system');
+  static const Role user = Role('user');
+  static const Role model = Role('model');
+  static const Role tool = Role('tool');
 }
 
 @Schema()

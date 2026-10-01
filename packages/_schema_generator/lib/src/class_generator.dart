@@ -202,7 +202,9 @@ class ClassGenerator {
       // for property getters, but `required` is only a contextual keyword and
       // reads naturally as an enum value (`toolChoice: .required`).
       final fieldName = value.toString().replaceAll('-', '_');
-      buffer.writeln("  static const $fieldName = $enumName('$value');");
+      buffer.writeln(
+        "  static const $enumName $fieldName = $enumName('$value');",
+      );
     }
     buffer.writeln('}');
     b.body.add(Code(buffer.toString()));
