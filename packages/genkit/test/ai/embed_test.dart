@@ -74,6 +74,13 @@ void main() {
       expect(requests.single.options, {'dimensions': 8});
     });
 
+    test('passes an empty documents list through to the embedder', () async {
+      final result = await ai.embed(embedder: embedder, documents: []);
+
+      expect(result, isEmpty);
+      expect(requests.single.input, isEmpty);
+    });
+
     test('rejects neither or both of document and documents', () async {
       await expectLater(ai.embed(embedder: embedder), throwsArgumentError);
       await expectLater(

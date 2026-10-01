@@ -275,12 +275,20 @@ base class GenkitAI {
   }
 
   /// Embeds a single [document] or a list of [documents] (exactly one must be
-  /// given) and returns one [Embedding] per input, in order.
+  /// given). An empty [documents] list is passed through to the embedder.
+  ///
+  /// Typically returns one [Embedding] per document, in order:
   ///
   /// ```dart
   /// final [vector] = await ai.embed(embedder: e, document: doc);
   /// final vectors = await ai.embed(embedder: e, documents: [a, b]);
   /// ```
+  ///
+  /// Some embedders return several embeddings per document (e.g. Vertex AI's
+  /// `multimodalembedding` returns one per modality), so the result is not
+  /// always 1:1 with the input. Such embedders identify the source document
+  /// in each embedding's metadata (e.g. `documentIndex`); check the embedder's
+  /// docs before destructuring or zipping by position.
   Future<List<Embedding>> embed<CustomOptions>({
     required EmbedderRef<CustomOptions> embedder,
     DocumentData? document,
