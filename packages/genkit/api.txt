@@ -1661,7 +1661,7 @@ package:genkit/genkit.dart:
   $ToolResponsePart (see above)
   Action (class<Input, Output, Chunk, Init> extends ActionMetadata<Input, Output, Chunk, Init>, base):
     new (constructor: Action<Input, Output, Chunk, Init> Function({required ActionType actionType, String? description, required Future<Output> Function(Input?, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Init>? initSchema, SchemanticType<Input>? inputSchema, String? key, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema}))
-    manifestOutputSchema (getter: SchemanticType<dynamic>?)
+    manifestOutputSchema (getter: SchemanticType<dynamic>?, internal)
     call (method: Future<Output> Function(Input?, {CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk)? onChunk, void Function({required String spanId, required String traceId})? onTraceStart}))
     run (method: Future<RunResult<Output>> Function(Input?, {CancellationToken? cancel, Map<String, dynamic>? context, Init? init, Stream<Input>? inputStream, void Function(Chunk)? onChunk, void Function({required String spanId, required String traceId})? onTraceStart}))
     runRaw (method: Future<RunResult<Output>> Function(dynamic, {CancellationToken? cancel, Map<String, dynamic>? context, dynamic init, Stream<Input>? inputStream, void Function(Chunk)? onChunk, void Function({required String spanId, required String traceId})? onTraceStart}))
@@ -1980,7 +1980,7 @@ package:genkit/genkit.dart:
   TextPart (see above)
   Tool (class<Input, Output> extends Action<Input, ToolResult<Output>, void, void>, base):
     new (constructor: Tool<Input, Output> Function({required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArg<Input>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema}))
-    manifestOutputSchema (getter: SchemanticType<dynamic>?)
+    manifestOutputSchema (getter: SchemanticType<dynamic>?, internal)
     toolOutputSchema (getter: SchemanticType<Output>?)
   ToolChoice (see above)
   ToolDefinition (see above)
