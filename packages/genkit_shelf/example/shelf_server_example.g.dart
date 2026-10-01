@@ -150,7 +150,7 @@ base class CountChunk {
   static const SchemanticType<CountChunk> $schema = _CountChunkTypeFactory();
 
   int get count {
-    return _json['count'] as int;
+    return (_json['count'] as num).toInt();
   }
 
   set count(int value) {

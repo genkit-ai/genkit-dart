@@ -49,7 +49,7 @@ base class Person {
   }
 
   int get age {
-    return _json['age'] as int;
+    return (_json['age'] as num).toInt();
   }
 
   set age(int value) {
@@ -120,7 +120,7 @@ base class CalculatorInput {
       _CalculatorInputTypeFactory();
 
   int get a {
-    return _json['a'] as int;
+    return (_json['a'] as num).toInt();
   }
 
   set a(int value) {
@@ -128,7 +128,7 @@ base class CalculatorInput {
   }
 
   int get b {
-    return _json['b'] as int;
+    return (_json['b'] as num).toInt();
   }
 
   set b(int value) {

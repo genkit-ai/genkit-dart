@@ -50,7 +50,7 @@ base class MovieReviewInput {
 
   /// Optional release year to disambiguate
   int? get year {
-    return _json['year'] as int?;
+    return (_json['year'] as num?)?.toInt();
   }
 
   /// Optional release year to disambiguate

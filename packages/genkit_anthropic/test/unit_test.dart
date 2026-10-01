@@ -794,9 +794,9 @@ void main() {
     test('maps normal usage', () {
       final usage = sdk.Usage(inputTokens: 100, outputTokens: 50);
       final result = mapUsage(usage);
-      expect(result.inputTokens, 100.0);
-      expect(result.outputTokens, 50.0);
-      expect(result.totalTokens, 150.0);
+      expect(result.inputTokens, 100);
+      expect(result.outputTokens, 50);
+      expect(result.totalTokens, 150);
     });
 
     test('maps null usage to zeros', () {

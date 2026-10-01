@@ -22,7 +22,7 @@ part 'types.g.dart';
 
 @Schema()
 abstract class $Candidate {
-  double get index;
+  int get index;
   $Message get message;
   $GenerationUsage? get usage;
   FinishReason get finishReason;
@@ -131,7 +131,7 @@ abstract class $EvalRequest {
 
 @Schema()
 abstract class $EvalFnResponse {
-  double? get sampleIndex;
+  int? get sampleIndex;
   String get testCaseId;
   String? get traceId;
   String? get spanId;
@@ -255,25 +255,25 @@ abstract class $GenerateRequest {
   ToolChoice? get toolChoice;
   $OutputConfig? get output;
   List<$DocumentData>? get docs;
-  double? get candidates;
+  int? get candidates;
 }
 
 @Schema()
 abstract class $GenerationUsage {
-  double? get inputTokens;
-  double? get outputTokens;
-  double? get totalTokens;
-  double? get inputCharacters;
-  double? get outputCharacters;
-  double? get inputImages;
-  double? get outputImages;
-  double? get inputVideos;
-  double? get outputVideos;
-  double? get inputAudioFiles;
-  double? get outputAudioFiles;
+  int? get inputTokens;
+  int? get outputTokens;
+  int? get totalTokens;
+  int? get inputCharacters;
+  int? get outputCharacters;
+  int? get inputImages;
+  int? get outputImages;
+  int? get inputVideos;
+  int? get outputVideos;
+  int? get inputAudioFiles;
+  int? get outputAudioFiles;
   Map<String, dynamic>? get custom;
-  double? get thoughtsTokens;
-  double? get cachedContentTokens;
+  int? get thoughtsTokens;
+  int? get cachedContentTokens;
 }
 
 @Schema()

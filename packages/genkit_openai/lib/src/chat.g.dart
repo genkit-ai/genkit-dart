@@ -111,7 +111,7 @@ base class OpenAIChatOptions {
 
   /// Maximum tokens to generate
   int? get maxTokens {
-    return _json['maxTokens'] as int?;
+    return (_json['maxTokens'] as num?)?.toInt();
   }
 
   /// Maximum tokens to generate
@@ -167,7 +167,7 @@ base class OpenAIChatOptions {
 
   /// Seed for deterministic sampling
   int? get seed {
-    return _json['seed'] as int?;
+    return (_json['seed'] as num?)?.toInt();
   }
 
   /// Seed for deterministic sampling

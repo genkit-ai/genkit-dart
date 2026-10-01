@@ -47,7 +47,7 @@ base class ProcessObjectInput {
   }
 
   int get count {
-    return _json['count'] as int;
+    return (_json['count'] as num).toInt();
   }
 
   set count(int value) {
@@ -115,7 +115,7 @@ base class ProcessObjectOutput {
   }
 
   int get newCount {
-    return _json['newCount'] as int;
+    return (_json['newCount'] as num).toInt();
   }
 
   set newCount(int value) {
@@ -302,7 +302,7 @@ base class StreamyThrowyChunk {
       _StreamyThrowyChunkTypeFactory();
 
   int get count {
-    return _json['count'] as int;
+    return (_json['count'] as num).toInt();
   }
 
   set count(int value) {

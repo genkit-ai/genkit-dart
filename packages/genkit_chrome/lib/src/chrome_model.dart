@@ -139,9 +139,9 @@ final class ChromeModel extends Model<LanguageModelOptions> {
         ),
         usage: contextUsage != null
             ? GenerationUsage(
-                inputTokens: contextUsage,
+                inputTokens: contextUsage.round(),
                 outputTokens: 0,
-                totalTokens: contextUsage,
+                totalTokens: contextUsage.round(),
                 custom: contextWindow != null
                     ? {'contextWindow': contextWindow}
                     : null,

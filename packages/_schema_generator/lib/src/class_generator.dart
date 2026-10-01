@@ -15,7 +15,31 @@
 import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
 
+// Counts and indexes are `z.number()` (JSON Schema `number`) on the wire,
+// which maps to `double`. They are always whole numbers, so expose them as
+// `int`. The generated getters read through `num`, so `12.0` from runtimes
+// that send floats still parses.
+const _usageCounts = {
+  'inputTokens': 'int',
+  'outputTokens': 'int',
+  'totalTokens': 'int',
+  'inputCharacters': 'int',
+  'outputCharacters': 'int',
+  'inputImages': 'int',
+  'outputImages': 'int',
+  'inputVideos': 'int',
+  'outputVideos': 'int',
+  'inputAudioFiles': 'int',
+  'outputAudioFiles': 'int',
+  'thoughtsTokens': 'int',
+  'cachedContentTokens': 'int',
+};
+
 const typeOverrides = {
+  'GenerationUsage': _usageCounts,
+  'Candidate': {'index': 'int'},
+  'GenerateRequest': {'candidates': 'int'},
+  'EvalFnResponse': {'sampleIndex': 'int'},
   'ToolResponse': {'output': 'dynamic'},
   'GenerateActionOptions': {
     'maxTurns': 'int',

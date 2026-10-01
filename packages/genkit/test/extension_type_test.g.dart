@@ -128,7 +128,7 @@ base class Recipe {
   }
 
   int get servings {
-    return _json['servings'] as int;
+    return (_json['servings'] as num).toInt();
   }
 
   set servings(int value) {
@@ -217,7 +217,7 @@ base class AnnotatedRecipe {
   }
 
   int get servings {
-    return _json['servings'] as int;
+    return (_json['servings'] as num).toInt();
   }
 
   set servings(int value) {
@@ -373,7 +373,7 @@ base class NullableFields {
   }
 
   int? get optionalInt {
-    return _json['optionalInt'] as int?;
+    return (_json['optionalInt'] as num?)?.toInt();
   }
 
   set optionalInt(int? value) {

@@ -57,7 +57,7 @@ base class RetryOptions {
       _RetryOptionsTypeFactory();
 
   int? get maxRetries {
-    return _json['maxRetries'] as int?;
+    return (_json['maxRetries'] as num?)?.toInt();
   }
 
   set maxRetries(int? value) {
@@ -81,7 +81,7 @@ base class RetryOptions {
   }
 
   int? get initialDelayMs {
-    return _json['initialDelayMs'] as int?;
+    return (_json['initialDelayMs'] as num?)?.toInt();
   }
 
   set initialDelayMs(int? value) {
@@ -93,7 +93,7 @@ base class RetryOptions {
   }
 
   int? get maxDelayMs {
-    return _json['maxDelayMs'] as int?;
+    return (_json['maxDelayMs'] as num?)?.toInt();
   }
 
   set maxDelayMs(int? value) {

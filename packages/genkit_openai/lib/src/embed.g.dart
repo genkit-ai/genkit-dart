@@ -54,7 +54,7 @@ base class OpenAIEmbedderOptions {
   /// skipped for compat hosts: a non-positive length is wrong for every
   /// backend, and the Dev UI reads the bound off the schema.
   int? get dimensions {
-    return _json['dimensions'] as int?;
+    return (_json['dimensions'] as num?)?.toInt();
   }
 
   /// Length of the returned vector.
