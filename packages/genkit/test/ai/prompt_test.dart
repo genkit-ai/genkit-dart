@@ -138,6 +138,33 @@ void main() {
 
       expect(ep, isA<ExecutablePrompt>());
       expect(ep.ref.name, equals('greet'));
+      expect(ep.ref.metadata['type'], equals('prompt'));
+      expect(
+        () => ep.ref.metadata['type'] = 'other',
+        throwsUnsupportedError,
+        reason: 'ref metadata is read-only',
+      );
+    });
+
+    test('ref metadata is read-only all the way down', () {
+      final toolNames = ['lookup'];
+      final config = PromptConfig(
+        name: 'greet',
+        prompt: 'Hello {{name}}',
+        toolNames: toolNames,
+      );
+
+      final ep = definePromptAction(registry, dpRegistry, config);
+
+      // Nested maps stay String-keyed so callers can keep casting them.
+      final prompt = ep.ref.metadata['prompt'];
+      expect(prompt, isA<Map<String, dynamic>>());
+      prompt as Map<String, dynamic>;
+      expect(() => prompt['name'] = 'other', throwsUnsupportedError);
+      expect(() => (prompt['tools'] as List).add('x'), throwsUnsupportedError);
+      // A copy, not a view: the prompt's own config list is not exposed.
+      toolNames.add('later');
+      expect(prompt['tools'], equals(['lookup']));
     });
 
     test('registers a PromptAction in the registry', () async {

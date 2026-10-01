@@ -69,7 +69,7 @@ GenerateMiddlewareRef<void> simulateConstrainedGeneration() =>
 /// `outputNoInstructions` is not honoured: that flag is dropped before the
 /// model request this middleware sees is built. Leave the middleware out if
 /// the prompt should not carry the schema.
-class SimulateConstrainedGenerationMiddleware extends GenerateMiddleware {
+final class SimulateConstrainedGenerationMiddleware extends GenerateMiddleware {
   @override
   Future<ModelResponse> model(
     ModelRequest request,

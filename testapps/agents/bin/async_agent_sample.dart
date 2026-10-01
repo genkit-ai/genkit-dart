@@ -39,10 +39,7 @@ import 'package:genkit_middleware/agents.dart';
 
 final _model = googleAI.gemini('gemini-flash-latest');
 
-final Genkit ai = Genkit(
-  plugins: [googleAI(), AgentsPlugin(), RetryPlugin()],
-  model: _model,
-);
+final Genkit ai = Genkit(plugins: [googleAI(), AgentsPlugin()], model: _model);
 
 // Server-managed sub-agents (they have a store), so they can detach and run in
 // the background, and their tasks leave continuable handles behind.
