@@ -62,8 +62,12 @@ final class GenerateResponseChunk<Output> {
 
   /// The text of all chunks so far, including this one.
   String get accumulatedText {
-    final prev = previousChunks.map((c) => c.text).join('');
-    return prev + text;
+    final buffer = StringBuffer();
+    for (final chunk in previousChunks) {
+      buffer.write(chunk.text);
+    }
+    buffer.write(text);
+    return buffer.toString();
   }
 
   @override
