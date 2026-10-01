@@ -46,7 +46,7 @@ extension _AgentsMiddlewareContinue on AgentsMiddleware {
         name: _continueToolName,
         description: description,
         inputSchema: AsyncContinueInput.$schema,
-        toolOutputSchema: AgentDelegationResult.$schema,
+        outputSchema: AgentDelegationResult.$schema,
         fn: (input, _) async => .response(
           await _runContinue(
             input.taskId,
@@ -60,7 +60,7 @@ extension _AgentsMiddlewareContinue on AgentsMiddleware {
       name: _continueToolName,
       description: description,
       inputSchema: ContinueInput.$schema,
-      toolOutputSchema: AgentDelegationResult.$schema,
+      outputSchema: AgentDelegationResult.$schema,
       fn: (input, _) async => .response(
         await _runContinue(input.taskId, input.instructions, false),
       ),

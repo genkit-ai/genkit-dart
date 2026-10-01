@@ -1734,7 +1734,6 @@ package:genkit/genkit.dart:
   Embedder (class<CustomOptions> extends Action<EmbedRequest, EmbedResponse, void, void> implements EmbedderRef<CustomOptions>, base):
     new (constructor: Embedder<CustomOptions> Function({SchemanticType<CustomOptions>? customOptions, required Future<EmbedResponse> Function(EmbedRequest?, ActionFnArg<void, EmbedRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
     customOptions (getter: SchemanticType<CustomOptions>?)
-    customOptions= (setter: SchemanticType<CustomOptions>?)
   EmbedderRef (class<CustomOptions> extends Object, abstract, interface):
     customOptions (getter: SchemanticType<CustomOptions>?)
     name (getter: String)
@@ -1743,10 +1742,10 @@ package:genkit/genkit.dart:
   EvalFnResponseEvaluation (see above)
   EvalRequest (see above)
   EvalStatusEnum (see above)
-  Evaluator (class<CustomOptions> extends Action<EvalRequest, List<EvalFnResponse>, void, void>, base):
-    new (constructor: Evaluator<CustomOptions> Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest?, ActionFnArg<void, EvalRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
+  Evaluator (class extends Action<EvalRequest, List<EvalFnResponse>, void, void>, base):
+    new (constructor: Evaluator Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest?, ActionFnArg<void, EvalRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
   ExecutablePrompt (class<Input> extends Object, final):
-    ref (getter: ({Map<String, dynamic>? metadata, String name}))
+    ref (getter: PromptRef)
     call (method: Future<GenerateResponseHelper<dynamic>> Function(Input?, [PromptGenerateOptions<dynamic>?]))
     render (method: Future<GenerateActionOptions> Function(Input?, [PromptGenerateOptions<dynamic>?]))
     stream (method: ActionStream<GenerateResponseChunk<dynamic>, GenerateResponseHelper<dynamic>> Function(Input?, [PromptGenerateOptions<dynamic>?]))
@@ -1810,7 +1809,7 @@ package:genkit/genkit.dart:
     defineCustomPrompt (method: PromptAction<Input> Function<Input>({String? description, required Future<GenerateActionOptions> Function(Input, ActionFnArg<void, Input, void>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name}))
     defineDynamicActionProvider (method: DynamicActionProvider Function({int? cacheTtlMillis, FutureOr<Action<dynamic, dynamic, dynamic, dynamic>?> Function(ActionType, String)? getActionFn, FutureOr<Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function()? listActionsFn, Map<String, dynamic>? metadata, required String name}))
     defineEmbedder (method: Embedder<dynamic> Function({required Future<EmbedResponse> Function(EmbedRequest, ActionFnArg<void, EmbedRequest, void>) fn, required String name}))
-    defineEvaluator (method: Evaluator<dynamic> Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest, ActionFnArg<void, EvalRequest, void>) fn, required String name}))
+    defineEvaluator (method: Evaluator Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest, ActionFnArg<void, EvalRequest, void>) fn, required String name}))
     defineFlow (method: Flow<Input, Output, Chunk, Init> Function<Input, Output, Chunk, Init>({required Future<Output> Function(Input, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Init>? initSchema, SchemanticType<Input>? inputSchema, required String name, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema}))
     defineHelper (method: void Function(String, dynamic Function(List<dynamic>, TemplateHelperOptions)))
     defineInterrupt (method: Interrupt<Input, Output> Function<Input, Output>({required String description, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema, FutureOr<Object?> Function(Input, ToolFnArgs<Input>)? requestMetadata}))
@@ -1885,6 +1884,9 @@ package:genkit/genkit.dart:
     toolNames (getter: List<String>?)
     tools (getter: List<Tool<dynamic, dynamic>>?)
     use (getter: List<GenerateMiddlewareRef<dynamic>>?)
+  PromptRef (class extends Object, final):
+    metadata (getter: Map<String, dynamic>)
+    name (getter: String)
   ReasoningPart (see above)
   Registry (class extends Object, final):
     new (constructor: Registry Function({Registry? parent}))
@@ -1920,7 +1922,7 @@ package:genkit/genkit.dart:
     toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
   ResourcePart (see above)
-  RetryMiddleware (class extends GenerateMiddleware):
+  RetryMiddleware (class extends GenerateMiddleware, final):
     defaultRetryStatuses (static const getter: List<StatusCodes>)
     new (constructor: RetryMiddleware Function({double backoffFactor, int initialDelayMs, int maxDelayMs, int maxRetries, bool noJitter, bool Function(Object, int)? onError, bool retryModel, bool retryTools, List<StatusCodes> statuses}))
     backoffFactor (getter: double)
@@ -1956,10 +1958,6 @@ package:genkit/genkit.dart:
     statuses= (setter: List<StatusCodes>?)
     toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
-  RetryPlugin (class extends GenkitPlugin):
-    new (constructor: RetryPlugin Function())
-    name (getter: String)
-    middleware (method: List<GenerateMiddlewareDef<dynamic>> Function())
   Role (see above)
   RunResult (class<Output> extends Object, final):
     new (constructor: RunResult<Output> Function({required Output result, required String spanId, required String traceId}))
@@ -1983,7 +1981,7 @@ package:genkit/genkit.dart:
     inverse (getter: String Function(dynamic))
   TextPart (see above)
   Tool (class<Input, Output> extends Action<Input, ToolResult<Output>, void, void>, base):
-    new (constructor: Tool<Input, Output> Function({required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? toolOutputSchema}))
+    new (constructor: Tool<Input, Output> Function({required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema}))
     manifestOutputSchema (getter: SchemanticType<dynamic>?)
     toolOutputSchema (getter: SchemanticType<Output>?)
   ToolChoice (see above)

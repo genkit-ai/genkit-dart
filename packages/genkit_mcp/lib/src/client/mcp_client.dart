@@ -1071,7 +1071,7 @@ class GenkitMcpClient {
       name: '$serverName/$name',
       description: description,
       inputSchema: mcpToolInputSchemaFromJson(tool['inputSchema']),
-      toolOutputSchema: .dynamicSchema(),
+      outputSchema: .dynamicSchema(),
       metadata: {
         if (meta != null) 'mcp': {'_meta': meta},
       },
