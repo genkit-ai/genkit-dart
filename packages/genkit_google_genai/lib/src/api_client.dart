@@ -171,30 +171,32 @@ class GenerativeLanguageBaseClient {
         final err = json['error'] as Map;
         final message = err['message'] as String? ?? 'Unknown error';
         final statusStr = err['status'] as String?;
-        // Map HTTP / Google statuses to Genkit status
-        var status = StatusCode.internal;
-        if (statusCode == 400 || statusStr == 'INVALID_ARGUMENT') {
-          status = StatusCode.invalidArgument;
-        }
-        if (statusCode == 401 || statusStr == 'UNAUTHENTICATED') {
-          status = StatusCode.unauthenticated;
-        }
-        if (statusCode == 403 || statusStr == 'PERMISSION_DENIED') {
-          status = StatusCode.permissionDenied;
-        }
-        if (statusCode == 404 || statusStr == 'NOT_FOUND') {
-          status = StatusCode.notFound;
-        }
-        if (statusCode == 429 || statusStr == 'RESOURCE_EXHAUSTED') {
-          status = StatusCode.resourceExhausted;
-        }
-
-        return GenkitException('Google AI Error: $message', status: status);
+        return GenkitException(
+          'Google AI Error: $message',
+          status: _errorStatus(statusCode, statusStr),
+        );
       }
     } catch (_) {}
     return GenkitException(
       'API Error $statusCode: $body',
-      status: StatusCode.internal,
+      status: _errorStatus(statusCode, null),
     );
   }
+}
+
+/// Maps a failed Google API response to a Genkit status.
+///
+/// The gRPC status string in the error body is more specific than the HTTP
+/// status (several gRPC codes share 400 or 409), so it wins when recognized.
+/// `ok` and `unknown` are never reported for an error: anything unmapped
+/// becomes [StatusCode.internal].
+StatusCode _errorStatus(int httpStatus, String? grpcStatus) {
+  bool usable(StatusCode s) => s != StatusCode.ok && s != StatusCode.unknown;
+
+  if (grpcStatus != null) {
+    final fromBody = StatusCode.fromWireName(grpcStatus);
+    if (usable(fromBody)) return fromBody;
+  }
+  final fromHttp = StatusCode.fromHttpStatus(httpStatus);
+  return usable(fromHttp) ? fromHttp : StatusCode.internal;
 }
