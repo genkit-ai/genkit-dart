@@ -86,7 +86,7 @@ export 'src/core/dynamic_action_provider.dart' show DynamicActionProvider;
 export 'src/core/flow.dart';
 export 'src/core/plugin.dart' show GenkitPlugin;
 export 'src/core/registry.dart' show Registry;
-export 'src/exception.dart' show GenkitException, StatusCodes;
+export 'src/exception.dart' show GenkitException, StatusCode;
 export 'src/genkit_ai.dart' show GenkitAI;
 export 'src/genkit_class.dart';
 export 'src/schema_extensions.dart';

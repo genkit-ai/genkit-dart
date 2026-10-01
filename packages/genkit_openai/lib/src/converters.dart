@@ -253,7 +253,7 @@ abstract final class GenkitConverter {
         'OpenAI requires tool parameters to be an object schema; tool '
         '"${tool.name}" declares type "${parameters['type']}". '
         'Wrap the input in an object schema.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 

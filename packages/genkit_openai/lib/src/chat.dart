@@ -213,7 +213,7 @@ ReasoningEffort? toReasoningEffort(String? value) {
     throw GenkitException(
       'Unknown reasoningEffort "$value". Known levels: '
       '${ReasoningEffort.values.where((e) => e != ReasoningEffort.unknown).map((e) => e.toJson()).join(', ')}.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return effort;
@@ -228,7 +228,7 @@ Verbosity? toVerbosity(String? value) {
     throw GenkitException(
       'Unknown verbosity "$value". Known levels: '
       '${Verbosity.values.where((v) => v != Verbosity.unknown).map((v) => v.toJson()).join(', ')}.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return verbosity;

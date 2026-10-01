@@ -160,7 +160,7 @@ Future<void> _ensureAvailability([LanguageModelOptions? options]) async {
   if (availability == 'unavailable') {
     throw GenkitException(
       'Chrome AI is not available.',
-      status: StatusCodes.UNAVAILABLE,
+      status: StatusCode.unavailable,
     );
   }
 }
@@ -176,7 +176,7 @@ To enable local AI in Chrome (v128+):
 3. Enable "Enables optimization guide on device" (choose "Enabled BypassPerfRequirement")
 4. Relaunch Chrome
 5. Go to chrome://components/ to download the model ("Optimization Guide On Device Model")''',
-      status: StatusCodes.UNAVAILABLE,
+      status: StatusCode.unavailable,
     );
   }
   return languageModelImpl!;

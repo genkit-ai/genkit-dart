@@ -316,7 +316,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.UNIMPLEMENTED,
+            StatusCode.unimplemented,
           ),
           reason: 'interrupts must fail a bidi session',
         );

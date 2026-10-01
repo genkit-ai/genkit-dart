@@ -217,7 +217,7 @@ RawActionFn<Input, Output, Chunk, Init> requireInput<
     if (input == null && null is! Input) {
       throw GenkitException(
         '$kind "$name" requires a non-null input.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     return fn(input as Input, ctx);
@@ -238,7 +238,7 @@ RawActionFn<Input, Output, Chunk, Init> bidiInput<Input, Output, Chunk, Init>(
     if (inputStream == null) {
       throw GenkitException(
         '$kind "$name" called without an input stream.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     return fn(inputStream, ctx);

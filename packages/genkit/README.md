@@ -334,7 +334,7 @@ final response = await ai.generate(
       maxRetries: 3,
       retryModel: true, // Retry model validation errors (default: true)
       retryTools: false, // Retry tool execution errors (default: false)
-      statuses: [StatusCodes.UNAVAILABLE], // Retry only on specific errors
+      statuses: [StatusCode.unavailable], // Retry only on specific errors
     ),
   ],
 );

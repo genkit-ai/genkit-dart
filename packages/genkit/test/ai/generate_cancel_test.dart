@@ -333,7 +333,7 @@ void main() {
         // so a caller reading `res.error` after any abnormal finish reason gets
         // a payload rather than a null-check crash.
         expect(res.error, isNotNull);
-        expect(res.error!.status, StatusCodes.ABORTED.name);
+        expect(res.error!.status, StatusCode.aborted.wireName);
         expect(res.error!.message, contains('max turns'));
         expect(modelCalls, 2);
         expect(res.messages, isNotEmpty);
@@ -543,10 +543,7 @@ void main() {
           // A real provider failure surfaces, and the caller cancels in the
           // same instant.
           controller.cancel();
-          throw GenkitException(
-            '503 upstream',
-            status: StatusCodes.UNAVAILABLE,
-          );
+          throw GenkitException('503 upstream', status: StatusCode.unavailable);
         },
       );
 
