@@ -159,14 +159,11 @@ class OpenAIPlugin extends GenkitPlugin {
       // A custom speech or transcription model has to be routed here as well
       // as in resolve(): the registry prefers an eager registration, so a name
       // registered as chat would never reach resolve() to be corrected.
-      if (_kindOf(model.name, info: model.info, declared: model.kind) ==
-          OpenAIModelKind.speech)
-        _createSpeechModel(model.name, model.info)
-      else if (_kindOf(model.name, info: model.info, declared: model.kind) ==
-          OpenAIModelKind.transcription)
-        _createTranscriptionModel(model.name, model.info)
-      else
-        _createModel(model.name, model.info),
+      _createForKind(
+        model.name,
+        model.info,
+        _kindOf(model.name, info: model.info, declared: model.kind),
+      ),
   ];
 
   /// Fetch available model IDs from OpenAI API
@@ -456,11 +453,11 @@ class OpenAIPlugin extends GenkitPlugin {
     if (actionType == .model) {
       final declared = _customModelFor(name);
       final info = declared?.info;
-      return switch (_kindOf(name, info: info, declared: declared?.kind)) {
-        OpenAIModelKind.speech => _createSpeechModel(name, info),
-        OpenAIModelKind.transcription => _createTranscriptionModel(name, info),
-        _ => _createModel(name, info),
-      };
+      return _createForKind(
+        name,
+        info,
+        _kindOf(name, info: info, declared: declared?.kind),
+      );
     }
     // A provider with no embeddings API declines the lookup rather than
     // building an embedder whose every call would 404.
@@ -469,6 +466,18 @@ class OpenAIPlugin extends GenkitPlugin {
     }
     return null;
   }
+
+  /// Builds the model for [kind], the one place a kind maps to an API.
+  Model _createForKind(String name, ModelInfo? info, OpenAIModelKind kind) =>
+      switch (kind) {
+        OpenAIModelKind.chat => _createModel(name, info),
+        OpenAIModelKind.speech => _createSpeechModel(name, info),
+        OpenAIModelKind.transcription => _createTranscriptionModel(name, info),
+        // OpenAIModelKind is a class, so the compiler cannot check this switch
+        // is exhaustive: fail loudly rather than quietly serving a new kind
+        // through chat completions.
+        _ => throw StateError('Unhandled $kind for model "$name"'),
+      };
 
   /// The caller's declaration for [modelName], if they registered one.
   CustomModelDefinition? _customModelFor(String modelName) {

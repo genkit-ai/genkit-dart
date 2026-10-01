@@ -616,6 +616,15 @@ ModelInfo dynamicModelInfo(String modelName) {
 
 /// Capability metadata for any OpenAI model name: the curated entry when there
 /// is one, [dynamicModelInfo] otherwise.
+///
+/// Useful as a starting point for a model the plugin does not know by name:
+///
+/// ```dart
+/// CustomModelDefinition(name: 'my-gpt-proxy', info: modelInfoFor('gpt-5.5'))
+/// ```
+///
+/// The result follows the curated list, so it can change between releases as
+/// models are added or retired.
 ModelInfo modelInfoFor(String model) =>
     knownOpenAIModelFor(model)?.info ?? dynamicModelInfo(model);
 

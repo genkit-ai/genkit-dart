@@ -226,6 +226,20 @@ final response = await ai.generate(
 );
 ```
 
+To describe a model that serves a known one under another name, start from the
+curated entry with `modelInfoFor` (or `xaiModelInfoFor` /
+`deepSeekModelInfoFor`):
+
+```dart
+CustomModelDefinition(
+  name: 'my-gpt-proxy',
+  info: modelInfoFor('gpt-5.5'),
+)
+```
+
+The curated entries follow the providers' model lists, so what these return can
+change between releases.
+
 ### Multiple Backends
 
 You can use several OpenAI-compatible providers side by side by giving each a

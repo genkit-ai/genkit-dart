@@ -30,10 +30,14 @@ export 'src/chat.dart' show OpenAIChatOptions, OpenAIOptions;
 export 'src/embed.dart' show OpenAIEmbedderOptions;
 // The curated catalogs are internal metadata, not API: they only enrich
 // names that resolve anyway, and entries come and go with the providers'
-// model lists. Only the namespace defaults are public, because they are
-// default values in public signatures.
-export 'src/known_deepseek_models.dart' show defaultDeepSeekNamespace;
-export 'src/known_xai_models.dart' show defaultXaiNamespace;
+// model lists. Public are the namespace defaults (default values in public
+// signatures) and the `*ModelInfoFor` lookups, which let a
+// CustomModelDefinition start from a curated entry. Catalog churn changes
+// what those return, never their signatures.
+export 'src/known_deepseek_models.dart'
+    show deepSeekModelInfoFor, defaultDeepSeekNamespace;
+export 'src/known_models.dart' show modelInfoFor;
+export 'src/known_xai_models.dart' show defaultXaiNamespace, xaiModelInfoFor;
 export 'src/speech.dart' show OpenAISpeechOptions;
 export 'src/transcription.dart' show OpenAITranscriptionOptions;
 
