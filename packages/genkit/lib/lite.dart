@@ -138,7 +138,7 @@ Future<GenerateResponseHelper<Output>> generate<Output, C>({
       ? null
       : outputSchema != null
       ? outputSchema.parse(raw)
-      : raw as Output;
+      : castOutput<Output>(raw);
 
   // A streamed chunk carries *partial* output (e.g. `{"a": null}` while the
   // value is still arriving), which a strict schema may reject. That is not

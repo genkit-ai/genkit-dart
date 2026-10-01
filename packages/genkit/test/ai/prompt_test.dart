@@ -1265,6 +1265,20 @@ void main() {
       );
     }
 
+    /// Defines a prompt with [O] pinned as its Output but no outputSchema to
+    /// infer it from: the case the schemaless-Output tests exercise. The
+    /// return type supplies the inference context for `definePrompt`.
+    ExecutablePrompt<dynamic, O> defineSchemaless<O>(
+      String name, {
+      ModelRef<dynamic>? model,
+      GenerateActionOutputConfig? output,
+    }) => genkit.definePrompt(
+      name: name,
+      model: model,
+      output: output,
+      prompt: 'Tell a joke',
+    );
+
     setUp(() {
       genkit = Genkit(isDevEnv: false, promptDir: null);
     });
@@ -1338,10 +1352,7 @@ void main() {
       // up with a bare TypeError on the first call, so this fails at
       // definition instead.
       expect(
-        () => genkit.definePrompt<dynamic, _Joke, dynamic>(
-          name: 'joke',
-          prompt: 'Tell a joke',
-        ),
+        () => defineSchemaless<_Joke>('joke'),
         throwsA(
           isA<ArgumentError>().having(
             (e) => e.message,
@@ -1354,32 +1365,48 @@ void main() {
 
     test('JSON-shaped Outputs need no outputSchema', () {
       // These are what a decoder already produces, so the cast is safe and
-      // requiring a schema would be a false positive.
+      // requiring a schema would be a false positive. They still need JSON
+      // requested, hence the format.
+      final json = GenerateActionOutputConfig.fromJson({'format': 'json'});
+      // Each would throw at definition if rejected.
+      defineSchemaless<Map<String, dynamic>>('map', output: json);
+      defineSchemaless<String>('str', output: json);
+      defineSchemaless<List<dynamic>>('list', output: json);
+      defineSchemaless<int>('int', output: json);
+    });
+
+    test('a JSON-shaped Output on a text-only prompt is rejected', () {
+      // No format and no schema means no formatter runs, so `output` would be
+      // null on every call.
       expect(
-        genkit.definePrompt<dynamic, Map<String, dynamic>, dynamic>(
-          name: 'map',
-          prompt: 'x',
+        () => defineSchemaless<Map<String, dynamic>>('map'),
+        throwsA(
+          isA<ArgumentError>().having(
+            (e) => e.message,
+            'message',
+            contains('does not request structured output'),
+          ),
         ),
-        isA<ExecutablePrompt<dynamic, Map<String, dynamic>>>(),
       );
-      expect(
-        genkit.definePrompt<dynamic, String, dynamic>(name: 'str', prompt: 'x'),
-        isA<ExecutablePrompt<dynamic, String>>(),
+    });
+
+    test('a wrong-shaped reply for a scalar Output is a GenkitException', () {
+      defineEchoModel('m', '{"a": 1}');
+      final ep = defineSchemaless<String>(
+        'p',
+        model: modelRef('m'),
+        output: GenerateActionOutputConfig.fromJson({'format': 'json'}),
       );
+
       expect(
-        genkit.definePrompt<dynamic, List<dynamic>, dynamic>(
-          name: 'list',
-          prompt: 'x',
+        ep(null),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('does not match the expected output type String'),
+          ),
         ),
-        isA<ExecutablePrompt<dynamic, List<dynamic>>>(),
-      );
-      expect(
-        genkit.definePrompt<dynamic, int, dynamic>(name: 'int', prompt: 'x'),
-        isA<ExecutablePrompt<dynamic, int>>(),
-      );
-      expect(
-        genkit.definePrompt<dynamic, Object, dynamic>(name: 'obj', prompt: 'x'),
-        isA<ExecutablePrompt<dynamic, Object>>(),
       );
     });
 
@@ -1551,8 +1578,8 @@ void main() {
         prompt: 'Tell a joke',
       );
 
-      final ep = await genkit.prompt<Map<String, dynamic>, _Joke>('joke');
-      expect(ep, isA<ExecutablePrompt<Map<String, dynamic>, _Joke>>());
+      final ep = await genkit.prompt<dynamic, _Joke>('joke');
+      expect(ep, isA<ExecutablePrompt<dynamic, _Joke>>());
     });
 
     test(
@@ -1563,10 +1590,7 @@ void main() {
         // The parser schema is never sent, so accepting it would mean the model
         // is never asked for JSON and `.output` silently comes back null.
         await expectLater(
-          genkit.prompt<Map<String, dynamic>, _Joke>(
-            'joke',
-            outputParserSchema: _jokeSchema,
-          ),
+          genkit.prompt('joke', outputParserSchema: _jokeSchema),
           throwsA(
             isA<GenkitException>()
                 .having((e) => e.status, 'status', StatusCode.invalidArgument)
@@ -1588,10 +1612,7 @@ void main() {
       );
 
       await expectLater(
-        genkit.prompt<Map<String, dynamic>, _Joke>(
-          'joke',
-          outputParserSchema: _jokeSchema,
-        ),
+        genkit.prompt('joke', outputParserSchema: _jokeSchema),
         throwsA(isA<GenkitException>()),
       );
     });
@@ -1607,11 +1628,8 @@ void main() {
           prompt: 'Tell a joke',
         );
 
-        final ep = await genkit.prompt<Map<String, dynamic>, _Joke>(
-          'joke',
-          outputParserSchema: _jokeSchema,
-        );
-        expect(ep, isA<ExecutablePrompt<Map<String, dynamic>, _Joke>>());
+        final ep = await genkit.prompt('joke', outputParserSchema: _jokeSchema);
+        expect(ep, isA<ExecutablePrompt<dynamic, _Joke>>());
       },
     );
 
@@ -1622,11 +1640,8 @@ void main() {
         prompt: 'Tell a joke',
       );
 
-      final ep = await genkit.prompt<Map<String, dynamic>, _Joke>(
-        'joke',
-        outputParserSchema: _jokeSchema,
-      );
-      expect(ep, isA<ExecutablePrompt<Map<String, dynamic>, _Joke>>());
+      final ep = await genkit.prompt('joke', outputParserSchema: _jokeSchema);
+      expect(ep, isA<ExecutablePrompt<dynamic, _Joke>>());
     });
 
     test('the request carries the defined schema, not the parser', () async {
@@ -1662,10 +1677,7 @@ void main() {
         prompt: 'Tell a joke',
       );
 
-      final ep = await genkit.prompt<Map<String, dynamic>, _Joke>(
-        'joke',
-        outputParserSchema: _jokeSchema,
-      );
+      final ep = await genkit.prompt('joke', outputParserSchema: _jokeSchema);
       final response = await ep(null);
 
       expect(requests.single.output?.schema, equals(definedSchema));
@@ -1676,7 +1688,7 @@ void main() {
       genkit.definePrompt(name: 'joke', prompt: 'Tell a joke');
 
       await expectLater(
-        genkit.prompt<Map<String, dynamic>, _Joke>('joke'),
+        genkit.prompt<dynamic, _Joke>('joke'),
         throwsA(
           isA<GenkitException>().having(
             (e) => e.message,
@@ -1688,13 +1700,89 @@ void main() {
     });
 
     test('a JSON-shaped Output needs no schema at lookup', () async {
-      genkit.definePrompt(name: 'joke', prompt: 'Tell a joke');
+      genkit.definePrompt(
+        name: 'joke',
+        output: GenerateActionOutputConfig.fromJson({'format': 'json'}),
+        prompt: 'Tell a joke',
+      );
 
       // A raw JSON map already satisfies this, so demanding a schema here
       // would reject the common "just give me the decoded JSON" lookup.
       final ep = await genkit.prompt<dynamic, Map<String, dynamic>>('joke');
       expect(ep, isA<ExecutablePrompt<dynamic, Map<String, dynamic>>>());
     });
+
+    test('a typed lookup of a text-only prompt is rejected', () async {
+      genkit.definePrompt(name: 'joke', prompt: 'Tell a joke');
+
+      // The model is never asked for JSON, so `output` would always be null.
+      await expectLater(
+        genkit.prompt<dynamic, Map<String, dynamic>>('joke'),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('does not request structured output'),
+              ),
+        ),
+      );
+    });
+
+    test('an untyped lookup of a text-only prompt still works', () async {
+      genkit.definePrompt(name: 'joke', prompt: 'Tell a joke');
+
+      final ep = await genkit.prompt('joke');
+      expect(ep.ref.name, equals('joke'));
+    });
+
+    test(
+      'a domain Output on a schemaless prompt does not suggest the parser',
+      () async {
+        genkit.definePrompt(name: 'joke', prompt: 'Tell a joke');
+
+        // outputParserSchema would just hit the "does not define an output
+        // schema" error, so the hint points at the prompt instead.
+        await expectLater(
+          genkit.prompt<dynamic, _Joke>('joke'),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('define the schema on the prompt'),
+                isNot(contains('outputParserSchema')),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
+      'a domain Output on a raw-jsonSchema prompt suggests the parser',
+      () async {
+        genkit.definePrompt(
+          name: 'joke',
+          output: GenerateActionOutputConfig.fromJson({
+            'jsonSchema': {'type': 'object'},
+          }),
+          prompt: 'Tell a joke',
+        );
+
+        await expectLater(
+          genkit.prompt<dynamic, _Joke>('joke'),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              contains('Pass outputParserSchema:'),
+            ),
+          ),
+        );
+      },
+    );
 
     test('an untyped lookup of a typed prompt still works', () async {
       genkit.definePrompt(
@@ -1710,10 +1798,7 @@ void main() {
 
     test('a missing prompt is reported at lookup', () async {
       await expectLater(
-        genkit.prompt<Map<String, dynamic>, _Joke>(
-          'nope',
-          outputParserSchema: _jokeSchema,
-        ),
+        genkit.prompt('nope', outputParserSchema: _jokeSchema),
         throwsA(
           isA<GenkitException>().having(
             (e) => e.message,
@@ -1769,7 +1854,7 @@ Tell a joke.
       );
       await defined.render({'topic': 'cats'});
 
-      final ep = await genkit.prompt<Map<String, dynamic>, _Joke>('joke');
+      final ep = await genkit.prompt<dynamic, _Joke>('joke');
       final options = await ep.render({'topic': 'dogs'});
 
       expect(

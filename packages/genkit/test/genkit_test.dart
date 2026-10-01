@@ -368,6 +368,37 @@ void main() {
     );
 
     test(
+      'a wrong-shaped reply for a schemaless Output is a GenkitException',
+      () async {
+        genkit.defineModel(
+          name: 'shapeModel',
+          fn: (request, context) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: '{"a": 1}')],
+            ),
+          ),
+        );
+
+        await expectLater(
+          genkit.generate<String, dynamic>(
+            model: modelRef('shapeModel'),
+            prompt: 'test',
+            outputFormat: 'json',
+          ),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              contains('does not match the expected output type String'),
+            ),
+          ),
+        );
+      },
+    );
+
+    test(
       'streaming with outputSchema should handle partial JSON chunks',
       () async {
         const modelName = 'streamingJsonModel';

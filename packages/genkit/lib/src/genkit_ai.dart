@@ -169,7 +169,9 @@ base class GenkitAI {
                   GenerateResponseChunk<Output>(
                     c.rawChunk,
                     previousChunks: List.from(c.previousChunks),
-                    output: c.output as Output?,
+                    // Partial output that does not fit Output yet is not a
+                    // failure; the chunk's output is just unavailable.
+                    output: c.output is Output ? c.output as Output : null,
                   ),
                 );
               }
@@ -191,7 +193,7 @@ base class GenkitAI {
       return GenerateResponseHelper(
         rawResponse.rawResponse,
         request: rawResponse.modelRequest,
-        output: rawResponse.output as Output?,
+        output: castOutput<Output>(rawResponse.output),
         cause: rawResponse.cause,
       );
     }

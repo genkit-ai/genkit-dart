@@ -78,8 +78,9 @@ extension GenkitAgents on Genkit {
     ClientTransform? clientTransform,
   }) {
     // Register the prompt. An agent surfaces turns, not a parsed output, so
-    // the prompt is registered output-erased and `output` stays the raw config.
-    definePrompt<Input, dynamic, CustomOptions>(
+    // the prompt is registered output-erased (no outputSchema, so Output infers
+    // to dynamic) and `output` stays the raw config.
+    definePrompt(
       name: name,
       variant: variant,
       model: model,

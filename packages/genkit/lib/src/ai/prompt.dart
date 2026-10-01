@@ -147,7 +147,24 @@ final class PromptConfig<Input, Output, CustomOptions> {
         'outputSchema to parse it. Pass outputSchema: to definePrompt().',
       );
     }
+    // A JSON-shaped Output (e.g. Map<String, dynamic>) needs no schema, but it
+    // does need the model to be asked for JSON, otherwise no formatter runs
+    // and `output` is always null.
+    if (!_isUnconstrained<Output>() && !_requestsStructuredOutput) {
+      throw ArgumentError(
+        'Prompt "$name" declares an output type of $Output but does not '
+        'request structured output, so its output would always be null. Set '
+        'a format on output: (e.g. json) or pass outputSchema:.',
+      );
+    }
   }
+
+  /// Whether the model is asked for structured output, i.e. whether a
+  /// formatter will parse the response into `output` at all.
+  bool get _requestsStructuredOutput =>
+      outputSchema != null ||
+      output?.format != null ||
+      output?.jsonSchema != null;
 
   /// The full name including variant.
   String get fullName => variant != null ? '$name.$variant' : name;
@@ -427,12 +444,13 @@ final class ExecutablePrompt<Input, Output> {
 
   /// Parses a raw JSON output value into [Output].
   ///
-  /// Without a schema the prompt is untyped and [Output] is whatever the caller
-  /// asserted (normally `dynamic`), so the raw value passes through.
+  /// Without a schema [Output] is whatever the caller asserted (normally
+  /// `dynamic`, or a JSON type like `Map<String, dynamic>`), so the raw value
+  /// is cast, and a reply of the wrong shape is a [GenkitException].
   Output? _parseOutput(Object? raw) {
     if (raw == null) return null;
     final schema = _outputSchema;
-    return schema == null ? raw as Output : schema.parse(raw);
+    return schema == null ? castOutput<Output>(raw) : schema.parse(raw);
   }
 
   /// Parses a streamed chunk's *partial* output.
@@ -782,9 +800,11 @@ Map<String, dynamic> _promptActionMetadata(
 ///
 /// [outputParserSchema] only parses: the request always carries the schema the
 /// prompt defines, so a prompt that defines none is rejected rather than
-/// silently never asking the model for structured output. Failing here, rather
-/// than on a cast inside the eventual response, keeps the error at the call
-/// that has to change.
+/// silently never asking the model for structured output. Likewise, any pinned
+/// [Output] requires the prompt to request structured output (a `format` or a
+/// schema), since otherwise `output` is always null. Failing here, rather than
+/// on a cast or a silent null in the eventual response, keeps the error at the
+/// call that has to change.
 Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
   Registry registry,
   String name, {
@@ -802,13 +822,16 @@ Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
 
   // Covers every way a prompt defines its wire schema: `outputSchema`, a
   // `jsonSchema` on `output`, and a `.prompt` file's `output.schema`.
-  if (outputParserSchema != null &&
-      found._config.resolvedOutput?.jsonSchema == null) {
+  final hasWireSchema = found._config.resolvedOutput?.jsonSchema != null;
+  const defineSchemaHint =
+      'define the schema on the prompt (outputSchema: in definePrompt, or '
+      'output.schema in the .prompt file)';
+
+  if (outputParserSchema != null && !hasWireSchema) {
     throw GenkitException(
       '$label does not define an output schema, so the model is not asked for '
-      'structured output. outputParserSchema only parses the response; define '
-      'the schema on the prompt (outputSchema: in definePrompt, or '
-      'output.schema in the .prompt file).',
+      'structured output. outputParserSchema only parses the response; '
+      '$defineSchemaHint.',
       status: StatusCode.invalidArgument,
     );
   }
@@ -818,9 +841,25 @@ Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
       outputParserSchema ??
       (defined is SchemanticType<Output> ? defined : null);
   if (resolved == null && !_isJsonAssignable<Output>()) {
+    // outputParserSchema only helps when the prompt sends a schema; otherwise
+    // suggesting it just leads to the error above.
+    final fix = hasWireSchema
+        ? 'Pass outputParserSchema: to prompt<$Input, $Output>()'
+        : 'To parse into $Output, $defineSchemaHint';
     throw GenkitException(
-      '$label was not defined with an output schema for $Output. Pass '
-      'outputParserSchema: to prompt<$Input, $Output>(), or look it up '
+      '$label was not defined with an output schema for $Output. $fix, or '
+      'look it up untyped.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+
+  // A JSON-shaped Output (e.g. Map<String, dynamic>) needs no schema, but a
+  // prompt that never asks for JSON runs no formatter, so `output` would come
+  // back null on every call.
+  if (!_isUnconstrained<Output>() && !found._config._requestsStructuredOutput) {
+    throw GenkitException(
+      '$label does not request structured output, so its output would always '
+      'be null. Set output.format (e.g. json) on the prompt, or look it up '
       'untyped.',
       status: StatusCode.invalidArgument,
     );
@@ -866,3 +905,7 @@ bool _isJsonAssignable<T>() =>
     <int>[] is List<T> ||
     <double>[] is List<T> ||
     <bool>[] is List<T>;
+
+/// Whether [T] pins nothing (`dynamic`, `Object`, `Object?`), as on an untyped
+/// prompt or lookup. Such a prompt may legitimately produce text only.
+bool _isUnconstrained<T>() => <Object>[] is List<T>;

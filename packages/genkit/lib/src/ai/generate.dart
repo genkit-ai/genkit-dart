@@ -1165,6 +1165,23 @@ dynamic _parseOutput(Message? message, MessageParser? parser) {
   return null;
 }
 
+/// Casts a raw decoded output value to [Output] when no schema is available to
+/// parse it.
+///
+/// A plain `as` would surface a reply of the wrong shape (e.g. a JSON object
+/// for `Output = String`) as a bare `TypeError`; this reports it as a
+/// [GenkitException] naming both types instead.
+///
+/// Null maps to null, so this is safe for aborted or failed responses.
+Output? castOutput<Output>(Object? raw) {
+  if (raw == null) return null;
+  if (raw is Output) return raw as Output;
+  throw GenkitException(
+    'Model output of type ${raw.runtimeType} does not match the expected '
+    'output type $Output.',
+  );
+}
+
 Output? parseChunkOutput<Output>(
   ModelResponseChunk chunk,
   List<ModelResponseChunk> previousChunks,

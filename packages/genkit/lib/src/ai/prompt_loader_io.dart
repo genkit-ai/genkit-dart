@@ -215,11 +215,7 @@ void _loadPrompt(
         use: use,
       );
 
-  definePromptAction<Map<String, dynamic>, dynamic, Map<String, dynamic>>(
-    registry,
-    dotpromptRegistry,
-    promptConfig,
-  );
+  definePromptAction(registry, dotpromptRegistry, promptConfig);
 
   _logger.fine('Registered prompt "$registryName" from "$filePath"');
 }
