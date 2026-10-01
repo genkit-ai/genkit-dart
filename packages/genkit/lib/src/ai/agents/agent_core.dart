@@ -209,7 +209,7 @@ final class AgentInterrupt<Input, Output> {
   ///
   /// The optional [resumed] payload is stored under the `resumed` metadata key
   /// (mirroring the JS `restart(interrupt, resumedMetadata)` convention). The
-  /// tool reads it back via `ToolFnArgs.resumed`.
+  /// tool reads it back via `ToolFnArg.resumed`.
   ToolRequestPart restart([Map<String, dynamic>? resumed]) => ToolRequestPart(
     toolRequest: ToolRequest(name: name, ref: ref, input: input),
     metadata: resumed != null ? {'resumed': resumed} : null,

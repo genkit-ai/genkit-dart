@@ -115,7 +115,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
             return modelMetadata(
               '$name/$modelName',
               customOptions: GeminiModelFamily.of(modelName).customOptions,
-              modelInfo: modelInfoFor(modelName),
+              info: modelInfoFor(modelName),
             );
           })
           .toList();
