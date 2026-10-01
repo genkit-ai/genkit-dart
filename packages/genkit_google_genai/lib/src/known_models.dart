@@ -92,6 +92,11 @@ enum GeminiModelFamily {
   };
 }
 
+// Kept in step with the Gemini API model list: an entry stays until it 404s
+// on both the Gemini API and Vertex. 2.5 Pro and Flash 404 on the Gemini API
+// but are still GA on Vertex, so genkit_vertexai curates those itself. The 2.5
+// TTS previews are out (Gemini API only, replaced by the 3.8 TTS models).
+
 /// Gemini models the Google generative-AI plugins curate capability metadata
 /// for.
 ///
@@ -99,8 +104,6 @@ enum GeminiModelFamily {
 /// [label] and a [family]; [info] builds the capability preset for
 /// that family. Other model names still resolve dynamically via the plugin's
 /// `modelInfoFor` fallback, so this enum only enriches the names listed here.
-// Kept in step with the Gemini API model list. The 2.5 generation is out:
-// 2.5 Pro and Flash 404 on the Gemini API, and the rest have 3.x successors.
 enum KnownGeminiModel {
   gemini31ProPreview('gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview'),
   gemini3FlashPreview('gemini-3-flash-preview', 'Gemini 3 Flash Preview'),
@@ -110,6 +113,7 @@ enum KnownGeminiModel {
   gemini35Flash('gemini-3.5-flash', 'Gemini 3.5 Flash'),
   gemini35FlashLite('gemini-3.5-flash-lite', 'Gemini 3.5 Flash Lite'),
   gemini31FlashLite('gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite'),
+  gemini25FlashLite('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite'),
   gemini31FlashImage(
     'gemini-3.1-flash-image',
     'Gemini 3.1 Flash Image',
@@ -121,6 +125,11 @@ enum KnownGeminiModel {
     family: .image,
   ),
   gemini3ProImage('gemini-3-pro-image', 'Gemini 3 Pro Image', family: .image),
+  gemini25FlashImage(
+    'gemini-2.5-flash-image',
+    'Gemini 2.5 Flash Image',
+    family: .image,
+  ),
   gemini38FlashTts(
     'gemini-3.8-flash-tts',
     'Gemini 3.8 Flash TTS',

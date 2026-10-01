@@ -26,12 +26,30 @@ import 'package:genkit_google_genai/common.dart';
 // catalog's enums are internal to genkit_google_genai. Two things stay out:
 // - Gemma, which Vertex serves through Model Garden rather than as a
 //   publisher Gemini model; it still resolves on the Gemini path.
-// - TTS, which Vertex serves under IDs of its own (`gemini-2.5-flash-tts`
-//   rather than `gemini-2.5-flash-preview-tts`); those names still get the
-//   TTS profile through `modelInfoFor`.
+// - TTS, which Vertex serves under IDs of its own (`gemini-2.5-flash-tts`);
+//   Gemini API TTS names like `gemini-3.8-flash-tts` 404 there. Vertex TTS
+//   names still get the TTS profile through `modelInfoFor`.
+// Models Vertex still serves after the Gemini API retired them are added from
+// [_vertexOnlyModels].
 final vertexAiKnownModels = Map<String, ModelInfo>.unmodifiable({
   for (final MapEntry(:key, :value) in knownGeminiModels.entries)
     if (key.startsWith('gemini-') &&
         GeminiModelFamily.of(key) != GeminiModelFamily.tts)
       key: value,
+  ..._vertexOnlyModels,
 });
+
+// GA on Vertex but 404 on the Gemini API, so they are not in the shared
+// catalog. Drop them once Vertex retires them too.
+final _vertexOnlyModels = <String, ModelInfo>{
+  'gemini-2.5-pro': ModelInfo(
+    label: 'Gemini 2.5 Pro',
+    supports: GeminiModelFamily.text.supports,
+    stage: 'stable',
+  ),
+  'gemini-2.5-flash': ModelInfo(
+    label: 'Gemini 2.5 Flash',
+    supports: GeminiModelFamily.text.supports,
+    stage: 'stable',
+  ),
+};

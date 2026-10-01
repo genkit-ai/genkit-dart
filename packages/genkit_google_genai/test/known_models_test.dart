@@ -135,6 +135,7 @@ void main() {
           'gemini-3.5-flash',
           'gemini-3.5-flash-lite',
           'gemini-3.1-flash-lite',
+          'gemini-2.5-flash-lite',
         },
       );
       expect(
@@ -146,6 +147,7 @@ void main() {
           'gemini-3.1-flash-image',
           'gemini-3.1-flash-lite-image',
           'gemini-3-pro-image',
+          'gemini-2.5-flash-image',
         },
       );
       expect(
