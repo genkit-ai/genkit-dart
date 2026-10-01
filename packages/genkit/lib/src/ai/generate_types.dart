@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import '../extract.dart';
 import '../schema_extensions.dart';
 import '../types.dart';
 
@@ -42,16 +41,8 @@ final class GenerateResponseChunk<Output> extends ModelResponseChunk {
     return prev + text;
   }
 
-  /// Tries to parse the output as JSON.
-  ///
-  /// This will be populated if the output format is JSON, or if the output is
-  /// arbitrarily parsed as JSON.
-  Output? get jsonOutput {
-    if (output != null) return output;
-    return extractJson(accumulatedText) as Output?;
-  }
-
-  ModelResponseChunk get rawChunk => _chunk;
+  /// The underlying wire chunk, as emitted by the model.
+  ModelResponseChunk get modelChunk => _chunk;
 }
 
 /// A response to an interrupted tool request.
@@ -72,8 +63,11 @@ final class InterruptResponse {
   };
 }
 
-/// A response from a generate action.
-final class GenerateResponseHelper<Output> extends GenerateResponse {
+/// The result of `generate`: the final model response plus the parsed
+/// [output], the full conversation [messages], and the originating request.
+///
+/// [modelResponse] is the underlying wire [ModelResponse].
+final class GenerateResult<Output> extends GenerateResponse {
   final ModelResponse _response;
   final ModelRequest? _request;
   final Output? output;
@@ -84,7 +78,7 @@ final class GenerateResponseHelper<Output> extends GenerateResponse {
   /// does NOT survive the reflection/HTTP boundary (like [modelRequest]).
   final Object? cause;
 
-  GenerateResponseHelper(this._response, {this._request, this.output, this.cause})
+  GenerateResult(this._response, {this._request, this.output, this.cause})
     : super(
         message: _response.message,
         finishReason: _response.finishReason,
@@ -153,23 +147,4 @@ final class GenerateResponseHelper<Output> extends GenerateResponse {
             .toList() ??
         [];
   }
-
-  /// Tries to parse the output as JSON.
-  ///
-  /// This will be populated if the output format is JSON, or if the output is
-  /// arbitrarily parsed as JSON.
-  ///
-  /// Returns `null` for a message-less response (e.g. an aborted turn), where
-  /// `text` is empty and there is nothing to parse, rather than throwing a
-  /// `FormatException`. This mirrors how the other accessors degrade safely on
-  /// the abort path (`text` -> `''`, `media`/`toolRequests` -> null/`[]`).
-  Output? get jsonOutput {
-    if (output != null) return output;
-    if (_response.message == null) return null;
-    final source = text;
-    if (source.isEmpty) return null;
-    return extractJson(source) as Output?;
-  }
-
-  ModelResponse get rawResponse => _response;
 }

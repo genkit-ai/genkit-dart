@@ -222,7 +222,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
       metadata: {'model': firebaseAiModelInfo.toJson()},
       fn: (req, ctx) async {
         final isJsonMode =
-            req!.output?.format == 'json' ||
+            req.output?.format == 'json' ||
             req.output?.contentType == 'application/json';
 
         final options = req.config == null
@@ -388,7 +388,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           await _sendToSession(session, msg);
         }
 
-        final sub = ctx.inputStream!.listen(
+        final sub = stream.listen(
           (chunk) async {
             for (final msg in chunk.messages) {
               await _sendToSession(session, msg);

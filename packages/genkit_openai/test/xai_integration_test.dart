@@ -27,6 +27,7 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/known_xai_models.dart';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -57,7 +58,7 @@ void main() {
   group('xAI integration', () {
     test('generates text', () async {
       final response = await newAi().generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'Say "hello" and nothing else.',
       );
 
@@ -69,7 +70,7 @@ void main() {
       // only reads `max_tokens`, the limit is ignored silently and this is the
       // only thing that would say so - the same defect DeepSeek had.
       final response = await newAi().generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'Write five paragraphs about the sea.',
         config: OpenAIChatOptions(maxTokens: 16),
       );
@@ -79,7 +80,7 @@ void main() {
 
     test('accepts a JSON schema as a constraint', () async {
       final response = await newAi().generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'Give me a city and its country.',
         outputFormat: 'json',
         outputSchema: CityFact.$schema,
@@ -91,7 +92,7 @@ void main() {
 
     test('takes a reasoning effort', () async {
       final response = await newAi().generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'Is 91 prime? Answer yes or no.',
         config: OpenAIChatOptions(reasoningEffort: 'low'),
       );
@@ -110,7 +111,7 @@ void main() {
       );
 
       final response = await ai.generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'Use the tool to get the population of London, then say it.',
         toolNames: ['getPopulation'],
       );
@@ -184,7 +185,7 @@ void main() {
 
     test('streams', () async {
       final stream = newAi().generateStream(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'Count from one to five.',
       );
       final streamed = StringBuffer();

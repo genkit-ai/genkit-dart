@@ -350,7 +350,7 @@ void main() {
 
       expect(outputInstructionOf(captured), contains('"name"'));
       expect(captured.output?.schema, isNull);
-      expect(chunks.map((c) => c.jsonOutput?.toJson()).toList(), [
+      expect(chunks.map((c) => c.output?.toJson()).toList(), [
         {'name': null},
         {'name': 'Ada'},
         {'name': 'Ada', 'age': 36},

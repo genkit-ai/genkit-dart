@@ -400,20 +400,21 @@ final class ExecutablePrompt<Input, Output> {
   }
 
   /// Generates a response by rendering the prompt and calling the model.
-  Future<GenerateResponseHelper<Output>> call(
+  Future<GenerateResult<Output>> call(
     Input? input, [
     PromptGenerateOptions? opts,
   ]) => _generate(input, opts);
 
   /// Streams a response by rendering the prompt and calling the model.
-  ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
-  stream(Input? input, [PromptGenerateOptions? opts]) {
+  ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>> stream(
+    Input? input, [
+    PromptGenerateOptions? opts,
+  ]) {
     final streamController = StreamController<GenerateResponseChunk<Output>>();
     final actionStream =
-        ActionStream<
-          GenerateResponseChunk<Output>,
-          GenerateResponseHelper<Output>
-        >(streamController.stream);
+        ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>(
+          streamController.stream,
+        );
 
     _generate(
       input,
@@ -467,7 +468,7 @@ final class ExecutablePrompt<Input, Output> {
   }
 
   /// Internal generate implementation shared by [call] and [stream].
-  Future<GenerateResponseHelper<Output>> _generate(
+  Future<GenerateResult<Output>> _generate(
     Input? input,
     PromptGenerateOptions? opts, {
     StreamingCallback<GenerateResponseChunk<Output>>? onChunk,
@@ -514,7 +515,7 @@ final class ExecutablePrompt<Input, Output> {
               ? null
               : (c) => onChunk(
                   GenerateResponseChunk<Output>(
-                    c.rawChunk,
+                    c.modelChunk,
                     previousChunks: List.from(c.previousChunks),
                     output: _parsePartialOutput(c.output),
                   ),
@@ -524,8 +525,8 @@ final class ExecutablePrompt<Input, Output> {
         // An aborted or failed response carries no output; `_parseOutput`
         // returns null for it so the response (and its resumable history)
         // survives a structured-output call.
-        return GenerateResponseHelper<Output>(
-          raw.rawResponse,
+        return GenerateResult<Output>(
+          raw.modelResponse,
           request: raw.modelRequest,
           output: _parseOutput(raw.output),
           cause: raw.cause,
@@ -720,12 +721,7 @@ base class PromptAction<Input>
          inputSchema: inputSchema,
          description: description,
          metadata: metadata,
-         fn: (input, ctx) async {
-           if (input == null && inputSchema != null && null is! Input) {
-             throw ArgumentError('Prompt "$name" requires a non-null input.');
-           }
-           return fn(input as Input, ctx);
-         },
+         fn: requireInput('Prompt', name, fn),
        );
 
   /// The registry entry for a template prompt; see [definePromptAction].

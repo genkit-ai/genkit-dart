@@ -171,7 +171,9 @@ final ModelInfo dynamicDeepSeekModelInfo = ModelInfo(
   supports: Map.unmodifiable(deepSeekTextSupports),
 );
 
-/// Capability metadata for any DeepSeek model name.
+/// Capability metadata for any DeepSeek model name, as `modelInfoFor` does for
+/// OpenAI. The result follows the curated list and can change between
+/// releases.
 ModelInfo deepSeekModelInfoFor(String model) =>
     knownDeepSeekModelFor(model)?.info ?? dynamicDeepSeekModelInfo;
 

@@ -55,7 +55,7 @@ base class GenkitAI {
   }
 
   /// Generates a response using the specified model and context.
-  Future<GenerateResponseHelper<Output>> generate<Output, CustomOptions>({
+  Future<GenerateResult<Output>> generate<Output, CustomOptions>({
     String? system,
     String? prompt,
     List<Part>? promptParts,
@@ -131,7 +131,7 @@ base class GenkitAI {
       tools: tools,
       toolNames: toolNames,
     );
-    final rawResponse = await generateHelper(
+    final result = await generateHelper(
       resolved.registry,
       system: system,
       prompt: prompt,
@@ -159,7 +159,7 @@ base class GenkitAI {
               if (outputSchema != null) {
                 onChunk.call(
                   GenerateResponseChunk<Output>(
-                    c.rawChunk,
+                    c.modelChunk,
                     previousChunks: List.from(c.previousChunks),
                     output: _parsePartial(outputSchema, c.output),
                   ),
@@ -167,7 +167,7 @@ base class GenkitAI {
               } else {
                 onChunk.call(
                   GenerateResponseChunk<Output>(
-                    c.rawChunk,
+                    c.modelChunk,
                     previousChunks: List.from(c.previousChunks),
                     // Partial output that does not fit Output yet is not a
                     // failure; the chunk's output is just unavailable.
@@ -178,29 +178,29 @@ base class GenkitAI {
             },
     );
     if (outputSchema != null) {
-      return GenerateResponseHelper(
-        rawResponse.rawResponse,
-        request: rawResponse.modelRequest,
+      return GenerateResult(
+        result.modelResponse,
+        request: result.modelRequest,
         // An aborted response carries no output; guard the parse so the
         // aborted response (with its resumable history) survives structured
         // output calls too.
-        output: rawResponse.output == null
+        output: result.output == null
             ? null
-            : outputSchema.parse(rawResponse.output),
-        cause: rawResponse.cause,
+            : outputSchema.parse(result.output),
+        cause: result.cause,
       );
     } else {
-      return GenerateResponseHelper(
-        rawResponse.rawResponse,
-        request: rawResponse.modelRequest,
-        output: castOutput<Output>(rawResponse.output),
-        cause: rawResponse.cause,
+      return GenerateResult(
+        result.modelResponse,
+        request: result.modelRequest,
+        output: castOutput<Output>(result.output),
+        cause: result.cause,
       );
     }
   }
 
   /// Streams a response from the specified model.
-  ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
+  ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>
   generateStream<Output, CustomOptions>({
     String? system,
     String? prompt,
@@ -227,10 +227,9 @@ base class GenkitAI {
   }) {
     final streamController = StreamController<GenerateResponseChunk<Output>>();
     final actionStream =
-        ActionStream<
-          GenerateResponseChunk<Output>,
-          GenerateResponseHelper<Output>
-        >(streamController.stream);
+        ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>(
+          streamController.stream,
+        );
 
     generate(
           system: system,
