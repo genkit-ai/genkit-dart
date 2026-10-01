@@ -34,7 +34,7 @@ import 'types.dart';
 /// Encapsulates Genkit's AI APIs.
 ///
 /// [GenkitAI] exposes the model-orchestration veneer ([generate],
-/// [generateStream], [embed], [embedMany], [run]) on top of a
+/// [generateStream], [embed], [run]) on top of a
 /// [Registry]. It only requires a registry to operate, making it cheap to
 /// create ephemeral, throwaway instances (the registry holds all the state).
 /// The full framework entry point `Genkit` extends this class to add plugin
@@ -273,12 +273,32 @@ base class GenkitAI {
     return actionStream;
   }
 
-  /// Embeds multiple documents using the specified embedder.
-  Future<List<Embedding>> embedMany<CustomOptions>({
+  /// Embeds a single [document] or a list of [documents] (exactly one must be
+  /// given). An empty [documents] list is passed through to the embedder.
+  ///
+  /// Typically returns one [Embedding] per document, in order:
+  ///
+  /// ```dart
+  /// final [vector] = await ai.embed(embedder: e, document: doc);
+  /// final vectors = await ai.embed(embedder: e, documents: [a, b]);
+  /// ```
+  ///
+  /// Some embedders return several embeddings per document (e.g. Vertex AI's
+  /// `multimodalembedding` returns one per modality), so the result is not
+  /// always 1:1 with the input. Such embedders identify the source document
+  /// in each embedding's metadata (e.g. `documentIndex`); check the embedder's
+  /// docs before destructuring or zipping by position.
+  Future<List<Embedding>> embed<CustomOptions>({
     required EmbedderRef<CustomOptions> embedder,
-    required List<DocumentData> documents,
+    DocumentData? document,
+    List<DocumentData>? documents,
     CustomOptions? options,
   }) async {
+    if ((document == null) == (documents == null)) {
+      throw ArgumentError(
+        'Provide exactly one of document or documents to embed.',
+      );
+    }
     final action = await registry.lookupAction(.embedder, embedder.name);
     if (action == null) {
       throw GenkitException(
@@ -291,26 +311,13 @@ base class GenkitAI {
         ? options as Map<String, dynamic>
         : (options as dynamic)?.toJson() as Map<String, dynamic>?;
 
-    final req = EmbedRequest(input: documents, options: resolvedOptions);
+    final req = EmbedRequest(
+      input: documents ?? [document!],
+      options: resolvedOptions,
+    );
 
     final response = await action(req) as EmbedResponse;
     return response.embeddings;
-  }
-
-  /// Embeds a single document or a list of documents.
-  Future<List<Embedding>> embed<CustomOptions>({
-    required EmbedderRef<CustomOptions> embedder,
-    DocumentData? document,
-    List<DocumentData>? documents,
-    CustomOptions? options,
-  }) async {
-    final docs = documents ?? (document != null ? [document] : []);
-    if (docs.isEmpty) {
-      throw ArgumentError(
-        'Either document or documents must be provided to embed.',
-      );
-    }
-    return embedMany(embedder: embedder, documents: docs, options: options);
   }
 }
 

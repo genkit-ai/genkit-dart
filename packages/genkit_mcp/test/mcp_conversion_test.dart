@@ -148,7 +148,7 @@ void main() {
       name: 'namedSchemaTool',
       description: 'named schema tool',
       inputSchema: const _NamedToolSchema(),
-      toolOutputSchema: const _NamedToolSchema(),
+      outputSchema: const _NamedToolSchema(),
       fn: (input, _) async => .response(input),
     );
 
@@ -187,7 +187,7 @@ void main() {
       name: 'scalarOutputTool',
       description: 'scalar output tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      toolOutputSchema: .string(),
+      outputSchema: .string(),
       fn: (input, _) async => .response(input.toString()),
     );
 

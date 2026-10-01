@@ -370,7 +370,7 @@ void main(List<String> args) async {
     inputSchema: .string(defaultValue: 'Hello Genkit'),
     outputSchema: .list(.doubleSchema()),
     fn: (input, _) async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: input)]),

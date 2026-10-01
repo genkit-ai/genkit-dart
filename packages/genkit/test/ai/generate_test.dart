@@ -387,7 +387,7 @@ void main() {
               name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              toolOutputSchema: .dynamicSchema(),
+              outputSchema: .dynamicSchema(),
               fn: (input, context) async => .response('sunny'),
             );
           }
@@ -451,7 +451,7 @@ void main() {
               name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              toolOutputSchema: .dynamicSchema(),
+              outputSchema: .dynamicSchema(),
               fn: (input, context) async => .response('sunny'),
             );
           }
@@ -515,7 +515,7 @@ void main() {
               name: 'weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              toolOutputSchema: .dynamicSchema(),
+              outputSchema: .dynamicSchema(),
               fn: (input, context) async => .response('sunny explicit'),
             );
           }
@@ -581,7 +581,7 @@ void main() {
                 name: 'weatherTool',
                 description: 'get weather',
                 inputSchema: TestToolInput.$schema,
-                toolOutputSchema: .dynamicSchema(),
+                outputSchema: .dynamicSchema(),
                 fn: (input, context) async =>
                     .response('sunny explicit prefix'),
               );
@@ -656,7 +656,7 @@ void main() {
               name: 'wea/weatherTool',
               description: 'get weather',
               inputSchema: TestToolInput.$schema,
-              toolOutputSchema: .dynamicSchema(),
+              outputSchema: .dynamicSchema(),
               fn: (input, context) async => .response('sunny prefix wildcard'),
             );
           }
@@ -1692,7 +1692,7 @@ void main() {
                   name: 'weatherTool',
                   description: 'get weather',
                   inputSchema: TestToolInput.$schema,
-                  toolOutputSchema: .dynamicSchema(),
+                  outputSchema: .dynamicSchema(),
                   fn: (input, context) async => .response('sunny'),
                 );
               }
@@ -1882,7 +1882,7 @@ void main() {
                 name: 'weatherTool',
                 description: 'get weather',
                 inputSchema: TestToolInput.$schema,
-                toolOutputSchema: .dynamicSchema(),
+                outputSchema: .dynamicSchema(),
                 fn: (input, context) async => .response('sunny'),
               );
             }
@@ -1947,7 +1947,7 @@ void main() {
                 name: 'weatherTool',
                 description: 'get weather',
                 inputSchema: TestToolInput.$schema,
-                toolOutputSchema: .dynamicSchema(),
+                outputSchema: .dynamicSchema(),
                 fn: (input, context) async => .response('sunny'),
               );
             }
