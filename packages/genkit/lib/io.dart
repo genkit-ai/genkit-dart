@@ -27,8 +27,8 @@
 /// Or plug it into your own `dart:io` server with
 /// [GenkitRouter.handleHttpRequest], or serve a single action with
 /// [ioHandler]. Other HTTP frameworks integrate through the framework-neutral
-/// [GenkitRouter.handle] and [actionHandler] (`package:genkit_shelf` is the
-/// shelf adapter).
+/// [GenkitRouter.handle], [actionHandler] and [withCors]
+/// (`package:genkit_shelf` is the shelf adapter).
 ///
 /// Agents are served with `addAgent` from the experimental
 /// `package:genkit/experimental_io.dart`.
@@ -37,11 +37,12 @@
 library;
 
 import 'src/server/action_handler.dart';
+import 'src/server/cors.dart';
 import 'src/server/io_adapter.dart';
 import 'src/server/router.dart';
 
 export 'src/server/action_handler.dart' show actionHandler;
-export 'src/server/cors.dart' show CorsOptions;
+export 'src/server/cors.dart' show CorsOptions, withCors;
 export 'src/server/http.dart'
     show
         ContextProvider,

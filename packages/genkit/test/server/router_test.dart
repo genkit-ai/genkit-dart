@@ -17,8 +17,6 @@ import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/io.dart';
-// withCors is internal; tested directly to control the inner response.
-import 'package:genkit/src/server/cors.dart' show withCors;
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
@@ -240,6 +238,26 @@ void main() {
       });
     });
 
+    test('matches percent-encoded paths, basePath included', () async {
+      final router = GenkitRouter()
+        ..addAction(echo, path: '/acme/fancy-model')
+        ..addAction(echo, path: '/with space');
+      final base = await serveRaw(router, basePath: '/my api');
+
+      for (final path in [
+        '/my%20api/acme%2Ffancy-model',
+        '/my%20api/acme/fancy-model',
+        '/my%20api/with%20space',
+      ]) {
+        final response = await post('$base$path');
+        expect(response.statusCode, 200, reason: path);
+        expect(jsonDecode(response.body), {'result': 'Echo: x'});
+      }
+      // An invalid escape can't name a route, so the app gets it.
+      final bad = await post('$base/my%20api/%FF');
+      expect(bad.body, 'app 404');
+    });
+
     test('applies CORS to its own routes only', () async {
       final base = await serveRaw(
         GenkitRouter()..addAction(echo),
@@ -367,6 +385,60 @@ void main() {
       );
 
       expect(response.statusCode, 404);
+    });
+
+    test('matches percent-encoded paths', () async {
+      server =
+          await (GenkitRouter()..addAction(echo, path: '/acme/fancy-model'))
+              .serve(port: 0);
+      Future<http.Response> postPath(String path) => http.post(
+        Uri.parse('http://localhost:${server!.port}$path'),
+        headers: {'content-type': 'application/json'},
+        body: jsonEncode({'data': 'x'}),
+      );
+
+      final encoded = await postPath('/acme%2Ffancy-model');
+      expect(jsonDecode(encoded.body), {'result': 'Echo: x'});
+      expect((await postPath('/acme%2')).statusCode, 404);
+      expect((await postPath('/%FF')).statusCode, 404);
+    });
+
+    test('restricted origins add Vary: Origin to every response', () async {
+      const cors = CorsOptions(allowedOrigins: ['https://a.dev']);
+      Future<GenkitHttpResponse> respond(String method, {String? origin}) =>
+          withCors(
+            cors,
+            GenkitHttpRequest(
+              method: method,
+              path: '/x',
+              headers: {'origin': ?origin},
+            ),
+            (_) async => GenkitHttpResponse(statusCode: 200),
+          );
+
+      // Without CORS headers too, so a cache never hands them to a.dev.
+      for (final origin in [null, 'https://evil.dev', 'https://a.dev']) {
+        expect(
+          (await respond('POST', origin: origin)).headers['vary'],
+          'Origin',
+          reason: 'POST from $origin',
+        );
+        expect(
+          (await respond('OPTIONS', origin: origin)).headers['vary'],
+          'Origin',
+          reason: 'OPTIONS from $origin',
+        );
+      }
+      final denied = await respond('POST', origin: 'https://evil.dev');
+      expect(denied.headers['access-control-allow-origin'], isNull);
+
+      // Any origin gets the same response, so no Vary is needed.
+      final open = await withCors(
+        const CorsOptions(),
+        GenkitHttpRequest(method: 'POST', path: '/x'),
+        (_) async => GenkitHttpResponse(statusCode: 200),
+      );
+      expect(open.headers['vary'], isNull);
     });
 
     test('CORS appends to an existing Vary header', () async {

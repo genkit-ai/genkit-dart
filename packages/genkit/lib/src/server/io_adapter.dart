@@ -17,6 +17,7 @@ import 'dart:io';
 import '../core/action.dart';
 import 'action_handler.dart';
 import 'http.dart';
+import 'router.dart' show decodeRequestPath;
 
 /// Serves a single [action] as a `dart:io` request handler, the `dart:io`
 /// counterpart of Go's `genkit.Handler`.
@@ -48,14 +49,19 @@ Future<void> Function(HttpRequest request) ioHandler(
   );
   return (HttpRequest request) async {
     final response = await handler(
-      toGenkitHttpRequest(request, path: request.uri.path),
+      // The action doesn't route on the path, so a bad escape is harmless;
+      // pass the raw path through rather than reject the request.
+      toGenkitHttpRequest(
+        request,
+        path: decodeRequestPath(request.uri.path) ?? request.uri.path,
+      ),
     );
     await writeHttpResponse(response, request.response);
   };
 }
 
 /// Wraps a `dart:io` [request] as a [GenkitHttpRequest] with the given
-/// (mount-relative) [path].
+/// (mount-relative, decoded) [path].
 GenkitHttpRequest toGenkitHttpRequest(
   HttpRequest request, {
   required String path,

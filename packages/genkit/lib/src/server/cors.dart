@@ -43,6 +43,15 @@ final class CorsOptions {
 }
 
 /// Applies [options] around [inner]; answers preflight `OPTIONS` itself.
+///
+/// The building block behind the `cors` option of `GenkitRouter.serve` and
+/// `GenkitRouter.handleHttpRequest`, for HTTP framework adapters (e.g.
+/// `asShelfHandler` in `package:genkit_shelf`):
+///
+/// ```dart
+/// final response = await withCors(cors, request, (request) async =>
+///     await router.handle(request) ?? notFound());
+/// ```
 Future<GenkitHttpResponse> withCors(
   CorsOptions options,
   GenkitHttpRequest request,
@@ -59,10 +68,13 @@ Future<GenkitHttpResponse> withCors(
     allowOrigin = null;
   }
   final headers = <String, String>{
+    // With a restricted list the response depends on the request origin, so
+    // caches must key on it. That includes responses without CORS headers (no
+    // or a disallowed `Origin`): cached, they would be handed to an allowed
+    // origin and the browser would block them.
+    if (!allowAny) 'vary': 'Origin',
     if (allowOrigin != null) ...{
       'access-control-allow-origin': allowOrigin,
-      // The response depends on the request origin, so caches must key on it.
-      if (!allowAny) 'vary': 'Origin',
       if (options.exposedHeaders.isNotEmpty)
         'access-control-expose-headers': options.exposedHeaders.join(', '),
     },
@@ -73,7 +85,7 @@ Future<GenkitHttpResponse> withCors(
       statusCode: 204,
       headers: {
         ...headers,
-        if (headers.isNotEmpty) ...{
+        if (allowOrigin != null) ...{
           'access-control-allow-methods': 'POST, OPTIONS',
           if (options.allowedHeaders.isNotEmpty)
             'access-control-allow-headers': options.allowedHeaders.join(', '),
@@ -94,14 +106,14 @@ Future<GenkitHttpResponse> withCors(
       // Append to an existing `Vary` (e.g. `Accept-Encoding`) instead of
       // clobbering it.
       if (vary != null && existingVary != null)
-        'vary': appendVary(existingVary, vary),
+        'vary': _appendVary(existingVary, vary),
     },
     body: response.body,
   );
 }
 
 /// Adds [value] to a `Vary` header value unless it's already covered.
-String appendVary(String existing, String value) {
+String _appendVary(String existing, String value) {
   final names = existing.split(',').map((v) => v.trim().toLowerCase());
   if (names.contains('*') || names.contains(value.toLowerCase())) {
     return existing;

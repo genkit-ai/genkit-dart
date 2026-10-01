@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -639,6 +640,98 @@ void main() {
 
       expect((await handler(post('hi'))).statusCode, 403);
     });
+
+    test('hides non-Genkit context provider error details', () async {
+      final handler = actionHandler(
+        echoFlow,
+        contextProvider: (_) =>
+            throw Exception('JWKS fetch failed for kid=abc123 at db.internal'),
+      );
+
+      final response = await handler(post('hi'));
+
+      expect(jsonDecode(await utf8.decodeStream(response.body)), {
+        'code': 403,
+        'status': 'PERMISSION_DENIED',
+        'message': 'Permission denied',
+      });
+    });
+
+    test('cancels a streaming run when the client goes away', () async {
+      final started = Completer<void>();
+      final cancelled = Completer<Object?>();
+      final endless = ai.defineFlow(
+        name: 'endless',
+        fn: (String _, ctx) async {
+          ctx.cancel!.onCancel(() => cancelled.complete(ctx.cancel!.reason));
+          ctx.sendChunk('tick');
+          started.complete();
+          await ctx.cancel!.whenCancelled;
+          ctx.cancel!.throwIfCancelled();
+          return 'unreachable';
+        },
+        inputSchema: .string(),
+        outputSchema: .string(),
+        streamSchema: .string(),
+      );
+
+      final response = await actionHandler(endless)(
+        GenkitHttpRequest(
+          method: 'POST',
+          path: '/endless',
+          queryParameters: {'stream': 'true'},
+          body: Stream.value(utf8.encode(jsonEncode({'data': 'go'}))),
+        ),
+      );
+      // What an adapter does when the client disconnects: drop the body.
+      final subscription = response.body.listen((_) {});
+      await started.future;
+      await subscription.cancel();
+
+      expect(
+        await cancelled.future.timeout(const Duration(seconds: 5)),
+        'Client disconnected',
+      );
+    });
+  });
+
+  test('a dropped dart:io connection cancels the streaming run', () async {
+    final started = Completer<void>();
+    final cancelled = Completer<void>();
+    final endless = ai.defineFlow(
+      name: 'endless',
+      fn: (String _, ctx) async {
+        ctx.cancel!.onCancel(cancelled.complete);
+        // Keep chunks flowing so the server notices the closed socket.
+        while (!ctx.cancel!.isCancelled) {
+          ctx.sendChunk('tick');
+          if (!started.isCompleted) started.complete();
+          await Future<void>.delayed(const Duration(milliseconds: 20));
+        }
+        ctx.cancel!.throwIfCancelled();
+        return 'unreachable';
+      },
+      inputSchema: .string(),
+      outputSchema: .string(),
+      streamSchema: .string(),
+    );
+    server = await (GenkitRouter()..addAction(endless)).serve(
+      host: InternetAddress.loopbackIPv4,
+      port: 0,
+    );
+
+    final client = HttpClient();
+    final request = await client.postUrl(
+      Uri.parse('http://127.0.0.1:${server!.port}/endless?stream=true'),
+    );
+    request.headers.contentType = ContentType.json;
+    request.write(jsonEncode({'data': 'go'}));
+    final response = await request.close();
+    response.listen((_) {});
+    await started.future;
+    client.close(force: true);
+
+    await cancelled.future.timeout(const Duration(seconds: 5));
   });
 
   test('ioHandler serves a single action on a raw dart:io server', () async {

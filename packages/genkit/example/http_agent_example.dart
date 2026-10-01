@@ -16,6 +16,7 @@ import 'package:genkit/experimental.dart';
 import 'package:genkit/experimental_io.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit/io.dart';
+import 'package:logging/logging.dart';
 
 // This example serves Genkit agents over HTTP (dart:io, no extra packages).
 //
@@ -39,6 +40,10 @@ import 'package:genkit/io.dart';
 //     -d '{"data": {"message": {"role": "user", "content": [{"text": "Hi!"}]}}}'
 
 void main() async {
+  // Genkit logs through package:logging, which prints nothing until a listener
+  // is attached. `serve()` logs the address it bound this way.
+  Logger.root.onRecord.listen(print);
+
   final ai = Genkit();
   final model = ai.defineModel(
     name: 'echo',

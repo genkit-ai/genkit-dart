@@ -35,7 +35,13 @@ extension GenkitRouterAgents on GenkitRouter {
   ///
   /// So a client-managed agent gets only its turn route. The `hide*` flags
   /// can only remove supported routes, never force-mount unsupported ones
-  /// (those could only answer with an error).
+  /// (those could only answer with an error). Missing or unrecognized
+  /// metadata counts as unsupported. To serve a companion route anyway, mount
+  /// its action yourself:
+  ///
+  /// ```dart
+  /// router.addAction(agent.abortAgentAction, path: '/myAgent/abort');
+  /// ```
   ///
   /// [path] defaults to `'/<agent name>'`. [contextProvider] applies to every
   /// mounted route, so reading or aborting a snapshot is authorized the same
@@ -44,7 +50,8 @@ extension GenkitRouterAgents on GenkitRouter {
   ///
   /// Throws an [ArgumentError] if [path] is invalid (see
   /// [GenkitRouter.addAction]; `/` is rejected too, since the companion routes
-  /// are nested under it) or if any of the paths is already registered.
+  /// are nested under it) or if any of the paths is already registered. Routes
+  /// are added all or nothing, so after a failure none of them are served.
   void addAgent(
     Agent<dynamic> agent, {
     String? path,
@@ -53,48 +60,36 @@ extension GenkitRouterAgents on GenkitRouter {
     bool hideAbort = false,
   }) {
     final base = path ?? '/${agent.action.name}';
-    // addAction validates the rest; '/' alone is only invalid here, because
+    // addRoutes validates the rest; '/' alone is only invalid here, because
     // the companions would become '//getSnapshot' and '//abort'.
     if (base == '/') {
       throw ArgumentError.value(path, 'path', "must not be '/'");
     }
     final capabilities = _capabilitiesOf(agent);
-    addAction(agent.action, path: base, contextProvider: contextProvider);
-    if (capabilities.snapshots && !hideGetSnapshot) {
-      addAction(
-        agent.getSnapshotDataAction,
-        path: '$base/getSnapshot',
-        contextProvider: contextProvider,
-      );
-    }
-    if (capabilities.abortable && !hideAbort) {
-      addAction(
-        agent.abortAgentAction,
-        path: '$base/abort',
-        contextProvider: contextProvider,
-      );
-    }
+    addRoutes(this, [
+      (action: agent.action, path: base),
+      if (capabilities.snapshots && !hideGetSnapshot)
+        (action: agent.getSnapshotDataAction, path: '$base/getSnapshot'),
+      if (capabilities.abortable && !hideAbort)
+        (action: agent.abortAgentAction, path: '$base/abort'),
+    ], contextProvider: contextProvider);
   }
 }
 
 /// Reads what [agent] supports from the `agent` entry of its turn action's
 /// metadata, the same descriptor every Genkit runtime publishes (and the Dev
 /// UI reads).
+///
+/// Fails closed: a companion route is mounted only when the metadata
+/// explicitly advertises it. defineAgent/defineCustomAgent always set both
+/// fields, so this only matters if the metadata was tampered with or its
+/// shape changes, and then a missing route beats an `/abort` without a store
+/// that can signal the turn.
 ({bool snapshots, bool abortable}) _capabilitiesOf(Agent<dynamic> agent) {
-  // The generated `AgentMetadata` getters cast lazily (and throw on a bad
-  // shape), so check the two fields up front instead.
   final raw = agent.action.metadata['agent'];
-  if (raw is Map<String, dynamic> &&
-      raw['stateManagement'] is String &&
-      raw['abortable'] is bool) {
-    final meta = AgentMetadata.fromJson(raw);
-    return (
-      snapshots: meta.stateManagement == AgentStateManagement.server,
-      abortable: meta.abortable,
-    );
-  }
-  // Every `Agent` comes from defineAgent/defineCustomAgent, which always set
-  // this, so this is purely defensive: mount everything and let the actions
-  // report what they don't support.
-  return (snapshots: true, abortable: true);
+  if (raw is! Map) return (snapshots: false, abortable: false);
+  return (
+    snapshots: raw['stateManagement'] == AgentStateManagement.server.value,
+    abortable: raw['abortable'] == true,
+  );
 }

@@ -128,7 +128,10 @@ void main() {
     );
     final legacyRouter = GenkitRouter(sendLegacyErrorFrame: true)
       ..addAction(failing);
-    expect(await lastFrame(legacyRouter.asShelfHandler), startsWith('error: '));
+    expect(
+      await lastFrame(legacyRouter.asShelfHandler()),
+      startsWith('error: '),
+    );
   });
 
   group('asShelfHandler', () {
@@ -136,7 +139,7 @@ void main() {
       final genkit = GenkitRouter()..addAction(echo);
       final app = Router()
         ..get('/health', (Request _) => Response.ok('OK'))
-        ..mount('/api/', genkit.asShelfHandler);
+        ..mount('/api/', genkit.asShelfHandler());
 
       final response = await app.call(_post('/api/echo', 'mounted'));
 
@@ -145,10 +148,54 @@ void main() {
       expect((await app.call(_post('/echo', 'x'))).statusCode, 404);
     });
 
+    test('matches percent-encoded paths', () async {
+      final genkit = GenkitRouter()..addAction(echo, path: '/acme/model');
+      final app = Router()..mount('/api/', genkit.asShelfHandler());
+
+      final response = await app.call(_post('/api/acme%2Fmodel', 'x'));
+      expect(await _result(response), 'Echo: x');
+    });
+
+    test('applies CorsOptions to its routes and 404s', () async {
+      final handler = (GenkitRouter()..addAction(echo)).asShelfHandler(
+        cors: const CorsOptions(allowedOrigins: ['https://a.dev']),
+      );
+      const origin = {'origin': 'https://a.dev'};
+
+      final preflight = await handler(
+        Request('OPTIONS', Uri.parse('http://localhost/echo'), headers: origin),
+      );
+      expect(preflight.statusCode, 204);
+      expect(preflight.headers['access-control-allow-origin'], 'https://a.dev');
+      expect(
+        preflight.headers['access-control-allow-methods'],
+        'POST, OPTIONS',
+      );
+
+      final hit = await handler(_post('/echo', 'x', headers: origin));
+      expect(await _result(hit), 'Echo: x');
+      expect(hit.headers['access-control-allow-origin'], 'https://a.dev');
+      expect(
+        hit.headers['access-control-expose-headers'],
+        'x-genkit-trace-id, x-genkit-span-id',
+      );
+      expect(hit.headers['vary'], 'Origin');
+
+      final miss = await handler(_post('/nope', 'x', headers: origin));
+      expect(miss.statusCode, 404);
+      expect(miss.headers['access-control-allow-origin'], 'https://a.dev');
+
+      // Without cors, no CORS headers at all.
+      final plain = await (GenkitRouter()..addAction(echo)).asShelfHandler()(
+        _post('/echo', 'x', headers: origin),
+      );
+      expect(plain.headers['access-control-allow-origin'], isNull);
+    });
+
     test('404 falls through a Cascade', () async {
       final genkit = GenkitRouter()..addAction(echo);
       final handler = Cascade()
-          .add(genkit.asShelfHandler)
+          .add(genkit.asShelfHandler())
           .add((Request _) => Response.ok('fallback'))
           .handler;
 
@@ -174,7 +221,7 @@ void main() {
       // Middleware that rebuilds the response must keep its context.
       final handler = const Pipeline()
           .addMiddleware(logRequests(logger: (_, _) {}))
-          .addHandler(genkit.asShelfHandler);
+          .addHandler(genkit.asShelfHandler());
       server = await io.serve(handler, InternetAddress.loopbackIPv4, 0);
 
       final action = defineRemoteAction(

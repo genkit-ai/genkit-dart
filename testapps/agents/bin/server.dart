@@ -39,7 +39,6 @@ import 'package:genkit/io.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
-import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:shelf_router/shelf_router.dart';
 
 void main() async {
@@ -86,20 +85,19 @@ void main() async {
       );
     })
     // `mount` strips the prefix, so agents are served at `/api/<agentName>`.
-    ..mount('/api/', api.asShelfHandler);
+    // The web UI runs on another port, so the API needs CORS (any origin by
+    // default, and the trace id headers are readable by browser code).
+    ..mount(
+      '/api/',
+      api.asShelfHandler(
+        cors: const CorsOptions(
+          allowedHeaders: ['Content-Type', 'Accept', 'X-Genkit-Stream-Id'],
+        ),
+      ),
+    );
 
   final handler = const Pipeline()
       .addMiddleware(logRequests())
-      .addMiddleware(
-        corsHeaders(
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers':
-                'Content-Type, Accept, X-Genkit-Stream-Id',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          },
-        ),
-      )
       .addHandler(router.call);
 
   final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;

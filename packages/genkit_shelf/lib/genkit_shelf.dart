@@ -25,7 +25,7 @@
 /// final app = Router()
 ///   ..get('/health', (Request _) => Response.ok('OK'))
 ///   ..post('/hello', shelfHandler(helloFlow))
-///   ..mount('/api/', genkit.asShelfHandler);
+///   ..mount('/api/', genkit.asShelfHandler());
 /// ```
 library;
 

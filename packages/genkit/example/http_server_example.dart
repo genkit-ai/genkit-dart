@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit/io.dart';
+import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 part 'http_server_example.g.dart';
@@ -57,6 +58,10 @@ abstract class $CountChunk {
 // curl -X POST http://localhost:3400/client -H "Content-Type: application/json" -d '{"data": "start"}'
 
 void main(List<String> args) async {
+  // Genkit logs through package:logging, which prints nothing until a listener
+  // is attached. `serve()` logs the address it bound this way.
+  Logger.root.onRecord.listen(print);
+
   final ai = Genkit();
 
   // Define remote actions for the client flow
@@ -173,6 +178,7 @@ void main(List<String> args) async {
     ),
   );
   final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 3400);
+  // Your own server, so you report its address yourself.
   print('Listening on http://localhost:${server.port}');
   await for (final request in server) {
     // Every Genkit route, e.g. POST /hello.

@@ -663,11 +663,15 @@ See [Serving over HTTP](#serving-over-http) for how to host remote models and fl
 
 ```dart
 import 'package:genkit/io.dart';
+import 'package:logging/logging.dart';
 
 final genkit = GenkitRouter()
   ..addAction(helloFlow) // POST /helloFlow
   ..addAction(secureFlow, contextProvider: bearerAuth)
   ..addAction(geminiFlash, path: '/v1/gemini');
+
+// Optional: show Genkit's logs, including the address `serve` bound.
+Logger.root.onRecord.listen(print);
 
 await genkit.serve(
   port: 8080, // default: $PORT, then 3400
@@ -721,7 +725,7 @@ When a streamed call fails midway, the stream ends with a `data: {"error": ...}`
 final genkit = GenkitRouter(sendLegacyErrorFrame: true); // also on ioHandler(...)
 ```
 
-For shelf apps, use [genkit_shelf](https://pub.dev/packages/genkit_shelf) (`router.mount('/api/', genkit.asShelfHandler)`). Other frameworks can adapt the framework-neutral `GenkitRouter.handle` / `actionHandler`, which take a `GenkitHttpRequest` and return a `GenkitHttpResponse`. See [example/http_server_example.dart](example/http_server_example.dart) and [example/http_agent_example.dart](example/http_agent_example.dart).
+For shelf apps, use [genkit_shelf](https://pub.dev/packages/genkit_shelf) (`router.mount('/api/', genkit.asShelfHandler())`). Other frameworks can adapt the framework-neutral `GenkitRouter.handle` / `actionHandler`, which take a `GenkitHttpRequest` and return a `GenkitHttpResponse`. See [example/http_server_example.dart](example/http_server_example.dart) and [example/http_agent_example.dart](example/http_agent_example.dart).
 
 ---
 

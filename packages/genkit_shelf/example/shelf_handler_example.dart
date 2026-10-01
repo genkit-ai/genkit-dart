@@ -92,7 +92,7 @@ void main() async {
 
   // Or mount a whole GenkitRouter under a prefix: POST /genkit/customFlow.
   final genkit = GenkitRouter()..addAction(customFlow);
-  router.mount('/genkit/', genkit.asShelfHandler);
+  router.mount('/genkit/', genkit.asShelfHandler());
 
   // Add other application routes
   router.get('/health', (Request request) => Response.ok('OK'));

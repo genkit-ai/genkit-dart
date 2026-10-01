@@ -39,9 +39,13 @@ final class GenkitHttpRequest {
   /// The HTTP method, e.g. `POST`.
   final String method;
 
-  /// The request path relative to where the handler is mounted, starting with
-  /// `/` (e.g. `/myFlow` for a router mounted at `/api` receiving
-  /// `/api/myFlow`).
+  /// The percent-decoded request path relative to where the handler is
+  /// mounted, starting with `/` (e.g. `/myFlow` for a router mounted at `/api`
+  /// receiving `/api/myFlow`).
+  ///
+  /// Decoded because routes are keyed by action name: a client may send
+  /// `/googleai%2Fgemini-flash-latest` for the `googleai/gemini-flash-latest`
+  /// route. Adapters decode (and answer `404` for an invalid escape).
   final String path;
 
   /// Request headers with lowercased names. Repeated headers are joined with

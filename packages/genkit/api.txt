@@ -2033,6 +2033,7 @@ package:genkit/genkit.dart:
 package:genkit/io.dart:
   actionHandler (function: Future<GenkitHttpResponse> Function(GenkitHttpRequest) Function(Action<dynamic, dynamic, dynamic, dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider, bool sendLegacyErrorFrame}))
   ioHandler (function: Future<void> Function(HttpRequest) Function(Action<dynamic, dynamic, dynamic, dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider, bool sendLegacyErrorFrame}))
+  withCors (function: Future<GenkitHttpResponse> Function(CorsOptions, GenkitHttpRequest, Future<GenkitHttpResponse> Function(GenkitHttpRequest)))
   CorsOptions (class extends Object, final):
     new (const constructor: CorsOptions Function({List<String> allowedHeaders, List<String> allowedOrigins, List<String> exposedHeaders}))
     allowedHeaders (getter: List<String>)

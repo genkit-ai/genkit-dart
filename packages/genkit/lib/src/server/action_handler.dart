@@ -16,6 +16,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import '../core/action.dart';
+import '../core/cancellation.dart';
 import '../exception.dart';
 import 'http.dart';
 
@@ -102,8 +103,11 @@ GenkitHttpHandler actionHandler(
         );
       } on GenkitException catch (e) {
         return _errorResponse(e.status, e.message);
-      } catch (e) {
-        return _errorResponse(StatusCode.permissionDenied, e.toString());
+      } catch (_) {
+        // Same rule as _clientError: only GenkitException messages are meant
+        // for the client. Others may come from JWT or database libraries and
+        // carry key ids, hosts or queries.
+        return _errorResponse(StatusCode.permissionDenied, 'Permission denied');
       }
     }
 
@@ -140,7 +144,13 @@ Future<GenkitHttpResponse> _runStreaming(
   Map<String, dynamic>? context, {
   required bool sendLegacyErrorFrame,
 }) async {
-  final controller = StreamController<List<int>>();
+  // The adapter cancels its subscription when the client goes away; stop the
+  // run then so nobody pays for a model/tool loop no one reads. Also fires
+  // after a normal completion, when cancelling is a no-op.
+  final cancellation = CancellationController();
+  final controller = StreamController<List<int>>(
+    onCancel: () => cancellation.cancel('Client disconnected'),
+  );
   // Trace/span ids are only known once the span starts, but headers must be
   // set before the streaming response is returned. Capture them via
   // onTraceStart and await before building the response; the controller
@@ -171,6 +181,7 @@ Future<GenkitHttpResponse> _runStreaming(
           }
         },
         onChunk: (chunk) => sendChunk('data:', {'message': chunk}),
+        cancel: cancellation.token,
       )
       .then((result) {
         completeTraceInfoIfPending();

@@ -211,7 +211,7 @@ void main() {
     router.addAgent(greeter, path: '/chat');
   });
 
-  test('throws when an agent route collides with an existing path', () {
+  test('throws when an agent route collides with an existing path', () async {
     // Needs a store: a client-managed agent has no `/abort` route to collide.
     final greeter = _defineGreeter(
       ai,
@@ -227,5 +227,40 @@ void main() {
     final router = GenkitRouter()..addAction(echo, path: '/greeter/abort');
 
     expect(() => router.addAgent(greeter), throwsArgumentError);
+
+    // All or nothing: the turn and getSnapshot routes weren't added either,
+    // so the agent can be mounted elsewhere.
+    expect(await router.handle(_request('/greeter')), isNull);
+    expect(await router.handle(_request('/greeter/getSnapshot')), isNull);
+    router.addAgent(greeter, path: '/chat');
+    expect(await router.handle(_request('/chat/abort')), isNotNull);
   });
+
+  test(
+    'mounts only the turn route when the metadata is unrecognized',
+    () async {
+      final greeter = _defineGreeter(
+        ai,
+        'greeter',
+        store: InMemorySessionStore(),
+      );
+      // Simulate metadata from a different (e.g. future) shape.
+      greeter.action.metadata['agent'] = {'kind': 'something-else'};
+      final router = GenkitRouter()..addAgent(greeter);
+
+      expect(await router.handle(_request('/greeter')), isNotNull);
+      expect(await router.handle(_request('/greeter/getSnapshot')), isNull);
+      expect(await router.handle(_request('/greeter/abort')), isNull);
+
+      // The escape hatch: mount the companions explicitly.
+      router
+        ..addAction(greeter.getSnapshotDataAction, path: '/greeter/getSnapshot')
+        ..addAction(greeter.abortAgentAction, path: '/greeter/abort');
+      expect(await router.handle(_request('/greeter/abort')), isNotNull);
+    },
+  );
 }
+
+/// A request for [GenkitRouter.handle]; only used to probe which routes exist.
+GenkitHttpRequest _request(String path) =>
+    GenkitHttpRequest(method: 'GET', path: path);
