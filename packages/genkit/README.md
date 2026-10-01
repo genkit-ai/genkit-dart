@@ -582,7 +582,7 @@ try {
   final result = await action(input: 'test');
 } on GenkitException catch (e) {
   print('Genkit error: ${e.message}');
-  print('Status code: ${e.statusCode}');
+  print('Status: ${e.status.wireName}');
   print('Details: ${e.details}');
 } catch (e) {
   print('Other error: $e');

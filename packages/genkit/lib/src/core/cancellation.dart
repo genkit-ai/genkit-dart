@@ -161,6 +161,6 @@ class CancelledException extends GenkitException {
     : super(
         reason is String ? reason : 'Operation was cancelled',
         status: StatusCode.cancelled,
-        underlyingException: reason is String ? null : reason,
+        cause: reason is String ? null : reason,
       );
 }

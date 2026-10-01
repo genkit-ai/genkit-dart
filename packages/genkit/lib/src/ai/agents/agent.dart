@@ -116,7 +116,7 @@ AgentErrorDetails toErrorDetails(Object? e) {
     return AgentErrorDetails(
       status: e.status.wireName,
       message: e.message,
-      details: e.details ?? e.underlyingException ?? e.message,
+      details: e.details ?? e.cause ?? e.message,
     );
   }
   if (e is AgentError) {
