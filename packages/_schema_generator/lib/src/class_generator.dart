@@ -214,17 +214,43 @@ class ClassGenerator {
   /// Not `_sanitizeFieldName`: its `required` -> `isRequired` rename exists for
   /// property getters, but `required` is only a contextual keyword and reads
   /// naturally as an enum value (`toolChoice: .required`).
+  ///
+  /// Throws when the result is not a usable identifier (a reserved word, or a
+  /// value starting with a digit). Rather than emit something like `$default`
+  /// into the public API, such a value needs a hand-picked name.
   String _enumFieldName(String value) {
     final words = value
         .split(RegExp(r'[-_\s]+'))
         .where((w) => w.isNotEmpty)
         .map((w) => w == w.toUpperCase() ? w.toLowerCase() : w)
         .toList();
-    if (words.isEmpty) return value;
-    return words.first[0].toLowerCase() +
-        words.first.substring(1) +
-        words.skip(1).map((w) => w[0].toUpperCase() + w.substring(1)).join();
+    final name = words.isEmpty
+        ? value
+        : words.first[0].toLowerCase() +
+              words.first.substring(1) +
+              words
+                  .skip(1)
+                  .map((w) => w[0].toUpperCase() + w.substring(1))
+                  .join();
+    if (_reservedWords.contains(name) ||
+        !RegExp(r'^[a-zA-Z][a-zA-Z0-9]*$').hasMatch(name)) {
+      throw StateError(
+        'Enum value "$value" maps to "$name", which is not a valid Dart '
+        'identifier. Add an explicit name for it in the schema generator.',
+      );
+    }
+    return name;
   }
+
+  // Dart reserved words (not built-in identifiers like `required` or
+  // `dynamic`, which are fine as static member names). The trailing `//`
+  // keeps `dart format` from putting one word per line.
+  static const _reservedWords = {
+    'assert', 'break', 'case', 'catch', 'class', 'const', 'continue', //
+    'default', 'do', 'else', 'enum', 'extends', 'false', 'final', 'finally',
+    'for', 'if', 'in', 'is', 'new', 'null', 'rethrow', 'return', 'super',
+    'switch', 'this', 'throw', 'true', 'try', 'var', 'void', 'while', 'with',
+  };
 
   void _generateUnionClass(
     LibraryBuilder b,

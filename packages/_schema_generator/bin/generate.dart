@@ -72,17 +72,12 @@ void main() async {
     }
 
     // The wire name `EvalStatusEnum` carries a type-kind suffix that is not
-    // idiomatic in Dart. Generate it as `EvalStatus` and repoint `Score.status`.
-    // The wire values (`PASS`, ...) are unchanged; the generator lowercases
-    // only the Dart identifiers (see `_enumFieldName`).
+    // idiomatic in Dart. Generate it as `EvalStatus` and repoint every
+    // reference to it. The wire values (`PASS`, ...) are unchanged; the
+    // generator lowercases only the Dart identifiers (see `_enumFieldName`).
     if (definitions.containsKey('EvalStatusEnum')) {
       definitions['EvalStatus'] = definitions.remove('EvalStatusEnum');
-      final scoreProps =
-          (definitions['Score'] as Map<String, dynamic>?)?['properties']
-              as Map<String, dynamic>?;
-      if (scoreProps != null && scoreProps.containsKey('status')) {
-        scoreProps['status'] = {'\$ref': '#/\$defs/EvalStatus'};
-      }
+      _renameRefs(definitions, from: 'EvalStatusEnum', to: 'EvalStatus');
     }
 
     // `toolChoice` is an inline string enum (`auto`/`required`/`none`) on the
@@ -135,6 +130,21 @@ void main() async {
     );
   } else {
     throw Exception('Failed to fetch schema');
+  }
+}
+
+/// Repoints every `$ref` to `#/$defs/<from>` at `#/$defs/<to>`, anywhere in
+/// [node].
+void _renameRefs(Object? node, {required String from, required String to}) {
+  if (node is Map) {
+    if (node['\$ref'] == '#/\$defs/$from') node['\$ref'] = '#/\$defs/$to';
+    for (final value in node.values) {
+      _renameRefs(value, from: from, to: to);
+    }
+  } else if (node is List) {
+    for (final value in node) {
+      _renameRefs(value, from: from, to: to);
+    }
   }
 }
 
