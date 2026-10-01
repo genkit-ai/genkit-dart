@@ -1612,7 +1612,6 @@ package:genkit/experimental_io.dart (experimental):
     onSnapshotStateChange (method: void Function()? Function(String, void Function(SessionSnapshot), {Map<String, dynamic>? context}))
     saveSnapshot (method: Future<String?> Function(String?, SessionSnapshot? Function(SessionSnapshot?), {Map<String, dynamic>? context}))
 package:genkit/genkit.dart:
-  createResourceMatcher (function: bool Function(ResourceInput) Function({required String? template, required String? uri}))
   defineMiddleware (function: GenerateMiddlewareDef<CustomOptions> Function<CustomOptions>({SchemanticType<CustomOptions>? configSchema, required GenerateMiddleware Function(CustomOptions?, GenerateMiddlewareContext) create, required String name}))
   embedderMetadata (function: ActionMetadata<dynamic, dynamic, dynamic, dynamic> Function(String, {SchemanticType<dynamic>? customOptions}))
   embedderRef (function: EmbedderRef<CustomOptions> Function<CustomOptions>(String, {SchemanticType<CustomOptions>? customOptions}))
@@ -1735,7 +1734,6 @@ package:genkit/genkit.dart:
   Embedder (class<CustomOptions> extends Action<EmbedRequest, EmbedResponse, void, void> implements EmbedderRef<CustomOptions>, base):
     new (constructor: Embedder<CustomOptions> Function({SchemanticType<CustomOptions>? customOptions, required Future<EmbedResponse> Function(EmbedRequest?, ActionFnArg<void, EmbedRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
     customOptions (getter: SchemanticType<CustomOptions>?)
-    customOptions= (setter: SchemanticType<CustomOptions>?)
   EmbedderRef (class<CustomOptions> extends Object, abstract, interface):
     customOptions (getter: SchemanticType<CustomOptions>?)
     name (getter: String)
@@ -1744,10 +1742,10 @@ package:genkit/genkit.dart:
   EvalFnResponseEvaluation (see above)
   EvalRequest (see above)
   EvalStatusEnum (see above)
-  Evaluator (class<CustomOptions> extends Action<EvalRequest, List<EvalFnResponse>, void, void>, base):
-    new (constructor: Evaluator<CustomOptions> Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest?, ActionFnArg<void, EvalRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
+  Evaluator (class extends Action<EvalRequest, List<EvalFnResponse>, void, void>, base):
+    new (constructor: Evaluator Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest?, ActionFnArg<void, EvalRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
   ExecutablePrompt (class<Input> extends Object, final):
-    ref (getter: ({Map<String, dynamic>? metadata, String name}))
+    ref (getter: PromptRef)
     call (method: Future<GenerateResponseHelper<dynamic>> Function(Input?, [PromptGenerateOptions<dynamic>?]))
     render (method: Future<GenerateActionOptions> Function(Input?, [PromptGenerateOptions<dynamic>?]))
     stream (method: ActionStream<GenerateResponseChunk<dynamic>, GenerateResponseHelper<dynamic>> Function(Input?, [PromptGenerateOptions<dynamic>?]))
@@ -1811,7 +1809,7 @@ package:genkit/genkit.dart:
     defineCustomPrompt (method: PromptAction<Input> Function<Input>({String? description, required Future<GenerateActionOptions> Function(Input, ActionFnArg<void, Input, void>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name}))
     defineDynamicActionProvider (method: DynamicActionProvider Function({int? cacheTtlMillis, FutureOr<Action<dynamic, dynamic, dynamic, dynamic>?> Function(ActionType, String)? getActionFn, FutureOr<Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function()? listActionsFn, Map<String, dynamic>? metadata, required String name}))
     defineEmbedder (method: Embedder<dynamic> Function({required Future<EmbedResponse> Function(EmbedRequest, ActionFnArg<void, EmbedRequest, void>) fn, required String name}))
-    defineEvaluator (method: Evaluator<dynamic> Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest, ActionFnArg<void, EvalRequest, void>) fn, required String name}))
+    defineEvaluator (method: Evaluator Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest, ActionFnArg<void, EvalRequest, void>) fn, required String name}))
     defineFlow (method: Flow<Input, Output, Chunk, Init> Function<Input, Output, Chunk, Init>({required Future<Output> Function(Input, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Init>? initSchema, SchemanticType<Input>? inputSchema, required String name, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema}))
     defineHelper (method: void Function(String, dynamic Function(List<dynamic>, TemplateHelperOptions)))
     defineInterrupt (method: Interrupt<Input, Output> Function<Input, Output>({required String description, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema, FutureOr<Object?> Function(Input, ToolFnArgs<Input>)? requestMetadata}))
@@ -1872,30 +1870,7 @@ package:genkit/genkit.dart:
   PromptAction (class<Input> extends Action<Input, GenerateActionOptions, void, void>, base):
     new (constructor: PromptAction<Input> Function({String? description, ExecutablePrompt<Input>? executablePrompt, Future<GenerateActionOptions> Function(Input, ActionFnArg<void, Input, void>)? fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name}))
     executablePrompt (getter: ExecutablePrompt<Input>?)
-  PromptConfig (class<CustomOptions, Input> extends Object):
-    new (constructor: PromptConfig<CustomOptions, Input> Function({CustomOptions? config, String? description, SchemanticType<Input>? inputSchema, int? maxTurns, List<Message>? messages, String? messagesTemplate, Map<String, dynamic>? metadata, ModelRef<CustomOptions>? model, required String name, GenerateActionOutputConfig? output, String? prompt, List<Part>? promptParts, bool? returnToolRequests, String? system, List<Part>? systemParts, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddlewareRef<dynamic>>? use, String? variant}))
-    config (getter: CustomOptions?)
-    description (getter: String?)
-    fullName (getter: String)
-    inputSchema (getter: SchemanticType<Input>?)
-    maxTurns (getter: int?)
-    messages (getter: List<Message>?)
-    messagesTemplate (getter: String?)
-    metadata (getter: Map<String, dynamic>?)
-    model (getter: ModelRef<CustomOptions>?)
-    name (getter: String)
-    output (getter: GenerateActionOutputConfig?)
-    prompt (getter: String?)
-    promptParts (getter: List<Part>?)
-    returnToolRequests (getter: bool?)
-    system (getter: String?)
-    systemParts (getter: List<Part>?)
-    toolChoice (getter: ToolChoice?)
-    toolNames (getter: List<String>?)
-    tools (getter: List<Tool<dynamic, dynamic>>?)
-    use (getter: List<GenerateMiddlewareRef<dynamic>>?)
-    variant (getter: String?)
-  PromptGenerateOptions (class<CustomOptions> extends Object):
+  PromptGenerateOptions (class<CustomOptions> extends Object, final):
     new (constructor: PromptGenerateOptions<CustomOptions> Function({CancellationToken? cancel, CustomOptions? config, Map<String, dynamic>? context, int? maxTurns, List<Message>? messages, ModelRef<CustomOptions>? model, GenerateActionOutputConfig? output, bool? returnToolRequests, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddlewareRef<dynamic>>? use}))
     cancel (getter: CancellationToken?)
     config (getter: CustomOptions?)
@@ -1909,21 +1884,24 @@ package:genkit/genkit.dart:
     toolNames (getter: List<String>?)
     tools (getter: List<Tool<dynamic, dynamic>>?)
     use (getter: List<GenerateMiddlewareRef<dynamic>>?)
+  PromptRef (class extends Object, final):
+    metadata (getter: Map<String, dynamic>)
+    name (getter: String)
   ReasoningPart (see above)
-  Registry (class extends Object):
+  Registry (class extends Object, final):
     new (constructor: Registry Function({Registry? parent}))
     childOf (constructor: Registry Function(Registry))
     parent (getter: Registry?)
     listActions (method: Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function())
-    listResolvableActions (method: Future<Map<String, ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function())
+    listResolvableActions (method: Future<Map<String, ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function(), internal)
     listValues (method: Map<String, T> Function<T>(String))
     lookupAction (method: Future<Action<dynamic, dynamic, dynamic, dynamic>?> Function(ActionType, String))
-    lookupActionByKey (method: Future<Action<dynamic, dynamic, dynamic, dynamic>?> Function(String))
+    lookupActionByKey (method: Future<Action<dynamic, dynamic, dynamic, dynamic>?> Function(String), internal)
     lookupValue (method: T? Function<T>(String, String))
     register (method: void Function(Action<dynamic, dynamic, dynamic, dynamic>))
-    registerPlugin (method: void Function(GenkitPlugin))
+    registerPlugin (method: void Function(GenkitPlugin), internal)
     registerValue (method: void Function(String, String, dynamic))
-    resolveActionNames (method: Future<List<String>> Function(String))
+    resolveActionNames (method: Future<List<String>> Function(String), internal)
   ResourceAction (class extends Action<ResourceInput, ResourceOutput, void, void>, base):
     new (constructor: ResourceAction Function({String? description, required Future<ResourceOutput> Function(ResourceInput, ActionFnArg<void, ResourceInput, void>) fn, required bool Function(ResourceInput) matches, Map<String, dynamic>? metadata, required String name}))
     matches (method: bool Function(ResourceInput))
@@ -1944,7 +1922,7 @@ package:genkit/genkit.dart:
     toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
   ResourcePart (see above)
-  RetryMiddleware (class extends GenerateMiddleware):
+  RetryMiddleware (class extends GenerateMiddleware, final):
     defaultRetryStatuses (static const getter: List<StatusCodes>)
     new (constructor: RetryMiddleware Function({double backoffFactor, int initialDelayMs, int maxDelayMs, int maxRetries, bool noJitter, bool Function(Object, int)? onError, bool retryModel, bool retryTools, List<StatusCodes> statuses}))
     backoffFactor (getter: double)
@@ -1980,10 +1958,6 @@ package:genkit/genkit.dart:
     statuses= (setter: List<StatusCodes>?)
     toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
-  RetryPlugin (class extends GenkitPlugin):
-    new (constructor: RetryPlugin Function())
-    name (getter: String)
-    middleware (method: List<GenerateMiddlewareDef<dynamic>> Function())
   Role (see above)
   RunResult (class<Output> extends Object, final):
     new (constructor: RunResult<Output> Function({required Output result, required String spanId, required String traceId}))
@@ -1994,7 +1968,7 @@ package:genkit/genkit.dart:
   RuntimeError (see above)
   Score (see above)
   ScoreScore (see above)
-  SimulateConstrainedGenerationMiddleware (class extends GenerateMiddleware):
+  SimulateConstrainedGenerationMiddleware (class extends GenerateMiddleware, final):
     new (constructor: SimulateConstrainedGenerationMiddleware Function())
     model (method: Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>, Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>)))
   StatusCodes (see above)
@@ -2007,7 +1981,7 @@ package:genkit/genkit.dart:
     inverse (getter: String Function(dynamic))
   TextPart (see above)
   Tool (class<Input, Output> extends Action<Input, ToolResult<Output>, void, void>, base):
-    new (constructor: Tool<Input, Output> Function({required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? toolOutputSchema}))
+    new (constructor: Tool<Input, Output> Function({required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArgs<Input>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema}))
     manifestOutputSchema (getter: SchemanticType<dynamic>?)
     toolOutputSchema (getter: SchemanticType<Output>?)
   ToolChoice (see above)
@@ -2159,6 +2133,7 @@ package:genkit/lite.dart:
   ToolFn (see above)
 package:genkit/plugin.dart:
   genkitVersion (static const getter: String)
+  createResourceMatcher (function: bool Function(ResourceInput) Function({required String? template, required String? uri}))
   defineMiddleware (see above)
   embedderMetadata (see above)
   embedderRef (see above)
@@ -2262,6 +2237,9 @@ package:genkit/plugin.dart:
   Part (see above)
   ReasoningPart (see above)
   Registry (see above)
+  ResourceAction (see above)
+  ResourceInput (see above)
+  ResourceOutput (see above)
   ResourcePart (see above)
   Role (see above)
   RunResult (see above)
@@ -2288,6 +2266,7 @@ package:genkit/plugin.dart:
   ToolRequestPartExtension (see above)
   ActionFn (see above)
   InternalActionFn (see above)
+  ResourceFn (see above)
   StreamingCallback (see above)
   ToolFn (see above)
   TraceStartCallback (see above)
