@@ -39,6 +39,13 @@ export 'package:genkit/src/ai/generate_types.dart'
 // (bidi) models import that alongside this library.
 export 'package:genkit/src/ai/model.dart'
     show Model, ModelRef, modelMetadata, modelRef;
+export 'package:genkit/src/ai/resource.dart'
+    show
+        ResourceAction,
+        ResourceFn,
+        ResourceInput,
+        ResourceOutput,
+        createResourceMatcher;
 export 'package:genkit/src/ai/tool.dart'
     show
         Interrupt,
