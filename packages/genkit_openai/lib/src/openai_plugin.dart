@@ -547,7 +547,7 @@ class OpenAIPlugin extends GenkitPlugin {
       fn: (req, ctx) async {
         if (req == null || req.input.isEmpty) {
           // Nothing to embed, and an empty `input` is a 400. Answering
-          // directly keeps `embedMany([])` from costing a request.
+          // directly keeps `embed(documents: [])` from costing a request.
           return EmbedResponse(embeddings: []);
         }
 

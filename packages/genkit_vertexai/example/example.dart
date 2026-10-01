@@ -47,7 +47,7 @@ void main(List<String> args) async {
     inputSchema: .string(defaultValue: 'Hello Genkit'),
     outputSchema: .list(.doubleSchema()),
     fn: (input, _) async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: vertexAI.textEmbedding('text-embedding-004'),
         documents: [
           DocumentData(content: [TextPart(text: input)]),

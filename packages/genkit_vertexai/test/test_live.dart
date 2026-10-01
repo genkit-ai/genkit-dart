@@ -138,7 +138,7 @@ void main() {
       });
 
       test('should embed text', () async {
-        final embeddings = await ai.embedMany(
+        final embeddings = await ai.embed(
           embedder: config.textEmbedding(config.embedderName),
           documents: [
             DocumentData(content: [TextPart(text: 'Hello world')]),
@@ -152,7 +152,7 @@ void main() {
       });
 
       test('should embed multiple texts', () async {
-        final embeddings = await ai.embedMany(
+        final embeddings = await ai.embed(
           embedder: config.textEmbedding(config.embedderName),
           documents: [
             DocumentData(content: [TextPart(text: 'Hello')]),
@@ -166,7 +166,7 @@ void main() {
       });
 
       test('should embed with options', () async {
-        final embeddings = await ai.embedMany(
+        final embeddings = await ai.embed(
           embedder: config.textEmbedding(config.embedderName),
           documents: [
             DocumentData(content: [TextPart(text: 'Hello')]),
@@ -182,7 +182,7 @@ void main() {
       });
 
       test('should embed text and image with multimodal embedder', () async {
-        final embeddings = await ai.embedMany(
+        final embeddings = await ai.embed(
           embedder: config.textEmbedding('multimodalembedding'),
           documents: [
             DocumentData(

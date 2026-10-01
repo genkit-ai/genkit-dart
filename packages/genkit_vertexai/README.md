@@ -65,7 +65,7 @@ void main() async {
     ],
   );
 
-  final embeddings = await ai.embedMany(
+  final embeddings = await ai.embed(
     embedder: vertexAI.textEmbedding('text-embedding-004'),
     documents: [
       DocumentData(content: [TextPart(text: 'Hello world')]),
@@ -88,7 +88,7 @@ vector size, while `taskType` and `title` tailor the embedding to its use case
 (supported by the Gemini and `text-embedding-*` models).
 
 ```dart
-final embeddings = await ai.embedMany(
+final embeddings = await ai.embed(
   embedder: vertexAI.textEmbedding('gemini-embedding-001'),
   documents: [
     DocumentData(content: [TextPart(text: 'Hello world')]),
@@ -112,7 +112,7 @@ documents, so each embedding carries metadata (`documentIndex`, `modality`,
 `partIndex`, `segmentIndex`, ...) that you use to map it back to its source.
 
 ```dart
-final embeddings = await ai.embedMany(
+final embeddings = await ai.embed(
   embedder: vertexAI.textEmbedding('multimodalembedding'),
   documents: [
     DocumentData(

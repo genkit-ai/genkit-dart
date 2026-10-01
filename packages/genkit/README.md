@@ -89,7 +89,7 @@ await for (final chunk in stream) {
 Turn text into vector embeddings for search and retrieval tasks:
 
 ```dart
-final embeddings = await ai.embedMany(
+final embeddings = await ai.embed(
   documents: [
     DocumentData(content: [TextPart(text: 'Hello world')]),
   ],
