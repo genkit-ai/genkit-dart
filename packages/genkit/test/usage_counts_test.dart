@@ -21,7 +21,8 @@ void main() {
   group('integer counts', () {
     test('GenerationUsage counts are ints', () {
       final usage = GenerationUsage(inputTokens: 12, outputTokens: 30);
-      final int total = usage.inputTokens! + usage.outputTokens!;
+      final total = usage.inputTokens! + usage.outputTokens!;
+      expect(total, isA<int>());
       expect(total, 42);
       expect('${usage.inputTokens}', '12');
     });
