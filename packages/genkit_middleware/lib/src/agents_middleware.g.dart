@@ -73,7 +73,7 @@ base class AgentsOptions {
   }
 
   int? get maxDelegations {
-    return _json['maxDelegations'] as int?;
+    return (_json['maxDelegations'] as num?)?.toInt();
   }
 
   set maxDelegations(int? value) {
@@ -85,7 +85,7 @@ base class AgentsOptions {
   }
 
   int? get historyLength {
-    return _json['historyLength'] as int?;
+    return (_json['historyLength'] as num?)?.toInt();
   }
 
   set historyLength(int? value) {
@@ -701,7 +701,7 @@ base class WaitBackgroundTasksInput {
   }
 
   int? get timeoutSeconds {
-    return _json['timeoutSeconds'] as int?;
+    return (_json['timeoutSeconds'] as num?)?.toInt();
   }
 
   set timeoutSeconds(int? value) {

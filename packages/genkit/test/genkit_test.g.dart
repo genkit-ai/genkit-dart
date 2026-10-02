@@ -164,7 +164,7 @@ base class TestOutputSchema {
   }
 
   int get rating {
-    return _json['rating'] as int;
+    return (_json['rating'] as num).toInt();
   }
 
   set rating(int value) {

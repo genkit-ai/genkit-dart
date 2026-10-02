@@ -45,7 +45,7 @@ base class TestObject {
   }
 
   int get bar {
-    return _json['bar'] as int;
+    return (_json['bar'] as num).toInt();
   }
 
   set bar(int value) {

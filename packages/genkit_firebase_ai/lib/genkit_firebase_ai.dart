@@ -841,8 +841,8 @@ fai.ToolConfig? toGeminiToolConfig(
 GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
   if (metadata == null) return null;
   return GenerationUsage(
-    inputTokens: metadata.promptTokenCount?.toDouble() ?? 0,
-    outputTokens: metadata.candidatesTokenCount?.toDouble() ?? 0,
-    totalTokens: metadata.totalTokenCount?.toDouble() ?? 0,
+    inputTokens: metadata.promptTokenCount ?? 0,
+    outputTokens: metadata.candidatesTokenCount ?? 0,
+    totalTokens: metadata.totalTokenCount ?? 0,
   );
 }

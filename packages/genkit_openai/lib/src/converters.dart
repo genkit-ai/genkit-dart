@@ -429,12 +429,11 @@ abstract final class GenkitConverter {
   static GenerationUsage? mapUsage(sdk.Usage? usage) {
     if (usage == null) return null;
     return GenerationUsage(
-      inputTokens: usage.promptTokens.toDouble(),
-      outputTokens: usage.completionTokens?.toDouble(),
-      totalTokens: usage.totalTokens.toDouble(),
-      thoughtsTokens: usage.completionTokensDetails?.reasoningTokens
-          ?.toDouble(),
-      cachedContentTokens: usage.promptTokensDetails?.cachedTokens?.toDouble(),
+      inputTokens: usage.promptTokens,
+      outputTokens: usage.completionTokens,
+      totalTokens: usage.totalTokens,
+      thoughtsTokens: usage.completionTokensDetails?.reasoningTokens,
+      cachedContentTokens: usage.promptTokensDetails?.cachedTokens,
     );
   }
 }

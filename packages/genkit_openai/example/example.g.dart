@@ -213,7 +213,7 @@ base class WeatherToolOutput {
   }
 
   int? get humidity {
-    return _json['humidity'] as int?;
+    return (_json['humidity'] as num?)?.toInt();
   }
 
   set humidity(int? value) {
@@ -290,7 +290,7 @@ base class MovieReviewInput {
 
   /// Optional release year to disambiguate
   int? get year {
-    return _json['year'] as int?;
+    return (_json['year'] as num?)?.toInt();
   }
 
   /// Optional release year to disambiguate

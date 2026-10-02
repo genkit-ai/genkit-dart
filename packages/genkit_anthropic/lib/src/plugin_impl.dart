@@ -879,8 +879,8 @@ GenerationUsage mapUsage(sdk.Usage? usage) {
     return GenerationUsage(inputTokens: 0, outputTokens: 0, totalTokens: 0);
   }
   return GenerationUsage(
-    inputTokens: usage.inputTokens.toDouble(),
-    outputTokens: usage.outputTokens.toDouble(),
-    totalTokens: (usage.inputTokens + usage.outputTokens).toDouble(),
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    totalTokens: usage.inputTokens + usage.outputTokens,
   );
 }

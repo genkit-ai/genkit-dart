@@ -771,11 +771,11 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
 GenerationUsage? extractUsage(gcl.UsageMetadata? metadata) {
   if (metadata == null) return null;
   return GenerationUsage(
-    inputTokens: metadata.promptTokenCount?.toDouble(),
-    outputTokens: metadata.candidatesTokenCount?.toDouble(),
-    totalTokens: metadata.totalTokenCount?.toDouble(),
-    thoughtsTokens: metadata.thoughtsTokenCount?.toDouble(),
-    cachedContentTokens: metadata.cachedContentTokenCount?.toDouble(),
+    inputTokens: metadata.promptTokenCount,
+    outputTokens: metadata.candidatesTokenCount,
+    totalTokens: metadata.totalTokenCount,
+    thoughtsTokens: metadata.thoughtsTokenCount,
+    cachedContentTokens: metadata.cachedContentTokenCount,
     custom: {
       if (metadata.toolUsePromptTokenCount != null)
         'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount,

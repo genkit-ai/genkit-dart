@@ -213,7 +213,7 @@ base class WeatherToolOutput {
   }
 
   int? get humidity {
-    return _json['humidity'] as int?;
+    return (_json['humidity'] as num?)?.toInt();
   }
 
   set humidity(int? value) {

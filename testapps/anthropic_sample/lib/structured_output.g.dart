@@ -68,7 +68,7 @@ base class Recipe {
 
   /// Total time in minutes
   int get minutes {
-    return _json['minutes'] as int;
+    return (_json['minutes'] as num).toInt();
   }
 
   /// Total time in minutes

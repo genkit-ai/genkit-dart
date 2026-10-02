@@ -45,7 +45,7 @@ base class Person {
   }
 
   int get age {
-    return _json['age'] as int;
+    return (_json['age'] as num).toInt();
   }
 
   set age(int value) {
