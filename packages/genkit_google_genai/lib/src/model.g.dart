@@ -37,6 +37,7 @@ base class GeminiOptions {
     List<String>? responseModalities,
     GoogleSearch? googleSearch,
     FileSearch? fileSearch,
+    bool? urlContext,
     double? temperature,
     double? topP,
     int? topK,
@@ -60,6 +61,7 @@ base class GeminiOptions {
       'responseModalities': ?responseModalities,
       'googleSearch': ?googleSearch?.toJson(),
       'fileSearch': ?fileSearch?.toJson(),
+      'urlContext': ?urlContext,
       'temperature': ?temperature,
       'topP': ?topP,
       'topK': ?topK,
@@ -189,6 +191,18 @@ base class GeminiOptions {
       _json.remove('fileSearch');
     } else {
       _json['fileSearch'] = value.toJson();
+    }
+  }
+
+  bool? get urlContext {
+    return _json['urlContext'] as bool?;
+  }
+
+  set urlContext(bool? value) {
+    if (value == null) {
+      _json.remove('urlContext');
+    } else {
+      _json['urlContext'] = value;
     }
   }
 
@@ -391,6 +405,11 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         },
         'googleSearch': <String, Object?>{r'$ref': r'#/$defs/GoogleSearch'},
         'fileSearch': <String, Object?>{r'$ref': r'#/$defs/FileSearch'},
+        'urlContext': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Lets the model fetch URLs included in the prompt and ground its response in their content.',
+        },
         'temperature': <String, Object?>{
           'type': 'number',
           'minimum': 0.0,
@@ -717,8 +736,8 @@ base class FileSearch {
 
   FileSearch._(this._json);
 
-  FileSearch({List<String>? fileSearchStoreNames}) {
-    _json = {'fileSearchStoreNames': ?fileSearchStoreNames};
+  FileSearch({required List<String> fileSearchStoreNames}) {
+    _json = {'fileSearchStoreNames': fileSearchStoreNames};
   }
 
   late final Map<String, dynamic> _json;
@@ -726,16 +745,12 @@ base class FileSearch {
   /// The JSON schema and type descriptor for [FileSearch].
   static const SchemanticType<FileSearch> $schema = _FileSearchTypeFactory();
 
-  List<String>? get fileSearchStoreNames {
-    return (_json['fileSearchStoreNames'] as List?)?.cast<String>();
+  List<String> get fileSearchStoreNames {
+    return (_json['fileSearchStoreNames'] as List).cast<String>();
   }
 
-  set fileSearchStoreNames(List<String>? value) {
-    if (value == null) {
-      _json.remove('fileSearchStoreNames');
-    } else {
-      _json['fileSearchStoreNames'] = value;
-    }
+  set fileSearchStoreNames(List<String> value) {
+    _json['fileSearchStoreNames'] = value;
   }
 
   @override
@@ -762,12 +777,17 @@ base class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
     name: 'FileSearch',
     definition: <String, Object?>{
       'type': 'object',
+      'description':
+          'Grounds responses in File Search stores. Gemini API only, not supported on Vertex AI.',
       'properties': <String, Object?>{
         'fileSearchStoreNames': <String, Object?>{
           'type': 'array',
+          'description':
+              'The File Search stores to retrieve from, e.g. "fileSearchStores/my-store".',
           'items': <String, Object?>{'type': 'string'},
         },
       },
+      'required': ['fileSearchStoreNames'],
     },
     dependencies: [],
   );
@@ -789,6 +809,7 @@ base class GeminiTtsOptions {
     List<String>? responseModalities,
     GoogleSearch? googleSearch,
     FileSearch? fileSearch,
+    bool? urlContext,
     double? temperature,
     double? topP,
     int? topK,
@@ -812,6 +833,7 @@ base class GeminiTtsOptions {
       'responseModalities': ?responseModalities,
       'googleSearch': ?googleSearch?.toJson(),
       'fileSearch': ?fileSearch?.toJson(),
+      'urlContext': ?urlContext,
       'temperature': ?temperature,
       'topP': ?topP,
       'topK': ?topK,
@@ -941,6 +963,18 @@ base class GeminiTtsOptions {
       _json.remove('fileSearch');
     } else {
       _json['fileSearch'] = value.toJson();
+    }
+  }
+
+  bool? get urlContext {
+    return _json['urlContext'] as bool?;
+  }
+
+  set urlContext(bool? value) {
+    if (value == null) {
+      _json.remove('urlContext');
+    } else {
+      _json['urlContext'] = value;
     }
   }
 
@@ -1144,6 +1178,11 @@ base class _GeminiTtsOptionsTypeFactory
         },
         'googleSearch': <String, Object?>{r'$ref': r'#/$defs/GoogleSearch'},
         'fileSearch': <String, Object?>{r'$ref': r'#/$defs/FileSearch'},
+        'urlContext': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Lets the model fetch URLs included in the prompt and ground its response in their content.',
+        },
         'temperature': <String, Object?>{
           'type': 'number',
           'minimum': 0.0,

@@ -93,6 +93,8 @@ final Map<String, Map<String, dynamic>> schemaOverrides = {
     },
     'googleSearch': {'\$ref': 'GoogleSearch'},
     'codeExecution': {'\$ref': 'CodeExecution'},
+    'urlContext': {'\$ref': 'UrlContext'},
+    'fileSearch': {'\$ref': 'FileSearch'},
   },
   'ToolConfig': {
     'functionCallingConfig': {'\$ref': 'FunctionCallingConfig'},
@@ -129,6 +131,13 @@ final Map<String, Map<String, dynamic>> schemaOverrides = {
   },
   'GoogleSearch': {},
   'CodeExecution': {},
+  'UrlContext': {},
+  'FileSearch': {
+    'fileSearchStoreNames': {
+      'type': 'array',
+      'items': {'type': 'string'},
+    },
+  },
 };
 
 void main() async {

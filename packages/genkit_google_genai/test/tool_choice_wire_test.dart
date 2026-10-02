@@ -76,4 +76,25 @@ void main() {
       expect(body, isNot(contains('toolConfig')));
     });
   });
+
+  group('built-in tools on the wire', () {
+    test('sends urlContext and fileSearch', () async {
+      final body = await _bodyFor(
+        config: {
+          'urlContext': true,
+          'fileSearch': {
+            'fileSearchStoreNames': ['fileSearchStores/my-store'],
+          },
+        },
+      );
+      expect(body['tools'], [
+        {
+          'fileSearch': {
+            'fileSearchStoreNames': ['fileSearchStores/my-store'],
+          },
+        },
+        {'urlContext': <String, dynamic>{}},
+      ]);
+    });
+  });
 }

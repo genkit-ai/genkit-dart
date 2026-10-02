@@ -112,6 +112,8 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             req.tools,
             codeExecution: options.codeExecution,
             googleSearch: options.googleSearch,
+            fileSearch: options.fileSearch,
+            urlContext: options.urlContext,
           );
           toolConfig = toGeminiToolConfig(
             options.functionCallingConfig,
@@ -134,6 +136,8 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             req.tools,
             codeExecution: options.codeExecution,
             googleSearch: options.googleSearch,
+            fileSearch: options.fileSearch,
+            urlContext: options.urlContext,
           );
           toolConfig = toGeminiToolConfig(
             options.functionCallingConfig,
@@ -509,11 +513,25 @@ List<gcl.Tool> toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
   GoogleSearch? googleSearch,
+  FileSearch? fileSearch,
+  bool? urlContext,
 }) {
+  final fileSearchStoreNames = fileSearch?.fileSearchStoreNames;
+  if (fileSearchStoreNames != null && fileSearchStoreNames.isEmpty) {
+    logger.warning(
+      'Dropping fileSearch with no fileSearchStoreNames: '
+      'the API requires at least one store.',
+    );
+  }
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
     if (googleSearch != null) gcl.Tool(googleSearch: gcl.GoogleSearch()),
+    if (fileSearchStoreNames != null && fileSearchStoreNames.isNotEmpty)
+      gcl.Tool(
+        fileSearch: gcl.FileSearch(fileSearchStoreNames: fileSearchStoreNames),
+      ),
+    if (urlContext == true) gcl.Tool(urlContext: gcl.UrlContext()),
   ];
 }
 
