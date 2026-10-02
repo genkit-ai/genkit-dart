@@ -357,6 +357,32 @@ void main() {
       expect(defaults.retryTools, isFalse);
     });
 
+    test('rejects the removed retryModel key in JSON config', () {
+      expect(
+        () => retryDef.create(
+          RetryOptions.fromJson({'retryModel': false}),
+          GenerateMiddlewareContext(ai: genkit),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
+              .having((e) => e.message, 'message', contains('noRetryModel')),
+        ),
+      );
+    });
+
+    test('rejects negative delays', () {
+      expect(
+        () => RetryMiddleware(initialDelay: const Duration(milliseconds: -1)),
+        throwsArgumentError,
+      );
+      expect(
+        () => RetryMiddleware(maxDelay: const Duration(seconds: -1)),
+        throwsArgumentError,
+      );
+      expect(RetryMiddleware(initialDelay: Duration.zero), isNotNull);
+    });
+
     test('retry() serializes statuses as wire names', () {
       final ref = retry(
         statuses: [StatusCode.unavailable, StatusCode.resourceExhausted],

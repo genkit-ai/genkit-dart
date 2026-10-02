@@ -62,26 +62,44 @@ const _name = 'retry';
 final retryDef = defineMiddleware<RetryOptions>(
   name: _name,
   configSchema: RetryOptions.$schema,
-  create: (config, ctx) => RetryMiddleware(
-    maxRetries: config?.maxRetries ?? 3,
-    statuses: switch (config?.statuses) {
-      final names? => _parseStatuses(names),
-      null => RetryMiddleware.defaultRetryStatuses,
-    },
-    initialDelay: switch (config?.initialDelayMs) {
-      final ms? => Duration(milliseconds: ms),
-      null => RetryMiddleware.defaultInitialDelay,
-    },
-    maxDelay: switch (config?.maxDelayMs) {
-      final ms? => Duration(milliseconds: ms),
-      null => RetryMiddleware.defaultMaxDelay,
-    },
-    backoffFactor: config?.backoffFactor ?? 2.0,
-    noJitter: config?.noJitter ?? false,
-    noRetryModel: config?.noRetryModel ?? false,
-    retryTools: config?.retryTools ?? false,
-  ),
+  create: (config, ctx) {
+    _rejectLegacyKeys(config);
+    return RetryMiddleware(
+      maxRetries: config?.maxRetries ?? 3,
+      statuses: switch (config?.statuses) {
+        final names? => _parseStatuses(names),
+        null => RetryMiddleware.defaultRetryStatuses,
+      },
+      initialDelay: switch (config?.initialDelayMs) {
+        final ms? => Duration(milliseconds: ms),
+        null => RetryMiddleware.defaultInitialDelay,
+      },
+      maxDelay: switch (config?.maxDelayMs) {
+        final ms? => Duration(milliseconds: ms),
+        null => RetryMiddleware.defaultMaxDelay,
+      },
+      backoffFactor: config?.backoffFactor ?? 2.0,
+      noJitter: config?.noJitter ?? false,
+      noRetryModel: config?.noRetryModel ?? false,
+      retryTools: config?.retryTools ?? false,
+    );
+  },
 );
+
+/// Rejects the removed `retryModel` key.
+///
+/// The schema ignores unknown keys, so a saved `{"retryModel": false}` would
+/// otherwise parse fine and silently retry model calls, the opposite of what
+/// it asked for.
+void _rejectLegacyKeys(RetryOptions? config) {
+  if (config != null && config.toJson().containsKey('retryModel')) {
+    throw GenkitException(
+      'Retry config "retryModel" is no longer supported; use '
+      '"noRetryModel": true to skip retrying model calls.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+}
 
 /// Parses configured status names, rejecting any that are not a wire name.
 ///
@@ -201,6 +219,8 @@ final class RetryMiddleware extends GenerateMiddleware {
   static const defaultMaxDelay = Duration(minutes: 1);
 
   /// Creates a [RetryMiddleware].
+  ///
+  /// A negative [initialDelay] or [maxDelay] throws [ArgumentError].
   RetryMiddleware({
     this.maxRetries = 3,
     this.statuses = defaultRetryStatuses,
@@ -211,7 +231,17 @@ final class RetryMiddleware extends GenerateMiddleware {
     this.onError,
     this.noRetryModel = false,
     this.retryTools = false,
-  });
+  }) {
+    _checkDelay(initialDelay, 'initialDelay');
+    _checkDelay(maxDelay, 'maxDelay');
+  }
+
+  // Future.delayed treats a negative delay as zero, which would hide a bug.
+  static void _checkDelay(Duration delay, String name) {
+    if (delay.isNegative) {
+      throw ArgumentError.value(delay, name, 'must not be negative');
+    }
+  }
 
   @override
   Future<ModelResponse> model(
