@@ -138,48 +138,33 @@ final class PromptConfig<Input, Output, CustomOptions> {
         'instructions only.',
       );
     }
-    // Without a schema the raw decoded JSON is cast straight to Output, which
-    // only works for the types a decoder already produces. Catch a domain type
-    // here rather than as a bare TypeError on the first generate call.
-    if (outputSchema == null && !_isJsonAssignable<Output>()) {
-      throw ArgumentError(
-        'Prompt "$name" declares an output type of $Output but has no '
-        'outputSchema to parse it. Pass outputSchema: to definePrompt().',
-      );
-    }
-    // A JSON-shaped Output (e.g. Map<String, dynamic>) needs no schema, but it
-    // does need the model to be asked for JSON, otherwise no formatter runs
-    // and `output` is always null.
-    if (!_isUnconstrained<Output>() && !_requestsStructuredOutput) {
-      throw ArgumentError(
-        'Prompt "$name" declares an output type of $Output but does not '
-        'request structured output, so its output would always be null. Set '
-        'a format on output: (e.g. json) or pass outputSchema:.',
-      );
-    }
+    final error = _outputTypeError<Output>(
+      label: 'Prompt "$name"',
+      config: this,
+      hasParser: outputSchema != null,
+    );
+    if (error != null) throw ArgumentError(error);
   }
 
   /// Whether the model is asked for structured output, i.e. whether a
   /// formatter will parse the response into `output` at all.
   bool get _requestsStructuredOutput =>
-      outputSchema != null ||
-      output?.format != null ||
-      output?.jsonSchema != null;
+      resolvedOutput?.format != null || resolvedOutput?.jsonSchema != null;
 
   /// The full name including variant.
   String get fullName => variant != null ? '$name.$variant' : name;
 
   /// The wire output config, with [outputSchema]'s JSON schema folded in.
   ///
-  /// Returns null when the prompt configures no output at all, so the rendered
-  /// options stay free of an empty `output` block.
-  GenerateActionOutputConfig? get resolvedOutput {
-    if (outputSchema == null) return output;
-    return GenerateActionOutputConfig.fromJson({
-      ...?output?.toJson(),
-      'jsonSchema': toJsonSchema(type: outputSchema),
-    });
-  }
+  /// Null when the prompt configures no output at all, so the rendered
+  /// options stay free of an empty `output` block. Computed once: the config
+  /// is immutable and this is read on every render (and every agent turn).
+  late final GenerateActionOutputConfig? resolvedOutput = outputSchema == null
+      ? output
+      : GenerateActionOutputConfig.fromJson({
+          ...?output?.toJson(),
+          'jsonSchema': toJsonSchema(type: outputSchema),
+        });
 }
 
 /// Options for generating from a prompt (everything except prompt/system
@@ -193,17 +178,21 @@ final class PromptGenerateOptions<CustomOptions> {
   final bool? returnToolRequests;
   final int? maxTurns;
 
-  /// Per-call output settings, merged over the prompt's own output config.
+  /// Per-call output settings, replacing the prompt's own output config.
   ///
-  /// Fields set here win; unset fields keep the prompt's values, so tweaking
-  /// `constrained` or `instructions` does not drop the prompt's format or
-  /// schema:
+  /// The prompt's format and schema (its typed contract) carry over unless
+  /// this picks a different `format`; other fields (`constrained`,
+  /// `instructions`, ...) come from here only:
   ///
   /// ```dart
   /// // joke defined with outputSchema: Joke.$schema
   /// await joke(input, PromptGenerateOptions(
   ///   output: GenerateActionOutputConfig(constrained: false),
-  /// )); // still json + the Joke schema, still parsed into a Joke
+  /// )); // still the Joke schema, still parsed into a Joke
+  ///
+  /// await joke(input, PromptGenerateOptions(
+  ///   output: GenerateActionOutputConfig(format: 'text'),
+  /// )); // no schema sent; `output` is null, the reply is on `text`
   /// ```
   ///
   /// This override does not change how the response is parsed into `Output`,
@@ -388,7 +377,7 @@ final class Prompt<Input, Output> {
           returnToolRequests:
               opts?.returnToolRequests ?? _config.returnToolRequests,
           maxTurns: opts?.maxTurns ?? _config.maxTurns,
-          output: _mergeOutput(_config.resolvedOutput, opts?.output),
+          output: _applyOutputOverride(_config.resolvedOutput, opts?.output),
           use: resolvedUse.isNotEmpty ? resolvedUse : null,
         );
       },
@@ -441,28 +430,26 @@ final class Prompt<Input, Output> {
     return actionStream;
   }
 
-  /// Parses a raw JSON output value into [Output].
+  /// Parses a raw output value into [Output] for a [request] rendered by this
+  /// prompt.
   ///
-  /// Without a schema [Output] is whatever the caller asserted (normally
-  /// `dynamic`, or a JSON type like `Map<String, dynamic>`), so the raw value
-  /// is cast, and a reply of the wrong shape is a [GenkitException].
-  Output? _parseOutput(Object? raw) {
-    if (raw == null) return null;
-    final schema = _outputSchema;
-    return schema == null ? castOutput<Output>(raw) : schema.parse(raw);
-  }
-
-  /// Parses a streamed chunk's *partial* output.
-  ///
-  /// Partial JSON often fails a strict schema while the value is still
-  /// arriving. That is not a generation failure, so the chunk's typed output is
-  /// simply unavailable; the final response is still parsed strictly.
-  Output? _parsePartialOutput(Object? raw) {
-    try {
-      return _parseOutput(raw);
-    } on Object {
-      return null;
+  /// When a per-call `output` switched the prompt's format (e.g. to text),
+  /// the formatter's value is not an [Output]: a pinned [Output] gets null
+  /// (the reply is still on `text`) and an unpinned one gets the raw value.
+  Output? _parseOutput(
+    GenerateActionOptions request,
+    Object? raw, {
+    bool partial = false,
+  }) {
+    final switchedFormat =
+        _effectiveFormat(request.output) !=
+        _effectiveFormat(_config.resolvedOutput);
+    if (switchedFormat) {
+      return _isUnconstrained<Output>() ? raw as Output? : null;
     }
+    return partial
+        ? parsePartialOutput(raw, _outputSchema)
+        : parseOutput(raw, _outputSchema);
   }
 
   /// Internal generate implementation shared by [call] and [stream].
@@ -515,7 +502,7 @@ final class Prompt<Input, Output> {
                   GenerateResponseChunk<Output>(
                     c.modelChunk,
                     previousChunks: List.from(c.previousChunks),
-                    output: _parsePartialOutput(c.output),
+                    output: _parseOutput(options, c.output, partial: true),
                   ),
                 ),
         );
@@ -526,7 +513,7 @@ final class Prompt<Input, Output> {
         return GenerateResult<Output>(
           raw.modelResponse,
           request: raw.modelRequest,
-          output: _parseOutput(raw.output),
+          output: _parseOutput(options, raw.output),
           cause: raw.cause,
         );
       },
@@ -791,13 +778,16 @@ Map<String, dynamic> _promptActionMetadata(
 /// 3. nothing, when [Output] is a type raw decoded JSON already fits
 ///    (`dynamic`, `Map<String, dynamic>`, ...). Otherwise this throws.
 ///
-/// [outputParserSchema] only parses: the request always carries the schema the
-/// prompt defines, so a prompt that defines none is rejected rather than
-/// silently never asking the model for structured output. Likewise, any pinned
-/// [Output] requires the prompt to request structured output (a `format` or a
-/// schema), since otherwise `output` is always null. Failing here, rather than
-/// on a cast or a silent null in the eventual response, keeps the error at the
-/// call that has to change.
+/// What the prompt must define depends on [Output]:
+///
+/// - a domain type (`Summary`), or any [outputParserSchema]: a schema the
+///   model is given. [outputParserSchema] only parses and is never sent, so a
+///   prompt that only says `format: json` cannot back it;
+/// - a JSON-shaped type (`Map<String, dynamic>`): a structured format;
+/// - `dynamic`: nothing.
+///
+/// Failing here, rather than on a cast or a silent null in the eventual
+/// response, keeps the error at the call that has to change.
 Future<Prompt<Input, Output>> lookupPrompt<Input, Output>(
   Registry registry,
   String name, {
@@ -813,67 +803,119 @@ Future<Prompt<Input, Output>> lookupPrompt<Input, Output>(
     throw GenkitException('$label not found', status: StatusCode.notFound);
   }
 
-  // Covers every way a prompt defines its wire schema: `outputSchema`, a
-  // `jsonSchema` on `output`, and a `.prompt` file's `output.schema`.
-  final hasWireSchema = found._config.resolvedOutput?.jsonSchema != null;
-  const defineSchemaHint =
-      'define the schema on the prompt (outputSchema: in definePrompt, or '
-      'output.schema in the .prompt file)';
-
-  if (outputParserSchema != null && !hasWireSchema) {
-    throw GenkitException(
-      '$label does not define an output schema, so the model is not asked for '
-      'structured output. outputParserSchema only parses the response; '
-      '$defineSchemaHint.',
-      status: StatusCode.invalidArgument,
-    );
-  }
-
   final defined = found._outputSchema;
   final resolved =
       outputParserSchema ??
       (defined is SchemanticType<Output> ? defined : null);
-  if (resolved == null && !_isJsonAssignable<Output>()) {
-    // outputParserSchema only helps when the prompt sends a schema; otherwise
-    // suggesting it just leads to the error above.
-    final fix = hasWireSchema
-        ? 'Pass outputParserSchema: to prompt<$Input, $Output>()'
-        : 'To parse into $Output, $defineSchemaHint';
-    throw GenkitException(
-      '$label was not defined with an output schema for $Output. $fix, or '
-      'look it up untyped.',
-      status: StatusCode.invalidArgument,
-    );
-  }
-
-  // A JSON-shaped Output (e.g. Map<String, dynamic>) needs no schema, but a
-  // prompt that never asks for JSON runs no formatter, so `output` would come
-  // back null on every call.
-  if (!_isUnconstrained<Output>() && !found._config._requestsStructuredOutput) {
-    throw GenkitException(
-      '$label does not request structured output, so its output would always '
-      'be null. Set output.format (e.g. json) on the prompt, or look it up '
-      'untyped.',
-      status: StatusCode.invalidArgument,
-    );
+  final error = _outputTypeError<Output>(
+    label: label,
+    config: found._config,
+    hasParser: resolved != null,
+    site: .lookup,
+  );
+  if (error != null) {
+    throw GenkitException(error, status: StatusCode.invalidArgument);
   }
   return Prompt<Input, Output>._retyped(found, resolved);
 }
 
-/// Merges a per-call output override over the prompt's own output config.
+/// Where [_outputTypeError] runs; only the suggested fixes differ.
+enum _OutputCheckSite { define, lookup }
+
+/// Checks that [config] backs [Output], returning an error message or null.
 ///
-/// Field-wise rather than wholesale, so an override that only sets e.g.
-/// `constrained` keeps the prompt's format and schema. Null when neither side
-/// configures output, so the rendered options stay free of an empty block.
-GenerateActionOutputConfig? _mergeOutput(
+/// One rule, three levels, shared by `definePrompt` and `prompt()`:
+///
+/// | Output | the prompt must define |
+/// |---|---|
+/// | a domain type (`Joke`), or any parser | a schema the model is given |
+/// | JSON-shaped (`Map<String, dynamic>`) | a structured format (or schema) |
+/// | unconstrained (`dynamic`) | nothing |
+///
+/// A parser alone is not enough for the first level: `outputParserSchema` is
+/// never sent, so on a format-only prompt the model would only be guessing
+/// the shape. Such a prompt is still typeable at the JSON-shaped level.
+///
+/// The callers throw their own exception type: `ArgumentError` for a
+/// synchronous definition mistake, `GenkitException` from the async lookup
+/// (which also reports not-found that way).
+String? _outputTypeError<Output>({
+  required String label,
+  required PromptConfig<dynamic, dynamic, dynamic> config,
+  required bool hasParser,
+  _OutputCheckSite site = .define,
+}) {
+  final lookup = site == _OutputCheckSite.lookup;
+  // Covers every way a prompt defines its wire schema: `outputSchema`, a
+  // `jsonSchema` on `output`, and a `.prompt` file's `output.schema`.
+  final hasWireSchema = config.resolvedOutput?.jsonSchema != null;
+  final requestsJson = config._requestsStructuredOutput;
+
+  if (hasParser || !_isJsonAssignable<Output>()) {
+    if (hasParser && hasWireSchema) return null;
+    if (!lookup) {
+      // A definition's only parser is its outputSchema, which is also its
+      // wire schema, so the only failure here is a missing outputSchema.
+      return '$label declares an output type of $Output but has no '
+          'outputSchema to parse it. Pass outputSchema: to definePrompt().';
+    }
+    if (hasWireSchema) {
+      return '$label was not defined with an output schema for $Output. '
+          'Pass outputParserSchema: to prompt(), or look it up untyped.';
+    }
+    final reason = requestsJson
+        ? 'requests JSON but defines no output schema'
+        : 'defines no output schema and does not request structured output';
+    final parserNote = hasParser
+        ? ' outputParserSchema only parses the response; it is never sent.'
+        : '';
+    final fallback = requestsJson
+        ? 'look it up as prompt<dynamic, Map<String, dynamic>>()'
+        : 'look it up untyped';
+    return '$label $reason, so the model is never given the shape of $Output '
+        'and the output cannot be parsed reliably.$parserNote To parse into '
+        '$Output, define the schema on the prompt (outputSchema: in '
+        'definePrompt, or output.schema in the .prompt file), or $fallback.';
+  }
+
+  // JSON-shaped: no schema needed, but without a structured format no
+  // formatter runs, so `output` would come back null on every call.
+  if (_isUnconstrained<Output>() || requestsJson) return null;
+  return lookup
+      ? '$label does not request structured output, so its output would '
+            'always be null. Set output.format (e.g. json) on the prompt, or '
+            'look it up untyped.'
+      : '$label declares an output type of $Output but does not request '
+            'structured output, so its output would always be null. Set a '
+            'format on output: (e.g. json) or pass outputSchema:.';
+}
+
+/// The format a request is parsed with: the explicit one, else `json` when a
+/// schema is set (what `resolveFormat` does).
+String? _effectiveFormat(GenerateActionOutputConfig? output) =>
+    output?.format ?? (output?.jsonSchema != null ? 'json' : null);
+
+/// Applies a per-call output override to the prompt's own output config.
+///
+/// The override replaces the config wholesale (as in JS), except for the
+/// prompt's output contract: its format and schema carry over unless the
+/// override picks a different format. So `constrained: false` keeps
+/// json + schema, while `format: 'text'` drops both, and a typed prompt then
+/// yields a null `output` (see [Prompt._parseOutput]). A `jsonSchema` set on
+/// the override wins over the prompt's.
+GenerateActionOutputConfig? _applyOutputOverride(
   GenerateActionOutputConfig? base,
   GenerateActionOutputConfig? override,
 ) {
   if (override == null) return base;
-  if (base == null) return override;
+  final baseFormat = _effectiveFormat(base);
+  final switchesFormat =
+      override.format != null && override.format != baseFormat;
+  if (base == null || switchesFormat) return override;
   return GenerateActionOutputConfig.fromJson({
-    ...base.toJson(),
     ...override.toJson(),
+    'format': ?base.format,
+    'jsonSchema': ?(override.jsonSchema ?? base.jsonSchema),
   });
 }
 
@@ -889,8 +931,7 @@ GenerateActionOutputConfig? _mergeOutput(
 /// Checked through `List<T>` rather than `T` directly because a bare
 /// `<value> is T` cannot be written for an unbound type parameter.
 bool _isJsonAssignable<T>() =>
-    <Object?>[] is List<T> ||
-    <Object>[] is List<T> ||
+    _isUnconstrained<T>() ||
     <Map<String, dynamic>>[] is List<T> ||
     <List<dynamic>>[] is List<T> ||
     <String>[] is List<T> ||

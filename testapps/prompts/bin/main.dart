@@ -115,19 +115,22 @@ void main() {
     },
   );
 
-  // Flow: stream a joke. Chunks are typed too, though a partial chunk that
-  // cannot satisfy the schema yet has a null `output`.
+  // Flow: stream a joke. A chunk's typed `output` stays null until the partial
+  // JSON satisfies the Joke schema (here: both fields present), so stream the
+  // raw text as it arrives and take the typed Joke from the final result.
   ai.defineFlow(
     name: 'streamJoke',
     streamSchema: .string(),
+    outputSchema: Joke.schema,
     fn: (Map<String, dynamic>? input, ctx) async {
       final topic = input?['topic'] as String? ?? 'programming';
       final stream = jokePrompt.stream(JokeInput(topic: topic, style: 'punny'));
       await for (final chunk in stream) {
-        final partial = chunk.output;
-        if (partial != null) ctx.sendChunk(partial.setup);
+        ctx.sendChunk(chunk.text);
       }
-      return (await stream.onResult).output?.punchline ?? '';
+      final joke = (await stream.onResult).output;
+      if (joke == null) throw StateError('Model returned no joke');
+      return joke;
     },
   );
 

@@ -212,6 +212,28 @@ void main() {
     );
   });
 
+  test('lite generate parses a whole-number reply into a double', () async {
+    final model = Model<void>(
+      name: 'numModel',
+      fn: (request, context) async => ModelResponse(
+        finishReason: FinishReason.stop,
+        message: Message(
+          role: Role.model,
+          content: [TextPart(text: '3')],
+        ),
+      ),
+    );
+
+    final response = await lite.generate<double, void>(
+      model: model,
+      prompt: 'score',
+      outputFormat: 'json',
+    );
+
+    expect(response.output, isA<double>());
+    expect(response.output, equals(3.0));
+  });
+
   test('lite generateStream with outputSchema does not throw', () async {
     final model = Model<void>(
       name: 'testModelStream',

@@ -132,25 +132,6 @@ Future<GenerateResult<Output>> generate<Output, C>({
       if (outputNoInstructions == true) 'instructions': false,
     });
   }
-  // Parse raw (JSON) output into `Output` when a schema was given; without
-  // one, `Output` is whatever the caller asserted (typically `dynamic`).
-  Output? parse(Object? raw) => raw == null
-      ? null
-      : outputSchema != null
-      ? outputSchema.parse(raw)
-      : castOutput<Output>(raw);
-
-  // A streamed chunk carries *partial* output (e.g. `{"a": null}` while the
-  // value is still arriving), which a strict schema may reject. That is not
-  // an error: the chunk's output just is not available yet.
-  Output? parsePartial(Object? raw) {
-    try {
-      return parse(raw);
-    } on Object {
-      return null;
-    }
-  }
-
   final raw = await generateHelper(
     registry,
     system: system,
@@ -172,7 +153,7 @@ Future<GenerateResult<Output>> generate<Output, C>({
             GenerateResponseChunk<Output>(
               c.modelChunk,
               previousChunks: List.from(c.previousChunks),
-              output: parsePartial(c.output),
+              output: parsePartialOutput(c.output, outputSchema),
             ),
           ),
     middleware: use
@@ -184,7 +165,7 @@ Future<GenerateResult<Output>> generate<Output, C>({
   return GenerateResult<Output>(
     raw.modelResponse,
     request: raw.modelRequest,
-    output: parse(raw.output),
+    output: parseOutput(raw.output, outputSchema),
     cause: raw.cause,
   );
 }

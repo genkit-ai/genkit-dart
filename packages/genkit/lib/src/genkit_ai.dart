@@ -155,48 +155,23 @@ base class GenkitAI {
       restart: interruptRestart,
       onChunk: onChunk == null
           ? null
-          : (c) {
-              if (outputSchema != null) {
-                onChunk.call(
-                  GenerateResponseChunk<Output>(
-                    c.modelChunk,
-                    previousChunks: List.from(c.previousChunks),
-                    output: _parsePartial(outputSchema, c.output),
-                  ),
-                );
-              } else {
-                onChunk.call(
-                  GenerateResponseChunk<Output>(
-                    c.modelChunk,
-                    previousChunks: List.from(c.previousChunks),
-                    // Partial output that does not fit Output yet is not a
-                    // failure; the chunk's output is just unavailable.
-                    output: c.output is Output ? c.output as Output : null,
-                  ),
-                );
-              }
-            },
+          : (c) => onChunk(
+              GenerateResponseChunk<Output>(
+                c.modelChunk,
+                previousChunks: List.from(c.previousChunks),
+                output: parsePartialOutput(c.output, outputSchema),
+              ),
+            ),
     );
-    if (outputSchema != null) {
-      return GenerateResult(
-        result.modelResponse,
-        request: result.modelRequest,
-        // An aborted response carries no output; guard the parse so the
-        // aborted response (with its resumable history) survives structured
-        // output calls too.
-        output: result.output == null
-            ? null
-            : outputSchema.parse(result.output),
-        cause: result.cause,
-      );
-    } else {
-      return GenerateResult(
-        result.modelResponse,
-        request: result.modelRequest,
-        output: castOutput<Output>(result.output),
-        cause: result.cause,
-      );
-    }
+    // An aborted response carries no output; `parseOutput` maps that to null,
+    // so the aborted response (with its resumable history) survives
+    // structured output calls too.
+    return GenerateResult(
+      result.modelResponse,
+      request: result.modelRequest,
+      output: parseOutput(result.output, outputSchema),
+      cause: result.cause,
+    );
   }
 
   /// Streams a response from the specified model.
@@ -320,21 +295,6 @@ base class GenkitAI {
 
     final response = await action(req) as EmbedResponse;
     return response.embeddings;
-  }
-}
-
-/// Parses a streamed chunk's *partial* output against [schema].
-///
-/// While JSON is still arriving the partial value is often incomplete (e.g.
-/// `{"a": null}` for a map of strings), and a strict schema rejects it. That is
-/// not a generation failure: the chunk's typed output is just not available
-/// yet, so it is `null`. The final response is still parsed strictly.
-Output? _parsePartial<Output>(SchemanticType<Output> schema, Object? raw) {
-  if (raw == null) return null;
-  try {
-    return schema.parse(raw);
-  } on Object {
-    return null;
   }
 }
 

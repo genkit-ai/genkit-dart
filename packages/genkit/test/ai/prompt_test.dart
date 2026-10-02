@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:dotprompt/dotprompt.dart' as dp;
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/dotprompt_registry.dart';
+import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:genkit/src/ai/prompt.dart';
 import 'package:genkit/src/ai/prompt_loader.dart';
 import 'package:path/path.dart' as p;
@@ -92,6 +93,14 @@ void main() {
       expect(config.returnToolRequests, isTrue);
       expect(config.toolNames, equals(['tool1']));
       expect(config.toolChoice, equals('auto'));
+    });
+
+    test('resolvedOutput is computed once', () {
+      final config = PromptConfig(name: 'joke', outputSchema: _jokeSchema);
+
+      // Read on every render; rebuilding the JSON schema each time is waste.
+      expect(identical(config.resolvedOutput, config.resolvedOutput), isTrue);
+      expect(config.resolvedOutput?.jsonSchema, isNotNull);
     });
   });
 
@@ -1373,6 +1382,9 @@ void main() {
       defineSchemaless<String>('str', output: json);
       defineSchemaless<List<dynamic>>('list', output: json);
       defineSchemaless<int>('int', output: json);
+      defineSchemaless<double>('double', output: json);
+      defineSchemaless<num>('num', output: json);
+      defineSchemaless<bool>('bool', output: json);
     });
 
     test('a JSON-shaped Output on a text-only prompt is rejected', () {
@@ -1469,7 +1481,7 @@ void main() {
       expect(chunkOutputs.last?.punchline, equals('Because.'));
     });
 
-    test('a per-call output override merges over the prompt config', () async {
+    test('a per-call output keeps the prompt format and schema', () async {
       final requests = <ModelRequest>[];
       genkit.defineModel(
         name: 'm',
@@ -1501,8 +1513,8 @@ void main() {
         ),
       );
 
-      // The override only set `constrained`; format and schema carry over, so
-      // the response still parses into a typed Joke.
+      // The override only set `constrained`; the prompt's output contract
+      // (format + schema) carries over, so the reply still parses into a Joke.
       final output = requests.single.output!;
       expect(output.format, equals('json'));
       expect(output.constrained, isFalse);
@@ -1531,6 +1543,230 @@ void main() {
       expect(options.output?.constrained, isFalse);
       expect(options.output?.format, equals('json'));
       expect(options.output?.jsonSchema, isNotNull);
+    });
+
+    test('a per-call output replaces non-contract fields wholesale', () async {
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        outputSchema: _jokeSchema,
+        output: GenerateActionOutputConfig(
+          format: 'json',
+          constrained: true,
+          instructions: .string('Be brief'),
+        ),
+        prompt: 'Tell a joke',
+      );
+
+      // Matches JS: the override is not merged field by field, so the prompt's
+      // `constrained` and `instructions` are dropped. Only the contract
+      // (format + schema) carries over.
+      final options = await ep.render(
+        null,
+        PromptGenerateOptions(
+          output: GenerateActionOutputConfig(contentType: 'application/json'),
+        ),
+      );
+
+      final output = options.output!.toJson();
+      expect(output['contentType'], equals('application/json'));
+      expect(output, isNot(contains('constrained')));
+      expect(output, isNot(contains('instructions')));
+      expect(output['format'], equals('json'));
+      expect(options.output!.jsonSchema, isNotNull);
+    });
+
+    test('a per-call non-JSON format drops the schema', () async {
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+
+      final options = await ep.render(
+        null,
+        PromptGenerateOptions(
+          output: GenerateActionOutputConfig(format: 'text'),
+        ),
+      );
+
+      expect(options.output?.format, equals('text'));
+      expect(options.output?.jsonSchema, isNull);
+    });
+
+    test('a per-call format: json keeps the schema', () async {
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+
+      final options = await ep.render(
+        null,
+        PromptGenerateOptions(
+          output: GenerateActionOutputConfig(format: 'json'),
+        ),
+      );
+
+      expect(options.output?.format, equals('json'));
+      expect(options.output?.jsonSchema, isNotNull);
+    });
+
+    test('a per-call jsonSchema wins over the prompt schema', () async {
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+      final override = {
+        'type': 'object',
+        'properties': {
+          'setup': {'type': 'string'},
+          'punchline': {'type': 'string'},
+          'rating': {'type': 'integer'},
+        },
+      };
+
+      final options = await ep.render(
+        null,
+        PromptGenerateOptions(
+          output: GenerateActionOutputConfig(jsonSchema: override),
+        ),
+      );
+
+      expect(options.output?.jsonSchema, equals(override));
+    });
+
+    test('a per-call output on a prompt without output config', () async {
+      final ep = genkit.definePrompt(name: 'plain', prompt: 'Say hi');
+
+      final options = await ep.render(
+        null,
+        PromptGenerateOptions(
+          output: GenerateActionOutputConfig(format: 'json'),
+        ),
+      );
+
+      expect(options.output?.toJson(), equals({'format': 'json'}));
+    });
+
+    /// Registers a `text` formatter (Dart ships only `json`), so the per-call
+    /// format tests prove the guard does not rely on the parser being absent.
+    void defineTextFormat() => defineFormat(
+      genkit.registry,
+      Formatter(
+        name: 'text',
+        config: GenerateActionOutputConfig(format: 'text'),
+        handler: (schema) => FormatterHandlerResult(
+          parseMessage: (message) => message.text,
+          parseChunk: (chunk) => chunk.accumulatedText,
+        ),
+      ),
+    );
+
+    test(
+      'a per-call format: text yields null output on a typed prompt',
+      () async {
+        // The text reply must not reach the Joke parser (which would throw).
+        defineTextFormat();
+        final requests = <ModelRequest>[];
+        genkit.defineModel(
+          name: 'm',
+          fn: (request, context) async {
+            requests.add(request);
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [TextPart(text: 'Why? Because.')],
+              ),
+            );
+          },
+        );
+        final ep = genkit.definePrompt(
+          name: 'joke',
+          model: modelRef('m'),
+          outputSchema: _jokeSchema,
+          prompt: 'Tell a joke',
+        );
+
+        final response = await ep(
+          null,
+          PromptGenerateOptions(
+            output: GenerateActionOutputConfig(format: 'text'),
+          ),
+        );
+
+        expect(requests.single.output?.schema, isNull);
+        expect(response.output, isNull);
+        expect(response.text, equals('Why? Because.'));
+      },
+    );
+
+    test(
+      'a per-call format switch passes the raw value when untyped',
+      () async {
+        defineTextFormat();
+        defineEchoModel('m', 'Why? Because.');
+        genkit.definePrompt(
+          name: 'joke',
+          model: modelRef('m'),
+          outputSchema: _jokeSchema,
+          prompt: 'Tell a joke',
+        );
+
+        // Untyped lookup: Output is dynamic, so whatever the formatter produced
+        // is passed through rather than dropped.
+        final ep = await genkit.prompt('joke');
+        final response = await ep(
+          null,
+          PromptGenerateOptions(
+            output: GenerateActionOutputConfig(format: 'text'),
+          ),
+        );
+
+        expect(response.output, equals('Why? Because.'));
+      },
+    );
+
+    test('streamed chunks of a per-call format switch are null too', () async {
+      defineTextFormat();
+      defineEchoModel('m', 'Why? Because.', chunks: ['Why? ', 'Because.']);
+      final ep = genkit.definePrompt(
+        name: 'joke',
+        model: modelRef('m'),
+        outputSchema: _jokeSchema,
+        prompt: 'Tell a joke',
+      );
+
+      final stream = ep.stream(
+        null,
+        PromptGenerateOptions(
+          output: GenerateActionOutputConfig(format: 'text'),
+        ),
+      );
+      final chunkOutputs = [await for (final c in stream) c.output];
+
+      expect(chunkOutputs, hasLength(2));
+      expect(chunkOutputs, everyElement(isNull));
+      expect((await stream.onResult).output, isNull);
+    });
+
+    test('a whole-number reply parses into a double Output', () async {
+      // `jsonDecode('3')` is an int on the VM; a double Output must accept it.
+      defineEchoModel('m', '3', chunks: ['3']);
+      final ep = defineSchemaless<double>(
+        'score',
+        model: modelRef('m'),
+        output: GenerateActionOutputConfig.fromJson({'format': 'json'}),
+      );
+
+      final stream = ep.stream(null);
+      final chunkOutputs = [await for (final c in stream) c.output];
+      final response = await stream.onResult;
+
+      expect(response.output, isA<double>());
+      expect(response.output, equals(3.0));
+      expect(chunkOutputs.single, isA<double>());
     });
 
     test('an aborted response survives a typed prompt', () async {
@@ -1597,7 +1833,14 @@ void main() {
                 .having(
                   (e) => e.message,
                   'message',
-                  contains('does not define an output schema'),
+                  allOf(
+                    contains(
+                      'defines no output schema and does not request '
+                      'structured output',
+                    ),
+                    contains('outputParserSchema only parses the response'),
+                    contains('look it up untyped'),
+                  ),
                 ),
           ),
         );
@@ -1611,9 +1854,72 @@ void main() {
         prompt: 'Tell a joke',
       );
 
+      // Intended: the model is asked for JSON but never given _Joke's shape,
+      // so a domain type cannot be guaranteed. The message points at the
+      // JSON-shaped lookup that does work (next test).
       await expectLater(
         genkit.prompt('joke', outputParserSchema: _jokeSchema),
-        throwsA(isA<GenkitException>()),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
+              .having(
+                (e) => e.message,
+                'message',
+                allOf(
+                  contains('requests JSON but defines no output schema'),
+                  contains('never given the shape of _Joke'),
+                  contains('outputParserSchema only parses the response'),
+                  contains('prompt<dynamic, Map<String, dynamic>>()'),
+                ),
+              ),
+        ),
+      );
+    });
+
+    test('a format-only prompt is typeable as a JSON map', () async {
+      genkit.defineModel(
+        name: 'm',
+        fn: (request, context) async => ModelResponse(
+          finishReason: .stop,
+          message: Message(
+            role: .model,
+            content: [TextPart(text: '{"setup": "Why?"}')],
+          ),
+        ),
+      );
+      genkit.definePrompt(
+        name: 'joke',
+        model: modelRef('m'),
+        output: GenerateActionOutputConfig.fromJson({'format': 'json'}),
+        prompt: 'Tell a joke',
+      );
+
+      final ep = await genkit.prompt<dynamic, Map<String, dynamic>>('joke');
+      final response = await ep(null);
+
+      expect(response.output, equals({'setup': 'Why?'}));
+    });
+
+    test('a domain Output on a format-only prompt is rejected', () async {
+      genkit.definePrompt(
+        name: 'joke',
+        output: GenerateActionOutputConfig.fromJson({'format': 'json'}),
+        prompt: 'Tell a joke',
+      );
+
+      await expectLater(
+        genkit.prompt<dynamic, _Joke>('joke'),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            allOf(
+              contains('requests JSON but defines no output schema'),
+              contains('prompt<dynamic, Map<String, dynamic>>()'),
+              isNot(contains('outputParserSchema')),
+            ),
+          ),
+        ),
       );
     });
 
@@ -1693,7 +1999,10 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.message,
             'message',
-            contains('was not defined with an output schema'),
+            contains(
+              'defines no output schema and does not request '
+              'structured output',
+            ),
           ),
         ),
       );
@@ -1845,6 +2154,34 @@ Tell a joke.
 
       expect(response.output?.setup, equals('Why?'));
     });
+
+    test(
+      'any parser needs a wire schema, even for a JSON-shaped Output',
+      () async {
+        genkit.definePrompt(
+          name: 'joke',
+          output: GenerateActionOutputConfig.fromJson({'format': 'json'}),
+          prompt: 'Tell a joke',
+        );
+
+        // A JSON-shaped Output alone would pass on a format-only prompt (see
+        // above), but asking for a parser means asking for a specific shape,
+        // which the model must be given.
+        await expectLater(
+          genkit.prompt(
+            'joke',
+            outputParserSchema: SchemanticType.map(.string(), .string()),
+          ),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              contains('requests JSON but defines no output schema'),
+            ),
+          ),
+        );
+      },
+    );
 
     test('a typed lookup shares the defining template cache', () async {
       final defined = genkit.definePrompt(

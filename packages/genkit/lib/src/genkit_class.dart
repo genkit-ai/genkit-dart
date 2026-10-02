@@ -355,6 +355,10 @@ final class Genkit extends GenkitAI {
   /// defines, and the lookup throws if the prompt defines none. `Output` is
   /// inferred from it, so no type arguments are needed.
   ///
+  /// A prompt that only requests JSON (`format: json`, no schema) cannot back
+  /// a domain type, since the model is never given its shape, but it can be
+  /// looked up as `prompt<dynamic, Map<String, dynamic>>()`.
+  ///
   /// Example:
   /// ```dart
   /// final hi = await ai.prompt('hi');
