@@ -1,3 +1,18 @@
+## 1.0.0-rc.1
+
+### Breaking Changes
+
+ - introduce GenkitRouter and update shelf adapter (#533)
+ - type usage counts and indexes as int (#546)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+
+
 ## 0.2.0
 
 ### Breaking Changes

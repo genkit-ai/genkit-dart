@@ -1,3 +1,17 @@
+## 0.4.0-rc.1
+
+### Breaking Changes
+
+ - make GenerateResult and GenerateResponseChunk read-only views (#547)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - export every type that appears in a public signature (#490)
+ - replace the ActionFnArg record typedef with a final class (#484)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+
+
 ## 0.3.0
 
 ### Breaking Changes

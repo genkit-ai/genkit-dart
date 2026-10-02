@@ -1,3 +1,18 @@
+## 1.0.0-rc.1
+
+### Breaking Changes
+
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+
+### Features
+
+ - support reasoning effort, verbosity and reasoning output (#430)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+
+
 ## 0.2.3
 
  - updated internal dependencies.

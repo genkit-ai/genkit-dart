@@ -1,3 +1,29 @@
+## 1.0.0-rc.1
+
+### Breaking Changes
+
+ - type usage counts and indexes as int (#546)
+ - rename GenerateResponseHelper to GenerateResult and drop redundant members (#534)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - rename Tool(toolOutputSchema:) to outputSchema (#530)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - middleware tool hook returns ToolResult; remove ToolInterruptException (#503)
+ - export every type that appears in a public signature (#490)
+ - replace the GenerateMiddlewareContext record typedef with a final class (#486)
+ - replace the GenerateTurnState record typedef with a final class (#485)
+ - stop re-exporting the experimental agents library (#482)
+ - move agent/session schema types out of the stable libraries (#480)
+
+### Fixes
+
+ - honor ToolApprovalPlugin(approvedTools:) when toolApproval() has no list (#538)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+ - fix stale package descriptions in the READMEs and pubspec (#504)
+
+
 ## 0.7.0
 
 ### Breaking Changes

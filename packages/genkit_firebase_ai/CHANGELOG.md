@@ -1,3 +1,24 @@
+## 0.3.0-rc.1
+
+### Breaking Changes
+
+ - type usage counts and indexes as int (#546)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - make constrained generation simulation an opt-in middleware (#519)
+ - simulate constrained generation when a model lacks native support (#453)
+
+### Fixes
+
+ - stop pre-registering the retired gemini-2.5-pro (#509)
+ - honor the portable toolChoice option (#496)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+ - add example/ programs to genkit_chrome, genkit_firebase_ai, genkit_google_cloud (#505)
+
+
 ## 0.2.2
 
 ### Breaking Changes

@@ -1,3 +1,37 @@
+## 1.0.0-rc.1
+
+### Breaking Changes
+
+ - rename GenkitException.underlyingException to cause; drop statusCode (#548)
+ - type usage counts and indexes as int (#546)
+ - make GenerateResult and GenerateResponseChunk read-only views (#547)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - rename GenerateResponseHelper to GenerateResult and drop redundant members (#534)
+ - stop exporting the model catalogs (#525)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - remove embedMany in favor of embed (#535)
+ - align naming of ToolFnArg, ModelInfo params and RemoteAction.close (#537)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - make constrained generation simulation an opt-in middleware (#519)
+ - stop exporting implementation helpers (#502)
+ - simulate constrained generation when a model lacks native support (#453)
+
+### Features
+
+ - support reasoning effort, verbosity and reasoning output (#430)
+ - support whisper on OpenAI stt (#406)
+ - add text-to-speech support (#405)
+
+### Fixes
+
+ - honor the portable toolChoice option (#495)
+ - xai and deepseek review comments (#476)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+
+
 ## 0.5.0
 
 ### Breaking Changes

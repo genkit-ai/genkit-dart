@@ -1,3 +1,36 @@
+## 1.0.0-rc.1
+
+### Breaking Changes
+
+ - rename GenkitException.underlyingException to cause; drop statusCode (#548)
+ - type usage counts and indexes as int (#546)
+ - make GenerateResult and GenerateResponseChunk read-only views (#547)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - remove GoogleAiModels, stop exporting catalog enums, refresh the catalog (#524)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - remove embedMany in favor of embed (#535)
+ - align naming of ToolFnArg, ModelInfo params and RemoteAction.close (#537)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - make constrained generation simulation an opt-in middleware (#519)
+
+### Features
+
+ - discover gemini-embedding-* embedders and embed media (#394)
+ - extend curated model catalog toward the JS/Go union (#513)
+
+### Fixes
+
+ - honor the portable toolChoice option (#494)
+ - degrade list() to curated catalog on discovery failure (#512)
+ - stop closing injected clients and honour late cancellation (#454)
+ - map Gemini finish reasons to Genkit vocabulary (#425)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+ - state that common.dart is not covered by semver (#501)
+
+
 ## 0.4.0
 
 ### Breaking Changes

@@ -1,3 +1,18 @@
+## 1.0.0-rc.1
+
+### Breaking Changes
+
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - use Duration for cache TTLs (#539)
+ - seal Registry and hide internal plumbing (#529)
+ - rename Tool(toolOutputSchema:) to outputSchema (#530)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+
+
 ## 0.4.0
 
 ### Breaking Changes

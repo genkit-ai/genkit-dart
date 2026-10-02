@@ -1,3 +1,31 @@
+## 1.0.0-rc.1
+
+### Breaking Changes
+
+ - rename GenkitException.underlyingException to cause; drop statusCode (#548)
+ - use Duration for retry delays; rename retryModel to noRetryModel (#549)
+ - type usage counts and indexes as int (#546)
+ - make GenerateResult and GenerateResponseChunk read-only views (#547)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - align naming of ToolFnArg, ModelInfo params and RemoteAction.close (#537)
+ - register retry middleware by default and remove RetryPlugin (#531)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - type toolChoice as an open enum instead of String (#493)
+ - map toolChoice `required` to Anthropic's `any` (#492)
+ - simulate constrained generation when a model lacks native support (#453)
+
+### Features
+
+ - claim native structured output for every Claude model (#518)
+ - Allow providing a custom `http.Client` to the Anthropic plugin for managing HTTP requests (#226)
+ - add beta/stable API selection and native structured outputs (#402)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+
+
 ## 0.4.0
 
 ### Breaking Changes

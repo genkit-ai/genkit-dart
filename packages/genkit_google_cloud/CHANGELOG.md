@@ -1,3 +1,16 @@
+## 0.3.0-rc.1
+
+### Breaking Changes
+
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - move agent/session schema types out of the stable libraries (#480)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+ - add example/ programs to genkit_chrome, genkit_firebase_ai, genkit_google_cloud (#505)
+
+
 ## 0.2.0
 
 ### Breaking Changes
