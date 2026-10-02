@@ -44,15 +44,14 @@ Set<String> modelNames(List<ActionMetadata> metadata) => metadata
 /// Since #413 a model error is reported as a response with
 /// [FinishReason.failed] and a structured `error`, not a thrown exception.
 /// `error.status` is the status *name*, not the enum.
-Matcher failsWith(StatusCode status, {String? message}) =>
-    isA<GenerateResponse>()
-        .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
-        .having((r) => r.error?.status, 'error.status', status.wireName)
-        .having(
-          (r) => r.error?.message ?? '',
-          'error.message',
-          message == null ? anything : contains(message),
-        );
+Matcher failsWith(StatusCode status, {String? message}) => isA<GenerateResult>()
+    .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
+    .having((r) => r.error?.status, 'error.status', status.wireName)
+    .having(
+      (r) => r.error?.message ?? '',
+      'error.message',
+      message == null ? anything : contains(message),
+    );
 
 CustomModelDefinition llama() => CustomModelDefinition(
   name: 'llama-3.3-70b-versatile',
