@@ -179,7 +179,7 @@ Genkit transcriptionGenkit(
 /// [FinishReason.failed] and a structured `error`, not a thrown exception.
 /// `error.status` is the status *name*, not the enum.
 Matcher failsWith({StatusCode? status, String? message}) =>
-    isA<GenerateResponse>()
+    isA<GenerateResult>()
         .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
         .having(
           (r) => r.error?.status,

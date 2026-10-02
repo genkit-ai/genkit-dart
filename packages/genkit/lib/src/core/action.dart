@@ -356,11 +356,11 @@ base class Action<Input, Output, Chunk, Init>
   });
 
   /// The output schema surfaced when building action manifests (Dev UI,
-  /// reflection) and tool definitions.
+  /// reflection).
   ///
-  /// Defaults to [outputSchema]. Subclasses such as `Tool` override this to
-  /// expose the user-declared output schema instead of an internal wrapper
-  /// type (for example `ToolResult<Output>`).
+  /// Defaults to [outputSchema]. `Tool` overrides it to expose the declared
+  /// output schema instead of its `ToolResult<Output>` wrapper.
+  @internal
   SchemanticType? get manifestOutputSchema => outputSchema;
 
   @override
