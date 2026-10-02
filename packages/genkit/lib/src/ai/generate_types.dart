@@ -20,8 +20,8 @@ import '../types.dart';
 ///
 /// A read-only view over [modelChunk], deliberately not a [ModelResponseChunk]
 /// subtype: the wire type has setters, and writing through them would not
-/// update this view's derived getters. Use [modelChunk] where the wire type is
-/// needed (e.g. to serialize it).
+/// update this view's derived getters. Use [modelChunk] where a
+/// [ModelResponseChunk] is expected (e.g. a flow's `streamSchema`).
 final class GenerateResponseChunk<Output> {
   final ModelResponseChunk _chunk;
 
@@ -70,6 +70,13 @@ final class GenerateResponseChunk<Output> {
     return buffer.toString();
   }
 
+  /// The wire JSON of [modelChunk], so a chunk can be encoded directly (e.g.
+  /// `jsonEncode(chunk)` in untyped flows and the Dev UI stream).
+  /// [previousChunks] and [output] are not included.
+  ///
+  /// Read-only forwarding is safe: the view holds no copy that could go stale.
+  Map<String, dynamic> toJson() => _chunk.toJson();
+
   @override
   String toString() => 'GenerateResponseChunk(${_chunk.toJson()})';
 }
@@ -97,8 +104,8 @@ final class InterruptResponse {
 ///
 /// A read-only view over [modelResponse], deliberately not a wire-type
 /// subtype: the wire types have setters, and writing through them would not
-/// update this view's derived getters. Use [modelResponse] where the wire type
-/// is needed (e.g. to serialize it).
+/// update this view's derived getters. Use [modelResponse] where a
+/// [ModelResponse] is expected.
 final class GenerateResult<Output> {
   final ModelResponse _response;
   final ModelRequest? _request;
@@ -183,6 +190,14 @@ final class GenerateResult<Output> {
             .toList() ??
         [];
   }
+
+  /// The wire JSON of [modelResponse], valid against `GenerateResponse` (minus
+  /// the legacy `candidates`), so a result can be returned from an untyped
+  /// flow or passed to `jsonEncode`. [output], [modelRequest] and [cause] are
+  /// not included.
+  ///
+  /// Read-only forwarding is safe: the view holds no copy that could go stale.
+  Map<String, dynamic> toJson() => _response.toJson();
 
   @override
   String toString() => 'GenerateResult(${_response.toJson()})';

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
 
@@ -76,6 +78,22 @@ void main() {
       expect(res, isNot(isA<GenerateResponse>()));
       expect(res, isNot(isA<ModelResponse>()));
     });
+
+    test('serializes as the wire response', () {
+      final res = GenerateResult<String>(
+        response,
+        request: request,
+        output: 'parsed',
+      );
+      expect(res.toJson(), response.toJson());
+      // Valid GenerateResponse JSON, and directly jsonEncode-able.
+      final decoded = GenerateResponse.fromJson(
+        jsonDecode(jsonEncode(res)) as Map<String, dynamic>,
+      );
+      expect(decoded.message?.text, 'hello');
+      expect(decoded.finishReason, FinishReason.stop);
+      expect(decoded.candidates, isNull);
+    });
   });
 
   group('GenerateResponseChunk', () {
@@ -106,6 +124,20 @@ void main() {
       expect(c.custom, {'k': 'v'});
       expect(c.output, {'partial': true});
       expect(c, isNot(isA<ModelResponseChunk>()));
+    });
+
+    test('serializes as the wire chunk', () {
+      final c = GenerateResponseChunk<String>(
+        chunk,
+        previousChunks: [previous],
+        output: 'partial',
+      );
+      expect(c.toJson(), chunk.toJson());
+      final decoded = ModelResponseChunk.fromJson(
+        jsonDecode(jsonEncode(c)) as Map<String, dynamic>,
+      );
+      expect(decoded.text, 'lo');
+      expect(decoded.role, Role.model);
     });
 
     test('forwards to a flow stream via modelChunk', () async {
@@ -142,6 +174,55 @@ void main() {
       final chunks = await stream.toList();
       expect(chunks.map((c) => c.text), ['lo']);
       expect(await stream.onResult, 'hello');
+    });
+
+    test('untyped flows can stream and return the views as JSON', () async {
+      final ai = Genkit();
+      addTearDown(ai.shutdown);
+      final model = ai.defineModel(
+        name: 'echo',
+        fn: (req, ctx) async {
+          ctx.sendChunk(chunk);
+          return ModelResponse(
+            finishReason: .stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: 'hello')],
+            ),
+          );
+        },
+      );
+      // No stream/output schema: chunks and the result are dynamic, so
+      // serialization relies on toJson() at runtime.
+      final flow = ai.defineFlow(
+        name: 'untyped',
+        fn: (String prompt, ctx) async {
+          final res = await ai.generate(
+            model: model,
+            prompt: prompt,
+            onChunk: ctx.sendChunk,
+          );
+          return res;
+        },
+      );
+      // Encode the way the reflection server does.
+      final encodedChunks = <String>[];
+      final result = await flow.runRaw(
+        'hi',
+        onChunk: (c) => encodedChunks.add(jsonEncode(c)),
+      );
+      expect(
+        encodedChunks.map(
+          (c) => ModelResponseChunk.fromJson(
+            jsonDecode(c) as Map<String, dynamic>,
+          ).text,
+        ),
+        ['lo'],
+      );
+      final decoded = GenerateResponse.fromJson(
+        jsonDecode(jsonEncode(result.result)) as Map<String, dynamic>,
+      );
+      expect(decoded.message?.text, 'hello');
     });
   });
 }

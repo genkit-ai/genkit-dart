@@ -1788,6 +1788,7 @@ package:genkit/genkit.dart:
     previousChunks (getter: List<ModelResponseChunk>)
     role (getter: Role?)
     text (getter: String)
+    toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
   GenerateResult (class<Output> extends Object, final):
     new (constructor: GenerateResult<Output> Function(ModelResponse, {Object? cause, Output? output, ModelRequest? request}))
@@ -1809,6 +1810,7 @@ package:genkit/genkit.dart:
     text (getter: String)
     toolRequests (getter: List<ToolRequest>)
     usage (getter: GenerationUsage?)
+    toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
   GenerateResumeOptions (see above)
   GenerateTurnState (class extends Object, final):
