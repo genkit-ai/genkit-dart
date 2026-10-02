@@ -14,6 +14,7 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
@@ -212,11 +213,23 @@ typedef ToolFn<Input, Output> =
 base class Tool<Input, Output>
     extends Action<Input, ToolResult<Output>, void, void> {
   /// The schema of `Output`, as passed to the constructor's `outputSchema`.
-  /// Used to build the model-facing tool definition and the action manifest
-  /// (see [manifestOutputSchema]).
+  /// It is what the model, the Dev UI and MCP `tools/list` see as the tool's
+  /// output.
   ///
-  /// Read this rather than the inherited [outputSchema], which would describe
-  /// the [ToolResult] wrapper and is always null on a tool.
+  /// ```dart
+  /// final weather = ai.defineTool(
+  ///   name: 'weather',
+  ///   description: 'Current weather',
+  ///   outputSchema: Weather.$schema,
+  ///   fn: (city, ctx) async => .response(await fetchWeather(city)),
+  /// );
+  /// weather.toolOutputSchema; // Weather.$schema
+  /// weather.outputSchema;     // always null: see below
+  /// ```
+  ///
+  /// It can't be the inherited [outputSchema]: that getter is typed by the
+  /// action's output, which for a tool is the [ToolResult] wrapper (a response
+  /// or an interrupt), not `Output`.
   final SchemanticType<Output>? toolOutputSchema;
 
   // Uses an explicit super call (not super parameters) because the base `fn`
@@ -249,11 +262,10 @@ base class Tool<Input, Output>
          }),
        );
 
-  // A tool's base `outputSchema` describes the wrapper `ToolResult<Output>`,
-  // not the user-declared `Output`. Surface the declared schema so action
-  // manifests (Dev UI, reflection) and MCP `tools/list` advertise the shape
-  // callers actually receive.
+  // A tool's base `outputSchema` describes the `ToolResult<Output>` wrapper.
+  // Surface the declared schema in action manifests (Dev UI, reflection).
   @override
+  @internal
   SchemanticType? get manifestOutputSchema => toolOutputSchema;
 }
 

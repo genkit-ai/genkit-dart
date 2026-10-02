@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/src/ai/generate.dart' show toToolDefinition;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -89,7 +90,12 @@ void main() {
       );
 
       expect(tool.toolOutputSchema?.jsonSchema(), {'type': 'string'});
+      // The inherited, action-level schema would describe ToolResult<String>.
+      expect(tool.outputSchema, isNull);
+      // Manifests (reflection / Dev UI) advertise the declared schema.
       expect(tool.manifestOutputSchema, same(tool.toolOutputSchema));
+      // The model sees the declared schema.
+      expect(toToolDefinition(tool).outputSchema?['type'], 'string');
     });
   });
 
