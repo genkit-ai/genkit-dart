@@ -80,7 +80,7 @@ Future<Output?> streamFlow<Output, Chunk>({
         ? error
         : GenkitException(
             'Error in stream',
-            underlyingException: error,
+            cause: error,
             stackTrace: stackTrace,
           );
 
@@ -288,7 +288,7 @@ interface class RemoteAction<Input, Output, Chunk, Init> {
     } catch (e, s) {
       throw GenkitException(
         'HTTP request failed: ${e.toString()}',
-        underlyingException: e,
+        cause: e,
         stackTrace: s,
       );
     }
@@ -307,7 +307,7 @@ interface class RemoteAction<Input, Output, Chunk, Init> {
     } on FormatException catch (e, s) {
       throw GenkitException(
         'Failed to decode JSON response: ${e.toString()}',
-        underlyingException: e,
+        cause: e,
         details: response.body,
         stackTrace: s,
       );

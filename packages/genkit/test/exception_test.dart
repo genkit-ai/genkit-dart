@@ -77,29 +77,27 @@ void main() {
 
       expect(exception.message, 'Test error message');
       expect(exception.status, StatusCode.internal);
-      expect(exception.statusCode, StatusCode.internal.value);
       expect(exception.details, isNull);
-      expect(exception.underlyingException, isNull);
+      expect(exception.cause, isNull);
       expect(exception.stackTrace, isNull);
     });
 
     test('should create exception with all information', () {
-      final underlyingException = Exception('Underlying error');
+      final cause = Exception('Underlying error');
       final stackTrace = StackTrace.current;
 
       final exception = GenkitException(
         'Main error message',
         status: StatusCode.internal,
         details: 'Error details',
-        underlyingException: underlyingException,
+        cause: cause,
         stackTrace: stackTrace,
       );
 
       expect(exception.message, 'Main error message');
       expect(exception.status, StatusCode.internal);
-      expect(exception.statusCode, StatusCode.internal.value);
       expect(exception.details, 'Error details');
-      expect(exception.underlyingException, underlyingException);
+      expect(exception.cause, cause);
       expect(exception.stackTrace, stackTrace);
     });
 
@@ -130,11 +128,8 @@ void main() {
     });
 
     test('should include underlying exception in toString()', () {
-      final underlyingException = Exception('Network error');
-      final exception = GenkitException(
-        'Main error',
-        underlyingException: underlyingException,
-      );
+      final cause = Exception('Network error');
+      final exception = GenkitException('Main error', cause: cause);
 
       final string = exception.toString();
 
@@ -164,14 +159,14 @@ void main() {
     });
 
     test('should include all information in complete exception', () {
-      final underlyingException = FormatException('Invalid JSON');
+      final cause = FormatException('Invalid JSON');
       final stackTrace = StackTrace.current;
 
       final exception = GenkitException(
         'JSON parsing failed',
         status: StatusCode.invalidArgument,
         details: 'Response body: {"invalid": json}',
-        underlyingException: underlyingException,
+        cause: cause,
         stackTrace: stackTrace,
       );
 

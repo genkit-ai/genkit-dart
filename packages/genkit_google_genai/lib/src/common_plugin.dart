@@ -277,7 +277,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       return GenkitException(
         message ?? 'Google AI API Error: $httpStatus',
         status: StatusCode.fromHttpStatus(httpStatus),
-        underlyingException: e,
+        cause: e,
         stackTrace: stack,
       );
     }
@@ -285,7 +285,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
     return GenkitException(
       'Google AI Error: $e',
       status: StatusCode.internal,
-      underlyingException: e,
+      cause: e,
       stackTrace: stack,
     );
   }

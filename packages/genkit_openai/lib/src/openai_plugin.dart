@@ -769,7 +769,7 @@ class OpenAIPlugin extends GenkitPlugin {
       'OpenAI API error: $e',
       status: status,
       details: details ?? e.toString(),
-      underlyingException: e,
+      cause: e,
       stackTrace: stackTrace,
     );
   }
@@ -843,7 +843,7 @@ class OpenAIPlugin extends GenkitPlugin {
       if (e is GenkitException) rethrow;
       throw GenkitException(
         'Error in streaming: $e',
-        underlyingException: e,
+        cause: e,
         stackTrace: stackTrace,
       );
     }
@@ -967,7 +967,7 @@ class OpenAIPlugin extends GenkitPlugin {
             'OpenAI API error: $e',
             status: status,
             details: details ?? e.toString(),
-            underlyingException: e,
+            cause: e,
             stackTrace: stackTrace,
           );
         } finally {
@@ -1148,7 +1148,7 @@ class OpenAIPlugin extends GenkitPlugin {
           throw GenkitException(
             'OpenAI API error: $e',
             details: e.toString(),
-            underlyingException: e,
+            cause: e,
             stackTrace: stackTrace,
           );
         } finally {

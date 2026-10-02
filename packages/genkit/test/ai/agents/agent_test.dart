@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
@@ -161,6 +162,32 @@ void main() {
     });
 
     tearDown(() => ai.shutdown());
+
+    test('a wrapped exception in a failed turn still serializes', () async {
+      final agent = ai.defineCustomAgent(
+        name: 'wrapped-cause',
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            throw GenkitException('boom', cause: StateError('inner'));
+          });
+          return AgentResult(finishReason: sess.lastTurnFinishReason);
+        },
+      );
+
+      final out = await agent.action(
+        AgentInput(
+          message: Message(
+            role: .user,
+            content: [TextPart(text: 'hi')],
+          ),
+        ),
+      );
+      expect(out.finishReason, AgentFinishReason.failed);
+      // The cause is reduced to its string form, so the output can go over
+      // the wire and into snapshots.
+      expect(out.error?.details, 'Bad state: inner');
+      expect(() => jsonEncode(out.toJson()), returnsNormally);
+    });
 
     test('runs a turn and tracks client state across turns', () async {
       final agent = ai.defineCustomAgent(

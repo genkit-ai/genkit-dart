@@ -182,9 +182,9 @@ void main() {
         () => testAction(input: 'test'),
         throwsA(
           isA<GenkitException>().having(
-            (e) => e.statusCode,
-            'statusCode',
-            StatusCode.internal.value,
+            (e) => e.status,
+            'status',
+            StatusCode.internal,
           ),
         ),
       );
