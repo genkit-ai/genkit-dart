@@ -197,8 +197,19 @@ class ClassGenerator {
     // `const` constructor and `static const` values so the values work as
     // `case` patterns in a `switch` (a getter is not a constant expression).
     buffer.writeln('extension type const $enumName(String value) {');
+    final usedNames = <String, String>{};
     for (final value in values) {
       final fieldName = _enumFieldName(value.toString());
+      // e.g. `PASS` and `pass`, or `bidi-model` and `bidi_model`.
+      final clash = usedNames[fieldName];
+      if (clash != null) {
+        throw StateError(
+          'Enum $enumName values "$clash" and "$value" both map to '
+          '"$fieldName". Add an explicit name for one of them in the schema '
+          'generator.',
+        );
+      }
+      usedNames[fieldName] = value.toString();
       buffer.writeln(
         "  static const $enumName $fieldName = $enumName('$value');",
       );
@@ -215,9 +226,12 @@ class ClassGenerator {
   /// property getters, but `required` is only a contextual keyword and reads
   /// naturally as an enum value (`toolChoice: .required`).
   ///
-  /// Throws when the result is not a usable identifier (a reserved word, or a
-  /// value starting with a digit). Rather than emit something like `$default`
-  /// into the public API, such a value needs a hand-picked name.
+  /// Throws when the result is not a usable identifier: a reserved word,
+  /// `value` (clashes with the extension type's representation field), or
+  /// anything that isn't plain alphanumerics after splitting on `-`, `_` and
+  /// whitespace (a leading digit, or a `.` as in `tool.v2`). Rather than emit
+  /// something like `$default` into the public API, such a value needs a
+  /// hand-picked name.
   String _enumFieldName(String value) {
     final words = value
         .split(RegExp(r'[-_\s]+'))
@@ -233,10 +247,11 @@ class ClassGenerator {
                   .map((w) => w[0].toUpperCase() + w.substring(1))
                   .join();
     if (_reservedWords.contains(name) ||
+        name == 'value' ||
         !RegExp(r'^[a-zA-Z][a-zA-Z0-9]*$').hasMatch(name)) {
       throw StateError(
-        'Enum value "$value" maps to "$name", which is not a valid Dart '
-        'identifier. Add an explicit name for it in the schema generator.',
+        'Enum value "$value" maps to "$name", which is not usable as a Dart '
+        'constant name. Add an explicit name for it in the schema generator.',
       );
     }
     return name;
