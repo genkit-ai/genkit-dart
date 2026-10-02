@@ -23,6 +23,14 @@ import '../exception.dart';
 
 const _flowStreamDelimiter = '\n\n';
 
+/// Maps the `error` payload of a streamed error frame to a [GenkitException].
+GenkitException _streamError(Object? error) {
+  final message = error is Map<String, dynamic>
+      ? (error['message'] as String?) ?? 'Unknown streaming error'
+      : 'Unknown streaming error';
+  return GenkitException(message, details: jsonEncode(error));
+}
+
 Future<Output?> streamFlow<Output, Chunk>({
   required String url,
   required void Function(Chunk chunk) onChunk,
@@ -94,18 +102,16 @@ Future<Output?> streamFlow<Output, Chunk>({
 
             if (chunkString.isEmpty) continue;
 
+            // Stream errors arrive as `data: {"error": ...}` (handled below,
+            // as Go, Python and current Dart servers send). The legacy
+            // `error: {"error": ...}` frame comes from JS servers and Dart
+            // servers with `sendLegacyErrorFrame` set.
             if (chunkString.startsWith('error: ')) {
               final jsonString = chunkString.substring('error: '.length);
               final errorData = jsonDecode(jsonString);
               if (errorData is Map<String, dynamic> &&
                   errorData.containsKey('error')) {
-                final errorContent = errorData['error'] as Map<String, dynamic>;
-                final message =
-                    (errorContent['message'] as String?) ??
-                    'Unknown streaming error';
-                return handleError(
-                  GenkitException(message, details: jsonEncode(errorContent)),
-                );
+                return handleError(_streamError(errorData['error']));
               } else {
                 return handleError(
                   GenkitException(
@@ -127,7 +133,11 @@ Future<Output?> streamFlow<Output, Chunk>({
 
             final data = jsonDecode(jsonString);
             if (data is Map<String, dynamic>) {
-              if (data.containsKey('result')) {
+              // Only the frame's top-level key counts: user payloads sit under
+              // `message`/`result`, so an `error` field in them is plain data.
+              if (data.containsKey('error')) {
+                return handleError(_streamError(data['error']));
+              } else if (data.containsKey('result')) {
                 if (!responseCompleter.isCompleted) {
                   responseCompleter.complete(fromResponse!(data['result']));
                 }

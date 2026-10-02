@@ -1612,6 +1612,8 @@ package:genkit/experimental_io.dart (experimental):
     getSnapshotMetadata (method: Future<SessionSnapshot?> Function(String, {Map<String, dynamic>? context}))
     onSnapshotStateChange (method: void Function()? Function(String, void Function(SessionSnapshot), {Map<String, dynamic>? context}))
     saveSnapshot (method: Future<String?> Function(String?, SessionSnapshot? Function(SessionSnapshot?), {Map<String, dynamic>? context}))
+  GenkitRouterAgents (extension on GenkitRouter):
+    addAgent (method: void Function(Agent<dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider, bool hideAbort, bool hideGetSnapshot, String? path}))
 package:genkit/genkit.dart:
   defineMiddleware (function: GenerateMiddlewareDef<CustomOptions> Function<CustomOptions>({SchemanticType<CustomOptions>? configSchema, required GenerateMiddleware Function(CustomOptions?, GenerateMiddlewareContext) create, required String name}))
   embedderMetadata (function: ActionMetadata<dynamic, dynamic, dynamic, dynamic> Function(String, {SchemanticType<dynamic>? customOptions}))
@@ -2045,6 +2047,41 @@ package:genkit/genkit.dart:
   TemplateHelperFn (type alias for dynamic Function(List<dynamic>, TemplateHelperOptions))
   ToolFn (type alias<Input, Output> for FutureOr<ToolResult<Output>> Function(Input, ToolFnArg<Input>))
   TraceStartCallback (type alias for void Function({required String spanId, required String traceId}))
+package:genkit/io.dart:
+  actionHandler (function: Future<GenkitHttpResponse> Function(GenkitHttpRequest) Function(Action<dynamic, dynamic, dynamic, dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider, bool sendLegacyErrorFrame}))
+  ioHandler (function: Future<void> Function(HttpRequest) Function(Action<dynamic, dynamic, dynamic, dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider, bool sendLegacyErrorFrame}))
+  withCors (function: Future<GenkitHttpResponse> Function(CorsOptions, GenkitHttpRequest, Future<GenkitHttpResponse> Function(GenkitHttpRequest)))
+  CorsOptions (class extends Object, final):
+    new (const constructor: CorsOptions Function({List<String> allowedHeaders, List<String> allowedOrigins, List<String> exposedHeaders}))
+    allowedHeaders (getter: List<String>)
+    allowedOrigins (getter: List<String>)
+    exposedHeaders (getter: List<String>)
+  GenkitHttpRequest (class extends Object, final):
+    new (constructor: GenkitHttpRequest Function({Stream<List<int>>? body, Map<String, String> headers, required String method, required String path, Map<String, String> queryParameters}))
+    body (getter: Stream<List<int>>)
+    headers (getter: Map<String, String>)
+    method (getter: String)
+    path (getter: String)
+    queryParameters (getter: Map<String, String>)
+  GenkitHttpResponse (class extends Object, final):
+    new (constructor: GenkitHttpResponse Function({Stream<List<int>>? body, Map<String, String> headers, required int statusCode}))
+    body (getter: Stream<List<int>>)
+    headers (getter: Map<String, String>)
+    statusCode (getter: int)
+  GenkitRouter (class extends Object, final):
+    new (constructor: GenkitRouter Function({bool sendLegacyErrorFrame}))
+    sendLegacyErrorFrame (getter: bool)
+    addAction (method: void Function(Action<dynamic, dynamic, dynamic, dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider, String? path}))
+    handle (method: Future<GenkitHttpResponse?> Function(GenkitHttpRequest))
+    handleHttpRequest (method: Future<bool> Function(HttpRequest, {String basePath, CorsOptions? cors}))
+    serve (method: Future<HttpServer> Function({CorsOptions? cors, InternetAddress? host, int? port}))
+  RequestData (class extends Object, final):
+    new (constructor: RequestData Function({required Map<String, String> headers, required Object? input, required String method}))
+    headers (getter: Map<String, String>)
+    input (getter: Object?)
+    method (getter: String)
+  ContextProvider (type alias for FutureOr<Map<String, dynamic>> Function(RequestData))
+  GenkitHttpHandler (type alias for Future<GenkitHttpResponse> Function(GenkitHttpRequest))
 package:genkit/lite.dart:
   generate (function: Future<GenerateResult<Output>> Function<Output, C>({CancellationToken? cancel, C? config, Map<String, dynamic>? context, List<InterruptResponse>? interruptRespond, List<ToolRequestPart>? interruptRestart, int? maxTurns, List<Message>? messages, required Model<C> model, void Function(GenerateResponseChunk<Output>)? onChunk, bool? outputConstrained, String? outputContentType, String? outputFormat, String? outputInstructions, bool? outputNoInstructions, SchemanticType<Output>? outputSchema, String? prompt, List<Part>? promptParts, bool? returnToolRequests, String? system, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddleware>? use}))
   generateStream (function: ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>> Function<Output, C>({CancellationToken? cancel, C? config, Map<String, dynamic>? context, List<InterruptResponse>? interruptRespond, List<ToolRequestPart>? interruptRestart, int? maxTurns, List<Message>? messages, required Model<C> model, bool? outputConstrained, String? outputContentType, String? outputFormat, String? outputInstructions, bool? outputNoInstructions, SchemanticType<Output>? outputSchema, String? prompt, List<Part>? promptParts, bool? returnToolRequests, String? system, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddleware>? use}))
@@ -2304,6 +2341,9 @@ package:genkit/telemetry.dart:
     attributes (getter: Map<String, Object?>)
     input (getter: Object?)
     name (getter: String)
+dart:_http:
+  HttpRequest (referenced)
+  HttpServer (referenced)
 dart:async:
   Future (referenced)
   FutureOr (referenced)
@@ -2322,6 +2362,8 @@ dart:core:
   bool (referenced)
   double (referenced)
   int (referenced)
+dart:io:
+  InternetAddress (referenced)
 package:http/src/client.dart:
   Client (referenced)
 package:schemantic/schemantic.dart:

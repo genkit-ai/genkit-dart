@@ -15,7 +15,7 @@
 // GENERATED CODE - DO NOT MODIFY BY HAND
 // dart format width=80
 
-part of 'shelf_server_example.dart';
+part of 'http_server_example.dart';
 
 // **************************************************************************
 // SchemaGenerator

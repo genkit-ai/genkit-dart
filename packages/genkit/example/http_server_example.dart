@@ -12,12 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:io';
+
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit_shelf/genkit_shelf.dart';
+import 'package:genkit/io.dart';
+import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
-part 'shelf_server_example.g.dart';
+part 'http_server_example.g.dart';
 
 @Schema()
 abstract class $HelloInput {
@@ -34,15 +37,16 @@ abstract class $CountChunk {
   int get count;
 }
 
-// This example demonstrates how to expose Genkit flows as HTTP endpoints using the Shelf plugin.
+// This example serves Genkit flows over HTTP with nothing but dart:io.
 //
 // To run this example:
-// 1. dart run example/shelf_server_example.dart
+//   dart run example/http_server_example.dart          # GenkitRouter.serve()
+//   dart run example/http_server_example.dart --custom # your own HttpServer
 //
 // To test the endpoints (using curl):
 //
 // 1. Unary flow (POST request):
-// curl -X POST http://localhost:3400/hello -H "Content-Type: application/json" -d '{"data": "World"}'
+// curl -X POST http://localhost:3400/hello -H "Content-Type: application/json" -d '{"data": {"name": "World"}}'
 //
 // 2. Streaming flow (POST request with stream=true or Accept: text/event-stream):
 // curl -X POST http://localhost:3400/count?stream=true -H "Content-Type: application/json" -d '{"data": 5}'
@@ -53,7 +57,11 @@ abstract class $CountChunk {
 // 4. Client flow (calls other flows using the client library):
 // curl -X POST http://localhost:3400/client -H "Content-Type: application/json" -d '{"data": "start"}'
 
-void main() async {
+void main(List<String> args) async {
+  // Genkit logs through package:logging, which prints nothing until a listener
+  // is attached. `serve()` logs the address it bound this way.
+  Logger.root.onRecord.listen(print);
+
   final ai = Genkit();
 
   // Define remote actions for the client flow
@@ -101,7 +109,7 @@ void main() async {
       if (user == null) {
         throw GenkitException(
           'Unauthorized access',
-          status: StatusCode.internal,
+          status: StatusCode.unauthenticated,
         );
       }
       return 'Secure data for $user: $input';
@@ -145,28 +153,54 @@ void main() async {
     outputSchema: .string(),
   );
 
-  // 5. Start the flow server
-  await startFlowServer(
-    flows: [
-      helloFlow,
-      countFlow,
-      // Wrap the secure flow with a context provider to handle auth
-      FlowWithContextProvider(
-        flow: secureFlow,
-        context: (request) {
-          final authHeader = request.headers['Authorization'];
-          if (authHeader == 'Bearer secret') {
-            return {'user': 'Admin'};
-          }
-          // Returning empty context or throwing here will result in ctx.context being null or the request failing
-          return {};
-        },
-      ),
-      clientFlow,
-    ],
-    port: 3400,
-    cors: {
-      'origin': '*', // Allow all origins for development
-    },
+  // 5. Register the flows.
+  final genkit = GenkitRouter()
+    ..addAction(helloFlow)
+    ..addAction(countFlow)
+    ..addAction(secureFlow, contextProvider: _bearerAuth)
+    ..addAction(clientFlow);
+
+  if (!args.contains('--custom')) {
+    // Standalone server, the quickest way to deploy (e.g. to Cloud Run).
+    await genkit.serve(
+      port: 3400,
+      cors: const CorsOptions(), // Allow all origins for development
+    );
+    return;
+  }
+
+  // 6. Or plug Genkit into your own dart:io server, next to your own routes.
+  final handleHealth = ioHandler(
+    ai.defineFlow(
+      name: 'health',
+      fn: (_, _) async => 'OK',
+      outputSchema: .string(),
+    ),
   );
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 3400);
+  // Your own server, so you report its address yourself.
+  print('Listening on http://localhost:${server.port}');
+  await for (final request in server) {
+    // Every Genkit route, e.g. POST /hello.
+    if (await genkit.handleHttpRequest(request)) continue;
+    // A single action on a path of your choosing.
+    if (request.uri.path == '/healthz') {
+      await handleHealth(request);
+      continue;
+    }
+    request.response
+      ..statusCode = HttpStatus.notFound
+      ..write('Not found');
+    await request.response.close();
+  }
+}
+
+/// Turns the request's auth header into action context. Returning {} leaves
+/// the user unset (so the flow rejects the call); throwing would reject the
+/// request before the flow runs.
+Map<String, dynamic> _bearerAuth(RequestData request) {
+  if (request.headers['authorization'] == 'Bearer secret') {
+    return {'user': 'Admin'};
+  }
+  return {};
 }

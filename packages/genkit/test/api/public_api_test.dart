@@ -39,12 +39,14 @@ const _companions = {
   'client': <String>[],
   'plugin': <String>[],
   'telemetry': <String>[],
+  // `io.dart` serves actions defined with `genkit.dart`.
+  'io': ['genkit'],
   // `lite.dart` is used with a model plugin and, for models/middleware,
   // `genkit.dart` (see the package README).
   'lite': ['genkit'],
   'experimental': ['genkit'],
   'experimental_client': ['client'],
-  'experimental_io': ['experimental', 'genkit'],
+  'experimental_io': ['experimental', 'genkit', 'io'],
 };
 
 void main() {
