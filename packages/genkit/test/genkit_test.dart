@@ -367,6 +367,67 @@ void main() {
       },
     );
 
+    test('a whole-number reply parses into a double Output', () async {
+      // `jsonDecode('3')` is an int on the VM; a double Output must accept it,
+      // in streamed chunks as well as the final response.
+      genkit.defineModel(
+        name: 'numModel',
+        fn: (request, context) async {
+          context.sendChunk(ModelResponseChunk(content: [TextPart(text: '3')]));
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: '3')],
+            ),
+          );
+        },
+      );
+
+      final chunkOutputs = <double?>[];
+      final response = await genkit.generate<double, dynamic>(
+        model: modelRef('numModel'),
+        prompt: 'score',
+        outputFormat: 'json',
+        onChunk: (c) => chunkOutputs.add(c.output),
+      );
+
+      expect(response.output, isA<double>());
+      expect(response.output, equals(3.0));
+      expect(chunkOutputs.single, isA<double>());
+    });
+
+    test(
+      'a wrong-shaped reply for a schemaless Output is a GenkitException',
+      () async {
+        genkit.defineModel(
+          name: 'shapeModel',
+          fn: (request, context) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: '{"a": 1}')],
+            ),
+          ),
+        );
+
+        await expectLater(
+          genkit.generate<String, dynamic>(
+            model: modelRef('shapeModel'),
+            prompt: 'test',
+            outputFormat: 'json',
+          ),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              contains('does not match the expected output type String'),
+            ),
+          ),
+        );
+      },
+    );
+
     test(
       'streaming with outputSchema should handle partial JSON chunks',
       () async {

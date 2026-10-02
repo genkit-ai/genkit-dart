@@ -1798,7 +1798,8 @@ Agent<State> definePromptAgent<State>(
   SessionStore? store,
   ClientTransform? clientTransform,
 }) {
-  ExecutablePrompt? cachedPrompt;
+  // The agent only ever renders the prompt, so the output type is irrelevant.
+  Prompt<dynamic, dynamic>? cachedPrompt;
 
   Future<AgentResult> fn(SessionRunner sess, AgentFnOptions options) async {
     final sendChunk = options.sendChunk;
@@ -1816,10 +1817,11 @@ Agent<State> definePromptAgent<State>(
             status: StatusCode.notFound,
           );
         }
-        cachedPrompt = action.executablePrompt;
+        cachedPrompt = action.prompt;
         if (cachedPrompt == null) {
           throw GenkitException(
-            "Prompt '$promptName' is not an executable prompt.",
+            "Prompt '$promptName' was not defined with definePrompt or a "
+            '.prompt file.',
             status: StatusCode.notFound,
           );
         }
