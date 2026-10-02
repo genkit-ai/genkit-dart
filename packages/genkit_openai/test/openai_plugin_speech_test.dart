@@ -543,7 +543,7 @@ void main() {
       await expectLater(
         ai.generate(model: openAI.speechModel('tts-1'), prompt: '   '),
         completion(
-          isA<GenerateResponse>().having(
+          isA<GenerateResult>().having(
             (r) => r.error?.status,
             'error.status',
             StatusCode.invalidArgument.wireName,
