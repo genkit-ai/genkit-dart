@@ -14,16 +14,7 @@
 
 import 'package:genkit/plugin.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:genkit_openai/src/known_models.dart'
-    show
-        multimodalSupports,
-        openAIModelAlias,
-        openAIModelSpelling,
-        reasoningPreviewSupports,
-        reasoningSupports,
-        reasoningTextOnlySupports,
-        supportsVision,
-        textOnlyLegacySupports;
+import 'package:genkit_openai/src/known_models.dart';
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/utils.dart';
 import 'package:test/test.dart';
@@ -220,26 +211,10 @@ void main() {
     });
   });
 
-  group('typed refs', () {
-    test('name the curated models under the default namespace', () {
-      expect(OpenAIModels.gpt4o.name, 'openai/gpt-4o');
-      expect(OpenAIModels.o3Mini.name, 'openai/o3-mini');
-      expect(OpenAIModels.gpt56Sol.name, 'openai/gpt-5.6-sol');
-    });
-
-    test('cover every model OpenAI still serves', () {
-      // Nothing else fails when a catalog entry is added without a ref.
-      expect(
-        OpenAIModels.all.map((r) => r.name).toSet(),
-        knownChatModels.map((id) => 'openai/$id').toSet(),
-      );
-    });
-
-    test('match openAI.model() for the same id', () {
-      expect(
-        OpenAIModels.gpt41Mini.name,
-        openAI.model(KnownOpenAIModel.gpt41Mini.id).name,
-      );
+  group('handle refs', () {
+    test('name models under the default namespace', () {
+      expect(openAI.model('gpt-5.6-sol').name, 'openai/gpt-5.6-sol');
+      expect(openAI.model('gpt-5.5', namespace: 'azure').name, 'azure/gpt-5.5');
     });
   });
 

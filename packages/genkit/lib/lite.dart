@@ -37,14 +37,14 @@ import 'src/core/registry.dart';
 import 'src/types.dart';
 
 export 'src/ai/generate_types.dart'
-    show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
+    show GenerateResponseChunk, GenerateResult, InterruptResponse;
 export 'src/ai/remote_model.dart' show remoteModel;
 export 'src/ai/tool.dart'
     show
         Interrupt,
         Tool,
         ToolFn,
-        ToolFnArgs,
+        ToolFnArg,
         ToolInterruptResult,
         ToolResponseResult,
         ToolResult;
@@ -58,7 +58,7 @@ export 'src/types.dart';
 ///
 /// Pass [outputSchema] to get typed structured output: `response.output` (and
 /// each streamed chunk's `output`) is then parsed into `Output`.
-Future<GenerateResponseHelper<Output>> generate<C, Output>({
+Future<GenerateResult<Output>> generate<C, Output>({
   String? system,
   String? prompt,
   List<Part>? promptParts,
@@ -170,7 +170,7 @@ Future<GenerateResponseHelper<Output>> generate<C, Output>({
         ? null
         : (c) => onChunk(
             GenerateResponseChunk<Output>(
-              c.rawChunk,
+              c.modelChunk,
               previousChunks: List.from(c.previousChunks),
               output: parsePartial(c.output),
             ),
@@ -181,8 +181,8 @@ Future<GenerateResponseHelper<Output>> generate<C, Output>({
     resume: interruptRespond,
     restart: interruptRestart,
   );
-  return GenerateResponseHelper<Output>(
-    raw.rawResponse,
+  return GenerateResult<Output>(
+    raw.modelResponse,
     request: raw.modelRequest,
     output: parse(raw.output),
     cause: raw.cause,
@@ -190,7 +190,7 @@ Future<GenerateResponseHelper<Output>> generate<C, Output>({
 }
 
 /// Streams a response from [model]; see [generate].
-ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
+ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>
 generateStream<C, Output>({
   required Model<C> model,
   String? system,

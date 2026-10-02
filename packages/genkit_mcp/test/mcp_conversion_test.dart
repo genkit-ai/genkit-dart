@@ -114,8 +114,7 @@ void main() {
       throwsA(
         predicate(
           (e) =>
-              e is GenkitException &&
-              e.status == StatusCodes.FAILED_PRECONDITION,
+              e is GenkitException && e.status == StatusCode.failedPrecondition,
         ),
       ),
     );
@@ -148,7 +147,7 @@ void main() {
       name: 'namedSchemaTool',
       description: 'named schema tool',
       inputSchema: const _NamedToolSchema(),
-      toolOutputSchema: const _NamedToolSchema(),
+      outputSchema: const _NamedToolSchema(),
       fn: (input, _) async => .response(input),
     );
 
@@ -176,7 +175,7 @@ void main() {
         predicate(
           (error) =>
               error is GenkitException &&
-              error.status == StatusCodes.FAILED_PRECONDITION,
+              error.status == StatusCode.failedPrecondition,
         ),
       ),
     );
@@ -187,7 +186,7 @@ void main() {
       name: 'scalarOutputTool',
       description: 'scalar output tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      toolOutputSchema: .string(),
+      outputSchema: .string(),
       fn: (input, _) async => .response(input.toString()),
     );
 
@@ -256,7 +255,7 @@ void main() {
       () => toMcpPromptMessage(message),
       throwsA(
         predicate(
-          (e) => e is GenkitException && e.status == StatusCodes.UNIMPLEMENTED,
+          (e) => e is GenkitException && e.status == StatusCode.unimplemented,
         ),
       ),
     );
@@ -271,7 +270,7 @@ void main() {
       () => toMcpPromptMessage(message),
       throwsA(
         predicate(
-          (e) => e is GenkitException && e.status == StatusCodes.UNIMPLEMENTED,
+          (e) => e is GenkitException && e.status == StatusCode.unimplemented,
         ),
       ),
     );
@@ -286,8 +285,7 @@ void main() {
       () => toMcpPromptMessage(message),
       throwsA(
         predicate(
-          (e) =>
-              e is GenkitException && e.status == StatusCodes.INVALID_ARGUMENT,
+          (e) => e is GenkitException && e.status == StatusCode.invalidArgument,
         ),
       ),
     );
@@ -299,7 +297,7 @@ void main() {
       () => toMcpResourceContent('my://resource', part),
       throwsA(
         predicate(
-          (e) => e is GenkitException && e.status == StatusCodes.UNIMPLEMENTED,
+          (e) => e is GenkitException && e.status == StatusCode.unimplemented,
         ),
       ),
     );
@@ -333,8 +331,7 @@ void main() {
       ),
       throwsA(
         predicate(
-          (e) =>
-              e is GenkitException && e.status == StatusCodes.INVALID_ARGUMENT,
+          (e) => e is GenkitException && e.status == StatusCode.invalidArgument,
         ),
       ),
     );
@@ -347,8 +344,7 @@ void main() {
       ),
       throwsA(
         predicate(
-          (e) =>
-              e is GenkitException && e.status == StatusCodes.INVALID_ARGUMENT,
+          (e) => e is GenkitException && e.status == StatusCode.invalidArgument,
         ),
       ),
     );
@@ -383,7 +379,7 @@ void main() {
       ),
       throwsA(
         predicate(
-          (e) => e is GenkitException && e.status == StatusCodes.UNIMPLEMENTED,
+          (e) => e is GenkitException && e.status == StatusCode.unimplemented,
         ),
       ),
     );

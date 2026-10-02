@@ -122,13 +122,13 @@ class OpenAIPlugin extends GenkitPlugin {
     if (name.isEmpty || name.contains('/')) {
       throw GenkitException(
         'Plugin name must be non-empty and must not contain "/". Got: "$name"',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     if (apiKey != null && apiKeyProvider != null) {
       throw GenkitException(
         'Provide either apiKey or apiKeyProvider, not both.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
   }
@@ -159,14 +159,11 @@ class OpenAIPlugin extends GenkitPlugin {
       // A custom speech or transcription model has to be routed here as well
       // as in resolve(): the registry prefers an eager registration, so a name
       // registered as chat would never reach resolve() to be corrected.
-      if (_kindOf(model.name, info: model.info, declared: model.kind) ==
-          OpenAIModelKind.speech)
-        _createSpeechModel(model.name, model.info)
-      else if (_kindOf(model.name, info: model.info, declared: model.kind) ==
-          OpenAIModelKind.transcription)
-        _createTranscriptionModel(model.name, model.info)
-      else
-        _createModel(model.name, model.info),
+      _createForKind(
+        model.name,
+        model.info,
+        _kindOf(model.name, info: model.info, declared: model.kind),
+      ),
   ];
 
   /// Fetch available model IDs from OpenAI API
@@ -204,7 +201,7 @@ class OpenAIPlugin extends GenkitPlugin {
         '[$_pluginName] API key is required. Provide it via apiKey or apiKeyProvider '
         'in the plugin constructor, or set the ${provider.apiKeyEnvVar} '
         'environment variable.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     return config;
@@ -397,7 +394,7 @@ class OpenAIPlugin extends GenkitPlugin {
       for (final id in ids)
         modelMetadata(
           '$_pluginName/$id',
-          modelInfo: infoOverrides[id] ?? _infoFor(id),
+          info: infoOverrides[id] ?? _infoFor(id),
           customOptions: chat.chatModelOptionsSchema(),
         ),
       for (final id in speechIds) _speechModelMetadata(id, infoOverrides[id]),
@@ -456,11 +453,11 @@ class OpenAIPlugin extends GenkitPlugin {
     if (actionType == .model) {
       final declared = _customModelFor(name);
       final info = declared?.info;
-      return switch (_kindOf(name, info: info, declared: declared?.kind)) {
-        OpenAIModelKind.speech => _createSpeechModel(name, info),
-        OpenAIModelKind.transcription => _createTranscriptionModel(name, info),
-        OpenAIModelKind.chat => _createModel(name, info),
-      };
+      return _createForKind(
+        name,
+        info,
+        _kindOf(name, info: info, declared: declared?.kind),
+      );
     }
     // A provider with no embeddings API declines the lookup rather than
     // building an embedder whose every call would 404.
@@ -469,6 +466,18 @@ class OpenAIPlugin extends GenkitPlugin {
     }
     return null;
   }
+
+  /// Builds the model for [kind], the one place a kind maps to an API.
+  Model _createForKind(String name, ModelInfo? info, OpenAIModelKind kind) =>
+      switch (kind) {
+        OpenAIModelKind.chat => _createModel(name, info),
+        OpenAIModelKind.speech => _createSpeechModel(name, info),
+        OpenAIModelKind.transcription => _createTranscriptionModel(name, info),
+        // OpenAIModelKind is a class, so the compiler cannot check this switch
+        // is exhaustive: fail loudly rather than quietly serving a new kind
+        // through chat completions.
+        _ => throw StateError('Unhandled $kind for model "$name"'),
+      };
 
   /// The caller's declaration for [modelName], if they registered one.
   CustomModelDefinition? _customModelFor(String modelName) {
@@ -518,7 +527,7 @@ class OpenAIPlugin extends GenkitPlugin {
   ]) {
     return modelMetadata(
       '$_pluginName/$modelId',
-      modelInfo: info ?? speech.speechModelInfo(modelId),
+      info: info ?? speech.speechModelInfo(modelId),
       customOptions: speech.speechModelOptionsSchema(),
     );
   }
@@ -527,7 +536,7 @@ class OpenAIPlugin extends GenkitPlugin {
   _transcriptionModelMetadata(String modelId, [ModelInfo? info]) {
     return modelMetadata(
       '$_pluginName/$modelId',
-      modelInfo: info ?? transcription.transcriptionModelInfo(modelId),
+      info: info ?? transcription.transcriptionModelInfo(modelId),
       customOptions: transcription.transcriptionModelOptionsSchema(),
     );
   }
@@ -545,9 +554,9 @@ class OpenAIPlugin extends GenkitPlugin {
         'model': {..._embedderInfoFor(embedderName)},
       },
       fn: (req, ctx) async {
-        if (req == null || req.input.isEmpty) {
+        if (req.input.isEmpty) {
           // Nothing to embed, and an empty `input` is a 400. Answering
-          // directly keeps `embedMany([])` from costing a request.
+          // directly keeps `embed(documents: [])` from costing a request.
           return EmbedResponse(embeddings: []);
         }
 
@@ -610,8 +619,7 @@ class OpenAIPlugin extends GenkitPlugin {
       name: '$_pluginName/$modelName',
       customOptions: chat.chatModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
-      fn: (req, ctx) async {
-        final modelRequest = req!;
+      fn: (modelRequest, ctx) async {
         final options = chat.parseChatModelOptions(modelRequest.config);
         // `version` overrides the resolved action's id, so it - not
         // [modelName] - is the model that will answer, and the model the
@@ -749,11 +757,11 @@ class OpenAIPlugin extends GenkitPlugin {
   GenkitException _toGenkitException(Object e, StackTrace stackTrace) {
     if (e is GenkitException) return e;
 
-    StatusCodes? status;
+    StatusCode? status;
     String? details;
 
     if (e is sdk.ApiException) {
-      status = StatusCodes.fromHttpStatus(e.statusCode);
+      status = StatusCode.fromHttpStatus(e.statusCode);
       details = e.body?.toString();
     }
 
@@ -786,7 +794,7 @@ class OpenAIPlugin extends GenkitPlugin {
       // settable, not that the model does not reason: o1-mini and o1-preview
       // do reason, they simply predate the parameter.
       '$modelName does not accept reasoningEffort.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -886,8 +894,7 @@ class OpenAIPlugin extends GenkitPlugin {
       name: '$_pluginName/$modelName',
       customOptions: speech.speechModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
-      fn: (req, ctx) async {
-        final modelRequest = req!;
+      fn: (modelRequest, ctx) async {
         final options = speech.parseSpeechModelOptions(modelRequest.config);
         speech.validateSpeechOptions(options);
         final input = _speechInputText(modelRequest);
@@ -923,7 +930,7 @@ class OpenAIPlugin extends GenkitPlugin {
             // which looks like a bug in their code rather than ours.
             throw GenkitException(
               'The speech endpoint returned no audio.',
-              status: StatusCodes.INTERNAL,
+              status: StatusCode.internal,
             );
           }
           final contentType =
@@ -948,11 +955,11 @@ class OpenAIPlugin extends GenkitPlugin {
             rethrow;
           }
 
-          StatusCodes? status;
+          StatusCode? status;
           String? details;
 
           if (e is sdk.ApiException) {
-            status = StatusCodes.fromHttpStatus(e.statusCode);
+            status = StatusCode.fromHttpStatus(e.statusCode);
             details = e.body?.toString();
           }
 
@@ -978,7 +985,7 @@ class OpenAIPlugin extends GenkitPlugin {
     if (request.messages.isEmpty) {
       throw GenkitException(
         'Speech models require a prompt, but no messages were provided.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -991,7 +998,7 @@ class OpenAIPlugin extends GenkitPlugin {
       orElse: () => throw GenkitException(
         'Speech models require a prompt, but only a system message was '
         'provided.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       ),
     );
 
@@ -999,7 +1006,7 @@ class OpenAIPlugin extends GenkitPlugin {
     if (text.trim().isEmpty) {
       throw GenkitException(
         'Speech models require non-empty prompt text.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -1021,8 +1028,7 @@ class OpenAIPlugin extends GenkitPlugin {
       name: '$_pluginName/$modelName',
       customOptions: transcription.transcriptionModelOptionsSchema(),
       metadata: {'model': modelInfo.toJson()},
-      fn: (req, ctx) async {
-        final modelRequest = req!;
+      fn: (modelRequest, ctx) async {
         final options = transcription.parseTranscriptionModelOptions(
           modelRequest.config,
         );
@@ -1031,7 +1037,7 @@ class OpenAIPlugin extends GenkitPlugin {
           throw GenkitException(
             'Transcription models return text; output format '
             "'media' is not supported.",
-            status: StatusCodes.INVALID_ARGUMENT,
+            status: StatusCode.invalidArgument,
           );
         }
 
@@ -1106,7 +1112,7 @@ class OpenAIPlugin extends GenkitPlugin {
           if (response.statusCode < 200 || response.statusCode >= 300) {
             throw GenkitException(
               'OpenAI API error: HTTP ${response.statusCode}',
-              status: StatusCodes.fromHttpStatus(response.statusCode),
+              status: StatusCode.fromHttpStatus(response.statusCode),
               details: response.body,
             );
           }
@@ -1176,7 +1182,7 @@ class OpenAIPlugin extends GenkitPlugin {
     if (media == null) {
       throw GenkitException(
         'Transcription models require an audio media part in the request.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -1186,7 +1192,7 @@ class OpenAIPlugin extends GenkitPlugin {
       throw GenkitException(
         'Transcription models require audio as a base64 data URL; '
         'got ${media.url.split(':').first}.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -1212,7 +1218,7 @@ class OpenAIPlugin extends GenkitPlugin {
         requested != 'verbose_json') {
       throw GenkitException(
         "Response format '$requested' cannot satisfy output format 'json'.",
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 

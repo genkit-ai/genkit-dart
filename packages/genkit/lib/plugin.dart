@@ -33,18 +33,25 @@ export 'package:genkit/src/ai/generate_middleware.dart'
         defineMiddleware,
         middlewareRef;
 export 'package:genkit/src/ai/generate_types.dart'
-    show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
+    show GenerateResponseChunk, GenerateResult, InterruptResponse;
 // BidiModel / bidiModelRef live in the experimental surface
 // (`package:genkit/experimental.dart`); plugin authors implementing live
 // (bidi) models import that alongside this library.
 export 'package:genkit/src/ai/model.dart'
     show Model, ModelRef, modelMetadata, modelRef;
+export 'package:genkit/src/ai/resource.dart'
+    show
+        ResourceAction,
+        ResourceFn,
+        ResourceInput,
+        ResourceOutput,
+        createResourceMatcher;
 export 'package:genkit/src/ai/tool.dart'
     show
         Interrupt,
         Tool,
         ToolFn,
-        ToolFnArgs,
+        ToolFnArg,
         ToolInterruptResult,
         ToolResponseResult,
         ToolResult;
@@ -56,7 +63,7 @@ export 'package:genkit/src/core/action.dart'
         ActionMetadata,
         ActionStream,
         ActionType,
-        InternalActionFn,
+        RawActionFn,
         RunResult,
         StreamingCallback,
         TraceStartCallback;
@@ -64,7 +71,7 @@ export 'package:genkit/src/core/cancellation.dart'
     show CancellationController, CancellationToken, CancelledException;
 export 'package:genkit/src/core/plugin.dart' show GenkitPlugin;
 export 'package:genkit/src/core/registry.dart' show Registry;
-export 'package:genkit/src/exception.dart' show GenkitException, StatusCodes;
+export 'package:genkit/src/exception.dart' show GenkitException, StatusCode;
 export 'package:genkit/src/genkit_ai.dart' show GenkitAI;
 export 'package:genkit/src/schema_extensions.dart';
 export 'package:genkit/src/types.dart';

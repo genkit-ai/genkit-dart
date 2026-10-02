@@ -34,7 +34,7 @@ import 'types.dart';
 /// Encapsulates Genkit's AI APIs.
 ///
 /// [GenkitAI] exposes the model-orchestration veneer ([generate],
-/// [generateStream], [embed], [embedMany], [run]) on top of a
+/// [generateStream], [embed], [run]) on top of a
 /// [Registry]. It only requires a registry to operate, making it cheap to
 /// create ephemeral, throwaway instances (the registry holds all the state).
 /// The full framework entry point `Genkit` extends this class to add plugin
@@ -55,7 +55,7 @@ base class GenkitAI {
   }
 
   /// Generates a response using the specified model and context.
-  Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({
+  Future<GenerateResult<Output>> generate<CustomOptions, Output>({
     String? system,
     String? prompt,
     List<Part>? promptParts,
@@ -131,7 +131,7 @@ base class GenkitAI {
       tools: tools,
       toolNames: toolNames,
     );
-    final rawResponse = await generateHelper(
+    final result = await generateHelper(
       resolved.registry,
       system: system,
       prompt: prompt,
@@ -159,7 +159,7 @@ base class GenkitAI {
               if (outputSchema != null) {
                 onChunk.call(
                   GenerateResponseChunk<Output>(
-                    c.rawChunk,
+                    c.modelChunk,
                     previousChunks: List.from(c.previousChunks),
                     output: _parsePartial(outputSchema, c.output),
                   ),
@@ -167,7 +167,7 @@ base class GenkitAI {
               } else {
                 onChunk.call(
                   GenerateResponseChunk<Output>(
-                    c.rawChunk,
+                    c.modelChunk,
                     previousChunks: List.from(c.previousChunks),
                     output: c.output as Output?,
                   ),
@@ -176,29 +176,29 @@ base class GenkitAI {
             },
     );
     if (outputSchema != null) {
-      return GenerateResponseHelper(
-        rawResponse.rawResponse,
-        request: rawResponse.modelRequest,
+      return GenerateResult(
+        result.modelResponse,
+        request: result.modelRequest,
         // An aborted response carries no output; guard the parse so the
         // aborted response (with its resumable history) survives structured
         // output calls too.
-        output: rawResponse.output == null
+        output: result.output == null
             ? null
-            : outputSchema.parse(rawResponse.output),
-        cause: rawResponse.cause,
+            : outputSchema.parse(result.output),
+        cause: result.cause,
       );
     } else {
-      return GenerateResponseHelper(
-        rawResponse.rawResponse,
-        request: rawResponse.modelRequest,
-        output: rawResponse.output as Output?,
-        cause: rawResponse.cause,
+      return GenerateResult(
+        result.modelResponse,
+        request: result.modelRequest,
+        output: result.output as Output?,
+        cause: result.cause,
       );
     }
   }
 
   /// Streams a response from the specified model.
-  ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
+  ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>
   generateStream<CustomOptions, Output>({
     String? system,
     String? prompt,
@@ -225,10 +225,9 @@ base class GenkitAI {
   }) {
     final streamController = StreamController<GenerateResponseChunk<Output>>();
     final actionStream =
-        ActionStream<
-          GenerateResponseChunk<Output>,
-          GenerateResponseHelper<Output>
-        >(streamController.stream);
+        ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>(
+          streamController.stream,
+        );
 
     generate(
           system: system,
@@ -274,17 +273,37 @@ base class GenkitAI {
     return actionStream;
   }
 
-  /// Embeds multiple documents using the specified embedder.
-  Future<List<Embedding>> embedMany<CustomOptions>({
+  /// Embeds a single [document] or a list of [documents] (exactly one must be
+  /// given). An empty [documents] list is passed through to the embedder.
+  ///
+  /// Typically returns one [Embedding] per document, in order:
+  ///
+  /// ```dart
+  /// final [vector] = await ai.embed(embedder: e, document: doc);
+  /// final vectors = await ai.embed(embedder: e, documents: [a, b]);
+  /// ```
+  ///
+  /// Some embedders return several embeddings per document (e.g. Vertex AI's
+  /// `multimodalembedding` returns one per modality), so the result is not
+  /// always 1:1 with the input. Such embedders identify the source document
+  /// in each embedding's metadata (e.g. `documentIndex`); check the embedder's
+  /// docs before destructuring or zipping by position.
+  Future<List<Embedding>> embed<CustomOptions>({
     required EmbedderRef<CustomOptions> embedder,
-    required List<DocumentData> documents,
+    DocumentData? document,
+    List<DocumentData>? documents,
     CustomOptions? options,
   }) async {
+    if ((document == null) == (documents == null)) {
+      throw ArgumentError(
+        'Provide exactly one of document or documents to embed.',
+      );
+    }
     final action = await registry.lookupAction(.embedder, embedder.name);
     if (action == null) {
       throw GenkitException(
         'Embedder ${embedder.name} not found',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       );
     }
 
@@ -292,26 +311,13 @@ base class GenkitAI {
         ? options as Map<String, dynamic>
         : (options as dynamic)?.toJson() as Map<String, dynamic>?;
 
-    final req = EmbedRequest(input: documents, options: resolvedOptions);
+    final req = EmbedRequest(
+      input: documents ?? [document!],
+      options: resolvedOptions,
+    );
 
     final response = await action(req) as EmbedResponse;
     return response.embeddings;
-  }
-
-  /// Embeds a single document or a list of documents.
-  Future<List<Embedding>> embed<CustomOptions>({
-    required EmbedderRef<CustomOptions> embedder,
-    DocumentData? document,
-    List<DocumentData>? documents,
-    CustomOptions? options,
-  }) async {
-    final docs = documents ?? (document != null ? [document] : []);
-    if (docs.isEmpty) {
-      throw ArgumentError(
-        'Either document or documents must be provided to embed.',
-      );
-    }
-    return embedMany(embedder: embedder, documents: docs, options: options);
   }
 }
 

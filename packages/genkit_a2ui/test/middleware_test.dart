@@ -355,7 +355,7 @@ void main() {
       });
       final prevLevel = Logger.root.level;
       Logger.root.level = Level.ALL;
-      final GenerateResponse res;
+      final GenerateResult res;
       try {
         res = await genkit.generate(
           model: modelRef('m_warn'),

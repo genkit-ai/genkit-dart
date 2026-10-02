@@ -75,7 +75,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           (entry) => modelMetadata(
             '$name/${entry.key}',
             customOptions: GeminiModelFamily.of(entry.key).customOptions,
-            modelInfo: entry.value,
+            info: entry.value,
           ),
         );
   }
@@ -93,7 +93,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         String? apiKey;
 
         final isJsonMode =
-            req!.output?.format == 'json' ||
+            req.output?.format == 'json' ||
             req.output?.contentType == 'application/json';
 
         if (customOptions == GeminiTtsOptions.$schema) {
@@ -280,7 +280,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
     if (httpStatus != null) {
       return GenkitException(
         message ?? 'Google AI API Error: $httpStatus',
-        status: StatusCodes.fromHttpStatus(httpStatus),
+        status: StatusCode.fromHttpStatus(httpStatus),
         underlyingException: e,
         stackTrace: stack,
       );
@@ -288,7 +288,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
 
     return GenkitException(
       'Google AI Error: $e',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
       underlyingException: e,
       stackTrace: stack,
     );
@@ -813,7 +813,7 @@ http.Client httpClientFromApiKey(String? apiKey) {
   if (apiKey == null) {
     throw GenkitException(
       'apiKey must be set to an API key',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   final baseClient = CustomClient(defaultHeaders: headers);

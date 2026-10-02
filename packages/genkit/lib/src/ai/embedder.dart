@@ -43,14 +43,15 @@ base class Embedder<CustomOptions>
     extends Action<EmbedRequest, EmbedResponse, void, void>
     implements EmbedderRef<CustomOptions> {
   @override
-  SchemanticType<CustomOptions>? customOptions;
+  final SchemanticType<CustomOptions>? customOptions;
 
   Embedder({
     required super.name,
-    required super.fn,
+    required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
     super.metadata,
     this.customOptions,
   }) : super(
+         fn: requireInput('Embedder', name, fn),
          actionType: .embedder,
          inputSchema: EmbedRequest.$schema,
          outputSchema: EmbedResponse.$schema,

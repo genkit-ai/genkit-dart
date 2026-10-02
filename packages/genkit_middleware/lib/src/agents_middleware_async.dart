@@ -91,7 +91,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
       );
       return _foldDetachOutcome(handle, begun.invocationNum, out, words);
     } on GenkitException catch (e) {
-      if (e.status == StatusCodes.FAILED_PRECONDITION) {
+      if (e.status == StatusCode.failedPrecondition) {
         // The runtime refused the detach itself: the agent's store cannot
         // support background work. `abortable` falls back to true when the
         // metadata omits the field, so such an agent clears _refuseUndetachable
@@ -170,7 +170,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
             'Returns the current status of background sub-agent tasks without '
             'waiting, including results for tasks that finished.',
         inputSchema: BackgroundTasksInput.$schema,
-        toolOutputSchema: BackgroundTasksResult.$schema,
+        outputSchema: BackgroundTasksResult.$schema,
         fn: (input, _) async {
           final ids = input.taskIds ?? const [];
           if (ids.isEmpty) {
@@ -187,7 +187,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
             'current statuses are returned. Set waitFor to "first" to return as '
             'soon as any one task settles.',
         inputSchema: WaitBackgroundTasksInput.$schema,
-        toolOutputSchema: BackgroundTasksResult.$schema,
+        outputSchema: BackgroundTasksResult.$schema,
         fn: (input, ctx) async =>
             .response(await _waitForBackgroundTasks(input, ctx.cancel)),
       ),
@@ -199,7 +199,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
             '"aborting" while it winds down and settles as "aborted"; a task '
             'that had already finished is unaffected and reports its result.',
         inputSchema: BackgroundTasksInput.$schema,
-        toolOutputSchema: BackgroundTasksResult.$schema,
+        outputSchema: BackgroundTasksResult.$schema,
         fn: (input, _) async {
           final ids = input.taskIds ?? const [];
           if (ids.isEmpty) {
@@ -476,7 +476,7 @@ extension _AgentsMiddlewareAsync on AgentsMiddleware {
       snap = await fetch(handle, resolved.snapshotId);
     } catch (e) {
       report.status = _taskStatusUnknown;
-      if (e is GenkitException && e.status == StatusCodes.NOT_FOUND) {
+      if (e is GenkitException && e.status == StatusCode.notFound) {
         report.error =
             'No record of this task exists ($e). Delegate the task again if '
             'the result is still needed.';

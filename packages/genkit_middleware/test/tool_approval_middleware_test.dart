@@ -209,4 +209,96 @@ void main() {
       },
     );
   });
+
+  group('ToolApprovalPlugin(approvedTools:)', () {
+    late Genkit genkit;
+
+    setUp(() {
+      genkit = Genkit(
+        isDevEnv: false,
+        plugins: [
+          ToolApprovalPlugin(approvedTools: ['safe_tool']),
+        ],
+      );
+      for (final name in ['safe_tool', 'other_tool']) {
+        genkit.defineTool(
+          name: name,
+          description: name,
+          inputSchema: .map(.string(), .boolean()),
+          fn: (input, context) async => .response('$name ran'),
+        );
+      }
+    });
+
+    tearDown(() => genkit.shutdown());
+
+    /// Defines a model that calls [toolName] once, then echoes its output.
+    ModelRef<dynamic> callingModel(String toolName) {
+      final name = 'calls-$toolName';
+      genkit.defineModel(
+        name: name,
+        fn: (req, ctx) async {
+          final last = req.messages.last;
+          if (last.role == Role.tool) {
+            final output = last.content.first.toolResponsePart!.toolResponse;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: '${output.output}')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(name: toolName, input: {}),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      return modelRef(name);
+    }
+
+    test('applies when toolApproval() is called without a list', () async {
+      final allowed = await genkit.generate(
+        model: callingModel('safe_tool'),
+        prompt: 'go',
+        use: [toolApproval()],
+      );
+      expect(allowed.text, 'safe_tool ran');
+
+      final blocked = await genkit.generate(
+        model: callingModel('other_tool'),
+        prompt: 'go',
+        use: [toolApproval()],
+      );
+      expect(blocked.finishReason, FinishReason.interrupted);
+    });
+
+    test('a call-level list replaces the plugin list', () async {
+      final blocked = await genkit.generate(
+        model: callingModel('safe_tool'),
+        prompt: 'go',
+        use: [
+          toolApproval(approved: ['other_tool']),
+        ],
+      );
+      expect(blocked.finishReason, FinishReason.interrupted);
+
+      final allowed = await genkit.generate(
+        model: callingModel('other_tool'),
+        prompt: 'go',
+        use: [
+          toolApproval(approved: ['other_tool']),
+        ],
+      );
+      expect(allowed.text, 'other_tool ran');
+    });
+  });
 }

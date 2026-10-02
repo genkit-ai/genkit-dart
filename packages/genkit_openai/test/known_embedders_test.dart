@@ -14,8 +14,8 @@
 
 import 'package:genkit/plugin.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:genkit_openai/src/known_embedders.dart'
-    show compatEmbedderInfo, embedderInfoFor, knownOpenAIEmbedders;
+import 'package:genkit_openai/src/known_embedders.dart';
+import 'package:genkit_openai/src/known_models.dart';
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:test/test.dart';
 
@@ -135,35 +135,19 @@ void main() {
     });
   });
 
-  group('typed refs', () {
-    test('name the curated embedders under the default namespace', () {
+  group('handle refs', () {
+    test('name embedders under the default namespace', () {
       expect(
-        OpenAIEmbedders.textEmbedding3Small.name,
+        openAI.embedder('text-embedding-3-small').name,
         'openai/text-embedding-3-small',
-      );
-      expect(
-        OpenAIEmbedders.textEmbeddingAda002.name,
-        'openai/text-embedding-ada-002',
-      );
-    });
-
-    test('cover every embedder OpenAI still serves', () {
-      // Nothing else fails when a catalog entry is added without a ref.
-      expect(
-        OpenAIEmbedders.all.map((r) => r.name).toSet(),
-        knownEmbedderModels.map((id) => 'openai/$id').toSet(),
-      );
-    });
-
-    test('match openAI.embedder() for the same id', () {
-      expect(
-        OpenAIEmbedders.textEmbedding3Large.name,
-        openAI.embedder(KnownOpenAIEmbedder.textEmbedding3Large.id).name,
       );
     });
 
     test('carry the options schema', () {
-      expect(OpenAIEmbedders.textEmbedding3Small.customOptions, isNotNull);
+      expect(
+        openAI.embedder('text-embedding-3-small').customOptions,
+        isNotNull,
+      );
     });
   });
 

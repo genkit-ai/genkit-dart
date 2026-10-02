@@ -333,7 +333,7 @@ void main() {
         // so a caller reading `res.error` after any abnormal finish reason gets
         // a payload rather than a null-check crash.
         expect(res.error, isNotNull);
-        expect(res.error!.status, StatusCodes.ABORTED.name);
+        expect(res.error!.status, StatusCode.aborted.wireName);
         expect(res.error!.message, contains('max turns'));
         expect(modelCalls, 2);
         expect(res.messages, isNotEmpty);
@@ -405,7 +405,7 @@ void main() {
         name: 'waits',
         description: 'waits for cancellation',
         fn: (input, ctx) async {
-          // The token is exposed on ToolFnArgs and can be raced/observed.
+          // The token is exposed on ToolFnArg and can be raced/observed.
           final cancel = ctx.cancel!;
           controller.cancel('stop it');
           await cancel.whenCancelled;
@@ -517,19 +517,20 @@ void main() {
     });
 
     test(
-      'jsonOutput returns null on an aborted response rather than throwing',
+      'output is null on an aborted json response rather than throwing',
       () async {
         final controller = CancellationController()..cancel();
         final res = await genkit.generate(
           model: modelRef('m'),
           prompt: 'give me json',
+          outputFormat: 'json',
           cancel: controller.token,
         );
 
         expect(res.finishReason, FinishReason.aborted);
         // Degrades safely like the other accessors instead of throwing a
         // FormatException on the empty text.
-        expect(res.jsonOutput, isNull);
+        expect(res.output, isNull);
         expect(res.text, '');
       },
     );
@@ -543,10 +544,7 @@ void main() {
           // A real provider failure surfaces, and the caller cancels in the
           // same instant.
           controller.cancel();
-          throw GenkitException(
-            '503 upstream',
-            status: StatusCodes.UNAVAILABLE,
-          );
+          throw GenkitException('503 upstream', status: StatusCode.unavailable);
         },
       );
 

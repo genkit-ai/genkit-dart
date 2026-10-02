@@ -85,7 +85,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
             return modelMetadata(
               '$name/$bareName',
               customOptions: GeminiModelFamily.of(bareName).customOptions,
-              modelInfo: modelInfoFor(bareName),
+              info: modelInfoFor(bareName),
             );
           })
           .toList();
@@ -120,7 +120,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
     return Embedder(
       name: '$name/$embedderName',
       fn: (req, ctx) async {
-        if (req == null || req.input.isEmpty) {
+        if (req.input.isEmpty) {
           return EmbedResponse(embeddings: []);
         }
         final service = await getApiClient();
@@ -172,7 +172,7 @@ List<gcl.Part> _embedParts(int index, DocumentData doc) {
     // The parser's source can contain media payloads; keep only its message.
     throw GenkitException(
       'Cannot embed the document at index $index: ${e.message}',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }

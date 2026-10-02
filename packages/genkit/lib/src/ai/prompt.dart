@@ -34,7 +34,7 @@ import 'tool.dart';
 /// Configuration for defining a prompt.
 ///
 /// This holds all the metadata needed to define an executable prompt action.
-class PromptConfig<CustomOptions, Input> {
+final class PromptConfig<CustomOptions, Input> {
   /// The name of the prompt.
   final String name;
 
@@ -124,7 +124,7 @@ class PromptConfig<CustomOptions, Input> {
 
 /// Options for generating from a prompt (everything except prompt/system
 /// content, which is defined by the prompt itself).
-class PromptGenerateOptions<CustomOptions> {
+final class PromptGenerateOptions<CustomOptions> {
   final ModelRef<CustomOptions>? model;
   final CustomOptions? config;
   final List<Tool>? tools;
@@ -158,13 +158,42 @@ class PromptGenerateOptions<CustomOptions> {
   });
 }
 
+/// Identifies a defined prompt: its registered name and metadata.
+///
+/// Obtained from [ExecutablePrompt.ref]; not constructed directly.
+final class PromptRef {
+  /// The full prompt name, including the variant (e.g. `greet.formal`).
+  final String name;
+
+  /// The prompt's registry metadata (`{'type': 'prompt', 'prompt': {...}}`).
+  ///
+  /// Read-only at every level.
+  final Map<String, dynamic> metadata;
+
+  PromptRef._(this.name, Map<String, dynamic> metadata)
+    : metadata = _freeze(metadata) as Map<String, dynamic>;
+}
+
+/// A read-only copy of [value], all the way down. Copying (rather than
+/// wrapping) also keeps callers' edits from reaching the prompt's own config,
+/// e.g. its `toolNames` list. String-keyed maps stay `Map<String, dynamic>`
+/// so callers can keep casting nested entries to that type.
+Object? _freeze(Object? value) => switch (value) {
+  Map<String, dynamic>() => Map<String, dynamic>.unmodifiable(
+    value.map((k, v) => MapEntry(k, _freeze(v))),
+  ),
+  Map() => Map.unmodifiable(value.map((k, v) => MapEntry(k, _freeze(v)))),
+  List() => List.unmodifiable(value.map(_freeze)),
+  _ => value,
+};
+
 /// An executable prompt that can render, generate, and stream.
 ///
 /// It acts as a callable that invokes `generate` with the rendered prompt
 /// template, and also provides `.render()` and `.stream()` methods.
 final class ExecutablePrompt<Input> {
-  /// A reference to the prompt (name + optional metadata).
-  final ({String name, Map<String, dynamic>? metadata}) ref;
+  /// A reference to the prompt (name + metadata).
+  final PromptRef ref;
 
   final Registry _registry;
   final DotpromptRegistry _dotpromptRegistry;
@@ -179,9 +208,9 @@ final class ExecutablePrompt<Input> {
     required this._registry,
     required this._dotpromptRegistry,
     required PromptConfig<dynamic, Input> config,
-    Map<String, dynamic>? metadata,
+    required Map<String, dynamic> metadata,
   }) : _config = config,
-       ref = (name: config.fullName, metadata: metadata);
+       ref = PromptRef._(config.fullName, metadata);
 
   /// Renders the prompt template with the given input, producing
   /// [GenerateActionOptions] suitable for the `generate` action.
@@ -255,21 +284,18 @@ final class ExecutablePrompt<Input> {
   }
 
   /// Generates a response by rendering the prompt and calling the model.
-  Future<GenerateResponseHelper> call(
-    Input? input, [
-    PromptGenerateOptions? opts,
-  ]) => _generate(input, opts);
+  Future<GenerateResult> call(Input? input, [PromptGenerateOptions? opts]) =>
+      _generate(input, opts);
 
   /// Streams a response by rendering the prompt and calling the model.
-  ActionStream<GenerateResponseChunk, GenerateResponseHelper> stream(
+  ActionStream<GenerateResponseChunk, GenerateResult> stream(
     Input? input, [
     PromptGenerateOptions? opts,
   ]) {
     final streamController = StreamController<GenerateResponseChunk>();
-    final actionStream =
-        ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
-          streamController.stream,
-        );
+    final actionStream = ActionStream<GenerateResponseChunk, GenerateResult>(
+      streamController.stream,
+    );
 
     _generate(
       input,
@@ -299,7 +325,7 @@ final class ExecutablePrompt<Input> {
   }
 
   /// Internal generate implementation shared by [call] and [stream].
-  Future<GenerateResponseHelper> _generate(
+  Future<GenerateResult> _generate(
     Input? input,
     PromptGenerateOptions? opts, {
     StreamingCallback<GenerateResponseChunk>? onChunk,
@@ -535,10 +561,7 @@ base class PromptAction<Input>
              return executablePrompt.render(input);
            }
            if (fn != null) {
-             if (input == null && inputSchema != null && null is! Input) {
-               throw ArgumentError('Prompt "$name" requires a non-null input.');
-             }
-             return fn(input as Input, ctx);
+             return requireInput('Prompt', name, fn)(input, ctx);
            }
            throw StateError('PromptAction has no executable prompt or fn');
          },
@@ -583,6 +606,6 @@ Future<ExecutablePrompt> lookupPrompt(
   }
   throw GenkitException(
     'Prompt $name${variant != null ? ' (variant $variant)' : ''} not found',
-    status: StatusCodes.NOT_FOUND,
+    status: StatusCode.notFound,
   );
 }

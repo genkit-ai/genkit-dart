@@ -152,7 +152,10 @@ class FakeHostTransport implements McpClientTransport {
 void main() {
   test('host propagates cache TTL to clients', () async {
     final host = GenkitMcpHost(
-      const McpHostOptionsWithCache(name: 'test-host', cacheTtlMillis: 1234),
+      const McpHostOptionsWithCache(
+        name: 'test-host',
+        cacheTtl: Duration(milliseconds: 1234),
+      ),
     );
 
     await host.connect(
@@ -162,7 +165,7 @@ void main() {
     final client = host.getClient('server1')!;
     await client.ready();
 
-    expect(client.cacheTtlMillis, 1234);
+    expect(client.cacheTtl, const Duration(milliseconds: 1234));
   });
 
   test('host connects, disables, and disconnects servers', () async {

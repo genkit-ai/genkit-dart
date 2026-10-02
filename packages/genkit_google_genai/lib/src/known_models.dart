@@ -17,6 +17,12 @@ import 'package:schemantic/schemantic.dart';
 
 import 'model.dart';
 
+// The curated catalog is internal metadata, not API: it only enriches the
+// labels, stages and capabilities of names that resolve anyway. Entries are
+// added and removed with the upstream model list in any release, which is why
+// neither enum is exported. Callers name models by string
+// (`googleAI.gemini('gemini-flash-latest')`).
+
 /// The multimodal capability profile curated text and image models advertise.
 ///
 /// Mirrors the `Multimodal` preset the Go plugin uses for its curated model
@@ -86,6 +92,11 @@ enum GeminiModelFamily {
   };
 }
 
+// Kept in step with the Gemini API model list: an entry stays until it 404s
+// on both the Gemini API and Vertex. 2.5 Pro and Flash 404 on the Gemini API
+// but are still GA on Vertex, so genkit_vertexai curates those itself. The 2.5
+// TTS previews are out (Gemini API only, replaced by the 3.8 TTS models).
+
 /// Gemini models the Google generative-AI plugins curate capability metadata
 /// for.
 ///
@@ -94,21 +105,15 @@ enum GeminiModelFamily {
 /// that family. Other model names still resolve dynamically via the plugin's
 /// `modelInfoFor` fallback, so this enum only enriches the names listed here.
 enum KnownGeminiModel {
-  gemini25Pro('gemini-2.5-pro', 'Gemini 2.5 Pro'),
-  gemini25Flash('gemini-2.5-flash', 'Gemini 2.5 Flash'),
-  gemini25FlashLite('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite'),
   gemini31ProPreview('gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview'),
   gemini3FlashPreview('gemini-3-flash-preview', 'Gemini 3 Flash Preview'),
+  gemini38Flash('gemini-3.8-flash', 'Gemini 3.8 Flash'),
   gemini37Flash('gemini-3.7-flash', 'Gemini 3.7 Flash'),
   gemini36Flash('gemini-3.6-flash', 'Gemini 3.6 Flash'),
   gemini35Flash('gemini-3.5-flash', 'Gemini 3.5 Flash'),
   gemini35FlashLite('gemini-3.5-flash-lite', 'Gemini 3.5 Flash Lite'),
   gemini31FlashLite('gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite'),
-  gemini25FlashImage(
-    'gemini-2.5-flash-image',
-    'Gemini 2.5 Flash Image',
-    family: .image,
-  ),
+  gemini25FlashLite('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite'),
   gemini31FlashImage(
     'gemini-3.1-flash-image',
     'Gemini 3.1 Flash Image',
@@ -120,14 +125,19 @@ enum KnownGeminiModel {
     family: .image,
   ),
   gemini3ProImage('gemini-3-pro-image', 'Gemini 3 Pro Image', family: .image),
-  gemini25FlashPreviewTts(
-    'gemini-2.5-flash-preview-tts',
-    'Gemini 2.5 Flash Preview TTS',
+  gemini25FlashImage(
+    'gemini-2.5-flash-image',
+    'Gemini 2.5 Flash Image',
+    family: .image,
+  ),
+  gemini38FlashTts(
+    'gemini-3.8-flash-tts',
+    'Gemini 3.8 Flash TTS',
     family: .tts,
   ),
-  gemini25ProPreviewTts(
-    'gemini-2.5-pro-preview-tts',
-    'Gemini 2.5 Pro Preview TTS',
+  gemini38FlashLiteTts(
+    'gemini-3.8-flash-lite-tts',
+    'Gemini 3.8 Flash Lite TTS',
     family: .tts,
   ),
   gemini31FlashTtsPreview(

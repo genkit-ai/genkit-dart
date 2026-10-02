@@ -15,7 +15,6 @@
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/common.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -66,7 +65,7 @@ void main() {
     });
 
     test('should embed text', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello world')]),
@@ -80,7 +79,7 @@ void main() {
     });
 
     test('should embed multiple texts', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello')]),
@@ -94,7 +93,7 @@ void main() {
     });
 
     test('should embed with options', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello')]),
@@ -125,7 +124,7 @@ void main() {
     });
 
     test('should embed text with gemini-embedding-2', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-2'),
         documents: [
           DocumentData(content: [TextPart(text: 'Hello world')]),
@@ -137,7 +136,7 @@ void main() {
     });
 
     test('should embed an image with gemini-embedding-2', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-2'),
         documents: [
           DocumentData(
@@ -151,7 +150,7 @@ void main() {
     });
 
     test('should embed mixed text and image with gemini-embedding-2', () async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-2'),
         documents: [
           DocumentData(
@@ -177,7 +176,7 @@ void main() {
     (
       name: 'Google AI Gemma',
       model: googleAI.gemma,
-      modelName: KnownGemmaModel.gemma431b.id,
+      modelName: 'gemma-4-31b-it',
     ),
   ];
 

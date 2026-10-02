@@ -51,12 +51,7 @@ base class ResourceAction
          inputSchema: ResourceInput.$schema,
          outputSchema: ResourceOutput.$schema,
          metadata: _resourceMetadata(description, metadata),
-         fn: (input, ctx) {
-           if (input == null) {
-             throw ArgumentError('Resource "$name" requires a non-null input.');
-           }
-           return fn(input, ctx);
-         },
+         fn: requireInput('Resource', name, fn),
        );
 
   bool matches(ResourceInput input) => _matches(input);
@@ -74,6 +69,12 @@ Map<String, dynamic> _resourceMetadata(
   return result;
 }
 
+/// Builds the `matches` predicate for a [ResourceAction] from exactly one of
+/// a fixed [uri] or a simple URI [template] (e.g. `file://{path}`).
+///
+/// Throws a [GenkitException] when both or neither are given, or when the
+/// template uses an RFC 6570 operator (`{+path}`, `{?q}`, ...), which is not
+/// supported.
 bool Function(ResourceInput input) createResourceMatcher({
   required String? uri,
   required String? template,
@@ -88,7 +89,7 @@ bool Function(ResourceInput input) createResourceMatcher({
   }
   throw GenkitException(
     'Resource must specify exactly one of uri or template.',
-    status: StatusCodes.INVALID_ARGUMENT,
+    status: StatusCode.invalidArgument,
   );
 }
 
@@ -103,7 +104,7 @@ RegExp _buildSimpleTemplateRegex(String template) {
       // Not a simple template var name.
       throw GenkitException(
         'Resource template contains unsupported operator: {$invalidVarName}',
-        status: StatusCodes.UNIMPLEMENTED,
+        status: StatusCode.unimplemented,
       );
     }
     buffer.write(RegExp.escape(template.substring(lastIndex, match.start)));

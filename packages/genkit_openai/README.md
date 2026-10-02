@@ -226,6 +226,20 @@ final response = await ai.generate(
 );
 ```
 
+To describe a model that serves a known one under another name, start from the
+curated entry with `modelInfoFor` (or `xaiModelInfoFor` /
+`deepSeekModelInfoFor`):
+
+```dart
+CustomModelDefinition(
+  name: 'my-gpt-proxy',
+  info: modelInfoFor('gpt-5.5'),
+)
+```
+
+The curated entries follow the providers' model lists, so what these return can
+change between releases.
+
 ### Multiple Backends
 
 You can use several OpenAI-compatible providers side by side by giving each a
@@ -259,19 +273,19 @@ final b = await ai.generate(
 
 The plugin curates capability metadata (vision, tool calling, structured
 outputs, system vs. developer role, lifecycle stage) for the well-known OpenAI
-chat models, and exposes a typed reference for each one via `OpenAIModels`:
+chat models. Reference a model by name:
 
 ```dart
 final response = await ai.generate(
-  model: OpenAIModels.gpt4o,
+  model: openAI.model('gpt-5.5'),
   prompt: 'Hello',
 );
 ```
 
-`KnownOpenAIModel` enumerates the catalog and `knownOpenAIModels` maps each
-bare model name to its `ModelInfo`. Listing falls back to this catalog when
-discovery is unavailable, minus the models OpenAI has retired: those still
-resolve by name, but are never offered in a listing.
+Listing falls back to this catalog when discovery is unavailable, minus the
+models OpenAI has retired: those still resolve by name, but are never offered
+in a listing. The catalog itself is internal and changes with OpenAI's model
+list in any release.
 
 The catalog is not the set of usable models. Any OpenAI-compatible model works
 by passing its name to `model()`; a name that is not curated takes the current
@@ -395,19 +409,18 @@ nothing else — and are still recognised from `info` as well as by name.
 
 ## Embeddings
 
-Embedders resolve the same way models do, and `OpenAIEmbedders` exposes a typed
-reference for each curated one:
+Embedders resolve the same way models do:
 
 ```dart
 final vectors = await ai.embed(
-  embedder: OpenAIEmbedders.textEmbedding3Small,
+  embedder: openAI.embedder('text-embedding-3-small'),
   document: DocumentData(content: [TextPart(text: 'The cat sat on the mat.')]),
 );
 
 print(vectors.single.embedding.length); // 1536
 ```
 
-`embedMany` takes a list of documents and returns one vector per document, in
+Passing `documents:` instead takes a list and returns one vector per document, in
 order. A corpus larger than the 2048 inputs OpenAI accepts per request is split
 across requests rather than rejected.
 
@@ -415,13 +428,13 @@ Each document's text parts are joined with newlines; media parts are dropped,
 since OpenAI has no multimodal embedder. A document carrying no text at all is
 rejected before the request goes out.
 
-`KnownOpenAIEmbedder` carries the catalog, including the vector length each
-model returns. The `text-embedding-3-*` models will also return a shorter
-vector on request:
+The curated embedders are described with the vector length each model
+returns. The `text-embedding-3-*` models will also return a shorter vector on
+request:
 
 ```dart
 final vectors = await ai.embed(
-  embedder: OpenAIEmbedders.textEmbedding3Small,
+  embedder: openAI.embedder('text-embedding-3-small'),
   document: DocumentData(content: [TextPart(text: 'hello')]),
   options: OpenAIEmbedderOptions(dimensions: 256),
 );
@@ -441,14 +454,14 @@ host and told whose dialect it is speaking:
 final ai = Genkit(plugins: [deepSeek()]);
 
 final response = await ai.generate(
-  model: DeepSeekModels.deepseekFlash,
+  model: deepSeek.model('deepseek-flash'),
   prompt: 'Hello!',
 );
 ```
 
 The key comes from `DEEPSEEK_API_KEY` when it is not passed explicitly.
-`KnownDeepSeekModel` carries the catalog: `deepseek-flash` (1M context, image
-input, thinking on by default) and `deepseek-v4-pro` (text only).
+The plugin curates `deepseek-flash` (1M context, image input, thinking on by
+default) and `deepseek-v4-pro` (text only).
 `deepseek-chat` and `deepseek-reasoner` are curated as legacy — DeepSeek
 announced their discontinuation for 2026-07-24 but still serves both, routing
 them to the non-thinking and thinking modes of Flash — so they stay listed,
@@ -494,16 +507,16 @@ OpenAI — same request fields, same `json_schema` structured outputs:
 final ai = Genkit(plugins: [xAI()]);
 
 final response = await ai.generate(
-  model: XaiModels.grok46,
+  model: xAI.model('grok-4.6'),
   prompt: 'Hello!',
 );
 ```
 
-The key comes from `XAI_API_KEY`. `KnownXaiModel` carries the catalog — the
-Grok 4.x line plus `grok-build-0.1`, the coding model. Every Grok text model
-takes image input, calls tools and accepts a schema, so they share one
-capability preset; the only axis they differ on is whether they reason, and
-`grok-4.20-0309-non-reasoning` is the one that does not.
+The key comes from `XAI_API_KEY`. The plugin curates the Grok 4.x line plus
+`grok-build-0.1`, the coding model. Every Grok text model takes image input,
+calls tools and accepts a schema, so they share one capability preset; the only
+axis they differ on is whether they reason, and `grok-4.20-0309-non-reasoning`
+is the one that does not.
 
 One difference worth knowing: xAI's reasoning levels are `none`, `low`,
 `medium`, `high` and `xhigh` — no `minimal` or `max` — and xAI documents the
@@ -521,7 +534,7 @@ and tokens against answer quality:
 
 ```dart
 final response = await ai.generate(
-  model: OpenAIModels.o4Mini,
+  model: openAI.model('gpt-5.5'),
   prompt: 'Prove it.',
   config: OpenAIChatOptions(reasoningEffort: 'high'),
 );

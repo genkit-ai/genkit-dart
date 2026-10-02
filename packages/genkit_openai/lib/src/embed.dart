@@ -57,7 +57,7 @@ OpenAIEmbedderOptions parseEmbedderOptions(Map<String, dynamic>? config) {
 
 /// Maximum inputs OpenAI accepts in one `POST /v1/embeddings` call.
 ///
-/// A larger `embedMany` is split across requests rather than rejected, since a
+/// A larger `embed` is split across requests rather than rejected, since a
 /// corpus of more than 2048 documents is an ordinary thing to embed.
 ///
 /// The array limit is the only one enforced here. A request is also capped at
@@ -101,7 +101,7 @@ String _documentText(DocumentData document, {required int index}) {
     throw GenkitException(
       'Document at index $index has no text content to embed. OpenAI '
       'embedders accept text only.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return text;
@@ -127,14 +127,14 @@ void validateEmbedderDimensions(String embedderName, int? dimensions) {
     throw GenkitException(
       '${curated.id} does not support the dimensions option; it always '
       'returns ${curated.dimensions} dimensions.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   if (dimensions < 1 || dimensions > curated.dimensions) {
     throw GenkitException(
       '${curated.id} returns between 1 and ${curated.dimensions} dimensions; '
       'got $dimensions.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }
@@ -152,7 +152,7 @@ List<Embedding> toGenkitEmbeddings(
     throw GenkitException(
       'OpenAI returned ${response.data.length} embeddings for $expectedCount '
       'input documents.',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
     );
   }
 

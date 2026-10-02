@@ -76,18 +76,17 @@ MockClient reasoningClient(
 ///
 /// The action layer still throws; `ai.generate()` reports the failure on the
 /// response instead (see #413), so a rejected `reasoningEffort` lands here.
-Matcher failsWith(StatusCodes status, {String? message}) =>
-    isA<GenerateResponse>()
-        .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
-        .having((r) => r.error?.status, 'error.status', status.name)
-        .having(
-          (r) => r.error?.message ?? '',
-          'error.message',
-          message == null ? anything : contains(message),
-        );
+Matcher failsWith(StatusCode status, {String? message}) => isA<GenerateResult>()
+    .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
+    .having((r) => r.error?.status, 'error.status', status.wireName)
+    .having(
+      (r) => r.error?.message ?? '',
+      'error.message',
+      message == null ? anything : contains(message),
+    );
 
 /// The reasoning text a response carries, or null when it carries none.
-String? reasoningOf(GenerateResponseHelper<dynamic> response) => response
+String? reasoningOf(GenerateResult<dynamic> response) => response
     .message
     ?.content
     .firstWhere((p) => p.isReasoning, orElse: () => TextPart(text: ''))
@@ -128,7 +127,7 @@ void main() {
     test('reaches the request for the GPT-5 family', () async {
       final captured = <Map<String, dynamic>>[];
       await genkitWith(reasoningClient(captured)).generate(
-        model: OpenAIModels.gpt5Mini,
+        model: openAI.model('gpt-5-mini'),
         prompt: 'think',
         config: OpenAIChatOptions(reasoningEffort: 'minimal'),
       );
@@ -142,7 +141,7 @@ void main() {
       for (final effort in ['none', 'low', 'medium', 'high', 'xhigh', 'max']) {
         final captured = <Map<String, dynamic>>[];
         await genkitWith(reasoningClient(captured)).generate(
-          model: OpenAIModels.gpt56Sol,
+          model: openAI.model('gpt-5.6-sol'),
           prompt: 'think',
           config: OpenAIChatOptions(reasoningEffort: effort),
         );
@@ -164,7 +163,7 @@ void main() {
     test('verbosity reaches the request', () async {
       final captured = <Map<String, dynamic>>[];
       await genkitWith(reasoningClient(captured)).generate(
-        model: OpenAIModels.gpt5,
+        model: openAI.model('gpt-5'),
         prompt: 'hi',
         config: OpenAIChatOptions(verbosity: 'low'),
       );
@@ -179,11 +178,11 @@ void main() {
 
       await expectLater(
         genkitWith(reasoningClient(captured)).generate(
-          model: OpenAIModels.gpt4o,
+          model: openAI.model('gpt-4o'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'high'),
         ),
-        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o')),
+        completion(failsWith(StatusCode.invalidArgument, message: 'gpt-4o')),
       );
       expect(captured, isEmpty, reason: 'rejected before any request');
     });
@@ -195,7 +194,7 @@ void main() {
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'low'),
         ),
-        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'o1-mini')),
+        completion(failsWith(StatusCode.invalidArgument, message: 'o1-mini')),
       );
     });
 
@@ -217,18 +216,18 @@ void main() {
 
       await expectLater(
         genkitWith(reasoningClient(captured)).generate(
-          model: OpenAIModels.o4Mini,
+          model: openAI.model('o4-mini'),
           prompt: 'hi',
           config: OpenAIChatOptions(version: 'gpt-4o', reasoningEffort: 'high'),
         ),
-        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o')),
+        completion(failsWith(StatusCode.invalidArgument, message: 'gpt-4o')),
       );
       expect(captured, isEmpty);
 
       // And the reverse: a reasoning `version` behind a non-reasoning action
       // is allowed through, because that is the model that will answer.
       await genkitWith(reasoningClient(captured)).generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'hi',
         config: OpenAIChatOptions(version: 'o3', reasoningEffort: 'high'),
       );
@@ -260,11 +259,11 @@ void main() {
       // `o4-mini` answers "does not support 'none' with this model".
       await expectLater(
         genkitWith(reasoningClient([])).generate(
-          model: OpenAIModels.gpt4o,
+          model: openAI.model('gpt-4o'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'none'),
         ),
-        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o')),
+        completion(failsWith(StatusCode.invalidArgument, message: 'gpt-4o')),
       );
     });
 
@@ -294,12 +293,12 @@ void main() {
       // without knowing which models reason, so it is the one named.
       await expectLater(
         genkitWith(reasoningClient([])).generate(
-          model: OpenAIModels.gpt4o,
+          model: openAI.model('gpt-4o'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'extreme'),
         ),
         completion(
-          failsWith(StatusCodes.INVALID_ARGUMENT, message: 'Known levels'),
+          failsWith(StatusCode.invalidArgument, message: 'Known levels'),
         ),
       );
     });
@@ -309,7 +308,7 @@ void main() {
       // caller set or what OpenAI will answer for.
       await expectLater(
         genkitWith(reasoningClient([])).generate(
-          model: OpenAIModels.gpt4o,
+          model: openAI.model('gpt-4o'),
           prompt: 'hi',
           config: OpenAIChatOptions(
             version: 'gpt-4o-2024-11-20',
@@ -317,7 +316,7 @@ void main() {
           ),
         ),
         completion(
-          failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o-2024-11-20'),
+          failsWith(StatusCode.invalidArgument, message: 'gpt-4o-2024-11-20'),
         ),
       );
     });
@@ -330,11 +329,11 @@ void main() {
           reasoningClient([]),
           baseUrl: 'https://api.openai.com/v1',
         ).generate(
-          model: OpenAIModels.gpt4o,
+          model: openAI.model('gpt-4o'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'high'),
         ),
-        completion(failsWith(StatusCodes.INVALID_ARGUMENT, message: 'gpt-4o')),
+        completion(failsWith(StatusCode.invalidArgument, message: 'gpt-4o')),
       );
     });
 
@@ -346,7 +345,7 @@ void main() {
           config: OpenAIChatOptions(reasoningEffort: 'extreme'),
         ),
         completion(
-          failsWith(StatusCodes.INVALID_ARGUMENT, message: 'Known levels'),
+          failsWith(StatusCode.invalidArgument, message: 'Known levels'),
         ),
       );
     });

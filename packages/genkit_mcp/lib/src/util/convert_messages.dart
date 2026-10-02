@@ -46,7 +46,7 @@ Map<String, dynamic> toMcpResourceContent(String uri, Part part) {
   }
   throw GenkitException(
     '[MCP Server] Resource content supports text or media parts only.',
-    status: StatusCodes.UNIMPLEMENTED,
+    status: StatusCode.unimplemented,
   );
 }
 
@@ -55,7 +55,7 @@ String _toMcpRole(Role role) {
   if (role == Role.model) return 'assistant';
   throw GenkitException(
     '[MCP Server] MCP prompt messages only support user or model roles.',
-    status: StatusCodes.UNIMPLEMENTED,
+    status: StatusCode.unimplemented,
   );
 }
 
@@ -130,7 +130,7 @@ Map<String, String> _toMcpMediaContent(Media media) {
   if (!url.startsWith('data:')) {
     throw GenkitException(
       '[MCP Server] MCP only supports base64 data URLs for media.',
-      status: StatusCodes.UNIMPLEMENTED,
+      status: StatusCode.unimplemented,
     );
   }
 
@@ -138,7 +138,7 @@ Map<String, String> _toMcpMediaContent(Media media) {
   if (commaIndex <= 0) {
     throw GenkitException(
       '[MCP Server] Invalid data URL for media.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -214,7 +214,7 @@ Message fromMcpPromptMessage(Map<String, dynamic> message) {
   if (role is! String) {
     throw GenkitException(
       '[MCP Client] Prompt message role must be a string.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   final content = message['content'];
@@ -233,7 +233,7 @@ Message fromMcpPromptMessage(Map<String, dynamic> message) {
   }
   throw GenkitException(
     '[MCP Client] Prompt message content must be an object or array.',
-    status: StatusCodes.INVALID_ARGUMENT,
+    status: StatusCode.invalidArgument,
   );
 }
 
@@ -257,7 +257,7 @@ Part fromMcpResourceContent(Map<String, dynamic> content) {
   }
   throw GenkitException(
     '[MCP Client] Resource contents only support text or blob fields.',
-    status: StatusCodes.UNIMPLEMENTED,
+    status: StatusCode.unimplemented,
   );
 }
 
@@ -380,7 +380,7 @@ Role _fromMcpRole(String role) {
     default:
       throw GenkitException(
         '[MCP Client] Unsupported prompt message role "$role".',
-        status: StatusCodes.UNIMPLEMENTED,
+        status: StatusCode.unimplemented,
       );
   }
 }

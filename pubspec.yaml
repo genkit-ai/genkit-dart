@@ -55,24 +55,30 @@ melos:
   packages:
     - packages/**
   
+  # Scripts call `melos exec` explicitly instead of using `exec:`. With melos
+  # as a dev_dependency, `exec:` makes melos re-launch itself via
+  # `dart run melos:melos`, which breaks on Dart 3.14 dev
+  # (https://github.com/blaugold/cli_launcher/issues/28). An explicit
+  # `melos exec` goes through the shell and uses the globally activated melos.
+  # `packageFilters` still apply: melos passes them to the nested call via
+  # MELOS_PACKAGES. Switch back to `exec:` once cli_launcher is fixed.
   scripts:
     test:
-      exec: dart test
+      run: melos exec -- "dart test"
       packageFilters:
         dirExists: test
 
     test-firestore:
-      exec: >-
+      run: >-
+        cd packages/genkit_google_cloud &&
         GOOGLE_CLOUD_PROJECT=demo-genkit firebase emulators:exec
         --only firestore --project demo-genkit "dart test"
-      packageFilters:
-        scope: genkit_google_cloud
       description: >-
         Run the genkit_google_cloud tests against the Firestore emulator
         (requires firebase-tools + Java 21+).
 
     analyze:
-      exec: dart analyze --fatal-infos .
+      run: melos exec -- "dart analyze --fatal-infos ."
 
     telemetry:
       run: cd testapps/otel_jaeger && dart run tool/telemetry.dart
@@ -89,20 +95,19 @@ melos:
       description: Run build_runner in topological order (core -> plugins -> app) to avoid race conditions.
 
     build-gen-core:
-      exec: dart run build_runner build
+      run: melos exec -- "dart run build_runner build"
       packageFilters:
         scope: "{schemantic_builder,genkit}"
-        orderDependents: true
       description: Run build_runner for genkit.
 
     build-gen-plugins:
-      exec: dart run build_runner build
+      run: melos exec -- "dart run build_runner build"
       packageFilters:
         scope: "{genkit_a2ui,genkit_anthropic,genkit_chrome,genkit_firebase_ai,genkit_google_genai,genkit_mcp,genkit_middleware,genkit_openai,genkit_shelf,genkit_vertexai}"
       description: Run build_runner for plugins.
 
     build-gen-testapps:
-      exec: dart run build_runner build
+      run: melos exec -- "dart run build_runner build"
       packageFilters:
         scope: "{agentic_patterns,ai_features,anthropic_sample,basic_sample,gemini_testapp,mcp_sample,openai_sample,schemantic_sample}"
       description: Run build_runner for testapps (except Flutter ones).

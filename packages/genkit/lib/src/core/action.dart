@@ -187,11 +187,63 @@ typedef BidiActionFn<Input, Output, Chunk, Init> =
       ActionFnArg<Chunk, Input, Init> context,
     );
 
-typedef InternalActionFn<Input, Output, Chunk, Init> =
+/// The low-level implementation function stored by [Action].
+///
+/// The input is nullable because [Action] also backs bidirectional actions
+/// (which receive their input via `context.inputStream`) and actions whose
+/// input is optional. Typed subclasses such as `Model`, `Embedder`,
+/// `Evaluator`, `Flow` and `Tool` take a non-null [ActionFn] (or
+/// [BidiActionFn]) instead and reject a null input before it reaches your
+/// code.
+typedef RawActionFn<Input, Output, Chunk, Init> =
     Future<Output> Function(
       Input? input,
       ActionFnArg<Chunk, Input, Init> context,
     );
+
+/// Adapts a non-null-input [ActionFn] to the [RawActionFn] that [Action]
+/// stores, rejecting a null input with `INVALID_ARGUMENT`.
+///
+/// The check is `null is! Input`, so actions declared with a nullable,
+/// `void` or `dynamic` input still receive `null`.
+@internal
+RawActionFn<Input, Output, Chunk, Init> requireInput<
+  Input,
+  Output,
+  Chunk,
+  Init
+>(String kind, String name, ActionFn<Input, Output, Chunk, Init> fn) {
+  return (input, ctx) {
+    if (input == null && null is! Input) {
+      throw GenkitException(
+        '$kind "$name" requires a non-null input.',
+        status: StatusCode.invalidArgument,
+      );
+    }
+    return fn(input as Input, ctx);
+  };
+}
+
+/// Adapts a [BidiActionFn] to the [RawActionFn] that [Action] stores. The
+/// unary input is ignored; bidi actions read `context.inputStream`, which
+/// `Action.run` always supplies.
+@internal
+RawActionFn<Input, Output, Chunk, Init> bidiInput<Input, Output, Chunk, Init>(
+  String kind,
+  String name,
+  BidiActionFn<Input, Output, Chunk, Init> fn,
+) {
+  return (_, ctx) {
+    final inputStream = ctx.inputStream;
+    if (inputStream == null) {
+      throw GenkitException(
+        '$kind "$name" called without an input stream.',
+        status: StatusCode.invalidArgument,
+      );
+    }
+    return fn(inputStream, ctx);
+  };
+}
 
 final class RunResult<Output> {
   final Output result;
@@ -286,12 +338,14 @@ base class ActionMetadata<Input, Output, Chunk, Init> {
 
 base class Action<Input, Output, Chunk, Init>
     extends ActionMetadata<Input, Output, Chunk, Init> {
-  final InternalActionFn<Input, Output, Chunk, Init> fn;
+  final RawActionFn<Input, Output, Chunk, Init> _fn;
 
+  /// Creates a low-level action. Prefer the typed subclasses (`Model`,
+  /// `Flow`, `Tool`, ...), which take a non-null-input function.
   Action({
     required super.name,
     required super.actionType,
-    required this.fn,
+    required this._fn,
     super.inputSchema,
     super.outputSchema,
     super.streamSchema,
@@ -302,11 +356,11 @@ base class Action<Input, Output, Chunk, Init>
   });
 
   /// The output schema surfaced when building action manifests (Dev UI,
-  /// reflection) and tool definitions.
+  /// reflection).
   ///
-  /// Defaults to [outputSchema]. Subclasses such as `Tool` override this to
-  /// expose the user-declared output schema instead of an internal wrapper
-  /// type (for example `ToolResult<Output>`).
+  /// Defaults to [outputSchema]. `Tool` overrides it to expose the declared
+  /// output schema instead of its `ToolResult<Output>` wrapper.
+  @internal
   SchemanticType? get manifestOutputSchema => outputSchema;
 
   @override
@@ -350,7 +404,12 @@ base class Action<Input, Output, Chunk, Init>
     CancellationToken? cancel,
   }) async {
     return await run(
-      inputSchema != null ? inputSchema!.parse(input) : input as Input?,
+      // A null input skips parsing so typed actions reject it with a clear
+      // INVALID_ARGUMENT (see requireInput) instead of a schema type error.
+      // Mirrors the `init` handling below and genkit_shelf.
+      (inputSchema != null && input != null)
+          ? inputSchema!.parse(input)
+          : input as Input?,
       onChunk: onChunk,
       context: context,
       inputStream: inputStream,
@@ -402,7 +461,7 @@ base class Action<Input, Output, Chunk, Init>
             onTraceStart(traceId: traceId, spanId: spanId);
           }
           _recordContextMetadata(executionContext);
-          return await fn(
+          return await _fn(
             input,
             ActionFnArg(
               streamingRequested: onChunk != null,

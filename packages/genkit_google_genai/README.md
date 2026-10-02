@@ -77,7 +77,7 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 void main() async {
   final ai = Genkit(plugins: [googleAI()]);
 
-  final embeddings = await ai.embedMany(
+  final embeddings = await ai.embed(
     embedder: googleAI.textEmbedding('text-embedding-004'),
     documents: [
       DocumentData(content: [TextPart(text: 'Hello world')]),

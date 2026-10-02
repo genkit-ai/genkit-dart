@@ -40,14 +40,14 @@ _ShelfError _toShelfError(Object error) {
   if (error is GenkitException) {
     return _ShelfError(
       code: error.status.httpStatus,
-      status: error.status.name,
+      status: error.status.wireName,
       message: error.message,
     );
   }
 
   return _ShelfError(
     code: HttpStatus.internalServerError,
-    status: StatusCodes.INTERNAL.name,
+    status: StatusCode.internal.wireName,
     message: _internalErrorMessage,
   );
 }

@@ -16,6 +16,11 @@ import 'package:genkit/plugin.dart';
 
 import 'utils.dart';
 
+// This catalog and its DeepSeek, xAI and embedder siblings are internal
+// metadata, not API: they only enrich names that resolve anyway, and entries
+// are added, retired and removed with the providers' model lists in any
+// release. Callers name models by string (`openAI.model('gpt-5.5')`).
+
 // Capability presets shared by the catalog entries below.
 //
 // Structured outputs (`response_format: json_schema` with `strict`) arrived
@@ -611,6 +616,15 @@ ModelInfo dynamicModelInfo(String modelName) {
 
 /// Capability metadata for any OpenAI model name: the curated entry when there
 /// is one, [dynamicModelInfo] otherwise.
+///
+/// Useful as a starting point for a model the plugin does not know by name:
+///
+/// ```dart
+/// CustomModelDefinition(name: 'my-gpt-proxy', info: modelInfoFor('gpt-5.5'))
+/// ```
+///
+/// The result follows the curated list, so it can change between releases as
+/// models are added or retired.
 ModelInfo modelInfoFor(String model) =>
     knownOpenAIModelFor(model)?.info ?? dynamicModelInfo(model);
 

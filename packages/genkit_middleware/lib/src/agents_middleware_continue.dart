@@ -46,7 +46,7 @@ extension _AgentsMiddlewareContinue on AgentsMiddleware {
         name: _continueToolName,
         description: description,
         inputSchema: AsyncContinueInput.$schema,
-        toolOutputSchema: AgentDelegationResult.$schema,
+        outputSchema: AgentDelegationResult.$schema,
         fn: (input, _) async => .response(
           await _runContinue(
             input.taskId,
@@ -60,7 +60,7 @@ extension _AgentsMiddlewareContinue on AgentsMiddleware {
       name: _continueToolName,
       description: description,
       inputSchema: ContinueInput.$schema,
-      toolOutputSchema: AgentDelegationResult.$schema,
+      outputSchema: AgentDelegationResult.$schema,
       fn: (input, _) async => .response(
         await _runContinue(input.taskId, input.instructions, false),
       ),
@@ -140,7 +140,7 @@ extension _AgentsMiddlewareContinue on AgentsMiddleware {
     try {
       snap = await _getSnapshot(handle, snapshotId, metadataOnly: true);
     } catch (e) {
-      if (e is GenkitException && e.status == StatusCodes.NOT_FOUND) {
+      if (e is GenkitException && e.status == StatusCode.notFound) {
         return AgentDelegationResult(
           response:
               'Error: no record of task "$taskId" exists ($e). Delegate the '
@@ -411,7 +411,7 @@ extension _AgentsMiddlewareContinue on AgentsMiddleware {
       _labelTask(result, words.label);
       return result;
     } catch (e) {
-      if (e is GenkitException && e.status == StatusCodes.FAILED_PRECONDITION) {
+      if (e is GenkitException && e.status == StatusCode.failedPrecondition) {
         // The runtime rejected the resume point itself (nothing behind it, or a
         // still-live worker); its message says which.
         return AgentDelegationResult(

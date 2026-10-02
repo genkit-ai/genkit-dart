@@ -15,7 +15,6 @@
 import 'package:genkit/plugin.dart';
 
 import 'src/google_api_client.dart';
-import 'src/known_models.dart';
 import 'src/model.dart';
 
 export 'src/model.dart';
@@ -55,85 +54,4 @@ class GoogleGenAiPluginHandle {
       customOptions: TextEmbedderOptions.$schema,
     );
   }
-}
-
-/// Typed [ModelRef]s for the Gemini and Gemma models curated by the googleai
-/// plugin.
-///
-/// Each entry is equivalent to `googleAI.gemini('<name>')`,
-/// `googleAI.geminiTts('<name>')` or `googleAI.gemma('<name>')`, which remain
-/// the escape hatch for models not listed here.
-abstract final class GoogleAiModels {
-  static final ModelRef<GeminiOptions> gemini25Pro = googleAI.gemini(
-    KnownGeminiModel.gemini25Pro.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini25Flash = googleAI.gemini(
-    KnownGeminiModel.gemini25Flash.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini25FlashLite = googleAI.gemini(
-    KnownGeminiModel.gemini25FlashLite.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini31ProPreview = googleAI.gemini(
-    KnownGeminiModel.gemini31ProPreview.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini3FlashPreview = googleAI.gemini(
-    KnownGeminiModel.gemini3FlashPreview.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini37Flash = googleAI.gemini(
-    KnownGeminiModel.gemini37Flash.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini36Flash = googleAI.gemini(
-    KnownGeminiModel.gemini36Flash.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini35Flash = googleAI.gemini(
-    KnownGeminiModel.gemini35Flash.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini35FlashLite = googleAI.gemini(
-    KnownGeminiModel.gemini35FlashLite.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini31FlashLite = googleAI.gemini(
-    KnownGeminiModel.gemini31FlashLite.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini25FlashImage = googleAI.gemini(
-    KnownGeminiModel.gemini25FlashImage.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini31FlashImage = googleAI.gemini(
-    KnownGeminiModel.gemini31FlashImage.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini31FlashLiteImage = googleAI.gemini(
-    KnownGeminiModel.gemini31FlashLiteImage.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemini3ProImage = googleAI.gemini(
-    KnownGeminiModel.gemini3ProImage.id,
-  );
-
-  static final ModelRef<GeminiTtsOptions> gemini25FlashPreviewTts = googleAI
-      .geminiTts(KnownGeminiModel.gemini25FlashPreviewTts.id);
-
-  static final ModelRef<GeminiTtsOptions> gemini25ProPreviewTts = googleAI
-      .geminiTts(KnownGeminiModel.gemini25ProPreviewTts.id);
-
-  static final ModelRef<GeminiTtsOptions> gemini31FlashTtsPreview = googleAI
-      .geminiTts(KnownGeminiModel.gemini31FlashTtsPreview.id);
-
-  static final ModelRef<GeminiOptions> gemma431b = googleAI.gemma(
-    KnownGemmaModel.gemma431b.id,
-  );
-
-  static final ModelRef<GeminiOptions> gemma426bA4b = googleAI.gemma(
-    KnownGemmaModel.gemma426bA4b.id,
-  );
 }

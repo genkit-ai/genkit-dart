@@ -28,7 +28,7 @@ Flow<String, String, void, void> defineXaiFlow(Genkit ai) {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: prompt,
       );
       return response.text;
@@ -48,7 +48,7 @@ Flow<String, String, void, void> defineXaiEffortFlow(Genkit ai) {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: XaiModels.grok43,
+        model: xAI.model('grok-4.3'),
         prompt: prompt,
         config: OpenAIChatOptions(reasoningEffort: 'low'),
       );

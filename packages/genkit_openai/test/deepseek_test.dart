@@ -16,8 +16,8 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:genkit_openai/src/known_deepseek_models.dart'
-    show deepSeekVisionSupports;
+import 'package:genkit_openai/src/known_deepseek_models.dart';
+import 'package:genkit_openai/src/known_models.dart';
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/provider.dart';
 import 'package:http/http.dart' as http;
@@ -116,20 +116,6 @@ void main() {
         throwsUnsupportedError,
       );
     });
-
-    test('typed refs cover the catalog', () {
-      // Every curated entry, including the retired aliases: they are still
-      // resolvable, they are only kept out of the listing.
-      expect(
-        DeepSeekModels.all.map((r) => r.name).toSet(),
-        KnownDeepSeekModel.values.map((m) => 'deepseek/${m.id}').toSet(),
-      );
-      expect(
-        knownDeepSeekChatModels.map((id) => 'deepseek/$id').toSet(),
-        everyElement(isIn(DeepSeekModels.all.map((r) => r.name))),
-      );
-      expect(DeepSeekModels.deepseekFlash.name, 'deepseek/deepseek-flash');
-    });
   });
 
   group('plugin wiring', () {
@@ -142,7 +128,7 @@ void main() {
       );
       addTearDown(ai.shutdown);
 
-      await ai.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+      await ai.generate(model: deepSeek.model('deepseek-flash'), prompt: 'hi');
 
       expect(requests.single.url.host, 'api.deepseek.com');
       expect(requests.single.headers['authorization'], 'Bearer ds-key');
@@ -164,7 +150,10 @@ void main() {
       );
       addTearDown(fromEnv.shutdown);
 
-      await fromEnv.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+      await fromEnv.generate(
+        model: deepSeek.model('deepseek-flash'),
+        prompt: 'hi',
+      );
 
       expect(requests.single.headers['authorization'], 'Bearer from-env');
 
@@ -182,7 +171,7 @@ void main() {
       addTearDown(wrongVar.shutdown);
 
       final wrong = await wrongVar.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'hi',
       );
       expect(wrong.finishReason, FinishReason.failed);
@@ -199,7 +188,7 @@ void main() {
       addTearDown(keyless.shutdown);
 
       final response = await keyless.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'hi',
       );
 
@@ -291,7 +280,10 @@ void main() {
           ],
         );
 
-        await ai.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+        await ai.generate(
+          model: deepSeek.model('deepseek-flash'),
+          prompt: 'hi',
+        );
 
         expect(requests.single.url.host, 'api.deepseek.com', reason: baseUrl);
         expect(requests.single.url.path, '/chat/completions', reason: baseUrl);
@@ -318,7 +310,10 @@ void main() {
           ],
         );
 
-        await ai.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+        await ai.generate(
+          model: deepSeek.model('deepseek-flash'),
+          prompt: 'hi',
+        );
 
         expect(requests.single.url.path, path, reason: baseUrl);
         await ai.shutdown();
@@ -367,7 +362,7 @@ void main() {
       );
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         messages: [
           Message(
             role: Role.user,
@@ -404,7 +399,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         messages: [
           Message(
             role: Role.user,
@@ -443,7 +438,7 @@ void main() {
       for (final effort in ['minimal', 'medium', 'xhigh']) {
         requests.clear();
         await ai.generate(
-          model: DeepSeekModels.deepseekFlash,
+          model: deepSeek.model('deepseek-flash'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: effort),
         );
@@ -467,7 +462,7 @@ void main() {
       for (final effort in ['low', 'high', 'max']) {
         requests.clear();
         await ai.generate(
-          model: DeepSeekModels.deepseekFlash,
+          model: deepSeek.model('deepseek-flash'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: effort),
         );
@@ -486,7 +481,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'none'),
       );
@@ -506,7 +501,7 @@ void main() {
       );
       addTearDown(ai.shutdown);
 
-      await ai.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+      await ai.generate(model: deepSeek.model('deepseek-flash'), prompt: 'hi');
 
       expect(chatBodyOf(requests), isNot(contains('thinking')));
     });
@@ -521,7 +516,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       final stream = ai.generateStream(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'max'),
       );
@@ -541,7 +536,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.o4Mini,
+        model: openAI.model('o4-mini'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'medium'),
       );
@@ -559,7 +554,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       final response = await ai.generate(
-        model: DeepSeekModels.deepseekChat,
+        model: deepSeek.model('deepseek-chat'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'none'),
       );
@@ -580,7 +575,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       final response = await ai.generate(
-        model: DeepSeekModels.deepseekChat,
+        model: deepSeek.model('deepseek-chat'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );
@@ -634,7 +629,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'hi',
         config: OpenAIChatOptions(maxTokens: 256),
       );
@@ -656,7 +651,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'hi',
         config: OpenAIChatOptions(maxTokens: 256),
       );
@@ -674,7 +669,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'give me json',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,
@@ -694,7 +689,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'give me an object',
         outputFormat: 'json',
       );
@@ -713,7 +708,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'give me an object',
         outputFormat: 'json',
       );
@@ -731,7 +726,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'describe a person',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,
@@ -753,7 +748,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'describe a person',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,
@@ -774,7 +769,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'reply with json please',
         outputFormat: 'json',
       );
@@ -793,7 +788,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'name a city',
         outputFormat: 'json',
         outputInstructions: 'Return an object with a single city property.',
@@ -876,7 +871,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'describe a person',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,
@@ -898,7 +893,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'describe a person',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,
@@ -964,7 +959,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'describe a person',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,
@@ -982,7 +977,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'give me json',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,

@@ -16,6 +16,7 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/known_models.dart';
 import 'package:genkit_openai/src/openai_plugin.dart' show OpenAIPlugin;
 import 'package:genkit_openai/src/utils.dart';
 import 'package:http/http.dart' as http;
@@ -62,6 +63,8 @@ MockClient unauthorizedClient(List<String> requests) {
 }
 
 void main() {
+  _declaredKindTests();
+
   group('offline startup', () {
     test('init does no I/O and does not throw without a key', () async {
       final recorder = RecordingFailClient();
@@ -445,7 +448,7 @@ void main() {
 
       expect(response.finishReason, FinishReason.failed);
       expect(response.error, isNotNull);
-      expect(response.error!.status, StatusCodes.INVALID_ARGUMENT.name);
+      expect(response.error!.status, StatusCode.invalidArgument.wireName);
       expect(response.error!.message, contains('API key is required'));
 
       await ai.shutdown();
@@ -487,5 +490,36 @@ void main() {
 
       await ai.shutdown();
     });
+  });
+}
+
+void _declaredKindTests() {
+  group('declared model kind', () {
+    // Names that classify as chat by name, so only the declared kind can
+    // route them anywhere else.
+    final cases = {
+      OpenAIModelKind.chat: OpenAIChatOptions.$schema,
+      OpenAIModelKind.speech: OpenAISpeechOptions.$schema,
+      OpenAIModelKind.transcription: OpenAITranscriptionOptions.$schema,
+    };
+
+    for (final MapEntry(key: kind, value: schema) in cases.entries) {
+      OpenAIPlugin pluginWith() => OpenAIPlugin(
+        apiKey: 'test-key',
+        baseUrl: 'https://api.example.test/v1',
+        httpClient: RecordingFailClient().client,
+        customModels: [CustomModelDefinition(name: 'box-1', kind: kind)],
+      );
+
+      test('$kind builds the matching model in init', () async {
+        final [model] = await pluginWith().init();
+        expect((model as Model).customOptions, same(schema));
+      });
+
+      test('$kind builds the matching model in resolve', () {
+        final model = pluginWith().resolve(.model, 'box-1') as Model;
+        expect(model.customOptions, same(schema));
+      });
+    }
   });
 }

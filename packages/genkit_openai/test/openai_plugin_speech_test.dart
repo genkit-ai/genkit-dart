@@ -509,7 +509,7 @@ void main() {
         config: OpenAISpeechOptions(responseFormat: 'ogg'),
       );
 
-      expect(response.error?.status, StatusCodes.INVALID_ARGUMENT.name);
+      expect(response.error?.status, StatusCode.invalidArgument.wireName);
       expect(response.error?.message, contains('ogg'));
       expect(captured, isEmpty, reason: 'rejected before any request');
 
@@ -526,7 +526,7 @@ void main() {
         config: OpenAISpeechOptions(speed: 99),
       );
 
-      expect(response.error?.status, StatusCodes.INVALID_ARGUMENT.name);
+      expect(response.error?.status, StatusCode.invalidArgument.wireName);
       expect(captured, isEmpty);
 
       await ai.shutdown();
@@ -543,10 +543,10 @@ void main() {
       await expectLater(
         ai.generate(model: openAI.speechModel('tts-1'), prompt: '   '),
         completion(
-          isA<GenerateResponse>().having(
+          isA<GenerateResult>().having(
             (r) => r.error?.status,
             'error.status',
-            StatusCodes.INVALID_ARGUMENT.name,
+            StatusCode.invalidArgument.wireName,
           ),
         ),
       );

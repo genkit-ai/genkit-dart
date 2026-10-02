@@ -283,7 +283,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.INVALID_ARGUMENT,
+            StatusCode.invalidArgument,
           ),
         ),
       );
@@ -307,7 +307,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.INVALID_ARGUMENT,
+            StatusCode.invalidArgument,
           ),
         ),
       );
@@ -332,7 +332,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.INVALID_ARGUMENT,
+            StatusCode.invalidArgument,
           ),
         ),
       );
@@ -433,7 +433,7 @@ void main() {
           isA<GenkitException>().having(
             (e) => e.status,
             'status',
-            StatusCodes.INVALID_ARGUMENT,
+            StatusCode.invalidArgument,
           ),
         ),
       );

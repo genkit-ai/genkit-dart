@@ -16,6 +16,7 @@ import 'dart:async';
 
 import 'package:genkit/genkit.dart';
 
+import '../util/common.dart';
 import '../util/logging.dart';
 import 'mcp_client.dart';
 
@@ -43,19 +44,19 @@ class McpHostOptions {
   });
 }
 
-/// [McpHostOptions] with an additional [cacheTtlMillis] for the
+/// [McpHostOptions] with an additional [cacheTtl] for the
 /// registry plugin created by `defineMcpHost`.
 class McpHostOptionsWithCache extends McpHostOptions {
   /// Cache TTL for remote action listings.
   ///
-  /// Positive values override server hints, negative values disable caching,
-  /// and `null` or zero uses the MCP 2026-07-28 server `ttlMs` hint when
-  /// available, falling back to three seconds.
-  final int? cacheTtlMillis;
+  /// `null` uses the MCP 2026-07-28 server `ttlMs` hint when available,
+  /// falling back to three seconds. A positive value overrides the hint, and
+  /// [Duration.zero] disables caching. Negative values are rejected.
+  final Duration? cacheTtl;
 
   const McpHostOptionsWithCache({
     required super.name,
-    this.cacheTtlMillis,
+    this.cacheTtl,
     super.version,
     super.mcpServers,
     super.rawToolResponses,
@@ -82,6 +83,7 @@ class GenkitMcpHost {
       version = options.version,
       rawToolResponses = options.rawToolResponses,
       roots = options.roots {
+    checkCacheTtl(cacheTtl);
     if (options.mcpServers != null) {
       updateServers(options.mcpServers!);
     } else {
@@ -122,7 +124,7 @@ class GenkitMcpHost {
           serverName: serverName,
           version: version,
           rawToolResponses: rawToolResponses,
-          cacheTtlMillis: cacheTtlMillis,
+          cacheTtl: cacheTtl,
           mcpServer: McpServerConfig(
             transport: config.transport,
             command: config.command,
@@ -354,9 +356,10 @@ class GenkitMcpHost {
 
   GenkitMcpClient? getClient(String name) => _clients[name];
 
-  int? get cacheTtlMillis => options is McpHostOptionsWithCache
-      ? (options as McpHostOptionsWithCache).cacheTtlMillis
-      : null;
+  Duration? get cacheTtl => switch (options) {
+    McpHostOptionsWithCache(:final cacheTtl) => cacheTtl,
+    _ => null,
+  };
 
   Future<List<ActionMetadata>> getCachedActions() async {
     final futures = activeClients.map((client) => client.getCachedActions());

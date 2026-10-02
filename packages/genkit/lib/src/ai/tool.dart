@@ -14,6 +14,7 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
@@ -30,10 +31,10 @@ String shortToolName(String fullName) => fullName.contains('/')
     : fullName;
 
 /// Arguments passed to a tool function execution.
-final class ToolFnArgs<Input> {
+final class ToolFnArg<Input> {
   final ActionFnArg<void, Input, void> _base;
 
-  ToolFnArgs(this._base);
+  ToolFnArg(this._base);
 
   /// The execution context.
   Map<String, dynamic>? get context => _base.context;
@@ -206,14 +207,29 @@ final class ToolInterruptResult<Output> extends ToolResult<Output> {
 typedef ToolFn<Input, Output> =
     FutureOr<ToolResult<Output>> Function(
       Input input,
-      ToolFnArgs<Input> context,
+      ToolFnArg<Input> context,
     );
 
 base class Tool<Input, Output>
     extends Action<Input, ToolResult<Output>, void, void> {
-  /// The user-declared output schema (the schema of `Output`, not
-  /// [ToolResult]). Used to build the model-facing tool definition and the
-  /// action manifest (see [manifestOutputSchema]).
+  /// The schema of `Output`, as passed to the constructor's `outputSchema`.
+  /// It is what the model, the Dev UI and MCP `tools/list` see as the tool's
+  /// output.
+  ///
+  /// ```dart
+  /// final weather = ai.defineTool(
+  ///   name: 'weather',
+  ///   description: 'Current weather',
+  ///   outputSchema: Weather.$schema,
+  ///   fn: (city, ctx) async => .response(await fetchWeather(city)),
+  /// );
+  /// weather.toolOutputSchema; // Weather.$schema
+  /// weather.outputSchema;     // always null: see below
+  /// ```
+  ///
+  /// It can't be the inherited [outputSchema]: that getter is typed by the
+  /// action's output, which for a tool is the [ToolResult] wrapper (a response
+  /// or an interrupt), not `Output`.
   final SchemanticType<Output>? toolOutputSchema;
 
   // Uses an explicit super call (not super parameters) because the base `fn`
@@ -224,9 +240,10 @@ base class Tool<Input, Output>
     required String description,
     required ToolFn<Input, Output> fn,
     SchemanticType<Input>? inputSchema,
-    this.toolOutputSchema,
+    SchemanticType<Output>? outputSchema,
     Map<String, dynamic>? metadata,
-  }) : super(
+  }) : toolOutputSchema = outputSchema,
+       super(
          name: name,
          description: description,
          inputSchema: inputSchema,
@@ -234,25 +251,21 @@ base class Tool<Input, Output>
          // it is registered and resolved under `ActionType.tool` (`tool.v2`).
          metadata: {...?metadata, 'type': ActionType.tool.value},
          actionType: .tool,
-         fn: (input, ctx) async {
-           if (input == null && inputSchema != null && null is! Input) {
-             throw ArgumentError('Tool "$name" requires a non-null input.');
-           }
-           final result = await fn(input as Input, ToolFnArgs(ctx));
+         fn: requireInput('Tool', name, (input, ctx) async {
+           final result = await fn(input, ToolFnArg(ctx));
            // Record the interrupt on the tool's telemetry span. This runs
            // inside the tool's span (see `Action.run` -> `runInNewSpan`).
            if (result is ToolInterruptResult<Output>) {
              setCustomMetadataAttributes({'interrupt': result.data ?? true});
            }
            return result;
-         },
+         }),
        );
 
-  // A tool's base `outputSchema` describes the wrapper `ToolResult<Output>`,
-  // not the user-declared `Output`. Surface the declared schema so action
-  // manifests (Dev UI, reflection) and MCP `tools/list` advertise the shape
-  // callers actually receive.
+  // A tool's base `outputSchema` describes the `ToolResult<Output>` wrapper.
+  // Surface the declared schema in action manifests (Dev UI, reflection).
   @override
+  @internal
   SchemanticType? get manifestOutputSchema => toolOutputSchema;
 }
 
@@ -303,13 +316,13 @@ final class Interrupt<Input, Output> extends Tool<Input, Output> {
     /// Optional data attached to the `interrupt` metadata of the generated tool
     /// request. Receives the tool input and may return a value or a future.
     /// When omitted, the interrupt metadata defaults to `true`.
-    FutureOr<Object?> Function(Input input, ToolFnArgs<Input> ctx)?
+    FutureOr<Object?> Function(Input input, ToolFnArg<Input> ctx)?
     requestMetadata,
   }) : super(
          name: name,
          description: description,
          inputSchema: inputSchema,
-         toolOutputSchema: outputSchema,
+         outputSchema: outputSchema,
          metadata: {
            ...?metadata,
            'tool': {

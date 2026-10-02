@@ -147,7 +147,7 @@ final researchAgent = ai.defineCustomAgent(
       );
 
       await for (final chunk in synthesisStream) {
-        options.sendChunk(AgentStreamChunk(modelChunk: chunk.rawChunk));
+        options.sendChunk(AgentStreamChunk(modelChunk: chunk.modelChunk));
       }
 
       final synthesisResponse = await synthesisStream.onResult;

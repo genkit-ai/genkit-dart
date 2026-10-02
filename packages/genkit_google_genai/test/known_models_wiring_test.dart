@@ -18,6 +18,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/common.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_google_genai/src/google_api_client.dart';
+import 'package:genkit_google_genai/src/known_models.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
@@ -31,7 +32,7 @@ class _UnconfiguredPlugin extends GoogleGenAiPluginImpl {
   ]) async {
     throw GenkitException(
       'apiKey must be set to an API key',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }
@@ -330,44 +331,13 @@ void main() {
     });
   });
 
-  group('GoogleAiModels', () {
-    final refs = <KnownGeminiModel, ModelRef<dynamic>>{
-      KnownGeminiModel.gemini25Pro: GoogleAiModels.gemini25Pro,
-      KnownGeminiModel.gemini25Flash: GoogleAiModels.gemini25Flash,
-      KnownGeminiModel.gemini25FlashLite: GoogleAiModels.gemini25FlashLite,
-      KnownGeminiModel.gemini31ProPreview: GoogleAiModels.gemini31ProPreview,
-      KnownGeminiModel.gemini3FlashPreview: GoogleAiModels.gemini3FlashPreview,
-      KnownGeminiModel.gemini37Flash: GoogleAiModels.gemini37Flash,
-      KnownGeminiModel.gemini36Flash: GoogleAiModels.gemini36Flash,
-      KnownGeminiModel.gemini35Flash: GoogleAiModels.gemini35Flash,
-      KnownGeminiModel.gemini35FlashLite: GoogleAiModels.gemini35FlashLite,
-      KnownGeminiModel.gemini31FlashLite: GoogleAiModels.gemini31FlashLite,
-      KnownGeminiModel.gemini25FlashImage: GoogleAiModels.gemini25FlashImage,
-      KnownGeminiModel.gemini31FlashImage: GoogleAiModels.gemini31FlashImage,
-      KnownGeminiModel.gemini31FlashLiteImage:
-          GoogleAiModels.gemini31FlashLiteImage,
-      KnownGeminiModel.gemini3ProImage: GoogleAiModels.gemini3ProImage,
-      KnownGeminiModel.gemini25FlashPreviewTts:
-          GoogleAiModels.gemini25FlashPreviewTts,
-      KnownGeminiModel.gemini25ProPreviewTts:
-          GoogleAiModels.gemini25ProPreviewTts,
-      KnownGeminiModel.gemini31FlashTtsPreview:
-          GoogleAiModels.gemini31FlashTtsPreview,
-    };
+  group('handle refs', () {
+    test('gemini builds a GeminiOptions ref for any name', () {
+      final ref = googleAI.gemini('gemini-flash-latest');
 
-    test('every curated Gemini model has a typed ref', () {
-      expect(refs.keys, unorderedEquals(KnownGeminiModel.values));
+      expect(ref.name, 'googleai/gemini-flash-latest');
+      expect(ref.customOptions, same(GeminiOptions.$schema));
     });
-
-    for (final MapEntry(key: model, value: ref) in refs.entries) {
-      test('${model.id} ref points at the curated action name', () {
-        expect(ref.name, 'googleai/${model.id}');
-      });
-
-      test('${model.id} ref carries the options of its family', () {
-        expect(ref.customOptions, same(model.family.customOptions));
-      });
-    }
 
     test('geminiTts builds a TTS ref for any name', () {
       final ref = googleAI.geminiTts('gemini-future-preview-tts');

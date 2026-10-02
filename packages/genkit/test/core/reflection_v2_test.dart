@@ -21,6 +21,7 @@ import 'dart:io';
 import 'package:async/async.dart';
 import 'package:genkit/src/ai/generate_middleware.dart';
 import 'package:genkit/src/ai/model.dart';
+import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
@@ -120,6 +121,39 @@ void main() {
         decoded['result']['actions']['/custom/testAction']['name'],
         equals('testAction'),
       );
+    });
+
+    test('listActions advertises a tool\'s declared output schema', () async {
+      registry.register(
+        Tool<String, String>(
+          name: 'echoTool',
+          description: 'echoes input',
+          inputSchema: .string(),
+          outputSchema: .string(),
+          fn: (input, _) => .response(input),
+        ),
+      );
+
+      reflectionServer = ReflectionServerV2(
+        registry,
+        url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
+      );
+      await reflectionServer.start();
+
+      final ws = await wsConnection.future;
+      final queue = StreamQueue(ws);
+      await queue.next; // register
+
+      ws.add(
+        jsonEncode({'jsonrpc': '2.0', 'method': 'listActions', 'id': '1'}),
+      );
+
+      final decoded =
+          jsonDecode(await queue.next as String) as Map<String, dynamic>;
+      final tool = decoded['result']['actions']['/tool.v2/echoTool'];
+      // The declared String schema, not the ToolResult<String> wrapper.
+      expect(tool['outputSchema']['type'], 'string');
     });
 
     test('should handle listValues for middleware', () async {
