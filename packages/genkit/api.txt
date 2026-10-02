@@ -213,7 +213,7 @@ package:genkit/client.dart:
     error (getter: String?)
     id (getter: String?)
     score (getter: Object?)
-    status (getter: EvalStatusEnum?)
+    status (getter: EvalStatus?)
   $TextPart (class extends Object implements $Part, abstract):
     new (constructor: $TextPart Function())
     custom (getter: Map<String, dynamic>?)
@@ -402,11 +402,11 @@ package:genkit/client.dart:
     options= (setter: Map<String, dynamic>?)
     toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
-  EvalStatusEnum (extension type):
-    FAIL (static const getter: EvalStatusEnum)
-    PASS (static const getter: EvalStatusEnum)
-    UNKNOWN (static const getter: EvalStatusEnum)
-    new (const constructor: EvalStatusEnum Function(String))
+  EvalStatus (extension type):
+    fail (static const getter: EvalStatus)
+    pass (static const getter: EvalStatus)
+    unknown (static const getter: EvalStatus)
+    new (const constructor: EvalStatus Function(String))
     value (getter: String)
   FinishReason (extension type):
     aborted (static const getter: FinishReason)
@@ -790,7 +790,7 @@ package:genkit/client.dart:
     toString (method: String Function())
   Score (class extends Object, base):
     $schema (static const getter: SchemanticType<Score>)
-    new (constructor: Score Function({Map<String, dynamic>? details, String? error, String? id, ScoreScore? score, EvalStatusEnum? status}))
+    new (constructor: Score Function({Map<String, dynamic>? details, String? error, String? id, ScoreScore? score, EvalStatus? status}))
     fromJson (constructor: Score Function(Map<String, dynamic>))
     details (getter: Map<String, dynamic>?)
     details= (setter: Map<String, dynamic>?)
@@ -800,8 +800,8 @@ package:genkit/client.dart:
     id= (setter: String?)
     score (getter: Object?)
     score= (setter: ScoreScore)
-    status (getter: EvalStatusEnum?)
-    status= (setter: EvalStatusEnum?)
+    status (getter: EvalStatus?)
+    status= (setter: EvalStatus?)
     toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
   ScoreScore (class extends Object, final):
@@ -1742,7 +1742,7 @@ package:genkit/genkit.dart:
   EvalFnResponse (see above)
   EvalFnResponseEvaluation (see above)
   EvalRequest (see above)
-  EvalStatusEnum (see above)
+  EvalStatus (see above)
   Evaluator (class extends Action<EvalRequest, List<EvalFnResponse>, void, void>, base):
     new (constructor: Evaluator Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest, ActionFnArg<void, EvalRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
   ExecutablePrompt (class<Input> extends Object, final):
@@ -2098,7 +2098,7 @@ package:genkit/lite.dart:
   EvalFnResponse (see above)
   EvalFnResponseEvaluation (see above)
   EvalRequest (see above)
-  EvalStatusEnum (see above)
+  EvalStatus (see above)
   FinishReason (see above)
   GenerateActionOptions (see above)
   GenerateActionOutputConfig (see above)
@@ -2216,7 +2216,7 @@ package:genkit/plugin.dart:
   EvalFnResponse (see above)
   EvalFnResponseEvaluation (see above)
   EvalRequest (see above)
-  EvalStatusEnum (see above)
+  EvalStatus (see above)
   Evaluator (see above)
   FinishReason (see above)
   GenerateActionOptions (see above)
