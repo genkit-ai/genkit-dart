@@ -152,6 +152,22 @@ void main() {
       },
     );
 
+    test('graduate does not promote a 0.x rc below its floor', () async {
+      final (bumps, planner) = await plan(
+        [
+          pkg('genkit', '0.17.0-rc.1'),
+          pkg('genkit_otel', '0.1.1-rc.1', deps: ['genkit']),
+          pkg('genkit_openai', '0.5.0-rc.1', deps: ['genkit', 'genkit_otel']),
+        ],
+        floors: {'genkit': '1.0.0', 'genkit_openai': '1.0.0'},
+        graduate: true,
+      );
+      // genkit_openai is skipped directly and must not be pulled back in by
+      // propagation from genkit_otel either.
+      expect(bumps, {'genkit_otel': '0.1.1'});
+      expect(planner.warnings, hasLength(2));
+    });
+
     test('leave unfloored packages on 0.x rules and propagate', () async {
       final (bumps, _) = await plan(
         [

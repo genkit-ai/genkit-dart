@@ -185,7 +185,13 @@ class Workspace {
       }
     }
 
+    // A bare `floors:` (all floors reached and deleted) parses as null.
     final floorsYaml = yaml['floors'];
+    if (floorsYaml != null && floorsYaml is! YamlMap) {
+      throw FormatException(
+        'floors: must be a map of package name to version, got $floorsYaml.',
+      );
+    }
     final floors = <String, Version>{
       if (floorsYaml is YamlMap)
         for (final MapEntry(:key, :value) in floorsYaml.entries)
@@ -337,10 +343,13 @@ class VersionPlanner {
       final floor = workspace.floors[pkg.name];
       if (floor != null && _base(pkg.version) < floor) {
         if (graduate) {
+          // Skip rather than graduate: 0.17.0-rc.1 -> 0.17.0 would publish a
+          // stable release below the floor.
           warnings.add(
             '${pkg.name} ${pkg.version} is below its floor $floor, but '
             '--graduate does not apply floors. Run an --rc release first.',
           );
+          continue;
         } else {
           proposedBumps[pkg.name] = rcTag != null
               ? Version(floor.major, floor.minor, floor.patch, pre: '$rcTag.1')
@@ -422,6 +431,9 @@ class VersionPlanner {
       for (final pkg in workspace.packages.values) {
         if (pkg.publishToNone) continue;
         if (proposedBumps.containsKey(pkg.name)) continue;
+        // Only reachable with --graduate (otherwise below-floor packages are
+        // already in proposedBumps); don't graduate them via a dependency.
+        if (_isBelowFloor(pkg)) continue;
 
         var hasBumpedDep = false;
         final deps = List<String>.from(pkg.dependencies.keys)
@@ -527,6 +539,11 @@ class VersionPlanner {
   }
 
   static Version _base(Version v) => Version(v.major, v.minor, v.patch);
+
+  bool _isBelowFloor(Package pkg) {
+    final floor = workspace.floors[pkg.name];
+    return floor != null && _base(pkg.version) < floor;
+  }
 
   Version evaluateBaseBump(Version current, BumpType bump) {
     if (bump == BumpType.none) return current;
