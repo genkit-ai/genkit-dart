@@ -29,7 +29,7 @@
 // changes here land together with the matching change in genkit_vertexai.
 library;
 
-export 'src/api_client.dart';
+export 'src/api_client.dart' hide parseGoogleError;
 export 'src/common_plugin.dart' hide toGeminiPart;
 // The catalog enums stay in src/: vertexai only needs the resulting map and
 // the family rules, and the enums would invite users to switch over them.

@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/client.dart';
+import 'package:genkit/plugin.dart' show parseRetryAfter;
 import 'package:test/test.dart';
 
 void main() {
@@ -181,6 +182,53 @@ void main() {
         contains('    INNER EXCEPTION:\n    FormatException: Invalid JSON'),
       );
       expect(string, contains('    INNER STACK TRACE:'));
+    });
+
+    test('toString includes retryAfter when set', () {
+      final e = GenkitException(
+        'slow down',
+        status: StatusCode.resourceExhausted,
+        retryAfter: const Duration(seconds: 2),
+      );
+      expect(e.toString(), contains('(Retry after: 2000ms)'));
+    });
+  });
+
+  group('parseRetryAfter', () {
+    final now = DateTime.utc(2026, 9, 30, 12);
+
+    test('parses delay-seconds', () {
+      expect(parseRetryAfter('120'), const Duration(seconds: 120));
+      expect(parseRetryAfter(' 3 '), const Duration(seconds: 3));
+      expect(parseRetryAfter('0'), Duration.zero);
+    });
+
+    test('tolerates fractional seconds', () {
+      expect(parseRetryAfter('1.5'), const Duration(milliseconds: 1500));
+    });
+
+    test('parses an HTTP-date relative to now', () {
+      expect(
+        parseRetryAfter('Wed, 30 Sep 2026 12:00:30 GMT', now: now),
+        const Duration(seconds: 30),
+      );
+    });
+
+    test('clamps a past HTTP-date to zero', () {
+      expect(
+        parseRetryAfter('Wed, 30 Sep 2026 11:00:00 GMT', now: now),
+        Duration.zero,
+      );
+    });
+
+    test('returns null for missing or invalid values', () {
+      expect(parseRetryAfter(null), isNull);
+      expect(parseRetryAfter(''), isNull);
+      expect(parseRetryAfter('   '), isNull);
+      expect(parseRetryAfter('-5'), isNull);
+      expect(parseRetryAfter('soon'), isNull);
+      expect(parseRetryAfter('NaN'), isNull);
+      expect(parseRetryAfter('Infinity'), isNull);
     });
   });
 }

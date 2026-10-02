@@ -16,6 +16,7 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../core/action.dart';
@@ -169,6 +170,8 @@ GenerateMiddlewareRef<RetryOptions> retry({
 /// [StatusCode.aborted], and [StatusCode.internal].
 ///
 /// It uses exponential backoff with jitter to calculate the delay between retries.
+/// When the error carries a provider hint ([GenkitException.retryAfter], usually
+/// from a `Retry-After` header), the delay is never shorter than that hint.
 final class RetryMiddleware extends GenerateMiddleware {
   /// The maximum number of retry attempts.
   final int maxRetries;
@@ -180,7 +183,8 @@ final class RetryMiddleware extends GenerateMiddleware {
   /// [backoffFactor].
   final Duration initialDelay;
 
-  /// The upper bound on the backoff delay.
+  /// The upper bound on the backoff delay. A provider's
+  /// [GenkitException.retryAfter] hint can still exceed it.
   final Duration maxDelay;
 
   /// The factor by which the delay increases with each retry.
@@ -299,7 +303,10 @@ final class RetryMiddleware extends GenerateMiddleware {
         if (!shouldContinue) {
           rethrow;
         }
-        final delay = _calculateDelay(attempt);
+        final delay = calculateDelay(
+          attempt,
+          retryAfter: e is GenkitException ? e.retryAfter : null,
+        );
         _logger.warning(
           'Retry attempt $attempt after ${delay.inMilliseconds}ms due to error: $e',
         );
@@ -326,7 +333,13 @@ final class RetryMiddleware extends GenerateMiddleware {
     return false;
   }
 
-  Duration _calculateDelay(int attempt) {
+  /// Computes the wait before retry number [attempt] (1-based).
+  ///
+  /// A server-provided [retryAfter] (see [GenkitException.retryAfter]) is a
+  /// floor: retrying sooner would just fail again. It is deliberately not
+  /// capped by [maxDelay], which only bounds our own backoff.
+  @visibleForTesting
+  Duration calculateDelay(int attempt, {Duration? retryAfter}) {
     final initialDelayMs = initialDelay.inMilliseconds;
     final maxDelayMs = maxDelay.inMilliseconds;
     var delayMs = initialDelayMs * pow(backoffFactor, attempt - 1).toDouble();
@@ -335,8 +348,21 @@ final class RetryMiddleware extends GenerateMiddleware {
     }
     if (!noJitter) {
       // Simple jitter: 0.5x to 1.5x
-      delayMs = delayMs * (0.5 + Random().nextDouble());
+      delayMs = delayMs * (0.5 + _random.nextDouble());
+    }
+    // The floor is applied after jitter: jittering after the comparison could
+    // pull a backoff just above retryAfter back below it.
+    final retryAfterMs = retryAfter?.inMilliseconds;
+    if (retryAfterMs != null && delayMs < retryAfterMs) {
+      delayMs = retryAfterMs.toDouble();
+      // Jitter only adds on top, so clients told the same Retry-After don't
+      // stampede together and none of them undercuts the server's hint.
+      if (!noJitter) {
+        delayMs += initialDelayMs * _random.nextDouble();
+      }
     }
     return Duration(milliseconds: delayMs.toInt());
   }
+
+  static final _random = Random();
 }

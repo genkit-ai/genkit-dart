@@ -771,8 +771,13 @@ class OpenAIPlugin extends GenkitPlugin {
       details: details ?? e.toString(),
       cause: e,
       stackTrace: stackTrace,
+      retryAfter: _retryAfterOf(e),
     );
   }
+
+  /// The SDK parses `Retry-After` but only surfaces it on 429s.
+  static Duration? _retryAfterOf(Object e) =>
+      e is sdk.RateLimitException ? e.retryAfter : null;
 
   /// Rejects a `reasoningEffort` aimed at a curated model that does not
   /// accept it.
@@ -969,6 +974,7 @@ class OpenAIPlugin extends GenkitPlugin {
             details: details ?? e.toString(),
             cause: e,
             stackTrace: stackTrace,
+            retryAfter: _retryAfterOf(e),
           );
         } finally {
           if (httpClient == null) {
@@ -1114,6 +1120,7 @@ class OpenAIPlugin extends GenkitPlugin {
               'OpenAI API error: HTTP ${response.statusCode}',
               status: StatusCode.fromHttpStatus(response.statusCode),
               details: response.body,
+              retryAfter: parseRetryAfter(response.headers['retry-after']),
             );
           }
 
