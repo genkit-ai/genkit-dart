@@ -16,6 +16,11 @@ import 'package:genkit/plugin.dart';
 
 import 'utils.dart';
 
+// This catalog and its DeepSeek, xAI and embedder siblings are internal
+// metadata, not API: they only enrich names that resolve anyway, and entries
+// are added, retired and removed with the providers' model lists in any
+// release. Callers name models by string (`openAI.model('gpt-5.5')`).
+
 // Capability presets shared by the catalog entries below.
 //
 // Structured outputs (`response_format: json_schema` with `strict`) arrived
@@ -23,26 +28,19 @@ import 'utils.dart';
 // them advertise no constrained generation. That is the only difference
 // between the `*Supports` presets and their `*LegacySupports` counterparts.
 //
-// `constrained` is load-bearing since #433: `generate` simulates constrained
-// generation for any model that does not claim it, injecting the schema as
-// prompt instructions and clearing `output.schema` before this plugin sees the
-// request. So a `*LegacySupports` tier reaching `buildOpenAIResponseFormat`
-// with no schema gets `json_object` rather than the `json_schema` its snapshot
-// would reject, and a current model keeps the native path.
-//
-// `textOnlyNoJsonSupports` is not helped by this: those snapshots reject
-// `response_format` itself, and #415 deliberately sends `json_object` to every
-// host for a schemaless JSON request. Withholding it for them is a question
-// about that decision, not this one — see #462.
+// Descriptive, not load-bearing: core does not act on `supports`, so this
+// changes what the Dev UI and `listActions` report, not what the generate
+// path does. The plugin sends `response_format` off the request's own output
+// config either way, so a legacy snapshot is still sent `json_schema` for a
+// schema request; the `simulateConstrainedGeneration` middleware is the way
+// to put the schema in the prompt for those (see #462 for the models that
+// reject `response_format` entirely).
 //
 // `dynamicModelInfo`'s fallback claims `constrained: true` for any
 // unrecognised chat-shaped name, on the assumption it's an OpenAI snapshot
 // newer than this catalog. `compatModelInfo` reuses that same fallback for a
 // name it can't classify on a non-OpenAI backend, where the assumption does
-// not hold — see #466.
-//
-// The rest of `supports` remains descriptive — it changes what the Dev UI and
-// `listActions` report, not what the generate path does.
+// not hold (see #466).
 // See https://developers.openai.com/api/docs/guides/structured-outputs.
 
 // A const map literal rejects duplicate keys, so the shared entries cannot be
@@ -618,6 +616,15 @@ ModelInfo dynamicModelInfo(String modelName) {
 
 /// Capability metadata for any OpenAI model name: the curated entry when there
 /// is one, [dynamicModelInfo] otherwise.
+///
+/// Useful as a starting point for a model the plugin does not know by name:
+///
+/// ```dart
+/// CustomModelDefinition(name: 'my-gpt-proxy', info: modelInfoFor('gpt-5.5'))
+/// ```
+///
+/// The result follows the curated list, so it can change between releases as
+/// models are added or retired.
 ModelInfo modelInfoFor(String model) =>
     knownOpenAIModelFor(model)?.info ?? dynamicModelInfo(model);
 

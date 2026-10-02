@@ -45,7 +45,7 @@ base class Person {
   }
 
   int get age {
-    return _json['age'] as int;
+    return (_json['age'] as num).toInt();
   }
 
   set age(int value) {
@@ -74,12 +74,14 @@ base class _PersonTypeFactory extends SchemanticType<Person> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Person',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string(), 'age': $Schema.integer()},
-          required: ['name', 'age'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'age': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['name', 'age'],
+    },
     dependencies: [],
   );
 }
@@ -137,12 +139,14 @@ base class _RecordTypeFactory extends SchemanticType<Record> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Record',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string(), 'extra': $Schema.any()},
-          required: ['name', 'extra'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'extra': <String, Object?>{},
+      },
+      'required': ['name', 'extra'],
+    },
     dependencies: [],
   );
 }
@@ -200,15 +204,17 @@ base class _ScorecardTypeFactory extends SchemanticType<Scorecard> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Scorecard',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'scores': $Schema.object(additionalProperties: $Schema.integer()),
-          },
-          required: ['name', 'scores'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'scores': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{'type': 'integer'},
+        },
+      },
+      'required': ['name', 'scores'],
+    },
     dependencies: [],
   );
 }
@@ -231,7 +237,7 @@ base class CalculatorInput {
       _CalculatorInputTypeFactory();
 
   int get a {
-    return _json['a'] as int;
+    return (_json['a'] as num).toInt();
   }
 
   set a(int value) {
@@ -239,7 +245,7 @@ base class CalculatorInput {
   }
 
   int get b {
-    return _json['b'] as int;
+    return (_json['b'] as num).toInt();
   }
 
   set b(int value) {
@@ -268,12 +274,14 @@ base class _CalculatorInputTypeFactory extends SchemanticType<CalculatorInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CalculatorInput',
-    definition: $Schema
-        .object(
-          properties: {'a': $Schema.integer(), 'b': $Schema.integer()},
-          required: ['a', 'b'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'a': <String, Object?>{'type': 'integer'},
+        'b': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['a', 'b'],
+    },
     dependencies: [],
   );
 }

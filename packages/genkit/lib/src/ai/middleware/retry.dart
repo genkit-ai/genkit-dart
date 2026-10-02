@@ -20,7 +20,6 @@ import 'package:schemantic/schemantic.dart';
 
 import '../../core/action.dart';
 import '../../core/cancellation.dart';
-import '../../core/plugin.dart';
 import '../../exception.dart';
 import '../../types.dart';
 import '../generate_middleware.dart';
@@ -33,58 +32,130 @@ final _logger = Logger('genkit.middleware.retry');
 @Schema()
 abstract class $RetryOptions {
   int? get maxRetries;
-  List<StatusCodes>? get statuses;
+
+  // Wire names (see [StatusCode.wireName]) rather than `List<StatusCode>`:
+  // schemantic serializes enums by Dart name, which would leak lowerCamelCase
+  // into the JSON config. [retry] provides the typed API.
+  // TODO: restore the `enum` constraint on items once schemantic supports
+  // per-item string constraints (`@StringField` is String-only today).
+  @Field(
+    description:
+        'Canonical status names that trigger a retry (e.g. UNAVAILABLE).',
+  )
+  List<String>? get statuses;
+
+  // Delays stay in milliseconds here to match the JS SDK and the Dev UI;
+  // [retry] and [RetryMiddleware] take `Duration`s.
   int? get initialDelayMs;
   int? get maxDelayMs;
   double? get backoffFactor;
   bool? get noJitter;
-  bool? get retryModel;
+  bool? get noRetryModel;
   bool? get retryTools;
 }
 
-class RetryPlugin extends GenkitPlugin {
-  @override
-  String get name => 'retry';
+/// Name under which [RetryMiddleware] is registered.
+const _name = 'retry';
 
-  @override
-  List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<RetryOptions>(
-      name: 'retry',
-      configSchema: RetryOptions.$schema,
-      create: (config, ctx) => RetryMiddleware(
-        maxRetries: config?.maxRetries ?? 3,
-        statuses: config?.statuses ?? RetryMiddleware.defaultRetryStatuses,
-        initialDelayMs: config?.initialDelayMs ?? 1000,
-        maxDelayMs: config?.maxDelayMs ?? 60000,
-        backoffFactor: config?.backoffFactor ?? 2.0,
-        noJitter: config?.noJitter ?? false,
-        retryModel: config?.retryModel ?? true,
-        retryTools: config?.retryTools ?? false,
-      ),
-    ),
-  ];
+/// Lets [retry] refs resolve. Core registers it on every `Genkit` instance,
+/// so callers never add it themselves.
+final retryDef = defineMiddleware<RetryOptions>(
+  name: _name,
+  configSchema: RetryOptions.$schema,
+  create: (config, ctx) {
+    _rejectLegacyKeys(config);
+    return RetryMiddleware(
+      maxRetries: config?.maxRetries ?? 3,
+      statuses: switch (config?.statuses) {
+        final names? => _parseStatuses(names),
+        null => RetryMiddleware.defaultRetryStatuses,
+      },
+      initialDelay: switch (config?.initialDelayMs) {
+        final ms? => Duration(milliseconds: ms),
+        null => RetryMiddleware.defaultInitialDelay,
+      },
+      maxDelay: switch (config?.maxDelayMs) {
+        final ms? => Duration(milliseconds: ms),
+        null => RetryMiddleware.defaultMaxDelay,
+      },
+      backoffFactor: config?.backoffFactor ?? 2.0,
+      noJitter: config?.noJitter ?? false,
+      noRetryModel: config?.noRetryModel ?? false,
+      retryTools: config?.retryTools ?? false,
+    );
+  },
+);
+
+/// Rejects the removed `retryModel` key.
+///
+/// The schema ignores unknown keys, so a saved `{"retryModel": false}` would
+/// otherwise parse fine and silently retry model calls, the opposite of what
+/// it asked for.
+void _rejectLegacyKeys(RetryOptions? config) {
+  if (config != null && config.toJson().containsKey('retryModel')) {
+    throw GenkitException(
+      'Retry config "retryModel" is no longer supported; use '
+      '"noRetryModel": true to skip retrying model calls.',
+      status: StatusCode.invalidArgument,
+    );
+  }
 }
 
+/// Parses configured status names, rejecting any that are not a wire name.
+///
+/// Config arrives as JSON (Dev UI, raw middleware maps), so a typo or a Dart
+/// name like `unavailable` must fail loudly. [StatusCode.fromWireName] maps
+/// unrecognized names to `unknown`, which suits statuses from newer peers but
+/// here would silently retry UNKNOWN errors instead. Matches on the exact
+/// wire name so `UNKNOWN` itself stays valid.
+List<StatusCode> _parseStatuses(List<String> names) => [
+  for (final name in names)
+    StatusCode.values.firstWhere(
+      (c) => c.wireName == name,
+      orElse: () => throw GenkitException(
+        'Unknown retry status "$name". Expected one of: '
+        '${StatusCode.values.map((c) => c.wireName).join(', ')}.',
+        status: StatusCode.invalidArgument,
+      ),
+    ),
+];
+
+/// Retries failed model (and optionally tool) calls with exponential backoff.
+///
+/// Built in: no plugin needs to be registered.
+///
+/// ```dart
+/// final response = await ai.generate(
+///   model: googleAI.gemini('gemini-flash-latest'),
+///   prompt: 'Reliable request',
+///   use: [retry(maxRetries: 3)],
+/// );
+/// ```
+///
+/// Delays are whole milliseconds on the wire, so [initialDelay] and [maxDelay]
+/// are truncated to milliseconds.
+///
+/// With the Lite API, pass a [RetryMiddleware] instance instead.
 GenerateMiddlewareRef<RetryOptions> retry({
   int? maxRetries,
-  List<StatusCodes>? statuses,
-  int? initialDelayMs,
-  int? maxDelayMs,
+  List<StatusCode>? statuses,
+  Duration? initialDelay,
+  Duration? maxDelay,
   double? backoffFactor,
   bool? noJitter,
-  bool? retryModel,
+  bool? noRetryModel,
   bool? retryTools,
 }) {
   return middlewareRef(
-    name: 'retry',
+    name: _name,
     config: RetryOptions(
       maxRetries: maxRetries,
-      statuses: statuses,
-      initialDelayMs: initialDelayMs,
-      maxDelayMs: maxDelayMs,
+      statuses: statuses?.map((s) => s.wireName).toList(),
+      initialDelayMs: initialDelay?.inMilliseconds,
+      maxDelayMs: maxDelay?.inMilliseconds,
       backoffFactor: backoffFactor,
       noJitter: noJitter,
-      retryModel: retryModel,
+      noRetryModel: noRetryModel,
       retryTools: retryTools,
     ),
   );
@@ -93,22 +164,24 @@ GenerateMiddlewareRef<RetryOptions> retry({
 /// A middleware that retries model and tool requests on failure.
 ///
 /// Only [GenkitException]s with specific status codes are retried.
-/// By default, it retries on [StatusCodes.UNAVAILABLE], [StatusCodes.DEADLINE_EXCEEDED],
-/// [StatusCodes.RESOURCE_EXHAUSTED], [StatusCodes.ABORTED], and [StatusCodes.INTERNAL].
+/// By default, it retries on [StatusCode.unavailable],
+/// [StatusCode.deadlineExceeded], [StatusCode.resourceExhausted],
+/// [StatusCode.aborted], and [StatusCode.internal].
 ///
 /// It uses exponential backoff with jitter to calculate the delay between retries.
-class RetryMiddleware extends GenerateMiddleware {
+final class RetryMiddleware extends GenerateMiddleware {
   /// The maximum number of retry attempts.
   final int maxRetries;
 
   /// The list of status codes that should trigger a retry.
-  final List<StatusCodes> statuses;
+  final List<StatusCode> statuses;
 
-  /// The initial delay in milliseconds for the first retry.
-  final int initialDelayMs;
+  /// The delay before the first retry. Later retries multiply it by
+  /// [backoffFactor].
+  final Duration initialDelay;
 
-  /// The maximum delay in milliseconds between retries.
-  final int maxDelayMs;
+  /// The upper bound on the backoff delay.
+  final Duration maxDelay;
 
   /// The factor by which the delay increases with each retry.
   final double backoffFactor;
@@ -123,33 +196,52 @@ class RetryMiddleware extends GenerateMiddleware {
   /// If it returns `true` (or if it is null), retrying continues.
   final bool Function(Object error, int attempt)? onError;
 
-  /// Whether to retry model requests. Defaults to `true`.
-  final bool retryModel;
+  /// Whether to skip retrying model requests (e.g. to retry only tools).
+  /// Model requests are retried by default.
+  final bool noRetryModel;
 
   /// Whether to retry tool requests. Defaults to `false`.
   final bool retryTools;
 
   /// The default list of status codes that trigger a retry.
   static const defaultRetryStatuses = [
-    StatusCodes.UNAVAILABLE,
-    StatusCodes.DEADLINE_EXCEEDED,
-    StatusCodes.RESOURCE_EXHAUSTED,
-    StatusCodes.ABORTED,
-    StatusCodes.INTERNAL,
+    StatusCode.unavailable,
+    StatusCode.deadlineExceeded,
+    StatusCode.resourceExhausted,
+    StatusCode.aborted,
+    StatusCode.internal,
   ];
 
+  /// The default [initialDelay].
+  static const defaultInitialDelay = Duration(seconds: 1);
+
+  /// The default [maxDelay].
+  static const defaultMaxDelay = Duration(minutes: 1);
+
   /// Creates a [RetryMiddleware].
+  ///
+  /// A negative [initialDelay] or [maxDelay] throws [ArgumentError].
   RetryMiddleware({
     this.maxRetries = 3,
     this.statuses = defaultRetryStatuses,
-    this.initialDelayMs = 1000,
-    this.maxDelayMs = 60000,
+    this.initialDelay = defaultInitialDelay,
+    this.maxDelay = defaultMaxDelay,
     this.backoffFactor = 2.0,
     this.noJitter = false,
     this.onError,
-    this.retryModel = true,
+    this.noRetryModel = false,
     this.retryTools = false,
-  });
+  }) {
+    _checkDelay(initialDelay, 'initialDelay');
+    _checkDelay(maxDelay, 'maxDelay');
+  }
+
+  // Future.delayed treats a negative delay as zero, which would hide a bug.
+  static void _checkDelay(Duration delay, String name) {
+    if (delay.isNegative) {
+      throw ArgumentError.value(delay, name, 'must not be negative');
+    }
+  }
 
   @override
   Future<ModelResponse> model(
@@ -161,7 +253,7 @@ class RetryMiddleware extends GenerateMiddleware {
     )
     next,
   ) {
-    if (!retryModel) {
+    if (noRetryModel) {
       return next(request, ctx);
     }
     return _retry(() => next(request, ctx), ctx.cancel);
@@ -235,7 +327,9 @@ class RetryMiddleware extends GenerateMiddleware {
   }
 
   Duration _calculateDelay(int attempt) {
-    var delayMs = initialDelayMs * pow(backoffFactor, attempt - 1);
+    final initialDelayMs = initialDelay.inMilliseconds;
+    final maxDelayMs = maxDelay.inMilliseconds;
+    var delayMs = initialDelayMs * pow(backoffFactor, attempt - 1).toDouble();
     if (delayMs > maxDelayMs) {
       delayMs = maxDelayMs.toDouble();
     }

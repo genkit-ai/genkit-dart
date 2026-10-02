@@ -31,17 +31,18 @@ void main() {
       (action.metadata['model'] as Map).cast<String, dynamic>();
 
   group('known model resolution', () {
-    for (final model in vertexAiKnownGeminiModels) {
-      test('${model.id} resolves with curated metadata', () {
-        final action = plugin().resolve(.model, model.id);
+    for (final MapEntry(key: id, value: curated)
+        in vertexAiKnownModels.entries) {
+      test('$id resolves with curated metadata', () {
+        final action = plugin().resolve(.model, id);
 
         expect(action, isNotNull);
         final info = modelInfoOf(action!);
-        expect(info['label'], model.label);
+        expect(info['label'], curated.label);
         expect(info['stage'], 'stable');
         expect(
           (info['supports'] as Map).cast<String, dynamic>(),
-          model.info.supports,
+          curated.supports,
         );
       });
     }
@@ -85,19 +86,45 @@ void main() {
     });
   });
 
-  group('vertexAiKnownGeminiModels', () {
-    test('curates the text and image set and leaves TTS out', () {
-      expect(
-        vertexAiKnownGeminiModels,
-        KnownGeminiModel.values.where(
-          (model) => model.family != GeminiModelFamily.tts,
-        ),
-      );
-      expect(vertexAiKnownGeminiModels, isNotEmpty);
+  group('vertexAiKnownModels', () {
+    test('curates the Gemini text and image set, not Gemma or TTS', () {
+      expect(vertexAiKnownModels, isNotEmpty);
+      expect(vertexAiKnownModels.keys, everyElement(startsWith('gemini-')));
       expect(
         vertexAiKnownModels.keys.where((id) => id.contains('-tts')),
         isEmpty,
       );
+      expect(
+        vertexAiKnownModels.keys.where(
+          (id) => GeminiModelFamily.of(id) == GeminiModelFamily.image,
+        ),
+        isNotEmpty,
+      );
+    });
+
+    test('picks up new Gemini API text entries but not their TTS', () {
+      expect(vertexAiKnownModels, contains('gemini-3.8-flash'));
+      expect(knownGeminiModels, contains('gemini-3.8-flash-tts'));
+      expect(vertexAiKnownModels, isNot(contains('gemini-3.8-flash-tts')));
+    });
+
+    test('shares the Gemini API entries rather than copying them', () {
+      for (final MapEntry(:key, :value) in vertexAiKnownModels.entries) {
+        if (!knownGeminiModels.containsKey(key)) continue; // Vertex-only
+        expect(value, same(knownGeminiModels[key]), reason: key);
+      }
+    });
+
+    test('keeps 2.5 Pro and Flash, which only Vertex still serves', () {
+      for (final id in ['gemini-2.5-pro', 'gemini-2.5-flash']) {
+        expect(knownGeminiModels, isNot(contains(id)), reason: id);
+        expect(vertexAiKnownModels[id]?.stage, 'stable', reason: id);
+        expect(
+          vertexAiKnownModels[id]?.supports,
+          GeminiModelFamily.text.supports,
+          reason: id,
+        );
+      }
     });
   });
 
@@ -122,12 +149,15 @@ void main() {
     });
 
     test('includes curated models missing from discovery', () async {
-      final actions = await plugin().list();
+      final client = MockHttpClient(
+        publisherModelsResponse: '{"publisherModels": []}',
+      );
+      final actions = await plugin(client: client).list();
       final names = actions.map((a) => a.name).toList();
 
       expect(names, contains('vertexai/gemini-2.5-pro'));
-      for (final model in vertexAiKnownGeminiModels) {
-        expect(names, contains('vertexai/${model.id}'));
+      for (final id in vertexAiKnownModels.keys) {
+        expect(names, contains('vertexai/$id'));
       }
 
       final curated = actions.firstWhere(
@@ -172,8 +202,8 @@ void main() {
       final actions = await plugin(client: client).list();
       final names = actions.map((a) => a.name).toList();
 
-      for (final model in vertexAiKnownGeminiModels) {
-        expect(names, contains('vertexai/${model.id}'));
+      for (final id in vertexAiKnownModels.keys) {
+        expect(names, contains('vertexai/$id'));
       }
       expect(names.where((n) => n.contains('embedding')), isEmpty);
       final curated = actions.firstWhere(
@@ -196,8 +226,8 @@ void main() {
         final names = actions.map((a) => a.name).toList();
 
         expect(client.requestUrls, isEmpty);
-        for (final model in vertexAiKnownGeminiModels) {
-          expect(names, contains('vertexai/${model.id}'));
+        for (final id in vertexAiKnownModels.keys) {
+          expect(names, contains('vertexai/$id'));
         }
       },
     );

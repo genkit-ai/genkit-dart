@@ -14,6 +14,7 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/known_xai_models.dart';
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/provider.dart';
 import 'package:http/http.dart' as http;
@@ -78,14 +79,6 @@ void main() {
         throwsUnsupportedError,
       );
     });
-
-    test('typed refs cover the catalog', () {
-      expect(
-        XaiModels.all.map((r) => r.name).toSet(),
-        knownXaiChatModels.map((id) => 'xai/$id').toSet(),
-      );
-      expect(XaiModels.grok46.name, 'xai/grok-4.6');
-    });
   });
 
   group('plugin wiring', () {
@@ -96,7 +89,7 @@ void main() {
       );
       addTearDown(ai.shutdown);
 
-      await ai.generate(model: XaiModels.grok46, prompt: 'hi');
+      await ai.generate(model: xAI.model('grok-4.6'), prompt: 'hi');
 
       expect(requests.single.url.host, 'api.x.ai');
       expect(requests.single.url.path, '/v1/chat/completions');
@@ -120,7 +113,7 @@ void main() {
       );
       addTearDown(ai.shutdown);
 
-      await ai.generate(model: XaiModels.grok46, prompt: 'hi');
+      await ai.generate(model: xAI.model('grok-4.6'), prompt: 'hi');
 
       expect(requests.single.url.path, '/v1/chat/completions');
     });
@@ -158,7 +151,10 @@ void main() {
       );
       addTearDown(ai.shutdown);
 
-      final response = await ai.generate(model: XaiModels.grok46, prompt: 'hi');
+      final response = await ai.generate(
+        model: xAI.model('grok-4.6'),
+        prompt: 'hi',
+      );
 
       expect(response.finishReason, FinishReason.failed);
       expect(response.error?.message, contains('XAI_API_KEY'));
@@ -189,7 +185,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       final response = await ai.generate(
-        model: XaiModels.grok420NonReasoning,
+        model: xAI.model('grok-4.20-0309-non-reasoning'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'none'),
       );
@@ -268,7 +264,7 @@ void main() {
       );
 
       await ai.generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'hi',
         toolNames: ['getPopulation'],
       );
@@ -294,7 +290,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'hi',
         config: OpenAIChatOptions(maxTokens: 128),
       );
@@ -312,7 +308,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'give me json',
         outputFormat: 'json',
         outputSchema: .string(),
@@ -333,7 +329,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'xhigh'),
       );
@@ -353,7 +349,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: XaiModels.grok46,
+        model: xAI.model('grok-4.6'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'minimal'),
       );
@@ -368,7 +364,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       final response = await ai.generate(
-        model: XaiModels.grok420NonReasoning,
+        model: xAI.model('grok-4.20-0309-non-reasoning'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );

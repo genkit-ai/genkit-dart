@@ -34,22 +34,12 @@ import 'package:agents_sample/weather_agent.dart';
 import 'package:agents_sample/weather_agent_stateless.dart';
 import 'package:agents_sample/workspace_agent.dart';
 import 'package:agents_sample/workspace_browser.dart';
-import 'package:genkit/experimental.dart';
+import 'package:genkit/experimental_io.dart';
+import 'package:genkit/io.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
-import 'package:shelf_cors_headers/shelf_cors_headers.dart';
 import 'package:shelf_router/shelf_router.dart';
-
-/// Mounts an agent's turn action plus its `/getSnapshot` and `/abort` actions.
-void _mountAgent(Router router, String path, Agent agent) {
-  router.post('/api/$path', shelfHandler(agent.action));
-  router.post(
-    '/api/$path/getSnapshot',
-    shelfHandler(agent.getSnapshotDataAction),
-  );
-  router.post('/api/$path/abort', shelfHandler(agent.abortAgentAction));
-}
 
 void main() async {
   // The orchestrator references its sub-agents ('researcher', 'coder') by name,
@@ -57,63 +47,63 @@ void main() async {
   // `defineAgent(...)` registration before any delegation happens.
   registerSubAgents();
 
-  final router = Router();
+  final api = GenkitRouter()
+    // Workspace browser flows used by the coding-agent page.
+    ..addAction(listWorkspaceFiles, path: '/workspace/files')
+    ..addAction(readWorkspaceFile, path: '/workspace/file');
 
-  // Friendly root route. This server only exposes the agents API under
-  // `/api/...`; the web UI is a separate Jaspr app served on its own port.
-  router.get('/', (Request request) {
-    return Response.ok(
-      'Genkit Dart agents API server.\n\n'
-      'This is the API server (agents are mounted under /api/...).\n'
-      'It does NOT serve the web UI.\n\n'
-      'To use the web UI:\n'
-      '  cd web && jaspr serve --port 5173\n'
-      'then open http://localhost:5173\n',
-      headers: {'Content-Type': 'text/plain'},
+  // Server-managed agents get turn + getSnapshot + abort; the client-managed
+  // weatherAgentStateless gets only its turn route.
+  for (final agent in [
+    weatherAgent,
+    weatherAgentStateless,
+    bankingAgent,
+    backgroundAgent,
+    branchingAgent,
+    taskAgent,
+    tripPlannerAgent,
+    codingAgent,
+    orchestratorAgent,
+    workspaceAgent,
+    researchAgent,
+  ]) {
+    api.addAgent(agent);
+  }
+
+  final router = Router()
+    // Friendly root route. This server only exposes the agents API under
+    // `/api/...`; the web UI is a separate Jaspr app served on its own port.
+    ..get('/', (Request request) {
+      return Response.ok(
+        'Genkit Dart agents API server.\n\n'
+        'This is the API server (agents are mounted under /api/...).\n'
+        'It does NOT serve the web UI.\n\n'
+        'To use the web UI:\n'
+        '  cd web && jaspr serve --port 5173\n'
+        'then open http://localhost:5173\n',
+        headers: {'Content-Type': 'text/plain'},
+      );
+    })
+    // `mount` strips the prefix, so agents are served at `/api/<agentName>`.
+    // The web UI runs on another port, so the API needs CORS (any origin by
+    // default, and the trace id headers are readable by browser code).
+    ..mount(
+      '/api/',
+      api.asShelfHandler(
+        cors: const CorsOptions(
+          allowedHeaders: ['Content-Type', 'Accept', 'X-Genkit-Stream-Id'],
+        ),
+      ),
     );
-  });
-
-  // Server-managed agents (turn + state + abort).
-  _mountAgent(router, 'weatherAgent', weatherAgent);
-
-  _mountAgent(router, 'bankingAgent', bankingAgent);
-  _mountAgent(router, 'backgroundAgent', backgroundAgent);
-  _mountAgent(router, 'branchingAgent', branchingAgent);
-  _mountAgent(router, 'taskAgent', taskAgent);
-  _mountAgent(router, 'tripPlannerAgent', tripPlannerAgent);
-  _mountAgent(router, 'codingAgent', codingAgent);
-  _mountAgent(router, 'orchestratorAgent', orchestratorAgent);
-  _mountAgent(router, 'workspaceAgent', workspaceAgent);
-  _mountAgent(router, 'researchAgent', researchAgent);
-
-  // Client-managed (stateless) agent — only the turn action is meaningful.
-  router.post(
-    '/api/weatherAgentStateless',
-    shelfHandler(weatherAgentStateless.action),
-  );
-
-  // Workspace browser flows used by the coding-agent page.
-  router.post('/api/workspace/files', shelfHandler(listWorkspaceFiles));
-  router.post('/api/workspace/file', shelfHandler(readWorkspaceFile));
 
   final handler = const Pipeline()
       .addMiddleware(logRequests())
-      .addMiddleware(
-        corsHeaders(
-          headers: {
-            'Access-Control-Allow-Origin': '*',
-            'Access-Control-Allow-Headers':
-                'Content-Type, Accept, X-Genkit-Stream-Id',
-            'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          },
-        ),
-      )
       .addHandler(router.call);
 
   final port = int.tryParse(Platform.environment['PORT'] ?? '') ?? 8080;
   final server = await io.serve(handler, InternetAddress.anyIPv4, port);
-  print('\n🚀 Agents API server running on http://localhost:${server.port}');
-  print('   (This serves the agents API under /api/... — NOT the web UI.)');
+  print('\nAgents API server running on http://localhost:${server.port}');
+  print('   (This serves the agents API under /api/..., NOT the web UI.)');
   print(
     '   Web UI: in another terminal run '
     '"cd web && jaspr serve --port 5173"\n'

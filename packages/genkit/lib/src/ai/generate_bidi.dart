@@ -84,7 +84,7 @@ Future<GenerateBidiSession> runGenerateBidi(
   if (model == null) {
     throw GenkitException(
       'Bidi Model $modelName not found',
-      status: StatusCodes.NOT_FOUND,
+      status: StatusCode.notFound,
     );
   }
 
@@ -189,7 +189,7 @@ Future<GenerateBidiSession> runGenerateBidi(
                   shortToolName(t.name) == requestedName,
               orElse: () => throw GenkitException(
                 'Tool $requestedName not found',
-                status: StatusCodes.NOT_FOUND,
+                status: StatusCode.notFound,
               ),
             );
 
@@ -205,7 +205,7 @@ Future<GenerateBidiSession> runGenerateBidi(
               'during a live (bidi) session. Interrupts are not supported by '
               'generateBidi; use a unary generate() call for human-in-the-loop '
               'tools.',
-              status: StatusCodes.UNIMPLEMENTED,
+              status: StatusCode.unimplemented,
             );
 
             final ToolResult result;

@@ -93,9 +93,6 @@ void main() {
         String? receivedInstructions;
         genkit.defineModel(
           name: 'instructionModel',
-          // Claims native constrained generation, so the simulation fallback
-          // stays out of the way and this tests the formatter alone.
-          info: ModelInfo(supports: {'constrained': true}),
           fn: (req, ctx) async {
             for (final m in req.messages) {
               for (final p in m.content) {
@@ -336,11 +333,6 @@ void main() {
       ModelRequest? capturedRequest;
       genkit.defineModel(
         name: 'echoModel',
-        // Claims native constrained generation, so the simulation fallback
-        // stays out of the way and this tests `applyFormat` alone. Without the
-        // claim the middleware appends the schema alongside these manual
-        // instructions, which is its own test.
-        info: ModelInfo(supports: {'constrained': true}),
         fn: (req, ctx) async {
           capturedRequest = req;
           return ModelResponse(
@@ -428,7 +420,7 @@ void main() {
       );
 
       final chunks = await stream.toList();
-      final outputs = chunks.map((c) => c.jsonOutput).toList();
+      final outputs = chunks.map((c) => c.output).toList();
 
       expect(outputs.length, 3);
       // Chunk 1: '{"a":' -> repaired to {"a": null}

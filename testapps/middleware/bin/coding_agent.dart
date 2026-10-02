@@ -88,7 +88,7 @@ void main() async {
 
     try {
       List<ToolRequestPart>? interruptRestart;
-      late GenerateResponseHelper response;
+      late GenerateResult response;
 
       while (true) {
         response = await ai.generate(

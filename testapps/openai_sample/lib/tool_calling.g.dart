@@ -71,9 +71,13 @@ base class _WeatherFlowInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherFlowInput',
-    definition: $Schema
-        .object(properties: {'prompt': $Schema.string()}, required: ['prompt'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'prompt': <String, Object?>{'type': 'string'},
+      },
+      'required': ['prompt'],
+    },
     dependencies: [],
   );
 }
@@ -142,15 +146,17 @@ base class _WeatherToolInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'location': $Schema.string(),
-            'unit': $Schema.string(enumValues: ['celsius', 'fahrenheit']),
-          },
-          required: ['location'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'location': <String, Object?>{'type': 'string'},
+        'unit': <String, Object?>{
+          'type': 'string',
+          'enum': ['celsius', 'fahrenheit'],
+        },
+      },
+      'required': ['location'],
+    },
     dependencies: [],
   );
 }
@@ -207,7 +213,7 @@ base class WeatherToolOutput {
   }
 
   int? get humidity {
-    return _json['humidity'] as int?;
+    return (_json['humidity'] as num?)?.toInt();
   }
 
   set humidity(int? value) {
@@ -241,17 +247,16 @@ base class _WeatherToolOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'temperature': $Schema.number(),
-            'condition': $Schema.string(),
-            'unit': $Schema.string(),
-            'humidity': $Schema.integer(),
-          },
-          required: ['temperature', 'condition', 'unit'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'temperature': <String, Object?>{'type': 'number'},
+        'condition': <String, Object?>{'type': 'string'},
+        'unit': <String, Object?>{'type': 'string'},
+        'humidity': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['temperature', 'condition', 'unit'],
+    },
     dependencies: [],
   );
 }

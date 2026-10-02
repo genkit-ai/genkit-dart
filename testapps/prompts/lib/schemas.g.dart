@@ -44,6 +44,26 @@ const _$JokeInputJsonSchema = {
   'required': ['topic', 'style'],
 };
 
+Joke _$JokeFromJson(Map<String, dynamic> json) => Joke(
+  setup: json['setup'] as String,
+  punchline: json['punchline'] as String,
+);
+
+Map<String, dynamic> _$JokeToJson(Joke instance) => <String, dynamic>{
+  'setup': instance.setup,
+  'punchline': instance.punchline,
+};
+
+const _$JokeJsonSchema = {
+  r'$schema': 'https://json-schema.org/draft/2020-12/schema',
+  'type': 'object',
+  'properties': {
+    'setup': {'type': 'string', 'description': "The joke's setup line."},
+    'punchline': {'type': 'string', 'description': "The joke's punchline."},
+  },
+  'required': ['setup', 'punchline'],
+};
+
 EmailInput _$EmailInputFromJson(Map<String, dynamic> json) => EmailInput(
   recipient: json['recipient'] as String,
   subject: json['subject'] as String,
@@ -63,6 +83,32 @@ const _$EmailInputJsonSchema = {
     'subject': {'type': 'string', 'description': 'The email subject.'},
   },
   'required': ['recipient', 'subject'],
+};
+
+Summary _$SummaryFromJson(Map<String, dynamic> json) => Summary(
+  summary: json['summary'] as String,
+  keyPoints: (json['keyPoints'] as List<dynamic>)
+      .map((e) => e as String)
+      .toList(),
+);
+
+Map<String, dynamic> _$SummaryToJson(Summary instance) => <String, dynamic>{
+  'summary': instance.summary,
+  'keyPoints': instance.keyPoints,
+};
+
+const _$SummaryJsonSchema = {
+  r'$schema': 'https://json-schema.org/draft/2020-12/schema',
+  'type': 'object',
+  'properties': {
+    'summary': {'type': 'string', 'description': 'The summary text.'},
+    'keyPoints': {
+      'type': 'array',
+      'items': {'type': 'string'},
+      'description': 'Key points pulled out of the source text.',
+    },
+  },
+  'required': ['summary', 'keyPoints'],
 };
 
 StoryInput _$StoryInputFromJson(Map<String, dynamic> json) => StoryInput(

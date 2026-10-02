@@ -12,644 +12,245 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// The protocol itself is tested in package:genkit (test/server); these tests
+// cover only the shelf translation.
+
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:genkit/client.dart';
 import 'package:genkit/genkit.dart';
-// resetInstrumentation is test-only and not part of the public telemetry API.
-import 'package:genkit/src/o11y/instrumentation.dart' show resetInstrumentation;
-import 'package:genkit/telemetry.dart';
+import 'package:genkit/io.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:http/http.dart' as http;
-import 'package:schemantic/schemantic.dart';
 import 'package:shelf/shelf.dart';
+import 'package:shelf/shelf_io.dart' as io;
+import 'package:shelf_router/shelf_router.dart';
 import 'package:test/test.dart';
 
-part 'shelf_test.g.dart';
+Request _post(String path, Object? data, {Map<String, String>? headers}) =>
+    Request(
+      'POST',
+      Uri.parse('http://localhost$path'),
+      body: jsonEncode({'data': data}),
+      headers: {'content-type': 'application/json', ...?headers},
+    );
 
-@Schema()
-abstract class $ShelfTestOutput {
-  String get greeting;
-}
-
-@Schema()
-abstract class $ShelfTestStream {
-  String get chunk;
-}
-
-/// Minimal [Instrumentation] that hands out fixed trace/span ids, so tests can
-/// assert the shelf handler surfaces them as `x-genkit-*` headers.
-class _FakeInstrumentation implements Instrumentation {
-  final String traceId;
-  final String spanId;
-
-  _FakeInstrumentation({required this.traceId, required this.spanId});
-
-  @override
-  Future<O> runInNewSpan<O>(
-    SpanMetadata metadata,
-    Future<O> Function([SpanContext? span]) next,
-  ) {
-    return next(_FakeSpanContext(traceId, spanId));
-  }
-}
-
-class _FakeSpanContext implements SpanContext {
-  @override
-  final String traceId;
-  @override
-  final String spanId;
-
-  _FakeSpanContext(this.traceId, this.spanId);
-
-  @override
-  void setMetadata(Map<String, Object?> metadata) {}
-}
+Future<Object?> _result(Response response) async =>
+    (jsonDecode(await response.readAsString()) as Map)['result'];
 
 void main() {
   late Genkit ai;
+  late Flow<String, String, void, void> echo;
   HttpServer? server;
-  late int port;
 
   setUp(() {
     ai = Genkit();
-  });
-
-  tearDown(() async {
-    await server?.close(force: true);
-    resetInstrumentation();
-  });
-
-  test('Unary flow', () async {
-    final echoFlow = ai.defineFlow(
+    echo = ai.defineFlow(
       name: 'echo',
       fn: (input, _) async => 'Echo: $input',
       inputSchema: .string(),
       outputSchema: .string(),
     );
-
-    server = await startFlowServer(flows: [echoFlow], port: 0);
-    port = server!.port;
-
-    final action = defineRemoteAction(
-      url: 'http://localhost:$port/echo',
-      fromResponse: (data) => data as String,
-    );
-
-    final result = await action(input: 'hello');
-    expect(result, 'Echo: hello');
   });
 
-  test('Streaming flow', () async {
-    final streamFlow = ai.defineFlow(
-      name: 'stream',
-      fn: (input, ctx) async {
-        ctx.sendChunk('Chunk 1');
-        await Future.delayed(const Duration(milliseconds: 10));
-        ctx.sendChunk('Chunk 2');
-        return 'Done';
-      },
-      inputSchema: .string(),
-      outputSchema: .string(),
-      streamSchema: .string(),
-    );
-
-    server = await startFlowServer(flows: [streamFlow], port: 0);
-    port = server!.port;
-
-    final action = defineRemoteAction(
-      url: 'http://localhost:$port/stream',
-      fromResponse: (data) => data as String,
-      fromStreamChunk: (data) => data as String,
-    );
-
-    final stream = action.stream(input: 'start');
-    final chunks = <String>[];
-    await for (final chunk in stream) {
-      chunks.add(chunk);
-    }
-
-    expect(chunks, ['Chunk 1', 'Chunk 2']);
-    expect(await stream.onResult, 'Done');
-  });
-
-  test('Unary flow receives init', () async {
-    final initFlow = ai.defineFlow<String, String, void, String>(
-      name: 'unaryInit',
-      fn: (input, ctx) async => 'input=$input init=${ctx.init}',
-      inputSchema: .string(),
-      outputSchema: .string(),
-      initSchema: .string(),
-    );
-
-    server = await startFlowServer(flows: [initFlow], port: 0);
-    port = server!.port;
-
-    final action = defineRemoteAction<String, String, void, String>(
-      url: 'http://localhost:$port/unaryInit',
-      fromResponse: (data) => data as String,
-    );
-
-    final result = await action.call(input: 'hello', init: 'config-1');
-    expect(result, 'input=hello init=config-1');
-  });
-
-  test('Streaming flow receives init', () async {
-    final initStreamFlow = ai.defineFlow<String, String, String, String>(
-      name: 'streamInit',
-      fn: (input, ctx) async {
-        ctx.sendChunk('chunk init=${ctx.init}');
-        return 'done init=${ctx.init}';
-      },
-      inputSchema: .string(),
-      outputSchema: .string(),
-      streamSchema: .string(),
-      initSchema: .string(),
-    );
-
-    server = await startFlowServer(flows: [initStreamFlow], port: 0);
-    port = server!.port;
-
-    final action = defineRemoteAction<String, String, String, String>(
-      url: 'http://localhost:$port/streamInit',
-      fromResponse: (data) => data as String,
-      fromStreamChunk: (data) => data as String,
-    );
-
-    final stream = action.stream(input: 'start', init: 'config-2');
-    final chunks = <String>[];
-    await for (final chunk in stream) {
-      chunks.add(chunk);
-    }
-
-    expect(chunks, ['chunk init=config-2']);
-    expect(await stream.onResult, 'done init=config-2');
-  });
-
-  test('Context provider', () async {
-    final authFlow = ai.defineFlow(
-      name: 'auth',
-
-      fn: (input, ctx) async {
-        final user = ctx.context?['user'];
-        if (user == null) {
-          throw GenkitException(
-            'Unauthorized',
-            status: StatusCodes.PERMISSION_DENIED,
-          );
-        }
-        return 'Hello $user';
-      },
-      inputSchema: .string(),
-      outputSchema: .string(),
-    );
-
-    final flowWithContext = FlowWithContextProvider(
-      flow: authFlow,
-      context: (req) {
-        final auth = req.headers['Authorization'];
-        if (auth == 'Bearer token') {
-          return {'user': 'Admin'};
-        }
-        return {};
-      },
-    );
-
-    server = await startFlowServer(flows: [flowWithContext], port: 0);
-    port = server!.port;
-
-    final action = defineRemoteAction(
-      url: 'http://localhost:$port/auth',
-      fromResponse: (data) => data as String,
-      defaultHeaders: {'Authorization': 'Bearer token'},
-    );
-
-    final result = await action(input: 'hi');
-    expect(result, 'Hello Admin');
-
-    // Fail case
-    final actionFail = defineRemoteAction(
-      url: 'http://localhost:$port/auth',
-      fromResponse: (data) => data as String,
-    );
-
-    try {
-      await actionFail(input: 'hi');
-      fail('Should have thrown');
-    } catch (e) {
-      // Expected
-      expect(e.toString(), contains('Unauthorized'));
-    }
-  });
-
-  test('Unary flow maps GenkitException status', () async {
-    final deniedFlow = ai.defineFlow(
-      name: 'denied',
-      fn: (input, _) async {
-        throw GenkitException(
-          'You shall not pass',
-          status: StatusCodes.PERMISSION_DENIED,
-        );
-      },
-      inputSchema: .string(),
-      outputSchema: .string(),
-    );
-
-    server = await startFlowServer(flows: [deniedFlow], port: 0);
-    port = server!.port;
-
-    final response = await http.post(
-      Uri.parse('http://localhost:$port/denied'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'data': 'hello'}),
-    );
-
-    expect(response.statusCode, 403);
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    expect(body['code'], 403);
-    expect(body['status'], 'PERMISSION_DENIED');
-    expect(body['message'], 'You shall not pass');
-  });
-
-  test('Streaming flow sends mapped SSE error payload', () async {
-    final streamErrorFlow = ai.defineFlow(
-      name: 'streamError',
-      fn: (input, _) async {
-        throw GenkitException(
-          'Bad stream input',
-          status: StatusCodes.INVALID_ARGUMENT,
-        );
-      },
-      inputSchema: .string(),
-      outputSchema: .string(),
-      streamSchema: .string(),
-    );
-
-    server = await startFlowServer(flows: [streamErrorFlow], port: 0);
-    port = server!.port;
-
-    final client = http.Client();
-    addTearDown(client.close);
-
-    final request = http.Request(
-      'POST',
-      Uri.parse('http://localhost:$port/streamError?stream=true'),
-    );
-    request.headers['Content-Type'] = 'application/json';
-    request.headers['Accept'] = 'text/event-stream';
-    request.body = jsonEncode({'data': 'hello'});
-
-    final response = await client.send(request);
-    expect(response.statusCode, 200);
-
-    final streamBody = await response.stream.bytesToString();
-    final errorChunk = streamBody
-        .split('\n\n')
-        .map((chunk) => chunk.trim())
-        .firstWhere((chunk) => chunk.startsWith('error: '), orElse: () => '');
-
-    expect(errorChunk, isNotEmpty);
-
-    final eventJson = errorChunk.substring('error: '.length);
-    final event = jsonDecode(eventJson) as Map<String, dynamic>;
-    final error = event['error'] as Map<String, dynamic>;
-
-    expect(error['code'], 400);
-    expect(error['status'], 'INVALID_ARGUMENT');
-    expect(error['message'], 'Bad stream input');
-  });
-
-  test('Unary flow hides non-Genkit exception details', () async {
-    final hiddenErrorFlow = ai.defineFlow(
-      name: 'hiddenUnaryError',
-      fn: (input, _) async {
-        throw Exception('sensitive: db-password');
-      },
-      inputSchema: .string(),
-      outputSchema: .string(),
-    );
-
-    server = await startFlowServer(flows: [hiddenErrorFlow], port: 0);
-    port = server!.port;
-
-    final response = await http.post(
-      Uri.parse('http://localhost:$port/hiddenUnaryError'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'data': 'hello'}),
-    );
-
-    expect(response.statusCode, 500);
-    final body = jsonDecode(response.body) as Map<String, dynamic>;
-    expect(body['code'], 500);
-    expect(body['status'], 'INTERNAL');
-    expect(body['message'], 'Internal server error');
-    expect(body['message'], isNot(contains('db-password')));
-  });
-
-  test('Streaming flow hides non-Genkit exception details', () async {
-    final hiddenStreamErrorFlow = ai.defineFlow(
-      name: 'hiddenStreamError',
-      fn: (input, _) async {
-        throw Exception('sensitive: service-account-key');
-      },
-      inputSchema: .string(),
-      outputSchema: .string(),
-      streamSchema: .string(),
-    );
-
-    server = await startFlowServer(flows: [hiddenStreamErrorFlow], port: 0);
-    port = server!.port;
-
-    final client = http.Client();
-    addTearDown(client.close);
-
-    final request = http.Request(
-      'POST',
-      Uri.parse('http://localhost:$port/hiddenStreamError?stream=true'),
-    );
-    request.headers['Content-Type'] = 'application/json';
-    request.headers['Accept'] = 'text/event-stream';
-    request.body = jsonEncode({'data': 'hello'});
-
-    final response = await client.send(request);
-    expect(response.statusCode, 200);
-
-    final streamBody = await response.stream.bytesToString();
-    final errorChunk = streamBody
-        .split('\n\n')
-        .map((chunk) => chunk.trim())
-        .firstWhere((chunk) => chunk.startsWith('error: '), orElse: () => '');
-
-    expect(errorChunk, isNotEmpty);
-
-    final eventJson = errorChunk.substring('error: '.length);
-    final event = jsonDecode(eventJson) as Map<String, dynamic>;
-    final error = event['error'] as Map<String, dynamic>;
-
-    expect(error['code'], 500);
-    expect(error['status'], 'INTERNAL');
-    expect(error['message'], 'Internal server error');
-    expect(error['message'], isNot(contains('service-account-key')));
-  });
-
-  test('Direct shelfHandler', () async {
-    final echoFlow = ai.defineFlow(
-      name: 'echo',
-      fn: (input, _) async => 'Echo: $input',
-      inputSchema: .string(),
-      outputSchema: .string(),
-    );
-
-    final handler = shelfHandler(echoFlow);
-
-    final request = Request(
-      'POST',
-      Uri.parse('http://localhost/echo'),
-      body: '{"data": "direct"}',
-      headers: {'content-type': 'application/json'},
-    );
-
-    final response = await handler(request);
-
-    expect(response.statusCode, 200);
-    final body = await response.readAsString();
-    expect(body, contains('"result":"Echo: direct"'));
-  });
-
-  test('Client using SchemanticType', () async {
-    final echoFlow = ai.defineFlow(
-      name: 'echoType',
-      fn: (input, _) async => 'Echo: $input',
-      inputSchema: .string(),
-      outputSchema: .string(),
-    );
-
-    server = await startFlowServer(flows: [echoFlow], port: 0);
-    port = server!.port;
-
-    final action = defineRemoteAction(
-      url: 'http://localhost:$port/echoType',
-      outputSchema: .string(),
-    );
-
-    final result = await action(input: 'typed');
-    expect(result, 'Echo: typed');
-  });
-
-  test('Client using Schema types and Streaming', () async {
-    final complexStreamFlow = ai.defineFlow(
-      name: 'complexStream',
-      fn: (input, ctx) async {
-        ctx.sendChunk(ShelfTestStream(chunk: 'chunk1'));
-        await Future.delayed(const Duration(milliseconds: 10));
-        ctx.sendChunk(ShelfTestStream(chunk: 'chunk2'));
-        return ShelfTestOutput(greeting: 'done');
-      },
-      inputSchema: .string(),
-      outputSchema: ShelfTestOutput.$schema,
-      streamSchema: ShelfTestStream.$schema,
-    );
-
-    server = await startFlowServer(flows: [complexStreamFlow], port: 0);
-    port = server!.port;
-
-    final action = defineRemoteAction(
-      url: 'http://localhost:$port/complexStream',
-      outputSchema: ShelfTestOutput.$schema,
-      streamSchema: ShelfTestStream.$schema,
-    );
-
-    final stream = action.stream(input: 'start');
-    final chunks = <ShelfTestStream>[];
-    await for (final chunk in stream) {
-      chunks.add(chunk);
-    }
-
-    final result = await stream.onResult;
-
-    expect(chunks.length, 2);
-    expect(chunks[0].chunk, 'chunk1');
-    expect(chunks[1].chunk, 'chunk2');
-
-    expect(result.greeting, 'done');
-  });
-
-  test('Streaming flow headers and timing', () async {
-    final streamFlow = ai.defineFlow(
-      name: 'streamHeaders',
-      fn: (input, ctx) async {
-        ctx.sendChunk('Chunk 1');
-        await Future.delayed(const Duration(milliseconds: 100));
-        ctx.sendChunk('Chunk 2');
-        return 'Done';
-      },
-      inputSchema: .string(),
-      outputSchema: .string(),
-      streamSchema: .string(),
-    );
-
-    server = await startFlowServer(flows: [streamFlow], port: 0);
-    port = server!.port;
-
-    final client = http.Client();
-    final request = http.Request(
-      'POST',
-      Uri.parse('http://localhost:$port/streamHeaders?stream=true'),
-    );
-    request.headers['Content-Type'] = 'application/json';
-    request.body = '{"data": "start"}';
-
-    final response = await client.send(request);
-
-    final chunks = <int>[];
-    final start = DateTime.now();
-    await response.stream.listen((chunk) {
-      chunks.add(DateTime.now().difference(start).inMilliseconds);
-    }).asFuture();
-
-    // First chunk should be fast, next should be after ~100ms
-    // We expect at least some delay between chunks if streaming works.
-    // If buffering, all chunks might arrive at same time > 100ms.
-    // Actually, response.stream gives bytes.
-    // Let's decode to ensure we get distinctive data chunks.
-    // But raw byte chunks arrival time is enough.
-
-    // If buffered, we likely get one big chunk after 100ms.
-    // If streaming, we get one chunk immediately (or very fast), then another.
-
-    expect(
-      chunks.length,
-      greaterThanOrEqualTo(2),
-      reason: 'Should receive multiple chunks',
-    );
-    expect(
-      chunks.last,
-      greaterThan(80),
-      reason: 'Total time should be around 100ms',
-    );
-    // If buffering happened, chunks.first would probably be ~100ms too (depending on implementation).
-    // Better check:
-    // If we receive multiple chunks, and the first one is fast (< 50ms) and last is slow (> 80ms), then we streamed.
-    // If we receive only 1 chunk, or all chunks > 80ms, then we buffered.
-
-    // Note: shelf might send headers immediately, then body.
-    // checking first chunk time.
-    expect(
-      chunks.first,
-      lessThan(80),
-      reason: 'First chunk should arrive quickly',
-    );
-  });
-
-  test(
-    'Streaming flow surfaces trace/span headers when instrumented',
-    () async {
-      configureInstrumentation(
-        _FakeInstrumentation(traceId: 'trace-abc', spanId: 'span-xyz'),
+  tearDown(() async => server?.close(force: true));
+
+  group('shelfHandler', () {
+    test('serves a single action', () async {
+      final response = await shelfHandler(echo)(_post('/anything', 'direct'));
+
+      expect(response.statusCode, 200);
+      expect(response.headers['content-type'], 'application/json');
+      expect(await _result(response), 'Echo: direct');
+    });
+
+    test('passes headers to the context provider', () async {
+      final whoami = ai.defineFlow(
+        name: 'whoami',
+        fn: (String _, ctx) async => '${ctx.context?['user']}',
+        inputSchema: .string(),
+        outputSchema: .string(),
+      );
+      final handler = shelfHandler(
+        whoami,
+        contextProvider: (request) => {
+          'user': request.headers['authorization'] ?? 'anonymous',
+        },
       );
 
-      final streamFlow = ai.defineFlow(
-        name: 'streamTraced',
-        fn: (input, ctx) async {
-          ctx.sendChunk('Chunk 1');
-          return 'Done';
+      final response = await handler(
+        _post('/whoami', '', headers: {'Authorization': 'alice'}),
+      );
+
+      expect(await _result(response), 'alice');
+    });
+
+    test('maps errors to status codes', () async {
+      final handler = shelfHandler(
+        echo,
+        contextProvider: (_) => throw GenkitException(
+          'Unauthorized',
+          status: StatusCode.unauthenticated,
+        ),
+      );
+
+      final response = await handler(_post('/echo', 'x'));
+
+      expect(response.statusCode, 401);
+      expect(jsonDecode(await response.readAsString()), {
+        'code': 401,
+        'status': 'UNAUTHENTICATED',
+        'message': 'Unauthorized',
+      });
+    });
+  });
+
+  test('sendLegacyErrorFrame reaches the stream error frame', () async {
+    final failing = ai.defineFlow(
+      name: 'failing',
+      fn: (String _, _) async =>
+          throw GenkitException('nope', status: StatusCode.notFound),
+      streamSchema: .string(),
+    );
+    Future<String> lastFrame(Handler handler) async {
+      final response = await handler(_post('/failing?stream=true', 'x'));
+      final frames = (await response.readAsString())
+          .split('\n\n')
+          .where((f) => f.trim().isNotEmpty);
+      return frames.last;
+    }
+
+    expect(await lastFrame(shelfHandler(failing)), startsWith('data: '));
+    expect(
+      await lastFrame(shelfHandler(failing, sendLegacyErrorFrame: true)),
+      startsWith('error: '),
+    );
+    final legacyRouter = GenkitRouter(sendLegacyErrorFrame: true)
+      ..addAction(failing);
+    expect(
+      await lastFrame(legacyRouter.asShelfHandler()),
+      startsWith('error: '),
+    );
+  });
+
+  group('asShelfHandler', () {
+    test('works when mounted under a prefix', () async {
+      final genkit = GenkitRouter()..addAction(echo);
+      final app = Router()
+        ..get('/health', (Request _) => Response.ok('OK'))
+        ..mount('/api/', genkit.asShelfHandler());
+
+      final response = await app.call(_post('/api/echo', 'mounted'));
+
+      expect(response.statusCode, 200);
+      expect(await _result(response), 'Echo: mounted');
+      expect((await app.call(_post('/echo', 'x'))).statusCode, 404);
+    });
+
+    test('matches percent-encoded paths', () async {
+      final genkit = GenkitRouter()..addAction(echo, path: '/acme/model');
+      final app = Router()..mount('/api/', genkit.asShelfHandler());
+
+      final response = await app.call(_post('/api/acme%2Fmodel', 'x'));
+      expect(await _result(response), 'Echo: x');
+    });
+
+    test('applies CorsOptions to its routes and 404s', () async {
+      final handler = (GenkitRouter()..addAction(echo)).asShelfHandler(
+        cors: const CorsOptions(allowedOrigins: ['https://a.dev']),
+      );
+      const origin = {'origin': 'https://a.dev'};
+
+      final preflight = await handler(
+        Request('OPTIONS', Uri.parse('http://localhost/echo'), headers: origin),
+      );
+      expect(preflight.statusCode, 204);
+      expect(preflight.headers['access-control-allow-origin'], 'https://a.dev');
+      expect(
+        preflight.headers['access-control-allow-methods'],
+        'POST, OPTIONS',
+      );
+
+      final hit = await handler(_post('/echo', 'x', headers: origin));
+      expect(await _result(hit), 'Echo: x');
+      expect(hit.headers['access-control-allow-origin'], 'https://a.dev');
+      expect(
+        hit.headers['access-control-expose-headers'],
+        'x-genkit-trace-id, x-genkit-span-id',
+      );
+      expect(hit.headers['vary'], 'Origin');
+
+      final miss = await handler(_post('/nope', 'x', headers: origin));
+      expect(miss.statusCode, 404);
+      expect(miss.headers['access-control-allow-origin'], 'https://a.dev');
+
+      // Without cors, no CORS headers at all.
+      final plain = await (GenkitRouter()..addAction(echo)).asShelfHandler()(
+        _post('/echo', 'x', headers: origin),
+      );
+      expect(plain.headers['access-control-allow-origin'], isNull);
+    });
+
+    test('404 falls through a Cascade', () async {
+      final genkit = GenkitRouter()..addAction(echo);
+      final handler = Cascade()
+          .add(genkit.asShelfHandler())
+          .add((Request _) => Response.ok('fallback'))
+          .handler;
+
+      expect(await _result(await handler(_post('/echo', 'x'))), 'Echo: x');
+      final fallback = await handler(_post('/other', 'x'));
+      expect(await fallback.readAsString(), 'fallback');
+    });
+
+    test('works with remote clients and keeps streams unbuffered', () async {
+      final slow = ai.defineFlow(
+        name: 'slow',
+        fn: (String _, ctx) async {
+          ctx.sendChunk('first');
+          await Future<void>.delayed(const Duration(milliseconds: 150));
+          ctx.sendChunk('second');
+          return 'done';
         },
         inputSchema: .string(),
         outputSchema: .string(),
         streamSchema: .string(),
       );
+      final genkit = GenkitRouter()..addAction(slow);
+      // Middleware that rebuilds the response must keep its context.
+      final handler = const Pipeline()
+          .addMiddleware(logRequests(logger: (_, _) {}))
+          .addHandler(genkit.asShelfHandler());
+      server = await io.serve(handler, InternetAddress.loopbackIPv4, 0);
 
-      server = await startFlowServer(flows: [streamFlow], port: 0);
-      port = server!.port;
-
-      final client = http.Client();
-      final request = http.Request(
-        'POST',
-        Uri.parse('http://localhost:$port/streamTraced?stream=true'),
+      final action = defineRemoteAction(
+        url: 'http://127.0.0.1:${server!.port}/slow',
+        outputSchema: .string(),
+        streamSchema: .string(),
       );
-      request.headers['Content-Type'] = 'application/json';
-      request.body = '{"data": "start"}';
+      final stream = action.stream(input: 'go');
+      expect(await stream.toList(), ['first', 'second']);
+      expect(await stream.onResult, 'done');
 
-      final response = await client.send(request);
-      // Drain the stream so the server can complete cleanly.
-      await response.stream.drain<void>();
-
-      expect(response.headers['x-genkit-trace-id'], 'trace-abc');
-      expect(response.headers['x-genkit-span-id'], 'span-xyz');
-    },
-  );
-
-  test('Streaming flow omits trace headers when uninstrumented', () async {
-    final streamFlow = ai.defineFlow(
-      name: 'streamUntraced',
-      fn: (input, ctx) async {
-        ctx.sendChunk('Chunk 1');
-        return 'Done';
-      },
-      inputSchema: .string(),
-      outputSchema: .string(),
-      streamSchema: .string(),
-    );
-
-    server = await startFlowServer(flows: [streamFlow], port: 0);
-    port = server!.port;
-
-    final client = http.Client();
-    final request = http.Request(
-      'POST',
-      Uri.parse('http://localhost:$port/streamUntraced?stream=true'),
-    );
-    request.headers['Content-Type'] = 'application/json';
-    request.body = '{"data": "start"}';
-
-    final response = await client.send(request);
-    await response.stream.drain<void>();
-
-    expect(response.headers.containsKey('x-genkit-trace-id'), isFalse);
-    expect(response.headers.containsKey('x-genkit-span-id'), isFalse);
-  });
-
-  test('Remote model', () async {
-    final myModel = ai.defineModel(
-      name: 'my-model',
-      fn: (request, context) async {
-        if (context.streamingRequested) {
-          context.sendChunk(
-            ModelResponseChunk(content: [TextPart(text: 'remote chunk')]),
-          );
-        }
-        return ModelResponse(
-          finishReason: FinishReason.stop,
-          message: Message(
-            role: Role.model,
-            content: [TextPart(text: 'hello from model')],
-          ),
-        );
-      },
-    );
-
-    server = await startFlowServer(flows: [myModel], port: 0);
-    port = server!.port;
-
-    final remoteModel = ai.defineRemoteModel(
-      name: 'remote-model',
-      url: 'http://localhost:$port/my-model',
-    );
-
-    // Unary
-    final response = await ai.generate(model: remoteModel, prompt: 'hi');
-    expect(response.text, 'hello from model');
-
-    // Streaming
-    final receivedChunks = <String>[];
-    final streamResponse = await ai.generate(
-      model: remoteModel,
-      prompt: 'hi',
-      onChunk: (c) => receivedChunks.add(c.text),
-    );
-
-    expect(receivedChunks, ['remote chunk']);
-    expect(streamResponse.text, 'hello from model');
+      final response = await http.Client().send(
+        http.Request(
+            'POST',
+            Uri.parse('http://127.0.0.1:${server!.port}/slow?stream=true'),
+          )
+          ..headers['content-type'] = 'application/json'
+          ..body = jsonEncode({'data': 'go'}),
+      );
+      final start = DateTime.now();
+      final arrivals = <int>[];
+      await response.stream
+          .listen(
+            (_) =>
+                arrivals.add(DateTime.now().difference(start).inMilliseconds),
+          )
+          .asFuture<void>();
+      expect(arrivals.length, greaterThanOrEqualTo(2));
+      expect(arrivals.first, lessThan(100));
+    });
   });
 }

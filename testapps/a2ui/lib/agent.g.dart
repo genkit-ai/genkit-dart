@@ -67,16 +67,16 @@ base class _GetWeatherInputTypeFactory extends SchemanticType<GetWeatherInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GetWeatherInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'city': $Schema.string(
-              description: 'The city to get the weather for.',
-            ),
-          },
-          required: ['city'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'city': <String, Object?>{
+          'type': 'string',
+          'description': 'The city to get the weather for.',
+        },
+      },
+      'required': ['city'],
+    },
     dependencies: [],
   );
 }
@@ -163,17 +163,16 @@ base class _GetWeatherOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GetWeatherOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'city': $Schema.string(),
-            'tempC': $Schema.number(),
-            'condition': $Schema.string(),
-            'humidity': $Schema.integer(),
-          },
-          required: ['city', 'tempC', 'condition', 'humidity'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'city': <String, Object?>{'type': 'string'},
+        'tempC': <String, Object?>{'type': 'number'},
+        'condition': <String, Object?>{'type': 'string'},
+        'humidity': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['city', 'tempC', 'condition', 'humidity'],
+    },
     dependencies: [],
   );
 }

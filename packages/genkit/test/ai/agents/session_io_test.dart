@@ -194,7 +194,7 @@ void main() {
             isA<GenkitException>().having(
               (e) => e.status,
               'status',
-              StatusCodes.FAILED_PRECONDITION,
+              StatusCode.failedPrecondition,
             ),
           ),
         );

@@ -19,6 +19,7 @@ import 'package:prompts_testapp/schemas.dart';
 /// Testapp that exercises various prompt features:
 /// - .prompt files loaded from the `prompts/` directory (with picoschema inputs)
 /// - Inline definePrompt with Handlebars templates and generated input schemas
+/// - Typed structured output via `outputSchema` (and typed `.prompt` lookup)
 /// - Prompt variants (.formal variant)
 /// - Partials (_signature.prompt)
 /// - defineCustomPrompt for programmatic prompt building
@@ -26,20 +27,27 @@ import 'package:prompts_testapp/schemas.dart';
 void main() {
   final ai = Genkit(plugins: [googleAI()], promptDir: './prompts');
 
-  // --- Inline definePrompt with generated input schema ---
+  // --- Inline definePrompt with typed input and output ---
+  //
+  // Both type arguments are inferred from the schemas, so `jokePrompt` is an
+  // `Prompt<JokeInput, Joke>` and `response.output` is a `Joke?`.
 
-  final jokePrompt = ai.definePrompt<Map<String, dynamic>, JokeInput>(
+  final jokePrompt = ai.definePrompt(
     name: 'joke',
     model: modelRef('googleai/gemini-flash-latest'),
     config: {'temperature': 0.9},
     inputSchema: JokeInput.schema,
+    outputSchema: Joke.schema,
     system: 'You are a witty comedian. Keep jokes family-friendly.',
     prompt: 'Tell me a {{style}} joke about {{topic}}.',
   );
 
   // --- Inline definePrompt with partials and generated input schema ---
+  //
+  // No outputSchema, so this one stays untyped: `response.output` is dynamic
+  // and `response.text` is the natural way to read it.
 
-  ai.definePrompt<Map<String, dynamic>, EmailInput>(
+  ai.definePrompt(
     name: 'email',
     model: modelRef('googleai/gemini-flash-latest'),
     config: {'temperature': 0.5},
@@ -88,14 +96,41 @@ void main() {
 
   // --- Flows that use prompts ---
 
-  // Flow: tell a joke using the inline prompt
+  // Flow: tell a joke using the inline prompt. `response.output` is a `Joke?`,
+  // so the fields are reachable without a cast.
   ai.defineFlow(
     name: 'tellJoke',
+    outputSchema: Joke.schema,
     fn: (Map<String, dynamic>? input, ctx) async {
       final topic = input?['topic'] as String? ?? 'programming';
       final style = input?['style'] as String? ?? 'punny';
       final response = await jokePrompt(JokeInput(topic: topic, style: style));
-      return response.text;
+
+      // Statically a `Joke?` -- no cast, no map indexing.
+      final joke = response.output;
+      if (joke == null) {
+        throw StateError('Model returned no joke: ${response.finishReason}');
+      }
+      return joke;
+    },
+  );
+
+  // Flow: stream a joke. A chunk's typed `output` stays null until the partial
+  // JSON satisfies the Joke schema (here: both fields present), so stream the
+  // raw text as it arrives and take the typed Joke from the final result.
+  ai.defineFlow(
+    name: 'streamJoke',
+    streamSchema: .string(),
+    outputSchema: Joke.schema,
+    fn: (Map<String, dynamic>? input, ctx) async {
+      final topic = input?['topic'] as String? ?? 'programming';
+      final stream = jokePrompt.stream(JokeInput(topic: topic, style: 'punny'));
+      await for (final chunk in stream) {
+        ctx.sendChunk(chunk.text);
+      }
+      final joke = (await stream.onResult).output;
+      if (joke == null) throw StateError('Model returned no joke');
+      return joke;
     },
   );
 
@@ -125,16 +160,29 @@ void main() {
     },
   );
 
-  // Flow: summarize text using the .prompt file
+  // Flow: summarize text using the .prompt file, looked up with types.
+  //
+  // The file's frontmatter carries the schema the model is asked for, but not
+  // a Dart type, so `outputParserSchema` supplies the parser and
+  // `response.output` comes back a `Summary?`.
   ai.defineFlow(
     name: 'summarizeText',
+    outputSchema: Summary.schema,
     fn: (Map<String, dynamic>? input, ctx) async {
-      final summarizePrompt = await ai.prompt('summarize');
+      final summarizePrompt = await ai.prompt(
+        'summarize',
+        outputParserSchema: Summary.schema,
+      );
       final response = await summarizePrompt({
         'text': input?['text'] ?? 'No text provided.',
         'maxSentences': input?['maxSentences'] ?? '3',
       });
-      return response.text;
+
+      final summary = response.output;
+      if (summary == null) {
+        throw StateError('Model returned no summary: ${response.finishReason}');
+      }
+      return summary;
     },
   );
 

@@ -23,6 +23,8 @@ import 'ai/evaluator.dart';
 import 'ai/formatters/formatters.dart';
 import 'ai/generate.dart';
 import 'ai/generate_middleware.dart';
+import 'ai/middleware/retry.dart';
+import 'ai/middleware/simulate_constrained_generation.dart';
 import 'ai/model.dart';
 import 'ai/prompt.dart';
 import 'ai/prompt_loader.dart';
@@ -54,7 +56,7 @@ import 'utils.dart' as utils;
 /// [definePrompt], and [defineResource].
 ///
 /// It extends [GenkitAI], inheriting the model-orchestration veneer
-/// ([generate], [generateStream], [embed], [embedMany], [run]).
+/// ([generate], [generateStream], [embed], [run]).
 ///
 /// If `isDevEnv` is true, or `GENKIT_ENV` is set to 'dev' in the process
 /// environment or as a `--dart-define`, initializing [Genkit] also starts a
@@ -83,6 +85,12 @@ final class Genkit extends GenkitAI {
         return registry.lookupValue<Map<String, dynamic>>('schema', name);
       },
     );
+
+    // Built-in middleware first, so a plugin's middleware of the same name
+    // takes precedence.
+    for (final def in [simulateConstrainedGenerationDef, retryDef]) {
+      registry.registerValue('middleware', def.name, def);
+    }
 
     // Register plugins
     for (final plugin in plugins) {
@@ -153,12 +161,7 @@ final class Genkit extends GenkitAI {
   }) {
     final flow = Flow(
       name: name,
-      fn: (input, context) {
-        if (input == null && inputSchema != null && null is! Input) {
-          throw ArgumentError('Flow "$name" requires a non-null input.');
-        }
-        return fn(input as Input, context);
-      },
+      fn: fn,
       inputSchema: inputSchema,
       outputSchema: outputSchema,
       streamSchema: streamSchema,
@@ -181,7 +184,7 @@ final class Genkit extends GenkitAI {
       description: description,
       fn: fn,
       inputSchema: inputSchema,
-      toolOutputSchema: outputSchema,
+      outputSchema: outputSchema,
     );
     registry.register(tool);
     return tool;
@@ -219,7 +222,7 @@ final class Genkit extends GenkitAI {
     /// Optional data attached to the `interrupt` metadata of the generated tool
     /// request. Receives the tool input and may return a value or a future.
     /// When omitted, the interrupt metadata defaults to `true`.
-    FutureOr<Object?> Function(Input input, ToolFnArgs<Input> ctx)?
+    FutureOr<Object?> Function(Input input, ToolFnArg<Input> ctx)?
     requestMetadata,
   }) {
     final interrupt = Interrupt<Input, Output>(
@@ -234,23 +237,27 @@ final class Genkit extends GenkitAI {
     return interrupt;
   }
 
-  /// Defines an executable prompt with Handlebars template support.
+  /// Defines a prompt with Handlebars template support.
   ///
   /// The prompt is registered in the registry and can be looked up by name.
-  /// Returns an [ExecutablePrompt] that can be called directly, rendered,
-  /// or streamed.
+  /// Returns a [Prompt] that can be called directly, rendered, or streamed.
+  ///
+  /// Pass [inputSchema] and [outputSchema] to get a fully typed prompt: the
+  /// type arguments are inferred, so they rarely need to be written out.
   ///
   /// Example:
   /// ```dart
-  /// final hi = ai.definePrompt(
-  ///   name: 'hi',
+  /// final joke = ai.definePrompt(
+  ///   name: 'joke',
   ///   model: modelRef('googleai/gemini-flash-latest'),
-  ///   prompt: 'Say hi to {{name}}',
+  ///   inputSchema: JokeInput.$schema,
+  ///   outputSchema: Joke.$schema,
+  ///   prompt: 'Tell a joke about {{topic}}',
   /// );
   ///
-  /// final response = await hi({'name': 'Sparky'});
+  /// final Joke? j = (await joke(JokeInput(topic: 'cats'))).output;
   /// ```
-  ExecutablePrompt<Input> definePrompt<CustomOptions, Input>({
+  Prompt<Input, Output> definePrompt<Input, Output, CustomOptions>({
     required String name,
     String? variant,
     ModelRef<CustomOptions>? model,
@@ -263,6 +270,14 @@ final class Genkit extends GenkitAI {
     List<Part>? promptParts,
     List<Message>? messages,
     String? messagesTemplate,
+
+    /// Structured output schema. Infers `Output`, sets the request's JSON
+    /// schema, and parses `response.output`.
+    SchemanticType<Output>? outputSchema,
+
+    /// Raw output config (`format`, `constrained`, `instructions`), for
+    /// settings `outputSchema` does not cover. Setting a `jsonSchema` on both
+    /// this and `outputSchema` throws.
     GenerateActionOutputConfig? output,
     int? maxTurns,
     bool? returnToolRequests,
@@ -272,7 +287,7 @@ final class Genkit extends GenkitAI {
     ToolChoice? toolChoice,
     List<GenerateMiddlewareRef>? use,
   }) {
-    final promptConfig = PromptConfig<CustomOptions, Input>(
+    final promptConfig = PromptConfig<Input, Output, CustomOptions>(
       name: name,
       variant: variant,
       model: model,
@@ -285,6 +300,7 @@ final class Genkit extends GenkitAI {
       promptParts: promptParts,
       messages: messages,
       messagesTemplate: messagesTemplate,
+      outputSchema: outputSchema,
       output: output,
       maxTurns: maxTurns,
       returnToolRequests: returnToolRequests,
@@ -294,7 +310,7 @@ final class Genkit extends GenkitAI {
       toolChoice: toolChoice,
       use: use,
     );
-    return definePromptAction<CustomOptions, Input>(
+    return definePromptAction<Input, Output, CustomOptions>(
       registry,
       _dotpromptRegistry,
       promptConfig,
@@ -326,16 +342,49 @@ final class Genkit extends GenkitAI {
 
   /// Looks up a previously defined prompt by name.
   ///
-  /// Returns the [ExecutablePrompt] registered under the given name
+  /// Returns the [Prompt] registered under the given name
   /// and optional variant.
+  ///
+  /// Supply `Input` / `Output` to get a typed handle. `Input` is asserted by
+  /// the caller (the registry does not retain it). `Output` needs a parser:
+  /// the schema the prompt was defined with, or [outputParserSchema] here.
+  ///
+  /// [outputParserSchema] is for prompts whose schema has no Dart type, such
+  /// as a `.prompt` file's `output.schema`. It only parses the response and is
+  /// never sent to the model: the request always carries the schema the prompt
+  /// defines, and the lookup throws if the prompt defines none. `Output` is
+  /// inferred from it, so no type arguments are needed.
+  ///
+  /// A prompt that only requests JSON (`format: json`, no schema) cannot back
+  /// a domain type, since the model is never given its shape, but it can be
+  /// looked up as `prompt<dynamic, Map<String, dynamic>>()`.
   ///
   /// Example:
   /// ```dart
   /// final hi = await ai.prompt('hi');
   /// final response = await hi({'name': 'Sparky'});
+  ///
+  /// // Defined in code (`definePrompt`) with outputSchema: Joke.$schema, so already typed.
+  /// final joke = await ai.prompt<JokeInput, Joke>('joke');
+  ///
+  /// // A .prompt file with an output.schema: supply the Dart parser.
+  /// // Inferred as Prompt<dynamic, Summary>.
+  /// final summarize = await ai.prompt(
+  ///   'summarize',
+  ///   outputParserSchema: Summary.$schema,
+  /// );
   /// ```
-  Future<ExecutablePrompt> prompt(String name, {String? variant}) {
-    return lookupPrompt(registry, name, variant: variant);
+  Future<Prompt<Input, Output>> prompt<Input, Output>(
+    String name, {
+    String? variant,
+    SchemanticType<Output>? outputParserSchema,
+  }) {
+    return lookupPrompt<Input, Output>(
+      registry,
+      name,
+      variant: variant,
+      outputParserSchema: outputParserSchema,
+    );
   }
 
   /// Registers a Handlebars partial template for use in prompts.
@@ -388,7 +437,7 @@ final class Genkit extends GenkitAI {
     if (resourceName == null) {
       throw GenkitException(
         'Resource must specify a name, uri, or template.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     final resourceMetadata = <String, dynamic>{
@@ -408,10 +457,8 @@ final class Genkit extends GenkitAI {
 
   /// Defines an AI model interface.
   ///
-  /// [info] declares what the model can do. `supports.constrained` is read
-  /// when the model is called, generate or otherwise: a model that does not
-  /// claim native constrained generation has it simulated for it, so a model
-  /// that does support it has to say so.
+  /// [info] describes what the model can do, as shown in the Developer UI
+  /// and by `listActions`.
   Model defineModel({
     required String name,
     required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk, void> fn,
@@ -420,9 +467,7 @@ final class Genkit extends GenkitAI {
     final model = Model(
       name: name,
       metadata: info == null ? null : {'model': info.toJson()},
-      fn: (input, context) {
-        return fn(input!, context);
-      },
+      fn: fn,
     );
     registry.register(model);
     return model;
@@ -434,14 +479,14 @@ final class Genkit extends GenkitAI {
     required String url,
     FutureOr<Map<String, String>?> Function(Map<String, dynamic> context)?
     headers,
-    ModelInfo? modelInfo,
+    ModelInfo? info,
     http.Client? httpClient,
   }) {
     final model = remoteModel(
       name: name,
       url: url,
       headers: headers,
-      modelInfo: modelInfo,
+      info: info,
       httpClient: httpClient,
     );
     registry.register(model);
@@ -453,12 +498,7 @@ final class Genkit extends GenkitAI {
     required String name,
     required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
   }) {
-    final embedder = Embedder(
-      name: name,
-      fn: (input, context) {
-        return fn(input!, context);
-      },
-    );
+    final embedder = Embedder(name: name, fn: fn);
     registry.register(embedder);
     return embedder;
   }
@@ -466,22 +506,22 @@ final class Genkit extends GenkitAI {
   /// Defines a dynamic provider for actions.
   ///
   /// [getActionFn] receives the requested [ActionType] and name so a single
-  /// provider can serve tools, prompts, and resources. [cacheTtlMillis]
-  /// controls how long the provider's listing is cached (defaults to three
-  /// seconds; a negative value disables caching).
+  /// provider can serve tools, prompts, and resources. [cacheTtl] controls how
+  /// long the provider's listing is cached: three seconds when null, and
+  /// [Duration.zero] disables caching.
   DynamicActionProvider defineDynamicActionProvider({
     required String name,
     FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn,
     FutureOr<Action?> Function(ActionType actionType, String name)? getActionFn,
     Map<String, dynamic>? metadata,
-    int? cacheTtlMillis,
+    Duration? cacheTtl,
   }) {
     final provider = DynamicActionProvider(
       name: name,
       listActionsFn: listActionsFn,
       getActionFn: getActionFn,
       metadata: metadata,
-      cacheTtlMillis: cacheTtlMillis,
+      cacheTtl: cacheTtl,
     );
     registry.register(provider);
     return provider;
@@ -493,13 +533,7 @@ final class Genkit extends GenkitAI {
     required String description,
     required ActionFn<EvalRequest, List<EvalFnResponse>, void, void> fn,
   }) {
-    final evaluator = Evaluator(
-      name: name,
-      description: description,
-      fn: (input, context) {
-        return fn(input!, context);
-      },
-    );
+    final evaluator = Evaluator(name: name, description: description, fn: fn);
     registry.register(evaluator);
     return evaluator;
   }

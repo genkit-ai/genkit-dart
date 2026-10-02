@@ -16,12 +16,7 @@ import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 
 import 'src/basic_types.dart' as bt;
 
-export 'package:json_schema_builder/json_schema_builder.dart'
-    show SchemaValidation;
-
 export 'package:schemantic/src/flatten.dart' show SchemaFlatten;
-
-typedef $Schema = jsb.Schema;
 
 /// Annotation to mark a class as a schema definition.
 ///

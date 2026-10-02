@@ -21,6 +21,7 @@ part of 'skills_middleware.dart';
 // **************************************************************************
 
 base class UseSkillInput {
+  /// Creates a [UseSkillInput] from a JSON map.
   factory UseSkillInput.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -32,6 +33,7 @@ base class UseSkillInput {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [UseSkillInput].
   static const SchemanticType<UseSkillInput> $schema =
       _UseSkillInputTypeFactory();
 
@@ -48,6 +50,7 @@ base class UseSkillInput {
     return _json.toString();
   }
 
+  /// Serializes this [UseSkillInput] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -64,21 +67,23 @@ base class _UseSkillInputTypeFactory extends SchemanticType<UseSkillInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'UseSkillInput',
-    definition: $Schema.fromMap({
+    definition: <String, Object?>{
       'type': 'object',
-      'properties': {
-        'skillName': $Schema.string(
-          description: 'The name of the skill to use.',
-        ),
+      'properties': <String, Object?>{
+        'skillName': <String, Object?>{
+          'type': 'string',
+          'description': 'The name of the skill to use.',
+        },
       },
       'required': ['skillName'],
       'additionalProperties': false,
-    }).value,
+    },
     dependencies: [],
   );
 }
 
 base class SkillsPluginOptions {
+  /// Creates a [SkillsPluginOptions] from a JSON map.
   factory SkillsPluginOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
@@ -90,6 +95,7 @@ base class SkillsPluginOptions {
 
   late final Map<String, dynamic> _json;
 
+  /// The JSON schema and type descriptor for [SkillsPluginOptions].
   static const SchemanticType<SkillsPluginOptions> $schema =
       _SkillsPluginOptionsTypeFactory();
 
@@ -110,6 +116,7 @@ base class SkillsPluginOptions {
     return _json.toString();
   }
 
+  /// Serializes this [SkillsPluginOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
@@ -127,18 +134,17 @@ base class _SkillsPluginOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SkillsPluginOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'skillPaths': $Schema.list(
-              description:
-                  'The directories containing skill files. Defaults to ["skills"].',
-              items: $Schema.string(),
-            ),
-          },
-          required: [],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'skillPaths': <String, Object?>{
+          'type': 'array',
+          'description':
+              'The directories containing skill files. Defaults to ["skills"].',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+    },
     dependencies: [],
   );
 }

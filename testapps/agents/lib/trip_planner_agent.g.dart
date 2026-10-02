@@ -69,9 +69,13 @@ base class _GetAttractionsInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GetAttractionsInput',
-    definition: $Schema
-        .object(properties: {'city': $Schema.string()}, required: ['city'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'city': <String, Object?>{'type': 'string'},
+      },
+      'required': ['city'],
+    },
     dependencies: [],
   );
 }
@@ -129,15 +133,14 @@ base class _AttractionTypeFactory extends SchemanticType<Attraction> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Attraction',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'description': $Schema.string(),
-          },
-          required: ['name', 'description'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'description': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name', 'description'],
+    },
     dependencies: [],
   );
 }
@@ -166,7 +169,7 @@ base class GetAttractionsOutput {
   }
 
   set attractions(List<Attraction> value) {
-    _json['attractions'] = value.toList();
+    _json['attractions'] = value.map((e) => e.toJson()).toList();
   }
 
   @override
@@ -192,16 +195,16 @@ base class _GetAttractionsOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GetAttractionsOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'attractions': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Attraction'}),
-            ),
-          },
-          required: ['attractions'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'attractions': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Attraction'},
+        },
+      },
+      'required': ['attractions'],
+    },
     dependencies: [Attraction.$schema],
   );
 }
@@ -274,16 +277,15 @@ base class _GetFlightInfoInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GetFlightInfoInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'from': $Schema.string(),
-            'to': $Schema.string(),
-            'date': $Schema.string(),
-          },
-          required: ['from', 'to'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'from': <String, Object?>{'type': 'string'},
+        'to': <String, Object?>{'type': 'string'},
+        'date': <String, Object?>{'type': 'string'},
+      },
+      'required': ['from', 'to'],
+    },
     dependencies: [],
   );
 }
@@ -367,17 +369,16 @@ base class _FlightTypeFactory extends SchemanticType<Flight> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Flight',
-    definition: $Schema
-        .object(
-          properties: {
-            'airline': $Schema.string(),
-            'departure': $Schema.string(),
-            'arrival': $Schema.string(),
-            'price': $Schema.string(),
-          },
-          required: ['airline', 'departure', 'arrival', 'price'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'airline': <String, Object?>{'type': 'string'},
+        'departure': <String, Object?>{'type': 'string'},
+        'arrival': <String, Object?>{'type': 'string'},
+        'price': <String, Object?>{'type': 'string'},
+      },
+      'required': ['airline', 'departure', 'arrival', 'price'],
+    },
     dependencies: [],
   );
 }
@@ -406,7 +407,7 @@ base class GetFlightInfoOutput {
   }
 
   set flights(List<Flight> value) {
-    _json['flights'] = value.toList();
+    _json['flights'] = value.map((e) => e.toJson()).toList();
   }
 
   @override
@@ -432,16 +433,16 @@ base class _GetFlightInfoOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GetFlightInfoOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'flights': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Flight'}),
-            ),
-          },
-          required: ['flights'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'flights': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Flight'},
+        },
+      },
+      'required': ['flights'],
+    },
     dependencies: [Flight.$schema],
   );
 }

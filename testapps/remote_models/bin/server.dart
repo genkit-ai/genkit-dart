@@ -15,16 +15,16 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:genkit/io.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_openai/genkit_openai.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
-import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as io;
 import 'package:shelf_router/shelf_router.dart';
 
 import 'secret.dart';
 
-FutureOr<Map<String, dynamic>> authContextProvider(Request request) {
+FutureOr<Map<String, dynamic>> authContextProvider(RequestData request) {
   final authHeader = request.headers['authorization'];
   if (authHeader != 'Bearer $secret') {
     throw Exception('Unauthorized');

@@ -80,16 +80,15 @@ void main() {
       expect(info.containsKey('stage'), isFalse);
     });
 
-    test('fallback metadata withholds constrained generation', () {
-      // The native path is the forced `return_output` tool
-      // (plugin_impl.dart:252-262), and not every Claude name accepts a forced
-      // `tool_choice`. An uncurated name makes no claim, so core simulates.
+    test('fallback metadata claims native constrained generation', () {
+      // Every active Claude model accepts `output_config.format`, so a name
+      // released after this plugin gets the native path too.
       final action = plugin().resolve(.model, 'claude-unknown-model');
 
       final supports = (modelInfoOf(action!)['supports'] as Map)
           .cast<String, dynamic>();
-      expect(supports.containsKey('constrained'), isFalse);
-      expect(supports['output'], ['text']);
+      expect(supports['constrained'], isTrue);
+      expect(supports['output'], ['text', 'json']);
     });
 
     test('non-model action types do not resolve', () {
@@ -201,56 +200,30 @@ void main() {
       }
     });
 
-    test('curation is the claim: every curated model takes a schema', () {
-      // There is no second tier to fall into. A name this plugin cannot vouch
-      // for is not curated, and gets `commonModelInfo` instead.
+    test('curated and uncurated models claim the same capabilities', () {
+      // Curation adds a label and a stage, not capabilities.
       for (final model in KnownClaudeModel.values) {
-        expect(model.info.supports, structuredClaudeSupports);
+        expect(model.info.supports, claudeSupports);
       }
+      expect(commonModelInfo.supports, claudeSupports);
     });
 
     test('the claim does not depend on the API surface', () {
-      // `output_config.format` is served on stable as well as beta, so the
-      // mechanism is the same either way - and it pins no `tool_choice`, which
-      // is why the claim is `true` rather than `'no-tools'`.
+      // `output_config.format` is served on stable as well as beta.
       for (final version in [null, 'stable', 'beta']) {
-        expect(
-          AnthropicPluginImpl(
-            apiKey: 'k',
-            apiVersion: version,
-          ).modelInfoFor('claude-sonnet-4-5').supports!['constrained'],
-          isTrue,
-          reason: version ?? 'default',
-        );
+        final plugin = AnthropicPluginImpl(apiKey: 'k', apiVersion: version);
+        for (final name in ['claude-sonnet-4-5', 'claude-future-model']) {
+          expect(
+            plugin.modelInfoFor(name).supports!['constrained'],
+            isTrue,
+            reason: '$name on ${version ?? 'default'}',
+          );
+        }
       }
     });
 
-    test('an uncurated name claims nothing on either surface', () {
-      // Whether a model is on Anthropic's Structured Outputs list is
-      // per-model, and this plugin has only checked the names it curates.
-      for (final version in [null, 'beta']) {
-        final info = AnthropicPluginImpl(
-          apiKey: 'k',
-          apiVersion: version,
-        ).modelInfoFor('claude-future-model');
-        expect(info.supports!.containsKey('constrained'), isFalse);
-      }
-    });
-
-    test('base tier advertises no constrained generation', () {
-      expect(baseClaudeSupports.containsKey('constrained'), isFalse);
-      expect(baseClaudeSupports['output'], ['text']);
-    });
-
-    test('supports maps are unmodifiable on both tiers', () {
-      expect(
-        () => structuredClaudeSupports['multiturn'] = false,
-        throwsUnsupportedError,
-      );
-      expect(
-        () => baseClaudeSupports['multiturn'] = false,
-        throwsUnsupportedError,
-      );
+    test('the supports map is unmodifiable', () {
+      expect(() => claudeSupports['multiturn'] = false, throwsUnsupportedError);
     });
   });
 

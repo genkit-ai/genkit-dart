@@ -73,7 +73,7 @@ base class AgentsOptions {
   }
 
   int? get maxDelegations {
-    return _json['maxDelegations'] as int?;
+    return (_json['maxDelegations'] as num?)?.toInt();
   }
 
   set maxDelegations(int? value) {
@@ -85,7 +85,7 @@ base class AgentsOptions {
   }
 
   int? get historyLength {
-    return _json['historyLength'] as int?;
+    return (_json['historyLength'] as num?)?.toInt();
   }
 
   set historyLength(int? value) {
@@ -142,38 +142,43 @@ base class _AgentsOptionsTypeFactory extends SchemanticType<AgentsOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentsOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'agents': $Schema.list(
-              description:
-                  'Names of registered agents available for delegation. Each name gets a dedicated delegation tool.',
-              items: $Schema.string(),
-            ),
-            'toolPrefix': $Schema.string(
-              description:
-                  'Prefix for generated delegation tool names. Defaults to "delegate_to" (tools become delegate_to_<agent>). Set to an empty string to use bare agent names.',
-            ),
-            'maxDelegations': $Schema.integer(
-              description:
-                  'Maximum sub-agent delegations allowed per generate call. Prevents runaway delegation loops.',
-            ),
-            'historyLength': $Schema.integer(
-              description:
-                  'Number of recent conversation messages (user/model only) to forward to sub-agents as additional context. 0 or omitted means only the task description is sent.',
-            ),
-            'artifactStrategy': $Schema.string(
-              description:
-                  'How sub-agent artifacts are handled: "inline" (default) includes artifact content in the delegation tool result AND merges artifacts into the parent session; "session" merges artifacts into the parent session only (the tool result mentions names but not content).',
-            ),
-            'async': $Schema.boolean(
-              description:
-                  'Enables background delegation. Delegation tools accept a "background" flag that starts the sub-agent and returns a taskId immediately, and the check_background_tasks / wait_for_background_tasks / abort_background_tasks tools are added. Background delegation requires server-managed sub-agents (those with a session store that supports detach).',
-            ),
-          },
-          required: ['agents'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'agents': <String, Object?>{
+          'type': 'array',
+          'description':
+              'Names of registered agents available for delegation. Each name gets a dedicated delegation tool.',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'toolPrefix': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Prefix for generated delegation tool names. Defaults to "delegate_to" (tools become delegate_to_<agent>). Set to an empty string to use bare agent names.',
+        },
+        'maxDelegations': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Maximum sub-agent delegations allowed per generate call. Prevents runaway delegation loops.',
+        },
+        'historyLength': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Number of recent conversation messages (user/model only) to forward to sub-agents as additional context. 0 or omitted means only the task description is sent.',
+        },
+        'artifactStrategy': <String, Object?>{
+          'type': 'string',
+          'description':
+              'How sub-agent artifacts are handled: "inline" (default) includes artifact content in the delegation tool result AND merges artifacts into the parent session; "session" merges artifacts into the parent session only (the tool result mentions names but not content).',
+        },
+        'async': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Enables background delegation. Delegation tools accept a "background" flag that starts the sub-agent and returns a taskId immediately, and the check_background_tasks / wait_for_background_tasks / abort_background_tasks tools are added. Background delegation requires server-managed sub-agents (those with a session store that supports detach).',
+        },
+      },
+      'required': ['agents'],
+    },
     dependencies: [],
   );
 }
@@ -238,21 +243,22 @@ base class _DelegateInputTypeFactory extends SchemanticType<DelegateInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'DelegateInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'task': $Schema.string(
-              description:
-                  'A clear, self-contained description of the task to delegate.',
-            ),
-            'name': $Schema.string(
-              description:
-                  'Optional short label for this delegation (e.g. "sources-sweep"). Echoed on the result and on background-task reports next to the taskId, to keep several tasks readable. Not an identifier.',
-            ),
-          },
-          required: ['task'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'task': <String, Object?>{
+          'type': 'string',
+          'description':
+              'A clear, self-contained description of the task to delegate.',
+        },
+        'name': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Optional short label for this delegation (e.g. "sources-sweep"). Echoed on the result and on background-task reports next to the taskId, to keep several tasks readable. Not an identifier.',
+        },
+      },
+      'required': ['task'],
+    },
     dependencies: [],
   );
 }
@@ -331,25 +337,27 @@ base class _AsyncDelegateInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AsyncDelegateInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'task': $Schema.string(
-              description:
-                  'A clear, self-contained description of the task to delegate.',
-            ),
-            'name': $Schema.string(
-              description:
-                  'Optional short label for this delegation. Echoed on the result and on background-task reports next to the taskId. Not an identifier.',
-            ),
-            'background': $Schema.boolean(
-              description:
-                  'Run the delegation in the background. The tool returns immediately with a taskId; collect the result later with check_background_tasks or wait_for_background_tasks.',
-            ),
-          },
-          required: ['task'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'task': <String, Object?>{
+          'type': 'string',
+          'description':
+              'A clear, self-contained description of the task to delegate.',
+        },
+        'name': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Optional short label for this delegation. Echoed on the result and on background-task reports next to the taskId. Not an identifier.',
+        },
+        'background': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Run the delegation in the background. The tool returns immediately with a taskId; collect the result later with check_background_tasks or wait_for_background_tasks.',
+        },
+      },
+      'required': ['task'],
+    },
     dependencies: [],
   );
 }
@@ -419,17 +427,19 @@ base class _AgentDelegationArtifactTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentDelegationArtifact',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(description: 'Name of the artifact.'),
-            'content': $Schema.string(
-              description:
-                  'Text content of the artifact (inline strategy only).',
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{
+          'type': 'string',
+          'description': 'Name of the artifact.',
+        },
+        'content': <String, Object?>{
+          'type': 'string',
+          'description': 'Text content of the artifact (inline strategy only).',
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -547,34 +557,38 @@ base class _AgentDelegationResultTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentDelegationResult',
-    definition: $Schema
-        .object(
-          properties: {
-            'response': $Schema.string(
-              description: 'The sub-agent\'s text response.',
-            ),
-            'artifacts': $Schema.list(
-              description: 'Artifacts produced by the sub-agent, if any.',
-              items: $Schema.fromMap({
-                '\$ref': r'#/$defs/AgentDelegationArtifact',
-              }),
-            ),
-            'taskId': $Schema.string(
-              description:
-                  'Handle for this delegation ("<agent>:<snapshotId>"), when the sub-agent keeps a session. Pass it to check_background_tasks, wait_for_background_tasks, abort_background_tasks, or continue_task.',
-            ),
-            'status': $Schema.string(
-              description:
-                  'Outcome behind taskId: "pending" for a background launch, or the settled status ("completed", "failed", "aborted") for a synchronous delegation that carries a handle.',
-            ),
-            'name': $Schema.string(
-              description:
-                  'The caller-chosen label for this delegation, if given.',
-            ),
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'response': <String, Object?>{
+          'type': 'string',
+          'description': 'The sub-agent\'s text response.',
+        },
+        'artifacts': <String, Object?>{
+          'type': 'array',
+          'description': 'Artifacts produced by the sub-agent, if any.',
+          'items': <String, Object?>{
+            r'$ref': r'#/$defs/AgentDelegationArtifact',
           },
-          required: ['response'],
-        )
-        .value,
+        },
+        'taskId': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Handle for this delegation ("<agent>:<snapshotId>"), when the sub-agent keeps a session. Pass it to check_background_tasks, wait_for_background_tasks, abort_background_tasks, or continue_task.',
+        },
+        'status': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Outcome behind taskId: "pending" for a background launch, or the settled status ("completed", "failed", "aborted") for a synchronous delegation that carries a handle.',
+        },
+        'name': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The caller-chosen label for this delegation, if given.',
+        },
+      },
+      'required': ['response'],
+    },
     dependencies: [AgentDelegationArtifact.$schema],
   );
 }
@@ -632,17 +646,17 @@ base class _BackgroundTasksInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'BackgroundTasksInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'taskIds': $Schema.list(
-              description:
-                  'Task IDs returned by background delegations (form "<agent>:<snapshotId>").',
-              items: $Schema.string(),
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'taskIds': <String, Object?>{
+          'type': 'array',
+          'description':
+              'Task IDs returned by background delegations (form "<agent>:<snapshotId>").',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -687,7 +701,7 @@ base class WaitBackgroundTasksInput {
   }
 
   int? get timeoutSeconds {
-    return _json['timeoutSeconds'] as int?;
+    return (_json['timeoutSeconds'] as num?)?.toInt();
   }
 
   set timeoutSeconds(int? value) {
@@ -733,25 +747,27 @@ base class _WaitBackgroundTasksInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WaitBackgroundTasksInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'taskIds': $Schema.list(
-              description:
-                  'Task IDs returned by background delegations (form "<agent>:<snapshotId>").',
-              items: $Schema.string(),
-            ),
-            'timeoutSeconds': $Schema.integer(
-              description:
-                  'Maximum seconds to wait before returning the current statuses. 0 or omitted waits until every task settles; a negative value returns the current statuses immediately.',
-            ),
-            'waitFor': $Schema.string(
-              description:
-                  '"all" (default) waits until every listed task settles. "first" returns as soon as any one settles; the remaining tasks report their current status and keep running.',
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'taskIds': <String, Object?>{
+          'type': 'array',
+          'description':
+              'Task IDs returned by background delegations (form "<agent>:<snapshotId>").',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'timeoutSeconds': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Maximum seconds to wait before returning the current statuses. 0 or omitted waits until every task settles; a negative value returns the current statuses immediately.',
+        },
+        'waitFor': <String, Object?>{
+          'type': 'string',
+          'description':
+              '"all" (default) waits until every listed task settles. "first" returns as soon as any one settles; the remaining tasks report their current status and keep running.',
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -893,41 +909,46 @@ base class _BackgroundTaskReportTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'BackgroundTaskReport',
-    definition: $Schema
-        .object(
-          properties: {
-            'taskId': $Schema.string(
-              description: 'The task handle this report describes.',
-            ),
-            'agent': $Schema.string(
-              description: 'The sub-agent running the task.',
-            ),
-            'name': $Schema.string(
-              description:
-                  'The caller-chosen label of the delegation, if given.',
-            ),
-            'status': $Schema.string(
-              description:
-                  'Lifecycle state: "pending", "completed", "failed", "aborted", "expired", "aborting", or "unknown".',
-            ),
-            'response': $Schema.string(
-              description:
-                  'The sub-agent\'s final text response, for completed tasks.',
-            ),
-            'artifacts': $Schema.list(
-              description: 'The completed task\'s artifacts, if any.',
-              items: $Schema.fromMap({
-                '\$ref': r'#/$defs/AgentDelegationArtifact',
-              }),
-            ),
-            'error': $Schema.string(
-              description:
-                  'Describes why no response is available (failure, abort, expiry, or an unresolvable task ID).',
-            ),
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'taskId': <String, Object?>{
+          'type': 'string',
+          'description': 'The task handle this report describes.',
+        },
+        'agent': <String, Object?>{
+          'type': 'string',
+          'description': 'The sub-agent running the task.',
+        },
+        'name': <String, Object?>{
+          'type': 'string',
+          'description': 'The caller-chosen label of the delegation, if given.',
+        },
+        'status': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Lifecycle state: "pending", "completed", "failed", "aborted", "expired", "aborting", or "unknown".',
+        },
+        'response': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The sub-agent\'s final text response, for completed tasks.',
+        },
+        'artifacts': <String, Object?>{
+          'type': 'array',
+          'description': 'The completed task\'s artifacts, if any.',
+          'items': <String, Object?>{
+            r'$ref': r'#/$defs/AgentDelegationArtifact',
           },
-          required: ['taskId', 'status'],
-        )
-        .value,
+        },
+        'error': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Describes why no response is available (failure, abort, expiry, or an unresolvable task ID).',
+        },
+      },
+      'required': ['taskId', 'status'],
+    },
     dependencies: [AgentDelegationArtifact.$schema],
   );
 }
@@ -1019,25 +1040,25 @@ base class _BackgroundTasksResultTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'BackgroundTasksResult',
-    definition: $Schema
-        .object(
-          properties: {
-            'tasks': $Schema.list(
-              description: 'One report per requested task ID.',
-              items: $Schema.fromMap({
-                '\$ref': r'#/$defs/BackgroundTaskReport',
-              }),
-            ),
-            'timedOut': $Schema.boolean(
-              description:
-                  'Set when the wait returned because timeoutSeconds elapsed while some tasks were still pending.',
-            ),
-            'note': $Schema.string(
-              description: 'Usage guidance when the call itself was unusable.',
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'tasks': <String, Object?>{
+          'type': 'array',
+          'description': 'One report per requested task ID.',
+          'items': <String, Object?>{r'$ref': r'#/$defs/BackgroundTaskReport'},
+        },
+        'timedOut': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Set when the wait returned because timeoutSeconds elapsed while some tasks were still pending.',
+        },
+        'note': <String, Object?>{
+          'type': 'string',
+          'description': 'Usage guidance when the call itself was unusable.',
+        },
+      },
+    },
     dependencies: [BackgroundTaskReport.$schema],
   );
 }
@@ -1102,21 +1123,22 @@ base class _ContinueInputTypeFactory extends SchemanticType<ContinueInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ContinueInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'taskId': $Schema.string(
-              description:
-                  'The task handle to continue ("<agent>:<snapshotId>"), from a delegation result or a background-task report.',
-            ),
-            'instructions': $Schema.string(
-              description:
-                  'Optional guidance delivered to the sub-agent as it continues. Omit it to retry a failed or aborted task exactly as it stood; required when following up on a completed task.',
-            ),
-          },
-          required: ['taskId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'taskId': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The task handle to continue ("<agent>:<snapshotId>"), from a delegation result or a background-task report.',
+        },
+        'instructions': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Optional guidance delivered to the sub-agent as it continues. Omit it to retry a failed or aborted task exactly as it stood; required when following up on a completed task.',
+        },
+      },
+      'required': ['taskId'],
+    },
     dependencies: [],
   );
 }
@@ -1202,25 +1224,27 @@ base class _AsyncContinueInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AsyncContinueInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'taskId': $Schema.string(
-              description:
-                  'The task handle to continue ("<agent>:<snapshotId>"), from a delegation result or a background-task report.',
-            ),
-            'instructions': $Schema.string(
-              description:
-                  'Optional guidance delivered to the sub-agent as it continues. Omit it to retry a failed or aborted task exactly as it stood; required when following up on a completed task.',
-            ),
-            'background': $Schema.boolean(
-              description:
-                  'Continue the task in the background. The tool returns immediately with a new taskId; collect the result later with the background-task tools.',
-            ),
-          },
-          required: ['taskId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'taskId': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The task handle to continue ("<agent>:<snapshotId>"), from a delegation result or a background-task report.',
+        },
+        'instructions': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Optional guidance delivered to the sub-agent as it continues. Omit it to retry a failed or aborted task exactly as it stood; required when following up on a completed task.',
+        },
+        'background': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Continue the task in the background. The tool returns immediately with a new taskId; collect the result later with the background-task tools.',
+        },
+      },
+      'required': ['taskId'],
+    },
     dependencies: [],
   );
 }

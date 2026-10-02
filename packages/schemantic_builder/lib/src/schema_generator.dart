@@ -513,19 +513,22 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
     final returnType = getter.returnType;
     final typeName = returnType.getDisplayString();
     final convertedTypeName = _convertSchemaType(returnType);
-    final nonNullableTypeName = returnType.getDisplayString().replaceAll(
-      '?',
-      '',
-    );
 
     var getterBody = "return _json['$jsonFieldName'] as $typeName;";
+    // Numbers are read through `num` in both directions: JSON from other
+    // runtimes may encode an integer as `12.0` (e.g. Python floats) or a
+    // double as `12`, and `jsonDecode` keeps whichever form was sent.
     if (returnType.isDartCoreDouble && !returnType.isNullable) {
       getterBody = "return (_json['$jsonFieldName'] as num).toDouble();";
+    } else if (returnType.isDartCoreInt && !returnType.isNullable) {
+      getterBody = "return (_json['$jsonFieldName'] as num).toInt();";
     }
 
     if (returnType.isNullable) {
       if (returnType.isDartCoreDouble) {
         getterBody = "return (_json['$jsonFieldName'] as num?)?.toDouble();";
+      } else if (returnType.isDartCoreInt) {
+        getterBody = "return (_json['$jsonFieldName'] as num?)?.toInt();";
       } else {
         getterBody = "return _json['$jsonFieldName'] as $typeName;";
       }
@@ -585,7 +588,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
             "return _json['$jsonFieldName'] == null ? null : "
             "$nestedBaseName.fromJson(_json['$jsonFieldName'] "
             'as Map<String, dynamic>);';
-      } else if (nonNullableTypeName == 'DateTime') {
+      } else if (returnType.isDartCoreDateTime) {
         getterBody =
             "return _json['$jsonFieldName'] == null ? null : "
             "DateTime.parse(_json['$jsonFieldName'] as String);";
@@ -662,7 +665,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
             "return (_json['$jsonFieldName'] as Map)"
             '.cast<$keyTypeName, $valueTypeName>();';
       }
-    } else if (nonNullableTypeName == 'DateTime') {
+    } else if (returnType.isDartCoreDateTime) {
       getterBody = "return DateTime.parse(_json['$jsonFieldName'] as String);";
     } else if (returnType.isSchema) {
       final nestedBaseName = _resolveBaseName(returnType.element!.name!);
@@ -703,7 +706,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       if (nonNullableTypeName.isSchema) {
         // Normalize the nested model to plain JSON, mirroring the constructor.
         valueExpression = 'value.toJson()';
-      } else if (nonNullableTypeName == 'DateTime') {
+      } else if (paramType.isDartCoreDateTime) {
         valueExpression = 'value.toIso8601String()';
       } else if (paramType.isDartCoreList) {
         final itemType = (paramType as InterfaceType).typeArguments.first;
@@ -754,7 +757,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
             "_json['$jsonFieldName'] = "
             'value.map((k, v) => MapEntry(k, $valAccess));';
       }
-    } else if (nonNullableTypeName == 'DateTime') {
+    } else if (paramType.isDartCoreDateTime) {
       setterBody = "_json['$jsonFieldName'] = value.toIso8601String();";
     } else if (nonNullableTypeName.isSchema) {
       setterBody = "_json['$jsonFieldName'] = value.toJson();";
@@ -788,65 +791,22 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
         ..extend = refer('SchemanticType<$baseName>')
         ..constructors.add(Constructor((c) => c..constant = true));
 
-      if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
-        final subtypes = element.interfaces
-            .map((i) {
-              final interfaceName = i.getDisplayString().replaceAll('?', '');
-              if (interfaceName.isSchema) {
-                return _resolveBaseName(interfaceName);
-              }
-              return null;
-            })
-            .where((name) => name != null);
-
-        var parseBody =
-            'final Map<String, dynamic> jsonMap = '
-            'json as Map<String, dynamic>;';
-        for (final subtype in subtypes) {
-          // This parse logic implies that we need to check validity.
-          // Validate JSON structure using the schema before parsing.
-          parseBody +=
-              'if (${subtype}Type.jsonSchema(useRefs: true).validate(jsonMap)) '
-              '{ return $subtype.fromJson(jsonMap); }';
-        }
-        parseBody += 'throw Exception("Invalid JSON for $baseName");';
-
-        b.methods.add(
-          Method(
-            (m) => m
-              ..annotations.add(refer('override'))
-              ..name = 'parse'
-              ..returns = refer(baseName)
-              ..requiredParameters.add(
-                Parameter(
-                  (p) => p
-                    ..name = 'json'
-                    ..type = refer('Object?'),
-                ),
-              )
-              ..body = Code(parseBody),
-          ),
-        );
-      } else {
-        b.methods.add(
-          Method(
-            (m) => m
-              ..annotations.add(refer('override'))
-              ..name = 'parse'
-              ..returns = refer(baseName)
-              ..requiredParameters.add(
-                Parameter(
-                  (p) => p
-                    ..name = 'json'
-                    ..type = refer('Object?'),
-                ),
-              )
-              ..body = Code(
-                'return $baseName._(json as Map<String, dynamic>);',
+      b.methods.add(
+        Method(
+          (m) => m
+            ..annotations.add(refer('override'))
+            ..name = 'parse'
+            ..returns = refer(baseName)
+            ..requiredParameters.add(
+              Parameter(
+                (p) => p
+                  ..name = 'json'
+                  ..type = refer('Object?'),
               ),
-          ),
-        );
-      }
+            )
+            ..body = Code('return $baseName._(json as Map<String, dynamic>);'),
+        ),
+      );
 
       // Generate schemaMetadata
       b.methods.add(
@@ -931,80 +891,28 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       }
     }
 
-    Expression definitionExpression;
-    final description = annotation.peek('description')?.stringValue;
-    final descriptionExpr = description != null
-        ? literalString(description)
-        : null;
-
-    if (element.fields.isEmpty && element.interfaces.isNotEmpty) {
-      final subtypes = element.interfaces
-          .map((i) {
-            final interfaceName = i.getDisplayString().replaceAll('?', '');
-            if (interfaceName.isSchema) {
-              addDependency(interfaceName);
-              final nestedBaseName = _resolveBaseName(interfaceName);
-              return refer('\$Schema.fromMap').call([
-                literalMap({
-                  literalString(r'\$ref'): CodeExpression(
-                    Code("r'#/\$defs/$nestedBaseName'"),
-                  ),
-                }),
-              ]);
-            }
-            return null;
-          })
-          .where((name) => name != null)
-          .toList()
-          .cast<Expression>();
-
-      // Wrapping anyOf in an object if we have a description, or just use
-      // anyOf. json_schema_builder's Schema.anyOf doesn't seem to support
-      // description directly in constructor usually? We'll use Schema.fromMap
-      // for full control if description is present, or just Schema.anyOf.
-      if (descriptionExpr != null) {
-        // Schema that is both anyOf and has description.
-        // In JSON Schema: { "description": "...", "anyOf": [...] }
-        definitionExpression = refer('\$Schema.fromMap').call([
-          literalMap({
-            literalString('description'): descriptionExpr,
-            literalString('anyOf'): literalList(
-              subtypes.map((s) => s.property('toJson').call([])).toList(),
-            ),
-          }),
-        ]);
-      } else {
-        definitionExpression = refer(
-          '\$Schema.anyOf',
-        ).call([literalList(subtypes)]);
-      }
-    } else {
-      final additionalProperties = annotation
-          .peek('additionalProperties')
-          ?.boolValue;
-
-      final namedArgs = <String, Expression>{
-        'properties': literalMap(properties),
-      };
-      if (required.isNotEmpty) {
-        namedArgs['required'] = literalList(required.map(literalString));
-      }
-      if (descriptionExpr != null) {
-        namedArgs['description'] = descriptionExpr;
-      }
-
-      if (additionalProperties != null) {
-        definitionExpression = refer('\$Schema.fromMap').call([
-          literalMap({
-            'type': literalString('object'),
-            ...namedArgs,
-            'additionalProperties': literalBool(additionalProperties),
-          }),
-        ]);
-      } else {
-        definitionExpression = refer('\$Schema.object').call([], namedArgs);
-      }
+    if (element.fields.isEmpty && _implementsAnnotatedType(element)) {
+      throw InvalidGenerationSourceError(
+        'A @Schema class with no fields cannot be a union of the schema '
+        'types it implements. Declare fields on it, or model the union '
+        'as a field annotated with @AnyOf.',
+        element: element,
+      );
     }
+
+    final description = annotation.peek('description')?.stringValue;
+    final additionalProperties = annotation
+        .peek('additionalProperties')
+        ?.boolValue;
+    final definition = _schemaLiteral({
+      'type': literalString('object'),
+      if (description != null) 'description': literalString(description),
+      'properties': _jsonMapLiteral(properties),
+      if (required.isNotEmpty)
+        'required': literalList(required.map(literalString)),
+      if (additionalProperties != null)
+        'additionalProperties': literalBool(additionalProperties),
+    });
 
     return Method(
       (b) => b
@@ -1014,7 +922,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
         ..returns = refer('JsonSchemaMetadata')
         ..body = refer('JsonSchemaMetadata').call([], {
           'name': literalString(baseName),
-          'definition': definitionExpression.property('value'),
+          'definition': definition,
           'dependencies': literalList(dependencies.toList()),
         }).code,
     );
@@ -1026,6 +934,8 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
     DartObject? anyOfAnnotation,
     bool useRefs = false,
   }) {
+    // JSON Schema keywords read from the field annotation, keyed by their JSON
+    // names (`default`, `enum`, ...).
     final properties = <String, Expression>{};
     if (keyAnnotation != null) {
       final annotationType = keyAnnotation.type!;
@@ -1050,197 +960,110 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
           .nonNulls
           .map((t) => _jsonSchemaForType(t, null, useRefs: useRefs))
           .toList();
-
-      final namedArgs = <String, Expression>{'anyOf': literalList(schemas)};
-      if (properties.containsKey('description')) {
-        namedArgs['description'] = properties['description']!;
-      }
-      if (properties.containsKey('default')) {
-        namedArgs['defaultValue'] = properties['default']!;
-      }
-
-      return refer('\$Schema.combined').call([], namedArgs);
+      return _schemaLiteral({
+        'description': ?properties['description'],
+        'default': ?properties['default'],
+        'anyOf': literalList(schemas),
+      });
     }
 
-    final hasDefault = properties.containsKey('default');
-
-    Expression schemaExpression;
     if (type.element is EnumElement) {
       final enumElement = type.element as EnumElement;
       final enumValues = enumElement.fields
           .where((f) => f.isEnumConstant)
           .map((f) => f.name)
           .toList();
-      properties[hasDefault ? 'enum' : 'enumValues'] = literalList(enumValues);
-      if (hasDefault) {
-        properties['type'] = literalString('string');
-        schemaExpression = refer(
-          '\$Schema.fromMap',
-        ).call([literalMap(properties)]);
-      } else {
-        schemaExpression = refer('\$Schema.string').call([], properties);
-      }
-    } else if (type.isDartCoreString) {
-      if (hasDefault) {
-        properties['type'] = literalString('string');
-        if (properties.containsKey('enumValues')) {
-          properties['enum'] = properties.remove('enumValues')!;
-        }
-        schemaExpression = refer(
-          '\$Schema.fromMap',
-        ).call([literalMap(properties)]);
-      } else {
-        schemaExpression = refer('\$Schema.string').call([], properties);
-      }
-    } else if (type.isDartCoreInt) {
-      if (hasDefault) {
-        properties['type'] = literalString('integer');
-        schemaExpression = refer(
-          '\$Schema.fromMap',
-        ).call([literalMap(properties)]);
-      } else {
-        schemaExpression = refer('\$Schema.integer').call([], properties);
-      }
-    } else if (type.isDartCoreBool) {
-      if (hasDefault) {
-        properties['type'] = literalString('boolean');
-        schemaExpression = refer(
-          '\$Schema.fromMap',
-        ).call([literalMap(properties)]);
-      } else {
-        schemaExpression = refer('\$Schema.boolean').call([], properties);
-      }
-    } else if (type.isDartCoreDouble || type.isDartCoreNum) {
-      if (hasDefault) {
-        properties['type'] = literalString('number');
-        schemaExpression = refer(
-          '\$Schema.fromMap',
-        ).call([literalMap(properties)]);
-      } else {
-        schemaExpression = refer('\$Schema.number').call([], properties);
-      }
-    } else if (type.isDartCoreList) {
+      return _schemaLiteral({
+        'type': literalString('string'),
+        ...properties,
+        'enum': literalList(enumValues),
+      });
+    }
+    if (type.isDartCoreString) {
+      return _schemaLiteral({'type': literalString('string'), ...properties});
+    }
+    if (type.isDartCoreInt) {
+      return _schemaLiteral({'type': literalString('integer'), ...properties});
+    }
+    if (type.isDartCoreBool) {
+      return _schemaLiteral({'type': literalString('boolean'), ...properties});
+    }
+    if (type.isDartCoreDouble || type.isDartCoreNum) {
+      return _schemaLiteral({'type': literalString('number'), ...properties});
+    }
+    if (type.isDartCoreList) {
       final itemType = (type as InterfaceType).typeArguments.first;
-      properties['items'] = _jsonSchemaForType(
-        itemType,
-        null,
-        useRefs: useRefs,
-      );
-      if (hasDefault) {
-        properties['type'] = literalString('array');
-        schemaExpression = refer(
-          '\$Schema.fromMap',
-        ).call([literalMap(properties)]);
-      } else {
-        schemaExpression = refer('\$Schema.list').call([], properties);
-      }
-    } else if (type.isDartCoreMap) {
+      return _schemaLiteral({
+        'type': literalString('array'),
+        ...properties,
+        'items': _jsonSchemaForType(itemType, null, useRefs: useRefs),
+      });
+    }
+    if (type.isDartCoreMap) {
       final valueType = (type as InterfaceType).typeArguments[1];
-      properties['additionalProperties'] = _jsonSchemaForType(
-        valueType,
-        null,
-        useRefs: useRefs,
-      );
-      if (hasDefault) {
-        properties['type'] = literalString('object');
-        schemaExpression = refer(
-          '\$Schema.fromMap',
-        ).call([literalMap(properties)]);
-      } else {
-        schemaExpression = refer('\$Schema.object').call([], properties);
-      }
-    } else {
-      final typeName = type.getDisplayString().replaceAll('?', '');
-      if (typeName == 'DateTime') {
-        if (hasDefault) {
-          properties['type'] = literalString('string');
-          properties['format'] = literalString('date-time');
-          schemaExpression = refer(
-            '\$Schema.fromMap',
-          ).call([literalMap(properties)]);
-        } else {
-          properties['format'] = literalString('date-time');
-          schemaExpression = refer('\$Schema.string').call([], properties);
-        }
-      } else if (type.isSchema) {
-        final nestedBaseName = _resolveBaseName(type.element!.name!);
-        // If we are building the "definition" for the metadata, we want to use
-        // refs for children.
-        if (useRefs) {
-          final refMap = <Object, Object>{
-            literalString(r'\$ref'): CodeExpression(
-              Code("r'#/\$defs/$nestedBaseName'"),
-            ),
-          };
-          // default is not allowed as sibling of $ref, so we don't add it here.
-          // It will be added in the allOf wrapper below.
-          schemaExpression = refer(
-            '\$Schema.fromMap',
-          ).call([literalMap(refMap)]);
-        } else {
-          // For metadata generation, we can emit a direct call to the nested
-          // type's jsonSchema.
-          schemaExpression = refer(
-            '$nestedBaseName.\$schema.jsonSchema',
-          ).call([]);
-        }
-
-        if (properties.isNotEmpty) {
-          // If there are extra properties (like description or default), we
-          // need to wrap the ref/schema.
-          // Wrap the schema in allOf to allow adding extra properties.
-          if (useRefs) {
-            // we already have schemaExpression as a ref.
-            // Always wrap if we have properties (because we can't put them on
-            // the ref)
-            final allOfList = [
-              refer('\$Schema.fromMap').call([
-                literalMap({
-                  r'\$ref': CodeExpression(Code("r'#/\$defs/$nestedBaseName'")),
-                }),
-              ]),
-            ];
-
-            final combinedMap = <Object, Object>{
-              'allOf': literalList(allOfList),
-            };
-            if (properties.containsKey('description')) {
-              combinedMap['description'] = properties['description']!;
-            }
-            if (properties.containsKey('default')) {
-              combinedMap['default'] = properties['default']!;
-            }
-
-            return refer('\$Schema.fromMap').call([literalMap(combinedMap)]);
-          } else {
-            // Not using refs (inline).
-            // SchemaExpression is types.jsonSchema().
-            // Wrapper needed.
-            final combinedMap = <Object, Object>{
-              'allOf': literalList([schemaExpression]),
-            };
-            if (properties.containsKey('description')) {
-              combinedMap['description'] = properties['description']!;
-            }
-            if (properties.containsKey('default')) {
-              combinedMap['default'] = properties['default']!;
-            }
-            return refer('\$Schema.fromMap').call([literalMap(combinedMap)]);
-          }
-        }
-      } else {
-        if (hasDefault) {
-          schemaExpression = refer(
-            '\$Schema.fromMap',
-          ).call([literalMap(properties)]);
-        } else {
-          schemaExpression = refer('\$Schema.any').call([], properties);
-        }
-      }
+      return _schemaLiteral({
+        'type': literalString('object'),
+        ...properties,
+        'additionalProperties': _jsonSchemaForType(
+          valueType,
+          null,
+          useRefs: useRefs,
+        ),
+      });
     }
 
-    return schemaExpression;
+    if (type.isDartCoreDateTime) {
+      return _schemaLiteral({
+        'type': literalString('string'),
+        ...properties,
+        'format': literalString('date-time'),
+      });
+    }
+    if (type.isSchema) {
+      final nestedBaseName = _resolveBaseName(type.element!.name!);
+      // In the metadata definition, nested schema types are `$ref`s into the
+      // `$defs` that schemantic assembles from `dependencies`.
+      final schemaExpression = useRefs
+          ? _schemaLiteral({r'$ref': _refLiteral(nestedBaseName)})
+          : refer('$nestedBaseName.\$schema.jsonSchema').call([]);
+      if (properties.isEmpty) return schemaExpression;
+      // Keywords such as `description` and `default` are not allowed as
+      // siblings of `$ref`, so wrap the reference in `allOf`.
+      return _schemaLiteral({
+        'allOf': literalList([schemaExpression]),
+        ...properties,
+      });
+    }
+    return _schemaLiteral(properties);
   }
+
+  /// A JSON Schema map literal, with keys in [_schemaKeyOrder].
+  Expression _schemaLiteral(Map<String, Expression> entries) {
+    final ordered = <String, Expression>{
+      for (final key in _schemaKeyOrder)
+        if (entries.containsKey(key)) key: entries[key]!,
+      for (final entry in entries.entries)
+        if (!_schemaKeyOrder.contains(entry.key)) entry.key: entry.value,
+    };
+    return _jsonMapLiteral({
+      for (final entry in ordered.entries)
+        _schemaKeyLiteral(entry.key): entry.value,
+    });
+  }
+
+  /// A `<String, Object?>{...}` literal. Typed explicitly because an untyped
+  /// literal infers from its values (`{'type': 'string'}` would be a
+  /// `Map<String, String>`, and `{}` a `Map<dynamic, dynamic>`), which breaks
+  /// consumers that write into or type-test schema maps.
+  Expression _jsonMapLiteral(Map<Object, Expression> entries) =>
+      literalMap(entries, refer('String'), refer('Object?'));
+
+  /// Keys containing `$` are emitted as raw strings to avoid interpolation.
+  Expression _schemaKeyLiteral(String key) =>
+      key.contains(r'$') ? CodeExpression(Code("r'$key'")) : literalString(key);
+
+  Expression _refLiteral(String baseName) =>
+      CodeExpression(Code("r'#/\$defs/$baseName'"));
 
   void _validateAnnotation(DartType annotationType, DartType type) {
     if (_stringFieldChecker.isAssignableFromType(annotationType) &&
@@ -1328,9 +1151,7 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
       properties['pattern'] = literalString(pattern, raw: true);
     }
     if (format != null) properties['format'] = literalString(format);
-    if (enumValues != null) {
-      properties['enumValues'] = literalList(enumValues);
-    }
+    if (enumValues != null) properties['enum'] = literalList(enumValues);
     return properties;
   }
 
@@ -1378,6 +1199,38 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
   }
 }
 
+/// Key order for generated schema literals. Mirrors the order in which
+/// `package:json_schema_builder`'s typed constructors (which the generator
+/// used to emit) wrote keys, so schemas serialize the same as before.
+const _schemaKeyOrder = [
+  'type',
+  'title',
+  'description',
+  'enum',
+  'const',
+  'default',
+  r'$ref',
+  'allOf',
+  'anyOf',
+  // Strings.
+  'minLength',
+  'maxLength',
+  'pattern',
+  'format',
+  // Numbers.
+  'minimum',
+  'maximum',
+  'exclusiveMinimum',
+  'exclusiveMaximum',
+  'multipleOf',
+  // Arrays.
+  'items',
+  // Objects.
+  'properties',
+  'required',
+  'additionalProperties',
+];
+
 const _keyChecker = TypeChecker.fromUrl(
   'package:schemantic/schemantic.dart#Field',
 );
@@ -1413,6 +1266,16 @@ extension on DartType {
 
   bool get isSchema {
     return element?.name?.startsWith(r'$') ?? false;
+  }
+
+  /// Whether this is `dart:core`'s `DateTime` (possibly nullable). Checked via
+  /// the element rather than the display name, so a user class that happens
+  /// to be named `DateTime` is not mistaken for it.
+  bool get isDartCoreDateTime {
+    final e = element;
+    return e != null &&
+        e.name == 'DateTime' &&
+        (e.library?.isDartCore ?? false);
   }
 }
 

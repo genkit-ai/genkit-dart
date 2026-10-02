@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
 
@@ -26,7 +24,7 @@ const _schema = {
   },
 };
 
-Future<Map<String, dynamic>> _requestOnTheWire({
+Future<Map<String, dynamic>> _generationConfigOnTheWire({
   OutputConfig? output,
   Map<String, dynamic>? config,
   String model = 'gemini-2.0-flash',
@@ -46,20 +44,7 @@ Future<Map<String, dynamic>> _requestOnTheWire({
       output: output,
     ),
   );
-  return captured.single;
-}
-
-Future<Map<String, dynamic>> _generationConfigOnTheWire({
-  OutputConfig? output,
-  Map<String, dynamic>? config,
-  String model = 'gemini-2.0-flash',
-}) async {
-  final request = await _requestOnTheWire(
-    output: output,
-    config: config,
-    model: model,
-  );
-  return (request['generationConfig'] as Map).cast<String, dynamic>();
+  return (captured.single['generationConfig'] as Map).cast<String, dynamic>();
 }
 
 void main() {
@@ -110,7 +95,7 @@ void main() {
     test('TTS model text-mode request with an output schema sends no '
         'responseJsonSchema', () async {
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-2.5-flash-preview-tts',
+        model: 'gemini-3.8-flash-tts',
         output: OutputConfig(
           format: 'text',
           schema: _schema,
@@ -123,7 +108,7 @@ void main() {
     test('TTS model JSON-mode unconstrained request sends no '
         'responseJsonSchema', () async {
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-2.5-flash-preview-tts',
+        model: 'gemini-3.8-flash-tts',
         output: OutputConfig(
           format: 'json',
           schema: _schema,
@@ -134,20 +119,22 @@ void main() {
       expect(config, isNot(contains('responseJsonSchema')));
     });
 
-    test('TTS model JSON-mode constrained request is simulated in the '
-        'prompt', () async {
-      final request = await _requestOnTheWire(
-        model: 'gemini-2.5-flash-preview-tts',
+    test('TTS model JSON-mode constrained request is sent as '
+        'requested', () async {
+      // Core does not rewrite constrained requests for models that decline
+      // them; the plugin forwards what it was given. Callers who want the
+      // schema in the prompt add the `simulateConstrainedGeneration`
+      // middleware.
+      final config = await _generationConfigOnTheWire(
+        model: 'gemini-3.8-flash-tts',
         output: OutputConfig(
           format: 'json',
           schema: _schema,
           constrained: true,
         ),
       );
-      final config = (request['generationConfig'] as Map)
-          .cast<String, dynamic>();
-      expect(config, isNot(contains('responseJsonSchema')));
-      expect(jsonEncode(request['contents']), contains(r'\"answer\"'));
+      expect(config['responseMimeType'], 'application/json');
+      expect(config['responseJsonSchema'], _schema);
     });
 
     test('non-JSON mode passes a user-configured responseMimeType '
@@ -179,7 +166,7 @@ void main() {
 
     test('TTS model seed in config reaches the wire', () async {
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-2.5-flash-preview-tts',
+        model: 'gemini-3.8-flash-tts',
         config: {'seed': 42},
       );
       expect(config['seed'], 42);

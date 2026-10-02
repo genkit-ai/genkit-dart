@@ -120,23 +120,22 @@ void main() {
       });
     }
 
-    test('curates the JS/Go union by family', () {
+    test('curates the live Gemini API catalog by family', () {
       expect(
         {
           for (final model in KnownGeminiModel.values)
             if (model.family == GeminiModelFamily.text) model.id,
         },
         {
-          'gemini-2.5-pro',
-          'gemini-2.5-flash',
-          'gemini-2.5-flash-lite',
           'gemini-3.1-pro-preview',
           'gemini-3-flash-preview',
+          'gemini-3.8-flash',
           'gemini-3.7-flash',
           'gemini-3.6-flash',
           'gemini-3.5-flash',
           'gemini-3.5-flash-lite',
           'gemini-3.1-flash-lite',
+          'gemini-2.5-flash-lite',
         },
       );
       expect(
@@ -145,10 +144,10 @@ void main() {
             if (model.family == GeminiModelFamily.image) model.id,
         },
         {
-          'gemini-2.5-flash-image',
           'gemini-3.1-flash-image',
           'gemini-3.1-flash-lite-image',
           'gemini-3-pro-image',
+          'gemini-2.5-flash-image',
         },
       );
       expect(
@@ -157,8 +156,8 @@ void main() {
             if (model.family == GeminiModelFamily.tts) model.id,
         },
         {
-          'gemini-2.5-flash-preview-tts',
-          'gemini-2.5-pro-preview-tts',
+          'gemini-3.8-flash-tts',
+          'gemini-3.8-flash-lite-tts',
           'gemini-3.1-flash-tts-preview',
         },
       );

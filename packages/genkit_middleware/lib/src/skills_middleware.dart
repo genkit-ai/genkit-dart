@@ -143,7 +143,7 @@ class SkillsMiddleware extends GenerateMiddleware {
         name: 'use_skill',
         description: 'Use a skill by its name.',
         inputSchema: UseSkillInput.$schema,
-        toolOutputSchema: .string(),
+        outputSchema: .string(),
         fn: (input, _) async {
           await _ensureSkillsScanned();
           final skillName = input.skillName;
@@ -167,10 +167,10 @@ class SkillsMiddleware extends GenerateMiddleware {
   }
 
   @override
-  Future<GenerateResponseHelper> generate(
+  Future<GenerateResult> generate(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )

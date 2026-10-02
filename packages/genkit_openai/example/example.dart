@@ -172,8 +172,8 @@ Flow<List<String>, String, void, void> defineEmbeddingFlow(Genkit ai) {
     inputSchema: .list(.string()),
     outputSchema: .string(),
     fn: (texts, _) async {
-      final vectors = await ai.embedMany(
-        embedder: OpenAIEmbedders.textEmbedding3Small,
+      final vectors = await ai.embed(
+        embedder: openAI.embedder('text-embedding-3-small'),
         documents: [
           for (final text in texts)
             DocumentData(content: [TextPart(text: text)]),

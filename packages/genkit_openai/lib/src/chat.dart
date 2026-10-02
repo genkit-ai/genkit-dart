@@ -113,8 +113,8 @@ bool isJsonStructuredOutput(String? format, String? contentType) {
 ///
 /// [supportsJsonSchema] is false for a host that takes `json_object` but not
 /// `json_schema` - DeepSeek, among others. There the schema cannot travel as a
-/// constraint, so the request asks for JSON and the schema reaches the model
-/// only as far as Genkit's prompt instructions carry it. Sending the schema
+/// constraint, so the request asks for JSON and the plugin writes the schema
+/// into the prompt instead (see [jsonObjectInstruction]). Sending the schema
 /// anyway would be a 400, which is worse than an unconstrained answer.
 ResponseFormat? buildOpenAIResponseFormat({
   String? format,
@@ -161,23 +161,32 @@ ResponseFormat? buildOpenAIResponseFormat({
 /// The JSON instruction a `json_object`-only host needs in the prompt.
 ///
 /// Null when there is nothing to add. Without `json_schema` the prompt is the
-/// only place the schema can go, so it is written out unless core already
-/// added it (marked `purpose: 'output'`). Otherwise the word "json" is added
-/// unless a message already says it: DeepSeek rejects a `json_object` request
-/// whose prompt lacks it, and a caller's own instructions may not use it.
+/// only place the schema can go, so it is written out unless the rendered
+/// schema is already there - as it is when the caller adds the
+/// `simulateConstrainedGeneration` middleware, which writes the same JSON
+/// under different wording. Otherwise the word "json" is added unless a
+/// message already says it: DeepSeek rejects a `json_object` request whose
+/// prompt lacks it, and a caller's own instructions may not use it.
+///
+/// Matching the rendered schema rather than a `purpose: 'output'` marker is
+/// deliberate: `outputInstructions` carries that marker too, so keying off it
+/// let a caller's own instructions suppress the schema entirely and the model
+/// never saw the shape it was being asked for.
 String? jsonObjectInstruction(
   List<Message> messages,
   Map<String, dynamic>? schema,
 ) {
-  final coreWroteThem = messages.any(
-    (message) => message.content.any(
-      (part) => part.isText && part.metadata?['purpose'] == 'output',
-    ),
-  );
-  if (schema != null && !coreWroteThem) {
-    return 'Respond with JSON only. The JSON must conform to the following '
-        'schema:\n\n```\n'
-        '${const JsonEncoder.withIndent('  ').convert(schema)}\n```';
+  if (schema != null) {
+    final rendered = const JsonEncoder.withIndent('  ').convert(schema);
+    final alreadyCarried = messages.any(
+      (message) => message.content.any(
+        (part) => part.isText && (part.text?.contains(rendered) ?? false),
+      ),
+    );
+    if (!alreadyCarried) {
+      return 'Respond with JSON only. The JSON must conform to the following '
+          'schema:\n\n```\n$rendered\n```';
+    }
   }
 
   final alreadyAsked = messages.any(
@@ -204,7 +213,7 @@ ReasoningEffort? toReasoningEffort(String? value) {
     throw GenkitException(
       'Unknown reasoningEffort "$value". Known levels: '
       '${ReasoningEffort.values.where((e) => e != ReasoningEffort.unknown).map((e) => e.toJson()).join(', ')}.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return effort;
@@ -219,7 +228,7 @@ Verbosity? toVerbosity(String? value) {
     throw GenkitException(
       'Unknown verbosity "$value". Known levels: '
       '${Verbosity.values.where((v) => v != Verbosity.unknown).map((v) => v.toJson()).join(', ')}.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return verbosity;

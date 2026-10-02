@@ -112,7 +112,7 @@ base class AnthropicOptions {
   }
 
   int? get maxTokens {
-    return _json['maxTokens'] as int?;
+    return (_json['maxTokens'] as num?)?.toInt();
   }
 
   set maxTokens(int? value) {
@@ -148,7 +148,7 @@ base class AnthropicOptions {
   }
 
   int? get topK {
-    return _json['topK'] as int?;
+    return (_json['topK'] as num?)?.toInt();
   }
 
   set topK(int? value) {
@@ -252,47 +252,57 @@ base class _AnthropicOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AnthropicOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'apiKey': $Schema.string(),
-            'apiVersion': $Schema.string(
-              description:
-                  'Which Anthropic API surface to use for this request. The beta surface also serves every stable feature. Overrides the plugin-level default, which is "stable".',
-              enumValues: ['stable', 'beta'],
-            ),
-            'betas': $Schema.list(items: $Schema.string()),
-            'maxTokens': $Schema.integer(
-              description:
-                  'The maximum number of tokens to generate before stopping.',
-              minimum: 1,
-            ),
-            'temperature': $Schema.number(
-              description:
-                  'Amount of randomness injected into the response. Ranges from 0.0 to 1.0. Use temperature closer to 0.0 for analytical / multiple choice, and closer to 1.0 for creative and generative tasks.',
-              minimum: 0.0,
-              maximum: 1.0,
-            ),
-            'topP': $Schema.number(
-              description:
-                  'Use nucleus sampling. In nucleus sampling, we compute the cumulative distribution over all the options for each subsequent token in decreasing probability order and cut it off once it reaches a particular probability specified by top_p.',
-              minimum: 0.0,
-              maximum: 1.0,
-            ),
-            'topK': $Schema.integer(
-              description:
-                  'Only sample from the top K options for each subsequent token.',
-              minimum: 0,
-            ),
-            'stopSequences': $Schema.list(items: $Schema.string()),
-            'forceTool': $Schema.string(),
-            'thinking': $Schema.fromMap({'\$ref': r'#/$defs/ThinkingConfig'}),
-            'outputConfig': $Schema.fromMap({
-              '\$ref': r'#/$defs/AnthropicOutputConfig',
-            }),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'apiKey': <String, Object?>{'type': 'string'},
+        'apiVersion': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Which Anthropic API surface to use for this request. The beta surface also serves every stable feature. Overrides the plugin-level default, which is "stable".',
+          'enum': ['stable', 'beta'],
+        },
+        'betas': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'maxTokens': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'The maximum number of tokens to generate before stopping.',
+          'minimum': 1,
+        },
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Amount of randomness injected into the response. Ranges from 0.0 to 1.0. Use temperature closer to 0.0 for analytical / multiple choice, and closer to 1.0 for creative and generative tasks.',
+          'minimum': 0.0,
+          'maximum': 1.0,
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Use nucleus sampling. In nucleus sampling, we compute the cumulative distribution over all the options for each subsequent token in decreasing probability order and cut it off once it reaches a particular probability specified by top_p.',
+          'minimum': 0.0,
+          'maximum': 1.0,
+        },
+        'topK': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Only sample from the top K options for each subsequent token.',
+          'minimum': 0,
+        },
+        'stopSequences': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'forceTool': <String, Object?>{'type': 'string'},
+        'thinking': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
+        'outputConfig': <String, Object?>{
+          r'$ref': r'#/$defs/AnthropicOutputConfig',
+        },
+      },
+    },
     dependencies: [ThinkingConfig.$schema, AnthropicOutputConfig.$schema],
   );
 }
@@ -328,7 +338,7 @@ base class ThinkingConfig {
   }
 
   int? get budgetTokens {
-    return _json['budgetTokens'] as int?;
+    return (_json['budgetTokens'] as num?)?.toInt();
   }
 
   set budgetTokens(int? value) {
@@ -361,22 +371,23 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ThinkingConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'type': $Schema.string(
-              description:
-                  'Thinking mode. "enabled" uses budgetTokens, "adaptive" lets the model decide, "disabled" turns it off.',
-              enumValues: ['enabled', 'disabled', 'adaptive'],
-            ),
-            'budgetTokens': $Schema.integer(
-              description:
-                  'Determines how many tokens Claude can use for its internal reasoning process. Larger budgets allow for more extensive thought but increase latency and cost. The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
-              minimum: 1024,
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'type': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Thinking mode. "enabled" uses budgetTokens, "adaptive" lets the model decide, "disabled" turns it off.',
+          'enum': ['enabled', 'disabled', 'adaptive'],
+        },
+        'budgetTokens': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Determines how many tokens Claude can use for its internal reasoning process. Larger budgets allow for more extensive thought but increase latency and cost. The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
+          'minimum': 1024,
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -434,17 +445,17 @@ base class _AnthropicOutputConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AnthropicOutputConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'effort': $Schema.string(
-              description:
-                  'Controls the effort Claude spends on the response, trading off response depth against latency and token usage.',
-              enumValues: ['low', 'medium', 'high', 'xhigh', 'max'],
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'effort': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Controls the effort Claude spends on the response, trading off response depth against latency and token usage.',
+          'enum': ['low', 'medium', 'high', 'xhigh', 'max'],
+        },
+      },
+    },
     dependencies: [],
   );
 }

@@ -8,6 +8,16 @@ Build production-ready AI-powered applications in Dart with a unified interface 
 
 ---
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Installation
 
 ```bash
@@ -79,7 +89,7 @@ await for (final chunk in stream) {
 Turn text into vector embeddings for search and retrieval tasks:
 
 ```dart
-final embeddings = await ai.embedMany(
+final embeddings = await ai.embed(
   documents: [
     DocumentData(content: [TextPart(text: 'Hello world')]),
   ],
@@ -311,15 +321,10 @@ Intercept and modify requests and responses with middleware. Genkit provides bui
 
 #### Retry Middleware
 
-Automatically retry failed requests with exponential backoff and jitter:
+Automatically retry failed requests with exponential backoff and jitter. `retry` is built in, so there is no plugin to register:
 
 ```dart
-final ai = Genkit(
-  plugins: [
-    googleAI(),
-    RetryPlugin(), // Required for retry middleware
-  ],
-);
+final ai = Genkit(plugins: [googleAI()]);
 
 final response = await ai.generate(
   model: googleAI.gemini('gemini-flash-latest'),
@@ -327,13 +332,39 @@ final response = await ai.generate(
   use: [
     retry(
       maxRetries: 3,
-      retryModel: true, // Retry model validation errors (default: true)
+      initialDelay: const Duration(milliseconds: 500), // default: 1s
+      maxDelay: const Duration(seconds: 30), // default: 1 minute
       retryTools: false, // Retry tool execution errors (default: false)
-      statuses: [StatusCodes.UNAVAILABLE], // Retry only on specific errors
+      statuses: [StatusCode.unavailable], // Retry only on specific errors
     ),
   ],
 );
 ```
+
+#### Simulated Constrained Generation
+
+With an `outputSchema`, Genkit asks the model for native constrained output:
+the plugin sends the schema to the provider (Gemini's `responseJsonSchema`,
+OpenAI's `json_schema`, Anthropic's structured outputs, and so on). Genkit
+does not add a fallback on its own.
+
+For a model or provider without native support, `simulateConstrainedGeneration`
+puts the schema in the prompt instead and leaves the native constraint off.
+It is built in, so no plugin is needed:
+
+```dart
+final response = await ai.generate(
+  model: myModel,
+  prompt: 'Generate a person named John Doe, age 30',
+  outputSchema: Person.$schema,
+  use: [simulateConstrainedGeneration()],
+);
+
+final person = response.output; // Still typed and parsed
+```
+
+The model is asked for JSON matching the schema, but nothing enforces it, so
+expect the occasional malformed or incomplete reply.
 
 ---
 
@@ -551,7 +582,7 @@ try {
   final result = await action(input: 'test');
 } on GenkitException catch (e) {
   print('Genkit error: ${e.message}');
-  print('Status code: ${e.statusCode}');
+  print('Status: ${e.status.wireName}');
   print('Details: ${e.details}');
 } catch (e) {
   print('Other error: $e');
@@ -602,7 +633,7 @@ print('Final Response: ${finalResult.text}');
 
 ### Remote Models
 
-You can also define and use remotely deployed models as if they were local models using `defineRemoteModel`. This is particularly useful when you have models hosted via `genkit_shelf` or other compatible Genkit servers.
+You can also define and use remotely deployed models as if they were local models using `defineRemoteModel`. This is particularly useful when you have models hosted via `GenkitRouter` (see [Serving over HTTP](#serving-over-http)) or other compatible Genkit servers.
 
 ```dart
 final remoteModel = ai.defineRemoteModel(
@@ -623,7 +654,79 @@ final response = await ai.generate(
 print(response.text);
 ```
 
-Check out the [genkit_shelf](https://pub.dev/packages/genkit_shelf) package for details on how to host remote models and flows.
+See [Serving over HTTP](#serving-over-http) for how to host remote models and flows.
+
+---
+
+## Serving over HTTP
+
+`package:genkit/io.dart` serves flows, models and other actions over HTTP with plain `dart:io`, speaking the protocol the client SDK above (`defineRemoteAction`, `defineRemoteModel`, `remoteAgent`) expects. Each action becomes a POST route, streamed with `?stream=true`.
+
+```dart
+import 'package:genkit/io.dart';
+import 'package:logging/logging.dart';
+
+final genkit = GenkitRouter()
+  ..addAction(helloFlow) // POST /helloFlow
+  ..addAction(secureFlow, contextProvider: bearerAuth)
+  ..addAction(geminiFlash, path: '/v1/gemini');
+
+// Optional: show Genkit's logs, including the address `serve` bound.
+Logger.root.onRecord.listen(print);
+
+await genkit.serve(
+  port: 8080, // default: $PORT, then 3400
+  cors: const CorsOptions(allowedOrigins: ['https://myapp.dev']), // default: no CORS
+);
+```
+
+To keep your own server and routes, hand requests to the router (it returns false for paths it doesn't own), or serve a single action with `ioHandler`:
+
+```dart
+final handleHealth = ioHandler(healthFlow);
+
+final server = await HttpServer.bind(InternetAddress.anyIPv4, 8080);
+await for (final request in server) {
+  if (await genkit.handleHttpRequest(request, basePath: '/api')) continue;
+  if (request.uri.path == '/healthz') {
+    await handleHealth(request);
+    continue;
+  }
+  request.response
+    ..statusCode = HttpStatus.notFound
+    ..close();
+}
+```
+
+A `contextProvider` authorizes the request and builds the action context (`ctx.context`). It gets a framework-neutral `RequestData`, so the same function works with any server. A thrown `GenkitException` is answered with its status, anything else with `403`:
+
+```dart
+Future<Map<String, dynamic>> bearerAuth(RequestData request) async {
+  final user = await checkUserToken(request.headers['authorization']);
+  if (user == null) {
+    throw GenkitException('Unauthorized', status: StatusCode.unauthenticated);
+  }
+  return {'userId': user.id};
+}
+```
+
+Agents (experimental) get their turn route plus the `/getSnapshot` and `/abort` companions they support:
+
+```dart
+import 'package:genkit/experimental_io.dart';
+
+genkit
+  ..addAgent(weatherAgent) // turn + /getSnapshot + /abort
+  ..addAgent(statelessAgent); // turn only
+```
+
+When a streamed call fails midway, the stream ends with a `data: {"error": ...}` frame, the same as Go and Python servers. Dart clients from `package:genkit` 0.17 and earlier only recognize the older `error: {...}` frame. If such clients are still in use (for example a shipped Flutter app), keep sending that frame until they've updated:
+
+```dart
+final genkit = GenkitRouter(sendLegacyErrorFrame: true); // also on ioHandler(...)
+```
+
+For shelf apps, use [genkit_shelf](https://pub.dev/packages/genkit_shelf) (`router.mount('/api/', genkit.asShelfHandler())`). Other frameworks can adapt the framework-neutral `GenkitRouter.handle` / `actionHandler`, which take a `GenkitHttpRequest` and return a `GenkitHttpResponse`. See [example/http_server_example.dart](example/http_server_example.dart) and [example/http_agent_example.dart](example/http_agent_example.dart).
 
 ---
 
@@ -682,7 +785,7 @@ They live behind dedicated imports so opting in is explicit:
 ```dart
 import 'package:genkit/experimental.dart';        // agents, sessions, snapshots, live/bidi models
 import 'package:genkit/experimental_client.dart'; // browser-safe agent client
-import 'package:genkit/experimental_io.dart';     // dart:io extras (FileSessionStore)
+import 'package:genkit/experimental_io.dart';     // dart:io extras (FileSessionStore, GenkitRouter.addAgent)
 ```
 
 Once imported, the experimental veneer reads like the rest of the API:
@@ -704,7 +807,7 @@ the bidi surface (`generateBidi`, `defineBidiModel`, `BidiModel`,
 `defineBidiFlow`).
 
 **Stable surface** (covered by SemVer): `package:genkit/genkit.dart`,
-`client.dart`, `lite.dart`, `plugin.dart`, and `telemetry.dart`.
+`client.dart`, `lite.dart`, `plugin.dart`, `telemetry.dart`, and `io.dart`.
 
 ---
 

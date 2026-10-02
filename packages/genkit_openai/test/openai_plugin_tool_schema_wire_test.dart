@@ -171,7 +171,7 @@ void main() {
         );
         expect(res.finishReason, FinishReason.failed);
         expect(res.error, isNotNull);
-        expect(res.error!.status, StatusCodes.INVALID_ARGUMENT.name);
+        expect(res.error!.status, StatusCode.invalidArgument.wireName);
         expect(res.error!.message, allOf(contains('echo'), contains('object')));
         expect(captured, isEmpty);
 

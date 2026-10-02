@@ -2,6 +2,16 @@
 
 Google AI plugin for Genkit Dart.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Usage
 
 ```dart
@@ -67,7 +77,7 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 void main() async {
   final ai = Genkit(plugins: [googleAI()]);
 
-  final embeddings = await ai.embedMany(
+  final embeddings = await ai.embed(
     embedder: googleAI.textEmbedding('text-embedding-004'),
     documents: [
       DocumentData(content: [TextPart(text: 'Hello world')]),

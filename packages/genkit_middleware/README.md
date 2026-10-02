@@ -2,6 +2,16 @@
 
 A collection of useful middleware for Genkit Dart to enhance your agent's capabilities.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Features
 
 - **Agents** (experimental): Let a main agent delegate tasks to specialized
@@ -266,6 +276,18 @@ final response = await ai.generate(
     toolApproval(approved: ['read_file', 'list_files']),
   ],
 );
+```
+
+A default list can also be set on the plugin. It applies whenever
+`toolApproval()` is called without `approved:`; a call-level list replaces it
+rather than adding to it.
+
+```dart
+final ai = Genkit(
+  plugins: [ToolApprovalPlugin(approvedTools: ['read_file', 'list_files'])],
+);
+
+await ai.generate(prompt: '...', use: [toolApproval()]);
 ```
 
 #### Handling Interrupts

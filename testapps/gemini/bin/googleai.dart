@@ -233,7 +233,7 @@ void main(List<String> args) async {
             includeThoughts: true,
           ),
         ),
-        onChunk: (chunk) => ctx.sendChunk(chunk),
+        onChunk: (chunk) => ctx.sendChunk(chunk.modelChunk),
       );
       return response.message!;
     },
@@ -304,7 +304,7 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.geminiTts('gemini-3.1-flash-tts-preview'),
+        model: googleAI.geminiTts('gemini-3.8-flash-tts'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
@@ -334,6 +334,9 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
+        // 3.8 TTS wants a speech_metadata.speaker on every text part for
+        // multi-speaker requests, which GeminiTtsOptions cannot express yet;
+        // 3.1 still takes speakers from the transcript.
         model: googleAI.geminiTts('gemini-3.1-flash-tts-preview'),
         prompt: prompt,
         config: GeminiTtsOptions(
@@ -370,7 +373,7 @@ void main(List<String> args) async {
     inputSchema: .string(defaultValue: 'Hello Genkit'),
     outputSchema: .list(.doubleSchema()),
     fn: (input, _) async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: input)]),

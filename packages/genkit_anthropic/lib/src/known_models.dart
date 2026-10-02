@@ -14,53 +14,32 @@
 
 import 'package:genkit/plugin.dart';
 
-// A const map literal rejects duplicate keys, so 'output' cannot be spread in
-// from the base tier and then overridden.
-const _claudeSupportsCore = <String, dynamic>{
+/// Capabilities of every Claude model this plugin serves: multiturn chat,
+/// vision (media input), tool calling with tool choice, a system role, and
+/// text or JSON output with native constrained generation.
+///
+/// `constrained: true` holds for any model name, curated or not. Structured
+/// outputs (`output_config.format`) are GA on the stable surface and cover
+/// every active Claude model; models that predate them are retired. The
+/// schema pins no `tool_choice` and adds no tool, so it composes with the
+/// caller's own tools and with extended thinking.
+const claudeSupports = <String, dynamic>{
   'multiturn': true,
   'media': true,
   'tools': true,
   'toolChoice': true,
   'systemRole': true,
-};
-
-/// Capabilities every Claude model has: multiturn chat, vision (media input),
-/// tool calling with tool choice, a system role, and text output.
-///
-/// The tier for a name this plugin cannot vouch for, which is what
-/// `commonModelInfo` hands an uncurated model. Curation is the claim: a name
-/// in [KnownClaudeModel] is one this plugin has checked can take the schema,
-/// one way or the other, so no curated model sits here.
-const baseClaudeSupports = <String, dynamic>{
-  ..._claudeSupportsCore,
-  'output': ['text'],
-};
-
-/// [baseClaudeSupports] plus JSON output and constrained generation.
-///
-/// The schema travels as `output_config.format` - Anthropic's own Structured
-/// Outputs feature, served on the stable surface as well as beta. It pins no
-/// `tool_choice` and adds no tool, so it composes with extended thinking and
-/// leaves the caller's own tools reachable; hence `true` rather than the
-/// `'no-tools'` a forced `return_output` tool would have needed.
-///
-/// Claimed for curated names only: whether a model is on Anthropic's
-/// Structured Outputs list is per-model, and `commonModelInfo` keeps an
-/// uncurated name on [baseClaudeSupports] so core simulates instead of
-/// guessing.
-const structuredClaudeSupports = <String, dynamic>{
-  ..._claudeSupportsCore,
   'output': ['text', 'json'],
   'constrained': true,
 };
 
-/// Claude models the Anthropic plugin curates capability metadata for.
+/// Claude models the Anthropic plugin curates metadata for.
 ///
 /// Each value pairs a bare model [id] (no plugin prefix) with a display
-/// [label]. Membership is itself the capability claim: a curated name is one
-/// this plugin has checked is on Anthropic's Structured Outputs list. Other
-/// model names still resolve dynamically via the plugin's `commonModelInfo`
-/// fallback, so this enum only enriches the names listed here.
+/// [label] and a default thinking mode. Curation adds labels, a stable stage
+/// and listing without discovery; capabilities are the same [claudeSupports]
+/// for every model. Other names still resolve via the plugin's
+/// `commonModelInfo` fallback.
 enum KnownClaudeModel {
   fable5('claude-fable-5', 'Claude Fable 5', ClaudeThinkingMode.adaptive),
   opus5('claude-opus-5', 'Claude Opus 5', ClaudeThinkingMode.adaptive),
@@ -94,14 +73,8 @@ enum KnownClaudeModel {
   final ClaudeThinkingMode defaultThinkingMode;
 
   /// Capability metadata registered for this model.
-  ///
-  /// One tier, not one per surface: `output_config.format` is served on both,
-  /// so the claim does not depend on which one a request names.
-  ModelInfo get info => ModelInfo(
-    label: label,
-    supports: structuredClaudeSupports,
-    stage: 'stable',
-  );
+  ModelInfo get info =>
+      ModelInfo(label: label, supports: claudeSupports, stage: 'stable');
 }
 
 /// Thinking modes that can be safely selected by default for curated models.

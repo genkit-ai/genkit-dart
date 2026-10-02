@@ -25,6 +25,7 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/known_models.dart';
 import 'package:genkit_openai/src/openai_plugin.dart' show OpenAIPlugin;
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -43,15 +44,14 @@ Set<String> modelNames(List<ActionMetadata> metadata) => metadata
 /// Since #413 a model error is reported as a response with
 /// [FinishReason.failed] and a structured `error`, not a thrown exception.
 /// `error.status` is the status *name*, not the enum.
-Matcher failsWith(StatusCodes status, {String? message}) =>
-    isA<GenerateResponse>()
-        .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
-        .having((r) => r.error?.status, 'error.status', status.name)
-        .having(
-          (r) => r.error?.message ?? '',
-          'error.message',
-          message == null ? anything : contains(message),
-        );
+Matcher failsWith(StatusCode status, {String? message}) => isA<GenerateResult>()
+    .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
+    .having((r) => r.error?.status, 'error.status', status.wireName)
+    .having(
+      (r) => r.error?.message ?? '',
+      'error.message',
+      message == null ? anything : contains(message),
+    );
 
 CustomModelDefinition llama() => CustomModelDefinition(
   name: 'llama-3.3-70b-versatile',
@@ -356,7 +356,7 @@ void main() {
           prompt: 'Hello!',
         ),
         failsWith(
-          StatusCodes.UNAUTHENTICATED,
+          StatusCode.unauthenticated,
           message: 'Incorrect API key provided',
         ),
       );
@@ -599,13 +599,13 @@ void main() {
   });
 
   group('compat host errors map to Genkit statuses', () {
-    const cases = <int, StatusCodes>{
-      400: StatusCodes.INVALID_ARGUMENT,
-      401: StatusCodes.UNAUTHENTICATED,
-      403: StatusCodes.PERMISSION_DENIED,
-      404: StatusCodes.NOT_FOUND,
-      500: StatusCodes.INTERNAL,
-      503: StatusCodes.UNAVAILABLE,
+    const cases = <int, StatusCode>{
+      400: StatusCode.invalidArgument,
+      401: StatusCode.unauthenticated,
+      403: StatusCode.permissionDenied,
+      404: StatusCode.notFound,
+      500: StatusCode.internal,
+      503: StatusCode.unavailable,
     };
 
     cases.forEach((statusCode, expected) {
@@ -666,7 +666,7 @@ void main() {
           model: openAI.model('llama-3.3-70b-versatile', namespace: 'groq'),
           prompt: 'Hello!',
         ),
-        failsWith(StatusCodes.INTERNAL),
+        failsWith(StatusCode.internal),
       );
     });
   });

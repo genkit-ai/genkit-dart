@@ -76,21 +76,22 @@ base class _AskUserInputTypeFactory extends SchemanticType<AskUserInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AskUserInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'question': $Schema.string(
-              description: 'The question to ask the user',
-            ),
-            'options': $Schema.list(
-              description:
-                  'Suggested answer options for the user to choose from (2-5)',
-              items: $Schema.string(),
-            ),
-          },
-          required: ['question', 'options'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'question': <String, Object?>{
+          'type': 'string',
+          'description': 'The question to ask the user',
+        },
+        'options': <String, Object?>{
+          'type': 'array',
+          'description':
+              'Suggested answer options for the user to choose from (2-5)',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+      'required': ['question', 'options'],
+    },
     dependencies: [],
   );
 }
@@ -142,16 +143,16 @@ base class _RunShellInputTypeFactory extends SchemanticType<RunShellInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RunShellInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'command': $Schema.string(
-              description: 'The shell command to execute',
-            ),
-          },
-          required: ['command'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'command': <String, Object?>{
+          'type': 'string',
+          'description': 'The shell command to execute',
+        },
+      },
+      'required': ['command'],
+    },
     dependencies: [],
   );
 }
@@ -223,16 +224,15 @@ base class _RunShellOutputTypeFactory extends SchemanticType<RunShellOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RunShellOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'stdout': $Schema.string(),
-            'stderr': $Schema.string(),
-            'exitCode': $Schema.integer(),
-          },
-          required: ['stdout', 'stderr', 'exitCode'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'stdout': <String, Object?>{'type': 'string'},
+        'stderr': <String, Object?>{'type': 'string'},
+        'exitCode': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['stdout', 'stderr', 'exitCode'],
+    },
     dependencies: [],
   );
 }
@@ -292,20 +292,21 @@ base class _SafetyVerdictTypeFactory extends SchemanticType<SafetyVerdict> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SafetyVerdict',
-    definition: $Schema
-        .object(
-          properties: {
-            'verdict': $Schema.string(
-              description: 'Whether the command is safe or risky',
-            ),
-            'reason': $Schema.string(
-              description:
-                  'Brief explanation of why the command is safe or risky',
-            ),
-          },
-          required: ['verdict', 'reason'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'verdict': <String, Object?>{
+          'type': 'string',
+          'description': 'Whether the command is safe or risky',
+        },
+        'reason': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Brief explanation of why the command is safe or risky',
+        },
+      },
+      'required': ['verdict', 'reason'],
+    },
     dependencies: [],
   );
 }

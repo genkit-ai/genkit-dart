@@ -318,7 +318,7 @@ JSAny? _buildConstraint() {
 }
 
 void _updateTokenStats(GenerationUsage? usage) {
-  final used = usage?.inputTokens?.toInt();
+  final used = usage?.inputTokens;
   final max = (usage?.custom?['contextWindow'] as num?)?.toInt();
   if (used == null) return;
 

@@ -84,7 +84,7 @@ base class WorkspaceFile {
     if (value == null) {
       _json.remove('children');
     } else {
-      _json['children'] = value.toList();
+      _json['children'] = value.map((e) => e.toJson()).toList();
     }
   }
 
@@ -110,19 +110,19 @@ base class _WorkspaceFileTypeFactory extends SchemanticType<WorkspaceFile> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WorkspaceFile',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'path': $Schema.string(),
-            'type': $Schema.string(),
-            'children': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/WorkspaceFile'}),
-            ),
-          },
-          required: ['name', 'path', 'type'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'path': <String, Object?>{'type': 'string'},
+        'type': <String, Object?>{'type': 'string'},
+        'children': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/WorkspaceFile'},
+        },
+      },
+      'required': ['name', 'path', 'type'],
+    },
     dependencies: [WorkspaceFile.$schema],
   );
 }
@@ -151,7 +151,7 @@ base class ListWorkspaceFilesOutput {
   }
 
   set files(List<WorkspaceFile> value) {
-    _json['files'] = value.toList();
+    _json['files'] = value.map((e) => e.toJson()).toList();
   }
 
   @override
@@ -177,16 +177,16 @@ base class _ListWorkspaceFilesOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ListWorkspaceFilesOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'files': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/WorkspaceFile'}),
-            ),
-          },
-          required: ['files'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'files': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/WorkspaceFile'},
+        },
+      },
+      'required': ['files'],
+    },
     dependencies: [WorkspaceFile.$schema],
   );
 }
@@ -247,12 +247,14 @@ base class _ReadWorkspaceFileOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReadWorkspaceFileOutput',
-    definition: $Schema
-        .object(
-          properties: {'path': $Schema.string(), 'content': $Schema.string()},
-          required: ['path', 'content'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'path': <String, Object?>{'type': 'string'},
+        'content': <String, Object?>{'type': 'string'},
+      },
+      'required': ['path', 'content'],
+    },
     dependencies: [],
   );
 }

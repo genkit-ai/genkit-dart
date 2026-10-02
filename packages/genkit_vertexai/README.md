@@ -2,6 +2,16 @@
 
 Vertex AI plugin for Genkit Dart.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Usage
 
 To use Google's Vertex AI models, simply import this package and pass `vertexAI` to the `Genkit` initialization. 
@@ -55,7 +65,7 @@ void main() async {
     ],
   );
 
-  final embeddings = await ai.embedMany(
+  final embeddings = await ai.embed(
     embedder: vertexAI.textEmbedding('text-embedding-004'),
     documents: [
       DocumentData(content: [TextPart(text: 'Hello world')]),
@@ -78,7 +88,7 @@ vector size, while `taskType` and `title` tailor the embedding to its use case
 (supported by the Gemini and `text-embedding-*` models).
 
 ```dart
-final embeddings = await ai.embedMany(
+final embeddings = await ai.embed(
   embedder: vertexAI.textEmbedding('gemini-embedding-001'),
   documents: [
     DocumentData(content: [TextPart(text: 'Hello world')]),
@@ -102,7 +112,7 @@ documents, so each embedding carries metadata (`documentIndex`, `modality`,
 `partIndex`, `segmentIndex`, ...) that you use to map it back to its source.
 
 ```dart
-final embeddings = await ai.embedMany(
+final embeddings = await ai.embed(
   embedder: vertexAI.textEmbedding('multimodalembedding'),
   documents: [
     DocumentData(

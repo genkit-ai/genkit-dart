@@ -206,9 +206,6 @@ void main() {
 
   group('Model Info', () {
     test('firebaseAiModelInfo claims native constrained generation', () {
-      // Pins the flag `_createModel` sends to core, so an undeclared model
-      // doesn't silently lose native `responseSchema` support - see
-      // `toGeminiSettings withholds the output schema when unconstrained`.
       expect(firebaseAiModelInfo.supports?['constrained'], isTrue);
     });
   });

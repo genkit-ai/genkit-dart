@@ -2,7 +2,7 @@
 
 A complete, runnable sample of [A2UI](https://a2ui.org/) with Genkit Dart:
 
-- **Server** (`bin/server.dart`): a shelf HTTP server hosting an A2UI-enabled
+- **Server** (`bin/server.dart`): a plain `dart:io` HTTP server hosting an A2UI-enabled
   Genkit agent. The whole A2UI integration is the `a2ui()` middleware from
   `package:genkit_a2ui/a2ui.dart` in the agent's `use` list.
 - **Client** (`lib/main.dart`): a Flutter app that streams the agent with

@@ -217,7 +217,7 @@ base class GeminiOptions {
   }
 
   int? get topK {
-    return _json['topK'] as int?;
+    return (_json['topK'] as num?)?.toInt();
   }
 
   set topK(int? value) {
@@ -229,7 +229,7 @@ base class GeminiOptions {
   }
 
   int? get candidateCount {
-    return _json['candidateCount'] as int?;
+    return (_json['candidateCount'] as num?)?.toInt();
   }
 
   set candidateCount(int? value) {
@@ -253,7 +253,7 @@ base class GeminiOptions {
   }
 
   int? get maxOutputTokens {
-    return _json['maxOutputTokens'] as int?;
+    return (_json['maxOutputTokens'] as num?)?.toInt();
   }
 
   set maxOutputTokens(int? value) {
@@ -289,7 +289,7 @@ base class GeminiOptions {
   }
 
   int? get logprobs {
-    return _json['logprobs'] as int?;
+    return (_json['logprobs'] as num?)?.toInt();
   }
 
   set logprobs(int? value) {
@@ -325,7 +325,7 @@ base class GeminiOptions {
   }
 
   int? get seed {
-    return _json['seed'] as int?;
+    return (_json['seed'] as num?)?.toInt();
   }
 
   set seed(int? value) {
@@ -372,39 +372,51 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GeminiOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'apiKey': $Schema.string(),
-            'safetySettings': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/SafetySettings'}),
-            ),
-            'codeExecution': $Schema.boolean(),
-            'functionCallingConfig': $Schema.fromMap({
-              '\$ref': r'#/$defs/FunctionCallingConfig',
-            }),
-            'thinkingConfig': $Schema.fromMap({
-              '\$ref': r'#/$defs/ThinkingConfig',
-            }),
-            'responseModalities': $Schema.list(items: $Schema.string()),
-            'googleSearch': $Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
-            'fileSearch': $Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
-            'temperature': $Schema.number(minimum: 0.0, maximum: 2.0),
-            'topP': $Schema.number(minimum: 0.0, maximum: 1.0),
-            'topK': $Schema.integer(),
-            'candidateCount': $Schema.integer(),
-            'stopSequences': $Schema.list(items: $Schema.string()),
-            'maxOutputTokens': $Schema.integer(),
-            'responseMimeType': $Schema.string(),
-            'responseLogprobs': $Schema.boolean(),
-            'logprobs': $Schema.integer(),
-            'presencePenalty': $Schema.number(),
-            'frequencyPenalty': $Schema.number(),
-            'seed': $Schema.integer(),
-            'speechConfig': $Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'apiKey': <String, Object?>{'type': 'string'},
+        'safetySettings': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/SafetySettings'},
+        },
+        'codeExecution': <String, Object?>{'type': 'boolean'},
+        'functionCallingConfig': <String, Object?>{
+          r'$ref': r'#/$defs/FunctionCallingConfig',
+        },
+        'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
+        'responseModalities': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'googleSearch': <String, Object?>{r'$ref': r'#/$defs/GoogleSearch'},
+        'fileSearch': <String, Object?>{r'$ref': r'#/$defs/FileSearch'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.0,
+          'maximum': 2.0,
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.0,
+          'maximum': 1.0,
+        },
+        'topK': <String, Object?>{'type': 'integer'},
+        'candidateCount': <String, Object?>{'type': 'integer'},
+        'stopSequences': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'maxOutputTokens': <String, Object?>{'type': 'integer'},
+        'responseMimeType': <String, Object?>{'type': 'string'},
+        'responseLogprobs': <String, Object?>{'type': 'boolean'},
+        'logprobs': <String, Object?>{'type': 'integer'},
+        'presencePenalty': <String, Object?>{'type': 'number'},
+        'frequencyPenalty': <String, Object?>{'type': 'number'},
+        'seed': <String, Object?>{'type': 'integer'},
+        'speechConfig': <String, Object?>{r'$ref': r'#/$defs/SpeechConfig'},
+      },
+    },
     dependencies: [
       SafetySettings.$schema,
       FunctionCallingConfig.$schema,
@@ -479,30 +491,31 @@ base class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SafetySettings',
-    definition: $Schema
-        .object(
-          properties: {
-            'category': $Schema.string(
-              enumValues: [
-                'HARM_CATEGORY_UNSPECIFIED',
-                'HARM_CATEGORY_HATE_SPEECH',
-                'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-                'HARM_CATEGORY_HARASSMENT',
-                'HARM_CATEGORY_DANGEROUS_CONTENT',
-                'HARM_CATEGORY_CIVIC_INTEGRITY',
-              ],
-            ),
-            'threshold': $Schema.string(
-              enumValues: [
-                'BLOCK_LOW_AND_ABOVE',
-                'BLOCK_MEDIUM_AND_ABOVE',
-                'BLOCK_ONLY_HIGH',
-                'BLOCK_NONE',
-              ],
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'category': <String, Object?>{
+          'type': 'string',
+          'enum': [
+            'HARM_CATEGORY_UNSPECIFIED',
+            'HARM_CATEGORY_HATE_SPEECH',
+            'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'HARM_CATEGORY_HARASSMENT',
+            'HARM_CATEGORY_DANGEROUS_CONTENT',
+            'HARM_CATEGORY_CIVIC_INTEGRITY',
+          ],
+        },
+        'threshold': <String, Object?>{
+          'type': 'string',
+          'enum': [
+            'BLOCK_LOW_AND_ABOVE',
+            'BLOCK_MEDIUM_AND_ABOVE',
+            'BLOCK_ONLY_HIGH',
+            'BLOCK_NONE',
+          ],
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -545,7 +558,7 @@ base class ThinkingConfig {
   }
 
   int? get thinkingBudget {
-    return _json['thinkingBudget'] as int?;
+    return (_json['thinkingBudget'] as num?)?.toInt();
   }
 
   set thinkingBudget(int? value) {
@@ -590,27 +603,29 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ThinkingConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'includeThoughts': $Schema.boolean(
-              description:
-                  'Indicates whether to include thoughts in the response.If true, thoughts are returned only when available.',
-            ),
-            'thinkingBudget': $Schema.integer(
-              description:
-                  'The thinking budget parameter gives the model guidance on the number of thinking tokens it can use when generating a response. A greater number of tokens is typically associated with more detailed thinking, which is needed for solving more complex tasks. Setting the thinking budget to 0 disables thinking.',
-              minimum: 0,
-              maximum: 24576,
-            ),
-            'thinkingLevel': $Schema.string(
-              description:
-                  'For Gemini 3.0 - Indicates the thinking level. A higher level is associated with more detailed thinking, which is needed for solving more complex tasks.',
-              enumValues: ['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'],
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'includeThoughts': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Indicates whether to include thoughts in the response.If true, thoughts are returned only when available.',
+        },
+        'thinkingBudget': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'The thinking budget parameter gives the model guidance on the number of thinking tokens it can use when generating a response. A greater number of tokens is typically associated with more detailed thinking, which is needed for solving more complex tasks. Setting the thinking budget to 0 disables thinking.',
+          'minimum': 0,
+          'maximum': 24576,
+        },
+        'thinkingLevel': <String, Object?>{
+          'type': 'string',
+          'description':
+              'For Gemini 3.0 - Indicates the thinking level. A higher level is associated with more detailed thinking, which is needed for solving more complex tasks.',
+          'enum': ['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'],
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -679,16 +694,19 @@ base class _FunctionCallingConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'FunctionCallingConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'mode': $Schema.string(
-              enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'],
-            ),
-            'allowedFunctionNames': $Schema.list(items: $Schema.string()),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'mode': <String, Object?>{
+          'type': 'string',
+          'enum': ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'],
+        },
+        'allowedFunctionNames': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -742,13 +760,15 @@ base class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'FileSearch',
-    definition: $Schema
-        .object(
-          properties: {
-            'fileSearchStoreNames': $Schema.list(items: $Schema.string()),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'fileSearchStoreNames': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -949,7 +969,7 @@ base class GeminiTtsOptions {
   }
 
   int? get topK {
-    return _json['topK'] as int?;
+    return (_json['topK'] as num?)?.toInt();
   }
 
   set topK(int? value) {
@@ -961,7 +981,7 @@ base class GeminiTtsOptions {
   }
 
   int? get candidateCount {
-    return _json['candidateCount'] as int?;
+    return (_json['candidateCount'] as num?)?.toInt();
   }
 
   set candidateCount(int? value) {
@@ -985,7 +1005,7 @@ base class GeminiTtsOptions {
   }
 
   int? get maxOutputTokens {
-    return _json['maxOutputTokens'] as int?;
+    return (_json['maxOutputTokens'] as num?)?.toInt();
   }
 
   set maxOutputTokens(int? value) {
@@ -1021,7 +1041,7 @@ base class GeminiTtsOptions {
   }
 
   int? get logprobs {
-    return _json['logprobs'] as int?;
+    return (_json['logprobs'] as num?)?.toInt();
   }
 
   set logprobs(int? value) {
@@ -1057,7 +1077,7 @@ base class GeminiTtsOptions {
   }
 
   int? get seed {
-    return _json['seed'] as int?;
+    return (_json['seed'] as num?)?.toInt();
   }
 
   set seed(int? value) {
@@ -1105,39 +1125,51 @@ base class _GeminiTtsOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GeminiTtsOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'apiKey': $Schema.string(),
-            'safetySettings': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/SafetySettings'}),
-            ),
-            'codeExecution': $Schema.boolean(),
-            'functionCallingConfig': $Schema.fromMap({
-              '\$ref': r'#/$defs/FunctionCallingConfig',
-            }),
-            'thinkingConfig': $Schema.fromMap({
-              '\$ref': r'#/$defs/ThinkingConfig',
-            }),
-            'responseModalities': $Schema.list(items: $Schema.string()),
-            'googleSearch': $Schema.fromMap({'\$ref': r'#/$defs/GoogleSearch'}),
-            'fileSearch': $Schema.fromMap({'\$ref': r'#/$defs/FileSearch'}),
-            'temperature': $Schema.number(minimum: 0.0, maximum: 2.0),
-            'topP': $Schema.number(minimum: 0.0, maximum: 1.0),
-            'topK': $Schema.integer(),
-            'candidateCount': $Schema.integer(),
-            'stopSequences': $Schema.list(items: $Schema.string()),
-            'maxOutputTokens': $Schema.integer(),
-            'responseMimeType': $Schema.string(),
-            'responseLogprobs': $Schema.boolean(),
-            'logprobs': $Schema.integer(),
-            'presencePenalty': $Schema.number(),
-            'frequencyPenalty': $Schema.number(),
-            'seed': $Schema.integer(),
-            'speechConfig': $Schema.fromMap({'\$ref': r'#/$defs/SpeechConfig'}),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'apiKey': <String, Object?>{'type': 'string'},
+        'safetySettings': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/SafetySettings'},
+        },
+        'codeExecution': <String, Object?>{'type': 'boolean'},
+        'functionCallingConfig': <String, Object?>{
+          r'$ref': r'#/$defs/FunctionCallingConfig',
+        },
+        'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
+        'responseModalities': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'googleSearch': <String, Object?>{r'$ref': r'#/$defs/GoogleSearch'},
+        'fileSearch': <String, Object?>{r'$ref': r'#/$defs/FileSearch'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.0,
+          'maximum': 2.0,
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.0,
+          'maximum': 1.0,
+        },
+        'topK': <String, Object?>{'type': 'integer'},
+        'candidateCount': <String, Object?>{'type': 'integer'},
+        'stopSequences': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'maxOutputTokens': <String, Object?>{'type': 'integer'},
+        'responseMimeType': <String, Object?>{'type': 'string'},
+        'responseLogprobs': <String, Object?>{'type': 'boolean'},
+        'logprobs': <String, Object?>{'type': 'integer'},
+        'presencePenalty': <String, Object?>{'type': 'number'},
+        'frequencyPenalty': <String, Object?>{'type': 'number'},
+        'seed': <String, Object?>{'type': 'integer'},
+        'speechConfig': <String, Object?>{r'$ref': r'#/$defs/SpeechConfig'},
+      },
+    },
     dependencies: [
       SafetySettings.$schema,
       FunctionCallingConfig.$schema,
@@ -1224,17 +1256,16 @@ base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SpeechConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'voiceConfig': $Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
-            'multiSpeakerVoiceConfig': $Schema.fromMap({
-              '\$ref': r'#/$defs/MultiSpeakerVoiceConfig',
-            }),
-          },
-          description: 'Speech generation config',
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'description': 'Speech generation config',
+      'properties': <String, Object?>{
+        'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/VoiceConfig'},
+        'multiSpeakerVoiceConfig': <String, Object?>{
+          r'$ref': r'#/$defs/MultiSpeakerVoiceConfig',
+        },
+      },
+    },
     dependencies: [VoiceConfig.$schema, MultiSpeakerVoiceConfig.$schema],
   );
 }
@@ -1295,18 +1326,18 @@ base class _MultiSpeakerVoiceConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MultiSpeakerVoiceConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'speakerVoiceConfigs': $Schema.list(
-              description: 'Configuration for all the enabled speaker voices',
-              items: $Schema.fromMap({'\$ref': r'#/$defs/SpeakerVoiceConfig'}),
-            ),
-          },
-          required: ['speakerVoiceConfigs'],
-          description: 'Configuration for multi-speaker setup',
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'description': 'Configuration for multi-speaker setup',
+      'properties': <String, Object?>{
+        'speakerVoiceConfigs': <String, Object?>{
+          'type': 'array',
+          'description': 'Configuration for all the enabled speaker voices',
+          'items': <String, Object?>{r'$ref': r'#/$defs/SpeakerVoiceConfig'},
+        },
+      },
+      'required': ['speakerVoiceConfigs'],
+    },
     dependencies: [SpeakerVoiceConfig.$schema],
   );
 }
@@ -1370,19 +1401,19 @@ base class _SpeakerVoiceConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SpeakerVoiceConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'speaker': $Schema.string(
-              description: 'Name of the speaker to use',
-            ),
-            'voiceConfig': $Schema.fromMap({'\$ref': r'#/$defs/VoiceConfig'}),
-          },
-          required: ['speaker', 'voiceConfig'],
-          description:
-              'Configuration for a single speaker in a multi speaker setup',
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'description':
+          'Configuration for a single speaker in a multi speaker setup',
+      'properties': <String, Object?>{
+        'speaker': <String, Object?>{
+          'type': 'string',
+          'description': 'Name of the speaker to use',
+        },
+        'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/VoiceConfig'},
+      },
+      'required': ['speaker', 'voiceConfig'],
+    },
     dependencies: [VoiceConfig.$schema],
   );
 }
@@ -1441,16 +1472,15 @@ base class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'VoiceConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'prebuiltVoiceConfig': $Schema.fromMap({
-              '\$ref': r'#/$defs/PrebuiltVoiceConfig',
-            }),
-          },
-          description: 'Configuration for the voice to use',
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'description': 'Configuration for the voice to use',
+      'properties': <String, Object?>{
+        'prebuiltVoiceConfig': <String, Object?>{
+          r'$ref': r'#/$defs/PrebuiltVoiceConfig',
+        },
+      },
+    },
     dependencies: [PrebuiltVoiceConfig.$schema],
   );
 }
@@ -1507,17 +1537,17 @@ base class _PrebuiltVoiceConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PrebuiltVoiceConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'voiceName': $Schema.string(
-              description:
-                  'Name of the preset voice to use. Known values: Zephyr, Puck, Charon, Kore, Fenrir, Leda, Orus, Aoede, Callirrhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, Sadaltager, Sulafat',
-            ),
-          },
-          description: 'Configuration for the prebuilt speaker to use',
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'description': 'Configuration for the prebuilt speaker to use',
+      'properties': <String, Object?>{
+        'voiceName': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Name of the preset voice to use. Known values: Zephyr, Puck, Charon, Kore, Fenrir, Leda, Orus, Aoede, Callirrhoe, Autonoe, Enceladus, Iapetus, Umbriel, Algieba, Despina, Erinome, Algenib, Rasalgethi, Laomedeia, Achernar, Alnilam, Schedar, Gacrux, Pulcherrima, Achird, Zubenelgenubi, Vindemiatrix, Sadachbia, Sadaltager, Sulafat',
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -1561,7 +1591,10 @@ base class _GoogleSearchTypeFactory extends SchemanticType<GoogleSearch> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GoogleSearch',
-    definition: $Schema.object(properties: {}).value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{},
+    },
     dependencies: [],
   );
 }
@@ -1592,7 +1625,7 @@ base class TextEmbedderOptions {
       _TextEmbedderOptionsTypeFactory();
 
   int? get outputDimensionality {
-    return _json['outputDimensionality'] as int?;
+    return (_json['outputDimensionality'] as num?)?.toInt();
   }
 
   set outputDimensionality(int? value) {
@@ -1650,32 +1683,33 @@ base class _TextEmbedderOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TextEmbedderOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'outputDimensionality': $Schema.integer(
-              description:
-                  'Optional. reduced dimension for the output embedding. If set, excessive values in the output embedding are truncated from the end.',
-            ),
-            'taskType': $Schema.string(
-              description:
-                  'Optional. Optional task type for which the embedding will be used. Can only be set for models/text-embedding-004.',
-              enumValues: [
-                'TASK_TYPE_UNSPECIFIED',
-                'RETRIEVAL_QUERY',
-                'RETRIEVAL_DOCUMENT',
-                'SEMANTIC_SIMILARITY',
-                'CLASSIFICATION',
-                'CLUSTERING',
-                'QUESTION_ANSWERING',
-                'FACT_VERIFICATION',
-                'CODE_RETRIEVAL_QUERY',
-              ],
-            ),
-            'title': $Schema.string(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'outputDimensionality': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Optional. reduced dimension for the output embedding. If set, excessive values in the output embedding are truncated from the end.',
+        },
+        'taskType': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Optional. Optional task type for which the embedding will be used. Can only be set for models/text-embedding-004.',
+          'enum': [
+            'TASK_TYPE_UNSPECIFIED',
+            'RETRIEVAL_QUERY',
+            'RETRIEVAL_DOCUMENT',
+            'SEMANTIC_SIMILARITY',
+            'CLASSIFICATION',
+            'CLUSTERING',
+            'QUESTION_ANSWERING',
+            'FACT_VERIFICATION',
+            'CODE_RETRIEVAL_QUERY',
+          ],
+        },
+        'title': <String, Object?>{'type': 'string'},
+      },
+    },
     dependencies: [],
   );
 }

@@ -120,30 +120,19 @@ void main() {
         expect(response.output!.age, 30);
       });
 
-      // Any real model absent from [KnownClaudeModel] works here; it is
-      // swapped freely as Anthropic's catalog moves. The test asserts that
-      // premise rather than trusting it, because a name that quietly became
-      // curated would leave this exercising the native path and still
-      // passing.
-      const uncuratedModel = 'claude-3-5-haiku-latest';
+      // Any active model absent from [KnownClaudeModel] works here; swap it
+      // as the catalog moves. The test asserts that premise rather than
+      // trusting it, so a name that quietly became curated fails loudly
+      // instead of exercising the curated path.
+      const uncuratedModel = 'claude-sonnet-5-5';
 
-      test('simulates constrained generation for an uncurated model', () async {
+      test('sends an uncurated model the schema natively', () async {
         expect(
           knownClaudeModelFor(uncuratedModel),
           isNull,
           reason: '$uncuratedModel is curated now; pick another name',
         );
-        expect(
-          plugin!.modelInfoFor(uncuratedModel).supports,
-          isNot(contains('constrained')),
-          reason:
-              'the fallback claims constrained support; nothing to simulate',
-        );
 
-        // No native schema reaches Anthropic: core strips it and puts the
-        // shape in the prompt, and the plugin's forced `return_output` tool is
-        // unreachable without `output.schema`. So this is the injected
-        // instructions and nothing else.
         final response = await ai.generate(
           model: anthropic.model(uncuratedModel),
           prompt: 'Generate a person named John Doe, age 30',
@@ -153,19 +142,6 @@ void main() {
         expect(response.output, isNotNull);
         expect(response.output!.name, 'John Doe');
         expect(response.output!.age, 30);
-      }, timeout: Timeout(Duration(minutes: 2)));
-
-      test('streams simulated constrained generation', () async {
-        final response = ai.generateStream(
-          model: anthropic.model(uncuratedModel),
-          prompt: 'Generate a person named Jane Doe, age 25',
-          outputSchema: Person.$schema,
-        );
-
-        final finalResponse = await response.onResult;
-        expect(finalResponse.output, isNotNull);
-        expect(finalResponse.output!.name, 'Jane Doe');
-        expect(finalResponse.output!.age, 25);
       }, timeout: Timeout(Duration(minutes: 2)));
 
       test('should stream structured output', () async {
@@ -203,8 +179,8 @@ void main() {
       test('composes structured output with the caller\'s tools', () async {
         // The other thing the forced tool made impossible: pinning
         // `tool_choice` to `return_output` left the caller's tools
-        // unreachable, so core had to simulate whenever a request carried any.
-        // An object input schema: Anthropic rejects anything else with
+        // unreachable. An object input schema: Anthropic rejects anything
+        // else with
         // "tools.0.custom.input_schema.type: Input should be 'object'".
         final tool = ai.defineTool(
           name: 'ageOf',

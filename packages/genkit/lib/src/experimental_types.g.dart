@@ -100,15 +100,14 @@ base class _AgentInitTypeFactory extends SchemanticType<AgentInit> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentInit',
-    definition: $Schema
-        .object(
-          properties: {
-            'sessionId': $Schema.string(),
-            'snapshotId': $Schema.string(),
-            'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'sessionId': <String, Object?>{'type': 'string'},
+        'snapshotId': <String, Object?>{'type': 'string'},
+        'state': <String, Object?>{r'$ref': r'#/$defs/SessionState'},
+      },
+    },
     dependencies: [SessionState.$schema],
   );
 }
@@ -194,15 +193,14 @@ base class _AgentInputTypeFactory extends SchemanticType<AgentInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'detach': $Schema.boolean(),
-            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            'resume': $Schema.fromMap({'\$ref': r'#/$defs/AgentResume'}),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'detach': <String, Object?>{'type': 'boolean'},
+        'message': <String, Object?>{r'$ref': r'#/$defs/Message'},
+        'resume': <String, Object?>{r'$ref': r'#/$defs/AgentResume'},
+      },
+    },
     dependencies: [Message.$schema, AgentResume.$schema],
   );
 }
@@ -279,18 +277,19 @@ base class _AgentResumeTypeFactory extends SchemanticType<AgentResume> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentResume',
-    definition: $Schema
-        .object(
-          properties: {
-            'respond': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolResponsePart'}),
-            ),
-            'restart': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolRequestPart'}),
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'respond': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/ToolResponsePart'},
+        },
+        'restart': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/ToolRequestPart'},
+        },
+      },
+    },
     dependencies: [ToolResponsePart.$schema, ToolRequestPart.$schema],
   );
 }
@@ -441,21 +440,21 @@ base class _AgentOutputTypeFactory extends SchemanticType<AgentOutput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'sessionId': $Schema.string(),
-            'snapshotId': $Schema.string(),
-            'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
-            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            'artifacts': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Artifact'}),
-            ),
-            'finishReason': $Schema.any(),
-            'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentErrorInfo'}),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'sessionId': <String, Object?>{'type': 'string'},
+        'snapshotId': <String, Object?>{'type': 'string'},
+        'state': <String, Object?>{r'$ref': r'#/$defs/SessionState'},
+        'message': <String, Object?>{r'$ref': r'#/$defs/Message'},
+        'artifacts': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Artifact'},
+        },
+        'finishReason': <String, Object?>{},
+        'error': <String, Object?>{r'$ref': r'#/$defs/AgentErrorInfo'},
+      },
+    },
     dependencies: [
       SessionState.$schema,
       Message.$schema,
@@ -536,16 +535,15 @@ base class _AgentErrorInfoTypeFactory extends SchemanticType<AgentErrorInfo> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentErrorInfo',
-    definition: $Schema
-        .object(
-          properties: {
-            'status': $Schema.string(),
-            'message': $Schema.string(),
-            'details': $Schema.any(),
-          },
-          required: ['message'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'status': <String, Object?>{'type': 'string'},
+        'message': <String, Object?>{'type': 'string'},
+        'details': <String, Object?>{},
+      },
+      'required': ['message'],
+    },
     dependencies: [],
   );
 }
@@ -636,17 +634,17 @@ base class _AgentResultTypeFactory extends SchemanticType<AgentResult> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentResult',
-    definition: $Schema
-        .object(
-          properties: {
-            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            'artifacts': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Artifact'}),
-            ),
-            'finishReason': $Schema.any(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'message': <String, Object?>{r'$ref': r'#/$defs/Message'},
+        'artifacts': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Artifact'},
+        },
+        'finishReason': <String, Object?>{},
+      },
+    },
     dependencies: [Message.$schema, Artifact.$schema],
   );
 }
@@ -759,20 +757,18 @@ base class _AgentStreamChunkTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentStreamChunk',
-    definition: $Schema
-        .object(
-          properties: {
-            'modelChunk': $Schema.fromMap({
-              '\$ref': r'#/$defs/ModelResponseChunk',
-            }),
-            'customPatch': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/JsonPatchOperation'}),
-            ),
-            'artifact': $Schema.fromMap({'\$ref': r'#/$defs/Artifact'}),
-            'turnEnd': $Schema.fromMap({'\$ref': r'#/$defs/TurnEnd'}),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'modelChunk': <String, Object?>{r'$ref': r'#/$defs/ModelResponseChunk'},
+        'customPatch': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/JsonPatchOperation'},
+        },
+        'artifact': <String, Object?>{r'$ref': r'#/$defs/Artifact'},
+        'turnEnd': <String, Object?>{r'$ref': r'#/$defs/TurnEnd'},
+      },
+    },
     dependencies: [
       ModelResponseChunk.$schema,
       JsonPatchOperation.$schema,
@@ -830,12 +826,13 @@ base class _AgentAbortRequestTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentAbortRequest',
-    definition: $Schema
-        .object(
-          properties: {'snapshotId': $Schema.string()},
-          required: ['snapshotId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'snapshotId': <String, Object?>{'type': 'string'},
+      },
+      'required': ['snapshotId'],
+    },
     dependencies: [],
   );
 }
@@ -900,12 +897,14 @@ base class _AgentAbortResponseTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentAbortResponse',
-    definition: $Schema
-        .object(
-          properties: {'snapshotId': $Schema.string(), 'status': $Schema.any()},
-          required: ['snapshotId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'snapshotId': <String, Object?>{'type': 'string'},
+        'status': <String, Object?>{},
+      },
+      'required': ['snapshotId'],
+    },
     dependencies: [],
   );
 }
@@ -986,16 +985,18 @@ base class _AgentMetadataTypeFactory extends SchemanticType<AgentMetadata> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AgentMetadata',
-    definition: $Schema
-        .object(
-          properties: {
-            'stateManagement': $Schema.any(),
-            'abortable': $Schema.boolean(),
-            'stateSchema': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['stateManagement', 'abortable'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'stateManagement': <String, Object?>{},
+        'abortable': <String, Object?>{'type': 'boolean'},
+        'stateSchema': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['stateManagement', 'abortable'],
+    },
     dependencies: [],
   );
 }
@@ -1061,14 +1062,13 @@ base class _TurnEndTypeFactory extends SchemanticType<TurnEnd> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TurnEnd',
-    definition: $Schema
-        .object(
-          properties: {
-            'snapshotId': $Schema.string(),
-            'finishReason': $Schema.any(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'snapshotId': <String, Object?>{'type': 'string'},
+        'finishReason': <String, Object?>{},
+      },
+    },
     dependencies: [],
   );
 }
@@ -1152,18 +1152,21 @@ base class _ArtifactTypeFactory extends SchemanticType<Artifact> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Artifact',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'parts': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-            ),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['parts'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'parts': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Part'},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['parts'],
+    },
     dependencies: [Part.$schema],
   );
 }
@@ -1252,15 +1255,14 @@ base class _GetSnapshotDataInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GetSnapshotDataInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'snapshotId': $Schema.string(),
-            'sessionId': $Schema.string(),
-            'metadataOnly': $Schema.boolean(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'snapshotId': <String, Object?>{'type': 'string'},
+        'sessionId': <String, Object?>{'type': 'string'},
+        'metadataOnly': <String, Object?>{'type': 'boolean'},
+      },
+    },
     dependencies: [],
   );
 }
@@ -1351,17 +1353,16 @@ base class _JsonPatchOperationTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'JsonPatchOperation',
-    definition: $Schema
-        .object(
-          properties: {
-            'op': $Schema.any(),
-            'path': $Schema.string(),
-            'from': $Schema.string(),
-            'value': $Schema.any(),
-          },
-          required: ['op', 'path'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'op': <String, Object?>{},
+        'path': <String, Object?>{'type': 'string'},
+        'from': <String, Object?>{'type': 'string'},
+        'value': <String, Object?>{},
+      },
+      'required': ['op', 'path'],
+    },
     dependencies: [],
   );
 }
@@ -1543,23 +1544,22 @@ base class _SessionSnapshotTypeFactory extends SchemanticType<SessionSnapshot> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SessionSnapshot',
-    definition: $Schema
-        .object(
-          properties: {
-            'snapshotId': $Schema.string(),
-            'sessionId': $Schema.string(),
-            'parentId': $Schema.string(),
-            'createdAt': $Schema.string(),
-            'updatedAt': $Schema.string(),
-            'heartbeatAt': $Schema.string(),
-            'status': $Schema.any(),
-            'finishReason': $Schema.any(),
-            'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentErrorInfo'}),
-            'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
-          },
-          required: ['snapshotId', 'createdAt'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'snapshotId': <String, Object?>{'type': 'string'},
+        'sessionId': <String, Object?>{'type': 'string'},
+        'parentId': <String, Object?>{'type': 'string'},
+        'createdAt': <String, Object?>{'type': 'string'},
+        'updatedAt': <String, Object?>{'type': 'string'},
+        'heartbeatAt': <String, Object?>{'type': 'string'},
+        'status': <String, Object?>{},
+        'finishReason': <String, Object?>{},
+        'error': <String, Object?>{r'$ref': r'#/$defs/AgentErrorInfo'},
+        'state': <String, Object?>{r'$ref': r'#/$defs/SessionState'},
+      },
+      'required': ['snapshotId', 'createdAt'],
+    },
     dependencies: [AgentErrorInfo.$schema, SessionState.$schema],
   );
 }
@@ -1665,20 +1665,21 @@ base class _SessionStateTypeFactory extends SchemanticType<SessionState> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SessionState',
-    definition: $Schema
-        .object(
-          properties: {
-            'sessionId': $Schema.string(),
-            'messages': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            ),
-            'custom': $Schema.any(),
-            'artifacts': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Artifact'}),
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'sessionId': <String, Object?>{'type': 'string'},
+        'messages': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Message'},
+        },
+        'custom': <String, Object?>{},
+        'artifacts': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Artifact'},
+        },
+      },
+    },
     dependencies: [Message.$schema, Artifact.$schema],
   );
 }

@@ -8,6 +8,16 @@ Expose Genkit tools, prompts, and resources as an MCP server, or connect to exte
 
 ---
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Installation
 
 ```bash
@@ -123,7 +133,7 @@ void main() async {
 ### `McpHostOptionsWithCache` Options
 
 - **`name`**: (required) A name for the MCP host instance.
-- **`cacheTtlMillis`**: (optional) Cache TTL in milliseconds for tool/prompt/resource listings. A positive value overrides server hints, a negative value disables caching, and `null` or `0` uses the MCP 2026-07-28 server `ttlMs` hint when available, otherwise falling back to 3 seconds.
+- **`cacheTtl`**: (optional) `Duration` to cache tool/prompt/resource listings. `null` uses the MCP 2026-07-28 server `ttlMs` hint when available, otherwise 3 seconds. A positive value overrides the hint, and `Duration.zero` disables caching.
 - **`version`**: (optional) Version string for this host.
 - **`mcpServers`**: (optional) A map where each key is a namespace for an MCP server, and the value is its `McpServerConfig`.
 - **`rawToolResponses`**: (optional) When `true`, tool responses are returned in their raw MCP format.
@@ -183,7 +193,7 @@ void main() async {
 - **`samplingHandler`**: (optional) Handler for server-initiated sampling requests.
 - **`elicitationHandler`**: (optional) Handler for server-initiated elicitation requests.
 - **`notificationHandler`**: (optional) Handler for server notifications.
-- **`cacheTtlMillis`**: (optional) Cache TTL in milliseconds for remote actions. A positive value overrides server hints, a negative value disables caching, and `null` or `0` uses the MCP 2026-07-28 server `ttlMs` hint when available, otherwise falling back to 3 seconds.
+- **`cacheTtl`**: (optional) `Duration` to cache remote action listings. Same rules as the host option: `null` uses the server hint (else 3 seconds), a positive value overrides it, and `Duration.zero` disables caching.
 
 ---
 
@@ -359,9 +369,8 @@ public `GenkitMcpClient` APIs adapt these automatically. The legacy
 `resources/subscribe`, `resources/unsubscribe`, `logging/setLevel`, and
 `tasks/*` methods remain available when a 2025-11-25 connection is negotiated.
 Latest-protocol action listings also honor the server's `ttlMs` cache hint.
-A positive `cacheTtlMillis` overrides that hint, a negative value disables
-caching, and `null` or `0` uses the hint with a 3-second fallback when it is
-absent.
+A positive `cacheTtl` overrides that hint, `Duration.zero` disables caching,
+and `null` uses the hint with a 3-second fallback when it is absent.
 
 ---
 

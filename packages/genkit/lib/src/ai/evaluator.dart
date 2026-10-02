@@ -15,14 +15,15 @@
 import '../core/action.dart';
 import '../types.dart';
 
-base class Evaluator<CustomOptions>
+base class Evaluator
     extends Action<EvalRequest, List<EvalFnResponse>, void, void> {
   Evaluator({
     required super.name,
-    required super.fn,
+    required ActionFn<EvalRequest, List<EvalFnResponse>, void, void> fn,
     super.metadata,
     required String description,
   }) : super(
+         fn: requireInput('Evaluator', name, fn),
          actionType: .evaluator,
          inputSchema: EvalRequest.$schema,
          description: description,

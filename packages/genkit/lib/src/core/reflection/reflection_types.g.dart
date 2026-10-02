@@ -69,12 +69,13 @@ base class _ReflectionCancelActionParamsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionCancelActionParams',
-    definition: $Schema
-        .object(
-          properties: {'traceId': $Schema.string()},
-          required: ['traceId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'traceId': <String, Object?>{'type': 'string'},
+      },
+      'required': ['traceId'],
+    },
     dependencies: [],
   );
 }
@@ -127,12 +128,13 @@ base class _ReflectionCancelActionResponseTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionCancelActionResponse',
-    definition: $Schema
-        .object(
-          properties: {'message': $Schema.string()},
-          required: ['message'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'message': <String, Object?>{'type': 'string'},
+      },
+      'required': ['message'],
+    },
     dependencies: [],
   );
 }
@@ -189,9 +191,12 @@ base class _ReflectionConfigureParamsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionConfigureParams',
-    definition: $Schema
-        .object(properties: {'telemetryServerUrl': $Schema.string()})
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'telemetryServerUrl': <String, Object?>{'type': 'string'},
+      },
+    },
     dependencies: [],
   );
 }
@@ -244,12 +249,13 @@ base class _ReflectionEndInputStreamParamsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionEndInputStreamParams',
-    definition: $Schema
-        .object(
-          properties: {'requestId': $Schema.string()},
-          required: ['requestId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'requestId': <String, Object?>{'type': 'string'},
+      },
+      'required': ['requestId'],
+    },
     dependencies: [],
   );
 }
@@ -302,14 +308,16 @@ base class _ReflectionListActionsResponseTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionListActionsResponse',
-    definition: $Schema
-        .object(
-          properties: {
-            'actions': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['actions'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'actions': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['actions'],
+    },
     dependencies: [],
   );
 }
@@ -362,9 +370,13 @@ base class _ReflectionListValuesParamsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionListValuesParams',
-    definition: $Schema
-        .object(properties: {'type': $Schema.string()}, required: ['type'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'type': <String, Object?>{'type': 'string'},
+      },
+      'required': ['type'],
+    },
     dependencies: [],
   );
 }
@@ -417,14 +429,16 @@ base class _ReflectionListValuesResponseTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionListValuesResponse',
-    definition: $Schema
-        .object(
-          properties: {
-            'values': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['values'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'values': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['values'],
+    },
     dependencies: [],
   );
 }
@@ -469,7 +483,7 @@ base class ReflectionRegisterParams {
   }
 
   int get pid {
-    return _json['pid'] as int;
+    return (_json['pid'] as num).toInt();
   }
 
   set pid(int value) {
@@ -547,19 +561,21 @@ base class _ReflectionRegisterParamsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionRegisterParams',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.string(),
-            'pid': $Schema.integer(),
-            'name': $Schema.string(),
-            'genkitVersion': $Schema.string(),
-            'reflectionApiSpecVersion': $Schema.number(),
-            'envs': $Schema.list(items: $Schema.string()),
-          },
-          required: ['id', 'pid'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'id': <String, Object?>{'type': 'string'},
+        'pid': <String, Object?>{'type': 'integer'},
+        'name': <String, Object?>{'type': 'string'},
+        'genkitVersion': <String, Object?>{'type': 'string'},
+        'reflectionApiSpecVersion': <String, Object?>{'type': 'number'},
+        'envs': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+      'required': ['id', 'pid'],
+    },
     dependencies: [],
   );
 }
@@ -702,23 +718,23 @@ base class _ReflectionRunActionParamsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionRunActionParams',
-    definition: $Schema
-        .object(
-          properties: {
-            'runtimeId': $Schema.string(),
-            'key': $Schema.string(),
-            'input': $Schema.any(),
-            'init': $Schema.any(),
-            'context': $Schema.any(),
-            'telemetryLabels': $Schema.object(
-              additionalProperties: $Schema.any(),
-            ),
-            'stream': $Schema.boolean(),
-            'streamInput': $Schema.boolean(),
-          },
-          required: ['key', 'input', 'init', 'context'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'runtimeId': <String, Object?>{'type': 'string'},
+        'key': <String, Object?>{'type': 'string'},
+        'input': <String, Object?>{},
+        'init': <String, Object?>{},
+        'context': <String, Object?>{},
+        'telemetryLabels': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'stream': <String, Object?>{'type': 'boolean'},
+        'streamInput': <String, Object?>{'type': 'boolean'},
+      },
+      'required': ['key', 'input', 'init', 'context'],
+    },
     dependencies: [],
   );
 }
@@ -786,15 +802,17 @@ base class _ReflectionRunActionStateParamsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionRunActionStateParams',
-    definition: $Schema
-        .object(
-          properties: {
-            'requestId': $Schema.string(),
-            'state': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['requestId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'requestId': <String, Object?>{'type': 'string'},
+        'state': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['requestId'],
+    },
     dependencies: [],
   );
 }
@@ -863,15 +881,17 @@ base class _ReflectionSendInputStreamChunkParamsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionSendInputStreamChunkParams',
-    definition: $Schema
-        .object(
-          properties: {
-            'requestId': $Schema.string(),
-            'chunk': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['requestId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'requestId': <String, Object?>{'type': 'string'},
+        'chunk': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['requestId'],
+    },
     dependencies: [],
   );
 }
@@ -932,12 +952,14 @@ base class _ReflectionStreamChunkParamsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReflectionStreamChunkParams',
-    definition: $Schema
-        .object(
-          properties: {'requestId': $Schema.string(), 'chunk': $Schema.any()},
-          required: ['requestId', 'chunk'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'requestId': <String, Object?>{'type': 'string'},
+        'chunk': <String, Object?>{},
+      },
+      'required': ['requestId', 'chunk'],
+    },
     dependencies: [],
   );
 }

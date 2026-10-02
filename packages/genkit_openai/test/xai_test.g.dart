@@ -67,9 +67,13 @@ base class _CityQueryTypeFactory extends SchemanticType<CityQuery> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CityQuery',
-    definition: $Schema
-        .object(properties: {'city': $Schema.string()}, required: ['city'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'city': <String, Object?>{'type': 'string'},
+      },
+      'required': ['city'],
+    },
     dependencies: [],
   );
 }

@@ -148,7 +148,7 @@ final class CancellationController {
 
 /// Thrown when an operation is aborted via a [CancellationToken].
 ///
-/// Maps to [StatusCodes.CANCELLED]. Catch this to distinguish a cooperative
+/// Maps to [StatusCode.cancelled]. Catch this to distinguish a cooperative
 /// cancellation from other failures.
 class CancelledException extends GenkitException {
   /// The token that produced this cancellation, when known.
@@ -160,7 +160,7 @@ class CancelledException extends GenkitException {
   CancelledException({Object? reason, this.token})
     : super(
         reason is String ? reason : 'Operation was cancelled',
-        status: StatusCodes.CANCELLED,
-        underlyingException: reason is String ? null : reason,
+        status: StatusCode.cancelled,
+        cause: reason is String ? null : reason,
       );
 }

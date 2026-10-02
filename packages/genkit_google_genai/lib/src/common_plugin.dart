@@ -75,7 +75,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           (entry) => modelMetadata(
             '$name/${entry.key}',
             customOptions: GeminiModelFamily.of(entry.key).customOptions,
-            modelInfo: entry.value,
+            info: entry.value,
           ),
         );
   }
@@ -93,7 +93,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         String? apiKey;
 
         final isJsonMode =
-            req!.output?.format == 'json' ||
+            req.output?.format == 'json' ||
             req.output?.contentType == 'application/json';
 
         if (customOptions == GeminiTtsOptions.$schema) {
@@ -276,16 +276,16 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
     if (httpStatus != null) {
       return GenkitException(
         message ?? 'Google AI API Error: $httpStatus',
-        status: StatusCodes.fromHttpStatus(httpStatus),
-        underlyingException: e,
+        status: StatusCode.fromHttpStatus(httpStatus),
+        cause: e,
         stackTrace: stack,
       );
     }
 
     return GenkitException(
       'Google AI Error: $e',
-      status: StatusCodes.INTERNAL,
-      underlyingException: e,
+      status: StatusCode.internal,
+      cause: e,
       stackTrace: stack,
     );
   }
@@ -771,11 +771,11 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
 GenerationUsage? extractUsage(gcl.UsageMetadata? metadata) {
   if (metadata == null) return null;
   return GenerationUsage(
-    inputTokens: metadata.promptTokenCount?.toDouble(),
-    outputTokens: metadata.candidatesTokenCount?.toDouble(),
-    totalTokens: metadata.totalTokenCount?.toDouble(),
-    thoughtsTokens: metadata.thoughtsTokenCount?.toDouble(),
-    cachedContentTokens: metadata.cachedContentTokenCount?.toDouble(),
+    inputTokens: metadata.promptTokenCount,
+    outputTokens: metadata.candidatesTokenCount,
+    totalTokens: metadata.totalTokenCount,
+    thoughtsTokens: metadata.thoughtsTokenCount,
+    cachedContentTokens: metadata.cachedContentTokenCount,
     custom: {
       if (metadata.toolUsePromptTokenCount != null)
         'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount,
@@ -795,7 +795,7 @@ http.Client httpClientFromApiKey(String? apiKey) {
   if (apiKey == null) {
     throw GenkitException(
       'apiKey must be set to an API key',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   final baseClient = CustomClient(defaultHeaders: headers);

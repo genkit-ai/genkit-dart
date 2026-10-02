@@ -28,24 +28,19 @@ import 'schema.dart';
 
 final _logger = Logger('genkit_anthropic');
 
-/// Fallback capabilities for Claude models resolved by name without a curated
-/// entry.
+/// Metadata for Claude models resolved by name without a curated entry.
 ///
-/// Claims [baseClaudeSupports], not [structuredClaudeSupports]: the structured
-/// output this plugin sends today is the forced `return_output` tool below
-/// (`:252-262`), and not every Claude name accepts a forced `tool_choice` -
-/// `claude-fable-5-1`, for one, answers `tool_choice` `type: "tool"` with a
-/// 400. Curation is the only signal this plugin has for which names do, so an
-/// uncurated name withholds the claim and core simulates instead: a longer
-/// prompt rather than a rejection.
-final commonModelInfo = ModelInfo(supports: baseClaudeSupports);
+/// Same capabilities as a curated model, including native constrained output:
+/// every active Claude model accepts `output_config.format`, so a name that
+/// is new since this plugin's release is sent the schema natively too.
+final commonModelInfo = ModelInfo(supports: claudeSupports);
 
 /// Anthropic returns 529 when the API is overloaded.
 const _overloadedStatusCode = 529;
 
-StatusCodes _statusForHttpCode(int code) => code == _overloadedStatusCode
-    ? StatusCodes.UNAVAILABLE
-    : StatusCodes.fromHttpStatus(code);
+StatusCode _statusForHttpCode(int code) => code == _overloadedStatusCode
+    ? StatusCode.unavailable
+    : StatusCode.fromHttpStatus(code);
 
 /// Beta features requested when a request resolves to the beta API surface.
 ///
@@ -74,7 +69,7 @@ bool _isBeta(String? apiVersion) {
   if (apiVersion != 'beta' && apiVersion != 'stable') {
     throw GenkitException(
       'Invalid apiVersion "$apiVersion". Expected "beta" or "stable".',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return apiVersion == 'beta';
@@ -113,8 +108,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
   /// Whether this plugin's requests default to the beta API surface.
   ///
   /// Resolved once, so an unusable [apiVersion] fails at construction rather
-  /// than on the first request - and so the capability claim and the request
-  /// cannot disagree about which surface this is.
+  /// than on the first request.
   final bool _betaByDefault;
 
   /// Creates an [AnthropicPluginImpl].
@@ -131,11 +125,6 @@ class AnthropicPluginImpl extends GenkitPlugin {
 
   /// Bare names of the models this plugin curates.
   ///
-  /// Ids only: what each one claims depends on the API surface, so the
-  /// metadata comes from [modelInfoFor] rather than from a map that would
-  /// have to be rebuilt per surface - and could silently disagree with what
-  /// [resolve] registers.
-  ///
   /// Names absent here still resolve; they fall back to [commonModelInfo].
   final List<String> knownModelIds = UnmodifiableListView(
     KnownClaudeModel.values.map((m) => m.id),
@@ -150,17 +139,8 @@ class AnthropicPluginImpl extends GenkitPlugin {
   /// first and then by dated-snapshot alias, falling back to [commonModelInfo]
   /// for names not in [knownModelIds].
   ///
-  /// The claim follows the surface this plugin defaults to, because the
-  /// mechanism does: on beta a curated model is served by
-  /// `output_config.format` and claims `constrained: true`, on stable by the
-  /// forced `return_output` tool and claims `'no-tools'`.
-  ///
-  /// The plugin's default, not the request's: core reads this to decide
-  /// whether to simulate, and it reads it before the request's own config is
-  /// in hand. A request that overrides `apiVersion` to beta is therefore
-  /// judged by the stable claim - simulated where the native path would have
-  /// served it, which costs a longer prompt. The reverse override is the one
-  /// that cannot be absorbed quietly, and `_assertToolOutputAllowed` says so.
+  /// Independent of the API surface: `output_config.format` is served on
+  /// stable and beta alike.
   ModelInfo modelInfoFor(String modelName) {
     final curated =
         knownClaudeModelFor(modelName) ??
@@ -188,7 +168,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
   ActionMetadata _curatedMetadata(String name, ModelInfo info) => modelMetadata(
     'anthropic/$name',
     customOptions: AnthropicOptions.$schema,
-    modelInfo: info,
+    info: info,
   );
 
   @override
@@ -243,7 +223,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
       customOptions: AnthropicOptions.$schema,
       metadata: {'model': modelInfoFor(modelName).toJson()},
       fn: (req, ctx) async {
-        final options = req!.config == null
+        final options = req.config == null
             ? AnthropicOptions()
             : AnthropicOptions.$schema.parse(req.config!);
 
@@ -299,7 +279,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
           }
         } catch (e, stackTrace) {
           if (e is GenkitException) rethrow;
-          StatusCodes? status;
+          StatusCode? status;
           String? details;
           if (e is sdk.ApiException) {
             status = _statusForHttpCode(e.statusCode);
@@ -309,7 +289,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
             'Anthropic API error: $e',
             status: status,
             details: details ?? e.toString(),
-            underlyingException: e,
+            cause: e,
             stackTrace: stackTrace,
           );
         } finally {
@@ -370,13 +350,10 @@ class AnthropicPluginImpl extends GenkitPlugin {
           schema: toAnthropicSchema(authored),
         );
       } else {
-        // A schema the validator will not take - an empty `{}` somewhere,
-        // which is what a `dynamic` field compiles to. The request still goes
-        // out; the shape travels in the prompt instead, as it would have had
-        // this model never claimed native support. Unconstrained, but a
-        // `dynamic` field then comes back as the value it is rather than as a
-        // string of JSON, which is what the concrete rewrites Anthropic does
-        // accept would have produced.
+        // A schema Anthropic's subset cannot express (see
+        // `isNativelyExpressible`): a `dynamic` field, an open map, or a
+        // recursive type. The request still goes out with the shape in the
+        // system prompt: unenforced, but intact.
         schemaInPrompt = schemaInstructions(authored);
       }
     }
@@ -394,7 +371,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
         !(req.tools?.any((t) => t.name == forceTool) ?? false)) {
       throw GenkitException(
         'forceTool "$forceTool" is not one of the tools in this request.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     toolChoice = forceTool != null
@@ -647,7 +624,7 @@ List<sdk.InputContentBlock> _convertMediaFromJson(
       throw GenkitException(
         'Invalid media data URL for Anthropic: expected '
         '"data:<mime>;base64,<data>", got "$preview".',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     final urlMime = _cleanMimeType(
@@ -714,7 +691,7 @@ sdk.ImageMediaType _requireImageMediaType(String? mimeType) {
       'Unsupported media type for Anthropic: ${mimeType ?? '(none)'}. '
       'Supported: image/jpeg, image/png, image/gif, image/webp, '
       'application/pdf.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     ),
   };
 }
@@ -792,7 +769,7 @@ String _resolveThinkingType(ThinkingConfig config, String modelName) {
   if (type == null) {
     throw GenkitException(
       'Set thinking.type explicitly for unknown Anthropic model "$modelName".',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return type;
@@ -815,7 +792,7 @@ sdk.ThinkingConfig? _mapThinkingConfig(
     ),
     _ => throw GenkitException(
       'Unsupported Anthropic thinking type "$type".',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     ),
   };
 }
@@ -838,7 +815,7 @@ sdk.OutputConfig? _mapOutputConfig(
       'max' => sdk.EffortLevel.max,
       _ => throw GenkitException(
         'Unsupported Anthropic output effort "$effort".',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       ),
     },
   );
@@ -875,7 +852,7 @@ void _handleStreamEvent(
     case sdk.ErrorEvent(:final message):
       throw GenkitException(
         'Anthropic stream error: $message',
-        status: StatusCodes.INTERNAL,
+        status: StatusCode.internal,
       );
     default:
   }
@@ -902,8 +879,8 @@ GenerationUsage mapUsage(sdk.Usage? usage) {
     return GenerationUsage(inputTokens: 0, outputTokens: 0, totalTokens: 0);
   }
   return GenerationUsage(
-    inputTokens: usage.inputTokens.toDouble(),
-    outputTokens: usage.outputTokens.toDouble(),
-    totalTokens: (usage.inputTokens + usage.outputTokens).toDouble(),
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    totalTokens: usage.inputTokens + usage.outputTokens,
   );
 }

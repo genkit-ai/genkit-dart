@@ -22,6 +22,11 @@
 /// ```dart
 /// import 'package:genkit/experimental.dart';
 /// import 'package:genkit/experimental_io.dart';
+/// import 'package:genkit/io.dart';
+///
+/// final genkit = GenkitRouter()
+///   ..addAgent(weatherAgent) // turn + /getSnapshot + /abort
+///   ..addAgent(statelessAgent); // turn only
 /// ```
 ///
 /// To opt out of the analyzer warning on this import (you have accepted the
@@ -42,3 +47,4 @@ library;
 import 'package:meta/meta.dart';
 
 export 'src/ai/agents/session_io.dart' show FileSessionStore;
+export 'src/server/agents.dart' show GenkitRouterAgents;

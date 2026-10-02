@@ -178,13 +178,13 @@ Genkit transcriptionGenkit(
 /// Since #413 a model error is reported as a response with
 /// [FinishReason.failed] and a structured `error`, not a thrown exception.
 /// `error.status` is the status *name*, not the enum.
-Matcher failsWith({StatusCodes? status, String? message}) =>
-    isA<GenerateResponse>()
+Matcher failsWith({StatusCode? status, String? message}) =>
+    isA<GenerateResult>()
         .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
         .having(
           (r) => r.error?.status,
           'error.status',
-          status == null ? isNotNull : status.name,
+          status == null ? isNotNull : status.wireName,
         )
         .having(
           (r) => r.error?.message ?? '',
@@ -584,7 +584,7 @@ void main() {
           model: openAI.transcriptionModel('whisper-1'),
           promptParts: [audioPart()],
         ),
-        completion(failsWith(status: StatusCodes.INVALID_ARGUMENT)),
+        completion(failsWith(status: StatusCode.invalidArgument)),
       );
 
       await ai.shutdown();
@@ -601,7 +601,7 @@ void main() {
           model: openAI.transcriptionModel('whisper-1'),
           prompt: 'no audio here',
         ),
-        completion(failsWith(status: StatusCodes.INVALID_ARGUMENT)),
+        completion(failsWith(status: StatusCode.invalidArgument)),
       );
       expect(captured, isEmpty);
 

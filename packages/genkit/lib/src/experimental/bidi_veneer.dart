@@ -28,7 +28,6 @@ import '../ai/tool.dart' show Tool;
 import '../core/action.dart' show BidiActionFn;
 import '../core/cancellation.dart' show CancellationToken;
 import '../core/flow.dart' show Flow;
-import '../exception.dart' show GenkitException, StatusCodes;
 import '../genkit_ai.dart' show GenkitAI, resolveInlineTools;
 import '../genkit_class.dart' show Genkit;
 import '../types.dart' show ModelRequest, ModelResponse, ModelResponseChunk;
@@ -77,17 +76,9 @@ extension GenkitBidiModel on Genkit {
     SchemanticType<Chunk>? streamSchema,
     SchemanticType<Init>? initSchema,
   }) {
-    final flow = Flow(
+    final flow = Flow.bidi(
       name: name,
-      fn: (input, context) {
-        if (context.inputStream == null) {
-          throw GenkitException(
-            'Bidi flow $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-        return fn(context.inputStream!, context);
-      },
+      fn: fn,
       inputSchema: inputSchema,
       outputSchema: outputSchema,
       streamSchema: streamSchema,
@@ -108,18 +99,7 @@ extension GenkitBidiModel on Genkit {
     >
     fn,
   }) {
-    final model = BidiModel(
-      name: name,
-      fn: (input, context) {
-        if (context.inputStream == null) {
-          throw GenkitException(
-            'Bidi model $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-        return fn(context.inputStream!, context);
-      },
-    );
+    final model = BidiModel(name: name, fn: fn);
     registry.register(model);
     return model;
   }

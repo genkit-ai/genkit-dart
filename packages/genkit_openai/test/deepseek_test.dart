@@ -16,8 +16,8 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
-import 'package:genkit_openai/src/known_deepseek_models.dart'
-    show deepSeekVisionSupports;
+import 'package:genkit_openai/src/known_deepseek_models.dart';
+import 'package:genkit_openai/src/known_models.dart';
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/provider.dart';
 import 'package:http/http.dart' as http;
@@ -116,20 +116,6 @@ void main() {
         throwsUnsupportedError,
       );
     });
-
-    test('typed refs cover the catalog', () {
-      // Every curated entry, including the retired aliases: they are still
-      // resolvable, they are only kept out of the listing.
-      expect(
-        DeepSeekModels.all.map((r) => r.name).toSet(),
-        KnownDeepSeekModel.values.map((m) => 'deepseek/${m.id}').toSet(),
-      );
-      expect(
-        knownDeepSeekChatModels.map((id) => 'deepseek/$id').toSet(),
-        everyElement(isIn(DeepSeekModels.all.map((r) => r.name))),
-      );
-      expect(DeepSeekModels.deepseekFlash.name, 'deepseek/deepseek-flash');
-    });
   });
 
   group('plugin wiring', () {
@@ -142,7 +128,7 @@ void main() {
       );
       addTearDown(ai.shutdown);
 
-      await ai.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+      await ai.generate(model: deepSeek.model('deepseek-flash'), prompt: 'hi');
 
       expect(requests.single.url.host, 'api.deepseek.com');
       expect(requests.single.headers['authorization'], 'Bearer ds-key');
@@ -164,7 +150,10 @@ void main() {
       );
       addTearDown(fromEnv.shutdown);
 
-      await fromEnv.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+      await fromEnv.generate(
+        model: deepSeek.model('deepseek-flash'),
+        prompt: 'hi',
+      );
 
       expect(requests.single.headers['authorization'], 'Bearer from-env');
 
@@ -182,7 +171,7 @@ void main() {
       addTearDown(wrongVar.shutdown);
 
       final wrong = await wrongVar.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'hi',
       );
       expect(wrong.finishReason, FinishReason.failed);
@@ -199,7 +188,7 @@ void main() {
       addTearDown(keyless.shutdown);
 
       final response = await keyless.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'hi',
       );
 
@@ -291,7 +280,10 @@ void main() {
           ],
         );
 
-        await ai.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+        await ai.generate(
+          model: deepSeek.model('deepseek-flash'),
+          prompt: 'hi',
+        );
 
         expect(requests.single.url.host, 'api.deepseek.com', reason: baseUrl);
         expect(requests.single.url.path, '/chat/completions', reason: baseUrl);
@@ -318,7 +310,10 @@ void main() {
           ],
         );
 
-        await ai.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+        await ai.generate(
+          model: deepSeek.model('deepseek-flash'),
+          prompt: 'hi',
+        );
 
         expect(requests.single.url.path, path, reason: baseUrl);
         await ai.shutdown();
@@ -367,7 +362,7 @@ void main() {
       );
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         messages: [
           Message(
             role: Role.user,
@@ -404,7 +399,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         messages: [
           Message(
             role: Role.user,
@@ -443,7 +438,7 @@ void main() {
       for (final effort in ['minimal', 'medium', 'xhigh']) {
         requests.clear();
         await ai.generate(
-          model: DeepSeekModels.deepseekFlash,
+          model: deepSeek.model('deepseek-flash'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: effort),
         );
@@ -467,7 +462,7 @@ void main() {
       for (final effort in ['low', 'high', 'max']) {
         requests.clear();
         await ai.generate(
-          model: DeepSeekModels.deepseekFlash,
+          model: deepSeek.model('deepseek-flash'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: effort),
         );
@@ -486,7 +481,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'none'),
       );
@@ -506,7 +501,7 @@ void main() {
       );
       addTearDown(ai.shutdown);
 
-      await ai.generate(model: DeepSeekModels.deepseekFlash, prompt: 'hi');
+      await ai.generate(model: deepSeek.model('deepseek-flash'), prompt: 'hi');
 
       expect(chatBodyOf(requests), isNot(contains('thinking')));
     });
@@ -521,7 +516,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       final stream = ai.generateStream(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'max'),
       );
@@ -541,7 +536,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.o4Mini,
+        model: openAI.model('o4-mini'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'medium'),
       );
@@ -559,7 +554,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       final response = await ai.generate(
-        model: DeepSeekModels.deepseekChat,
+        model: deepSeek.model('deepseek-chat'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'none'),
       );
@@ -580,7 +575,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       final response = await ai.generate(
-        model: DeepSeekModels.deepseekChat,
+        model: deepSeek.model('deepseek-chat'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );
@@ -634,7 +629,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'hi',
         config: OpenAIChatOptions(maxTokens: 256),
       );
@@ -656,7 +651,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'hi',
         config: OpenAIChatOptions(maxTokens: 256),
       );
@@ -674,7 +669,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'give me json',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,
@@ -694,7 +689,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'give me an object',
         outputFormat: 'json',
       );
@@ -713,7 +708,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'give me an object',
         outputFormat: 'json',
       );
@@ -731,7 +726,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'describe a person',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,
@@ -745,10 +740,7 @@ void main() {
     test('carries the schema in the prompt, since the wire cannot', () async {
       // The schema cannot travel as a constraint here, so it has to reach the
       // model as text - and DeepSeek refuses a JSON request whose prompt never
-      // says "json". Since #453 core's own simulation writes those
-      // instructions for a model that claims no constrained generation, which
-      // is why the plugin's `jsonObjectInstruction` stands down rather than
-      // repeating them; the assertion is on the prompt, not on who wrote it.
+      // says "json". The plugin's `jsonObjectInstruction` writes both.
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
@@ -756,7 +748,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'describe a person',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,
@@ -777,7 +769,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'reply with json please',
         outputFormat: 'json',
       );
@@ -796,7 +788,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: DeepSeekModels.deepseekFlash,
+        model: deepSeek.model('deepseek-flash'),
         prompt: 'name a city',
         outputFormat: 'json',
         outputInstructions: 'Return an object with a single city property.',
@@ -806,15 +798,20 @@ void main() {
       expect(prompt.toLowerCase(), contains('json'));
     });
 
-    test('adds nothing when core already wrote the instructions', () async {
-      // Core's formatter marks what it wrote with `purpose: 'output'`, and a
-      // second copy from here would send the schema twice.
+    test('adds nothing when the prompt already carries the schema', () async {
+      // The `simulateConstrainedGeneration` middleware renders the same JSON
+      // under different wording, and a second copy from here would send the
+      // schema twice.
       //
-      // Through the model action directly, not `ai.generate`: since #453 core
-      // strips `output.schema` when it simulates, so on the generate path
-      // there is no schema left to duplicate and the test would pass with the
-      // marker check removed. A raw request carrying both the marked part and
-      // the schema is the only shape that exercises it.
+      // Through the model action directly: the middleware strips
+      // `output.schema` when it writes the part, so the generate path never
+      // produces this shape.
+      const schema = {
+        'type': 'object',
+        'properties': {
+          'name': {'type': 'string'},
+        },
+      };
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
@@ -833,9 +830,13 @@ void main() {
               content: [
                 TextPart(text: 'describe a person'),
                 TextPart(
+                  // What `simulateConstrainedGeneration` writes: the same
+                  // rendering of the same schema, under its own wording.
                   text:
                       'Output should be in JSON format and conform to the '
-                      'following schema:\n\n```\n{"properties":{"name":{}}}\n```',
+                      'following schema:\n\n```\n'
+                      '${const JsonEncoder.withIndent('  ').convert(schema)}'
+                      '\n```\n',
                   metadata: {'purpose': 'output'},
                 ),
               ],
@@ -844,23 +845,70 @@ void main() {
           output: OutputConfig(
             format: 'json',
             constrained: false,
-            schema: {
-              'type': 'object',
-              'properties': {
-                'name': {'type': 'string'},
-              },
-            },
+            schema: schema,
           ),
         ),
       );
 
       final prompt = jsonEncode(chatBodyOf(requests)['messages']);
-      // Once - core's copy - not twice.
+      // Once - the middleware's copy - not twice.
       expect(
         RegExp('conform to the following').allMatches(prompt),
         hasLength(1),
       );
       expect(chatBodyOf(requests)['messages'], hasLength(1));
+    });
+
+    test('keeps the schema when the caller writes their own '
+        'instructions', () async {
+      // `outputInstructions` is marked `purpose: 'output'` too, so keying the
+      // dedupe off that marker let a caller's own wording suppress the schema
+      // and the model never saw the shape it was asked for.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: deepSeek.model('deepseek-flash'),
+        prompt: 'describe a person',
+        outputFormat: 'json',
+        outputSchema: JsonOut.$schema,
+        outputInstructions: 'Answer tersely.',
+      );
+
+      final prompt = jsonEncode(chatBodyOf(requests)['messages']);
+      expect(prompt, contains(r'\"name\"'));
+      expect(prompt, contains('Answer tersely.'));
+    });
+
+    test('sends the schema once when the middleware also wrote it', () async {
+      // Both the middleware and the plugin can write the schema; only one of
+      // them should end up on the wire.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [deepSeek(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: deepSeek.model('deepseek-flash'),
+        prompt: 'describe a person',
+        outputFormat: 'json',
+        outputSchema: JsonOut.$schema,
+        use: [simulateConstrainedGeneration()],
+      );
+
+      final prompt = jsonEncode(chatBodyOf(requests)['messages']);
+      // The middleware's copy, and no second one from the plugin. Counted by
+      // the instruction preamble: the schema's own text repeats field names
+      // across `properties` and `required`.
+      expect(
+        RegExp('conform to the following').allMatches(prompt),
+        hasLength(1),
+      );
+      expect(prompt, contains(r'\"name\"'));
     });
 
     test('writes them itself when core wrote none', () async {
@@ -911,7 +959,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'describe a person',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,
@@ -929,7 +977,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: OpenAIModels.gpt4o,
+        model: openAI.model('gpt-4o'),
         prompt: 'give me json',
         outputFormat: 'json',
         outputSchema: JsonOut.$schema,

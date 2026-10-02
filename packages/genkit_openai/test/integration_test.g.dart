@@ -69,12 +69,13 @@ base class _WeatherInputSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherInputSchema',
-    definition: $Schema
-        .object(
-          properties: {'location': $Schema.string()},
-          required: ['location'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'location': <String, Object?>{'type': 'string'},
+      },
+      'required': ['location'],
+    },
     dependencies: [],
   );
 }
@@ -105,7 +106,7 @@ base class PersonSchema {
   }
 
   int get age {
-    return _json['age'] as int;
+    return (_json['age'] as num).toInt();
   }
 
   set age(int value) {
@@ -134,12 +135,14 @@ base class _PersonSchemaTypeFactory extends SchemanticType<PersonSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PersonSchema',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string(), 'age': $Schema.integer()},
-          required: ['name', 'age'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'age': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['name', 'age'],
+    },
     dependencies: [],
   );
 }
@@ -208,12 +211,14 @@ base class _ProfileSchemaTypeFactory extends SchemanticType<ProfileSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ProfileSchema',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string(), 'nickname': $Schema.string()},
-          required: ['name'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'nickname': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name'],
+    },
     dependencies: [],
   );
 }

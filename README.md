@@ -20,6 +20,22 @@
 
 ---
 
+## Using a coding agent? Install the skill.
+
+Before you write a line of Genkit Dart with an agent, install the official
+Genkit Dart Agent Skill:
+
+```bash
+npx skills add genkit-ai/skills --skill developing-genkit-dart
+```
+
+It teaches your agent the current Genkit Dart APIs (flows, tools, agents,
+sessions, prompts, plugins, `schemantic`) and common gotchas. Source, manual
+install instructions, and skills for JS/TS, Go and Python:
+[github.com/genkit-ai/skills](https://github.com/genkit-ai/skills).
+
+---
+
 See the [Genkit package documentation](https://pub.dev/packages/genkit) for getting started, guides, and API reference.
 
 | Package | Description | Pub |
@@ -33,7 +49,7 @@ See the [Genkit package documentation](https://pub.dev/packages/genkit) for gett
 | [`genkit_mcp`](packages/genkit_mcp) | Model Context Protocol (MCP) plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_mcp.svg)](https://pub.dev/packages/genkit_mcp) |
 | [`genkit_middleware`](packages/genkit_middleware) | Common middlewares (filesystem, skills, toolApproval) for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_middleware.svg)](https://pub.dev/packages/genkit_middleware) |
 | [`genkit_a2ui`](packages/genkit_a2ui) | A2UI (Agent-to-UI) streaming UI protocol support for Genkit Dart (experimental). | [![Pub](https://img.shields.io/pub/v/genkit_a2ui.svg)](https://pub.dev/packages/genkit_a2ui) |
-| [`genkit_shelf`](packages/genkit_shelf) | Shelf HTTP Server integration for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_shelf.svg)](https://pub.dev/packages/genkit_shelf) |
+| [`genkit_shelf`](packages/genkit_shelf) | Shelf adapter for serving Genkit actions and agents over HTTP. | [![Pub](https://img.shields.io/pub/v/genkit_shelf.svg)](https://pub.dev/packages/genkit_shelf) |
 | [`genkit_otel`](packages/genkit_otel) | OpenTelemetry GenAI semantic-conventions instrumentation for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_otel.svg)](https://pub.dev/packages/genkit_otel) |
 | [`genkit_firebase_ai`](packages/genkit_firebase_ai) | Firebase AI plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_firebase_ai.svg)](https://pub.dev/packages/genkit_firebase_ai) |
 | [`genkit_google_cloud`](packages/genkit_google_cloud) | Google Cloud integration for Genkit Dart (Firestore session store, experimental). | [![Pub](https://img.shields.io/pub/v/genkit_google_cloud.svg)](https://pub.dev/packages/genkit_google_cloud) |

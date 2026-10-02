@@ -49,7 +49,7 @@ void main() {
     expect(response.text, '{"result": "success"}');
     // `Output` is inferred from the schema: `response.output` is statically a
     // `Map<String, String>?`, not `dynamic`.
-    expect(response, isA<GenerateResponseHelper<Map<String, String>>>());
+    expect(response, isA<GenerateResult<Map<String, String>>>());
     expect(response.output, {'result': 'success'});
   });
 
@@ -58,11 +58,6 @@ void main() {
     ModelRequest? captured;
     final model = Model<void>(
       name: 'constrainedTestModel',
-      // Without this the model makes no claim, and the constrained request
-      // this test is about never reaches it.
-      metadata: {
-        'model': ModelInfo(supports: {'constrained': true}).toJson(),
-      },
       fn: (request, context) async {
         captured = request;
         return ModelResponse(
@@ -189,6 +184,56 @@ void main() {
     });
   });
 
+  test('lite generate reports a wrong-shaped schemaless reply', () async {
+    final model = Model<void>(
+      name: 'shapeTestModel',
+      fn: (request, context) async => ModelResponse(
+        finishReason: FinishReason.stop,
+        message: Message(
+          role: Role.model,
+          content: [TextPart(text: '{"a": 1}')],
+        ),
+      ),
+    );
+
+    await expectLater(
+      lite.generate<String, void>(
+        model: model,
+        prompt: 'Hello',
+        outputFormat: 'json',
+      ),
+      throwsA(
+        isA<GenkitException>().having(
+          (e) => e.message,
+          'message',
+          contains('does not match the expected output type String'),
+        ),
+      ),
+    );
+  });
+
+  test('lite generate parses a whole-number reply into a double', () async {
+    final model = Model<void>(
+      name: 'numModel',
+      fn: (request, context) async => ModelResponse(
+        finishReason: FinishReason.stop,
+        message: Message(
+          role: Role.model,
+          content: [TextPart(text: '3')],
+        ),
+      ),
+    );
+
+    final response = await lite.generate<double, void>(
+      model: model,
+      prompt: 'score',
+      outputFormat: 'json',
+    );
+
+    expect(response.output, isA<double>());
+    expect(response.output, equals(3.0));
+  });
+
   test('lite generateStream with outputSchema does not throw', () async {
     final model = Model<void>(
       name: 'testModelStream',
@@ -242,7 +287,7 @@ void main() {
       final model = Model<void>(
         name: 'toolModel',
         fn: (request, context) async {
-          if (request!.messages.last.role == Role.tool) {
+          if (request.messages.last.role == Role.tool) {
             final toolResponse =
                 request.messages.last.content.first.toolResponse!;
 
@@ -407,7 +452,7 @@ void main() {
         fn: (request, context) async {
           modelCallCount++;
 
-          if (request!.messages.last.role == Role.tool) {
+          if (request.messages.last.role == Role.tool) {
             final toolResponse =
                 request.messages.last.content.first.toolResponse!;
             return ModelResponse(
@@ -461,7 +506,7 @@ void main() {
       // would otherwise mask it).
       Future<lite.ToolResult<String>> fn(
         Map<String, dynamic> input,
-        lite.ToolFnArgs<Map<String, dynamic>> ctx,
+        lite.ToolFnArg<Map<String, dynamic>> ctx,
       ) async => .response('ok');
       expect(fn, isA<lite.ToolFn<Map<String, dynamic>, String>>());
 

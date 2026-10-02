@@ -68,17 +68,17 @@ base class _WeatherToolInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'location': $Schema.string(
-              description:
-                  'The location (ex. city, state, country) to get the weather for',
-            ),
-          },
-          required: ['location'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'location': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The location (ex. city, state, country) to get the weather for',
+        },
+      },
+      'required': ['location'],
+    },
     dependencies: [],
   );
 }
@@ -145,17 +145,17 @@ base class _CategoryTypeFactory extends SchemanticType<Category> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Category',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'subcategories': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Category'}),
-            ),
-          },
-          required: ['name'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'subcategories': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Category'},
+        },
+      },
+      'required': ['name'],
+    },
     dependencies: [Category.$schema],
   );
 }
@@ -225,16 +225,15 @@ base class _WeaponTypeFactory extends SchemanticType<Weapon> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Weapon',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'damage': $Schema.number(),
-            'category': $Schema.fromMap({'\$ref': r'#/$defs/Category'}),
-          },
-          required: ['name', 'damage', 'category'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'damage': <String, Object?>{'type': 'number'},
+        'category': <String, Object?>{r'$ref': r'#/$defs/Category'},
+      },
+      'required': ['name', 'damage', 'category'],
+    },
     dependencies: [Category.$schema],
   );
 }
@@ -336,22 +335,23 @@ base class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RpgCharacter',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'backstory': $Schema.string(),
-            'weapons': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Weapon'}),
-            ),
-            'classType': $Schema.string(
-              enumValues: ['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER'],
-            ),
-            'affiliation': $Schema.string(),
-          },
-          required: ['name', 'backstory', 'weapons', 'classType'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'backstory': <String, Object?>{'type': 'string'},
+        'weapons': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Weapon'},
+        },
+        'classType': <String, Object?>{
+          'type': 'string',
+          'enum': ['RANGER', 'WIZZARD', 'TANK', 'HEALER', 'ENGINEER'],
+        },
+        'affiliation': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name', 'backstory', 'weapons', 'classType'],
+    },
     dependencies: [Weapon.$schema],
   );
 }
@@ -394,7 +394,7 @@ base class CharacterProfile {
   }
 
   int get age {
-    return _json['age'] as int;
+    return (_json['age'] as num).toInt();
   }
 
   set age(int value) {
@@ -424,16 +424,15 @@ base class _CharacterProfileTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CharacterProfile',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'bio': $Schema.string(),
-            'age': $Schema.integer(),
-          },
-          required: ['name', 'bio', 'age'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'bio': <String, Object?>{'type': 'string'},
+        'age': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['name', 'bio', 'age'],
+    },
     dependencies: [],
   );
 }
@@ -497,25 +496,23 @@ base class _MultimodalEmbeddingInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MultimodalEmbeddingInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'caption': $Schema.fromMap({
-              'description': 'Text to embed alongside the image.',
-              'default': 'a plate of scones',
-              'type': 'string',
-            }),
-            'imageUri': $Schema.fromMap({
-              'description':
-                  'gs:// (or data:) URI of an image to embed as a separate modality from the caption.',
-              'default':
-                  'gs://cloud-samples-data/generative-ai/image/scones.jpg',
-              'type': 'string',
-            }),
-          },
-          required: ['caption', 'imageUri'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'caption': <String, Object?>{
+          'type': 'string',
+          'description': 'Text to embed alongside the image.',
+          'default': 'a plate of scones',
+        },
+        'imageUri': <String, Object?>{
+          'type': 'string',
+          'description':
+              'gs:// (or data:) URI of an image to embed as a separate modality from the caption.',
+          'default': 'gs://cloud-samples-data/generative-ai/image/scones.jpg',
+        },
+      },
+      'required': ['caption', 'imageUri'],
+    },
     dependencies: [],
   );
 }

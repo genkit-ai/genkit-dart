@@ -54,7 +54,7 @@ base class OpenAIEmbedderOptions {
   /// skipped for compat hosts: a non-positive length is wrong for every
   /// backend, and the Dev UI reads the bound off the schema.
   int? get dimensions {
-    return _json['dimensions'] as int?;
+    return (_json['dimensions'] as num?)?.toInt();
   }
 
   /// Length of the returned vector.
@@ -111,14 +111,13 @@ base class _OpenAIEmbedderOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'OpenAIEmbedderOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'dimensions': $Schema.integer(minimum: 1),
-            'user': $Schema.string(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'dimensions': <String, Object?>{'type': 'integer', 'minimum': 1},
+        'user': <String, Object?>{'type': 'string'},
+      },
+    },
     dependencies: [],
   );
 }
