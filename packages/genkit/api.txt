@@ -568,13 +568,12 @@ package:genkit/client.dart:
     toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
   GenkitException (class extends Object implements Exception):
-    new (constructor: GenkitException Function(String, {String? details, StackTrace? stackTrace, StatusCode? status, Object? underlyingException}))
+    new (constructor: GenkitException Function(String, {Object? cause, String? details, StackTrace? stackTrace, StatusCode? status}))
+    cause (getter: Object?)
     details (getter: String?)
     message (getter: String)
     stackTrace (getter: StackTrace?)
     status (getter: StatusCode)
-    statusCode (getter: int)
-    underlyingException (getter: Object?)
     toString (method: String Function())
   Media (class extends Object, base):
     $schema (static const getter: SchemanticType<Media>)

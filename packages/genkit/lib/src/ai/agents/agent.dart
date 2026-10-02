@@ -116,22 +116,36 @@ AgentErrorDetails toErrorDetails(Object? e) {
     return AgentErrorDetails(
       status: e.status.wireName,
       message: e.message,
-      details: e.details ?? e.underlyingException ?? e.message,
+      details: _jsonSafe(e.details ?? e.cause ?? e.message),
     );
   }
   if (e is AgentError) {
     return AgentErrorDetails(
       status: e.status,
       message: e.message,
-      details: e.details ?? e,
+      details: _jsonSafe(e.details ?? e),
     );
   }
   return AgentErrorDetails(
     status: 'INTERNAL',
     message: e?.toString() ?? 'Internal failure',
-    details: e,
+    details: _jsonSafe(e),
   );
 }
+
+/// `details` ends up in `AgentOutput.error` and snapshots, which are sent over
+/// the wire and persisted, so anything `jsonEncode` can't handle (typically a
+/// wrapped exception object) is reduced to its `toString()`.
+Object? _jsonSafe(Object? value) =>
+    _isJsonValue(value) ? value : value.toString();
+
+bool _isJsonValue(Object? value) => switch (value) {
+  null || String() || bool() => true,
+  num() => value.isFinite,
+  List() => value.every(_isJsonValue),
+  Map() => value.entries.every((e) => e.key is String && _isJsonValue(e.value)),
+  _ => false,
+};
 
 AgentErrorInfo _toErrorInfo(AgentErrorDetails details) => AgentErrorInfo(
   status: details.status,

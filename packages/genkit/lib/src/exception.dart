@@ -177,21 +177,28 @@ enum StatusCode {
 /// Exception thrown for errors encountered during Genkit flow operations.
 class GenkitException implements Exception {
   final String message;
+
+  /// The canonical status. Use [StatusCode.value] for the numeric code or
+  /// [StatusCode.httpStatus] for the HTTP equivalent.
   final StatusCode status;
-  final String? details; // Further details, potentially response body
-  final Object? underlyingException; // For wrapping other exceptions
-  final StackTrace? stackTrace; // For capturing the stack trace
+
+  /// Further details, e.g. a provider's response body.
+  final String? details;
+
+  /// The underlying error this exception wraps, if any. In-process only: it is
+  /// not serialized over the wire.
+  final Object? cause;
+
+  /// The stack trace of [cause], when it was captured.
+  final StackTrace? stackTrace;
 
   GenkitException(
     this.message, {
     StatusCode? status,
     this.details,
-    this.underlyingException,
+    this.cause,
     this.stackTrace,
   }) : status = status ?? StatusCode.internal;
-
-  /// Returns the integer value of the status code.
-  int get statusCode => status.value;
 
   @override
   String toString() {
@@ -206,12 +213,12 @@ class GenkitException implements Exception {
       sb.write('\n\nDetails: $details');
     }
 
-    // section 3: underlying exception
-    if (underlyingException != null) {
+    // section 3: cause
+    if (cause != null) {
       sb.write('\n\n');
       sb.write(
         '''INNER EXCEPTION:
-$underlyingException'''
+$cause'''
             .indent(),
       );
     }

@@ -1345,14 +1345,9 @@ void main() {
           expect(res.error!.message, contains('tool exploded'));
           // The original tool exception is still reachable in-process.
           expect(res.cause, isA<GenkitException>());
+          expect((res.cause as GenkitException).cause, isA<GenkitException>());
           expect(
-            (res.cause as GenkitException).underlyingException,
-            isA<GenkitException>(),
-          );
-          expect(
-            ((res.cause as GenkitException).underlyingException
-                    as GenkitException)
-                .status,
+            ((res.cause as GenkitException).cause as GenkitException).status,
             StatusCode.failedPrecondition,
           );
           // The failing turn's model tool-request message is dropped; the user

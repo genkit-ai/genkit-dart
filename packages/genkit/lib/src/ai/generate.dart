@@ -300,7 +300,7 @@ RuntimeError _toRuntimeError(Object cause) {
 
 /// Classifies a tool's error for the loop. A genuine tool failure becomes an
 /// INTERNAL [GenkitException] whose message names the tool, wrapping the
-/// original as `underlyingException` so callers can still reach it (and
+/// original as `cause` so callers can still reach it (and
 /// `response.cause`). Mirrors Go's `toolFailureError` and `ErrToolFailed`: a
 /// tool's failure is not a failure of the caller's request, so the tool's own
 /// status must not become the whole generation's.
@@ -309,7 +309,7 @@ GenkitException _toolFailureError(String toolName, Object cause) {
   return GenkitException(
     'tool "$toolName" failed: $detail',
     status: StatusCode.internal,
-    underlyingException: cause,
+    cause: cause,
   );
 }
 

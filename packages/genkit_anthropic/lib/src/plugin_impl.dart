@@ -289,7 +289,7 @@ class AnthropicPluginImpl extends GenkitPlugin {
             'Anthropic API error: $e',
             status: status,
             details: details ?? e.toString(),
-            underlyingException: e,
+            cause: e,
             stackTrace: stackTrace,
           );
         } finally {
