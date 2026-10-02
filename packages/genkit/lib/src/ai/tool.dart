@@ -262,10 +262,8 @@ base class Tool<Input, Output>
          }),
        );
 
-  // A tool's base `outputSchema` describes the wrapper `ToolResult<Output>`,
-  // not the user-declared `Output`. Surface the declared schema so action
-  // manifests (Dev UI, reflection) and MCP `tools/list` advertise the shape
-  // callers actually receive.
+  // A tool's base `outputSchema` describes the `ToolResult<Output>` wrapper.
+  // Surface the declared schema in action manifests (Dev UI, reflection).
   @override
   @internal
   SchemanticType? get manifestOutputSchema => toolOutputSchema;
