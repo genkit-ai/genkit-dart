@@ -30,7 +30,7 @@ void main() {
   // --- Inline definePrompt with typed input and output ---
   //
   // Both type arguments are inferred from the schemas, so `jokePrompt` is an
-  // `ExecutablePrompt<JokeInput, Joke>` and `response.output` is a `Joke?`.
+  // `Prompt<JokeInput, Joke>` and `response.output` is a `Joke?`.
 
   final jokePrompt = ai.definePrompt(
     name: 'joke',

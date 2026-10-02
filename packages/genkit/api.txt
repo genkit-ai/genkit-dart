@@ -1745,11 +1745,6 @@ package:genkit/genkit.dart:
   EvalStatusEnum (see above)
   Evaluator (class extends Action<EvalRequest, List<EvalFnResponse>, void, void>, base):
     new (constructor: Evaluator Function({required String description, required Future<List<EvalFnResponse>> Function(EvalRequest, ActionFnArg<void, EvalRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
-  ExecutablePrompt (class<Input, Output> extends Object, final):
-    ref (getter: PromptRef)
-    call (method: Future<GenerateResult<Output>> Function(Input?, [PromptGenerateOptions<dynamic>?]))
-    render (method: Future<GenerateActionOptions> Function(Input?, [PromptGenerateOptions<dynamic>?]))
-    stream (method: ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>> Function(Input?, [PromptGenerateOptions<dynamic>?]))
   FinishReason (see above)
   Flow (class<Input, Output, Chunk, Init> extends Action<Input, Output, Chunk, Init>, base):
     new (constructor: Flow<Input, Output, Chunk, Init> Function({required Future<Output> Function(Input, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Init>? initSchema, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema}))
@@ -1832,12 +1827,12 @@ package:genkit/genkit.dart:
     defineInterrupt (method: Interrupt<Input, Output> Function<Input, Output>({required String description, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema, FutureOr<Object?> Function(Input, ToolFnArg<Input>)? requestMetadata}))
     defineModel (method: Model<dynamic> Function({required Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) fn, ModelInfo? info, required String name}))
     definePartial (method: void Function(String, String))
-    definePrompt (method: ExecutablePrompt<Input, Output> Function<Input, Output, CustomOptions>({CustomOptions? config, String? description, SchemanticType<Input>? inputSchema, int? maxTurns, List<Message>? messages, String? messagesTemplate, Map<String, dynamic>? metadata, ModelRef<CustomOptions>? model, required String name, GenerateActionOutputConfig? output, SchemanticType<Output>? outputSchema, String? prompt, List<Part>? promptParts, bool? returnToolRequests, String? system, List<Part>? systemParts, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddlewareRef<dynamic>>? use, String? variant}))
+    definePrompt (method: Prompt<Input, Output> Function<Input, Output, CustomOptions>({CustomOptions? config, String? description, SchemanticType<Input>? inputSchema, int? maxTurns, List<Message>? messages, String? messagesTemplate, Map<String, dynamic>? metadata, ModelRef<CustomOptions>? model, required String name, GenerateActionOutputConfig? output, SchemanticType<Output>? outputSchema, String? prompt, List<Part>? promptParts, bool? returnToolRequests, String? system, List<Part>? systemParts, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddlewareRef<dynamic>>? use, String? variant}))
     defineRemoteModel (method: Model<dynamic> Function({FutureOr<Map<String, String>?> Function(Map<String, dynamic>)? headers, Client? httpClient, ModelInfo? info, required String name, required String url}))
     defineResource (method: ResourceAction Function({String? description, required Future<ResourceOutput> Function(ResourceInput, ActionFnArg<void, ResourceInput, void>) fn, Map<String, dynamic>? metadata, String? name, String? template, String? uri}))
     defineSchema (method: void Function(String, Map<String, dynamic>))
     defineTool (method: Tool<Input, Output> Function<Input, Output>({required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArg<Input>) fn, SchemanticType<Input>? inputSchema, required String name, SchemanticType<Output>? outputSchema}))
-    prompt (method: Future<ExecutablePrompt<Input, Output>> Function<Input, Output>(String, {SchemanticType<Output>? outputParserSchema, String? variant}))
+    prompt (method: Future<Prompt<Input, Output>> Function<Input, Output>(String, {SchemanticType<Output>? outputParserSchema, String? variant}))
     shutdown (method: Future<void> Function())
   GenkitAI (class extends Object, base):
     new (constructor: GenkitAI Function(Registry))
@@ -1883,10 +1878,15 @@ package:genkit/genkit.dart:
   Operation (see above)
   OutputConfig (see above)
   Part (see above)
+  Prompt (class<Input, Output> extends Object, final):
+    ref (getter: PromptRef)
+    call (method: Future<GenerateResult<Output>> Function(Input?, [PromptGenerateOptions<dynamic>?]))
+    render (method: Future<GenerateActionOptions> Function(Input?, [PromptGenerateOptions<dynamic>?]))
+    stream (method: ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>> Function(Input?, [PromptGenerateOptions<dynamic>?]))
   PromptAction (class<Input> extends Action<Input, GenerateActionOptions, void, void>, base):
     new (constructor: PromptAction<Input> Function({String? description, required Future<GenerateActionOptions> Function(Input, ActionFnArg<void, Input, void>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name}))
-    executable (constructor: PromptAction<Input> Function(ExecutablePrompt<Input, dynamic>, {String? description, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name}), internal)
-    executablePrompt (getter: ExecutablePrompt<Input, dynamic>?, internal)
+    fromPrompt (constructor: PromptAction<Input> Function(Prompt<Input, dynamic>, {String? description, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name}), internal)
+    prompt (getter: Prompt<Input, dynamic>?, internal)
   PromptGenerateOptions (class<CustomOptions> extends Object, final):
     new (constructor: PromptGenerateOptions<CustomOptions> Function({CancellationToken? cancel, CustomOptions? config, Map<String, dynamic>? context, int? maxTurns, List<Message>? messages, ModelRef<CustomOptions>? model, GenerateActionOutputConfig? output, bool? returnToolRequests, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddlewareRef<dynamic>>? use}))
     cancel (getter: CancellationToken?)

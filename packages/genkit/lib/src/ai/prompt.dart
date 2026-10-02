@@ -35,7 +35,7 @@ import 'tool.dart';
 
 /// Configuration for defining a prompt.
 ///
-/// This holds all the metadata needed to define an executable prompt action.
+/// This holds all the metadata needed to define a prompt action.
 final class PromptConfig<Input, Output, CustomOptions> {
   /// The name of the prompt.
   final String name;
@@ -237,7 +237,7 @@ final class PromptGenerateOptions<CustomOptions> {
 
 /// Memoized compiled templates for one registered prompt.
 ///
-/// Held separately from [ExecutablePrompt] so the typed views produced by a
+/// Held separately from [Prompt] so the typed views produced by a
 /// `prompt<Input, Output>()` lookup share one cache with the registered prompt
 /// instead of recompiling per lookup. Futures (not values) are memoized so
 /// concurrent first-renders await the same compile.
@@ -249,7 +249,7 @@ class _PromptTemplates {
 
 /// Identifies a defined prompt: its registered name and metadata.
 ///
-/// Obtained from [ExecutablePrompt.ref]; not constructed directly.
+/// Obtained from [Prompt.ref]; not constructed directly.
 final class PromptRef {
   /// The full prompt name, including the variant (e.g. `greet.formal`).
   final String name;
@@ -276,7 +276,7 @@ Object? _freeze(Object? value) => switch (value) {
   _ => value,
 };
 
-/// An executable prompt that can render, generate, and stream.
+/// A defined prompt that can render, generate, and stream.
 ///
 /// It acts as a callable that invokes `generate` with the rendered prompt
 /// template, and also provides `.render()` and `.stream()` methods.
@@ -284,7 +284,7 @@ Object? _freeze(Object? value) => switch (value) {
 /// [Output] is the parsed structured output type: `(await prompt(input)).output`
 /// is an `Output?`. It is inferred from `outputSchema` at definition, and is
 /// `dynamic` for a prompt defined without one.
-final class ExecutablePrompt<Input, Output> {
+final class Prompt<Input, Output> {
   /// A reference to the prompt (name + metadata).
   final PromptRef ref;
 
@@ -301,7 +301,7 @@ final class ExecutablePrompt<Input, Output> {
   /// the raw JSON value is cast to [Output] (typically `dynamic`) instead.
   final SchemanticType<Output>? _outputSchema;
 
-  ExecutablePrompt._({
+  Prompt._({
     required this._registry,
     required this._dotpromptRegistry,
     required PromptConfig<Input, Output, dynamic> config,
@@ -313,16 +313,14 @@ final class ExecutablePrompt<Input, Output> {
 
   /// Creates a typed view of an existing prompt, for `prompt<Input, Output>()`.
   ///
-  /// A plain cast cannot do this: `ExecutablePrompt<I, dynamic>` is not an
-  /// `ExecutablePrompt<I, Joke>`. The registry, config, and template cache are
+  /// A plain cast cannot do this: `Prompt<I, dynamic>` is not an
+  /// `Prompt<I, Joke>`. The registry, config, and template cache are
   /// shared, so the view behaves as the registered prompt with a parsed output.
   ///
   /// [Input] is the caller's assertion. The registry does not retain it, and
   /// rendering serializes whatever it is handed, so it is not re-checked here.
-  ExecutablePrompt._retyped(
-    ExecutablePrompt<dynamic, dynamic> source,
-    this._outputSchema,
-  ) : _registry = source._registry,
+  Prompt._retyped(Prompt<dynamic, dynamic> source, this._outputSchema)
+    : _registry = source._registry,
       _dotpromptRegistry = source._dotpromptRegistry,
       _config = source._config,
       _templates = source._templates,
@@ -633,13 +631,12 @@ Map<String, dynamic>? _configToMap(dynamic config) {
   }
 }
 
-/// Defines an executable prompt and registers it in the registry.
+/// Defines a template prompt and registers it in the registry.
 ///
 /// This creates both a `PromptAction` (registered as actionType
-/// 'executable-prompt') and returns an [ExecutablePrompt] that can be called
+/// 'executable-prompt') and returns a [Prompt] that can be called
 /// directly.
-ExecutablePrompt<Input, Output>
-definePromptAction<Input, Output, CustomOptions>(
+Prompt<Input, Output> definePromptAction<Input, Output, CustomOptions>(
   Registry registry,
   DotpromptRegistry dotpromptRegistry,
   PromptConfig<Input, Output, CustomOptions> config, {
@@ -647,7 +644,7 @@ definePromptAction<Input, Output, CustomOptions>(
 }) {
   final promptMetadata = _buildPromptMetadata(config, metadata);
 
-  final executablePrompt = ExecutablePrompt<Input, Output>._(
+  final prompt = Prompt<Input, Output>._(
     registry: registry,
     dotpromptRegistry: dotpromptRegistry,
     config: config,
@@ -655,8 +652,8 @@ definePromptAction<Input, Output, CustomOptions>(
   );
 
   // Register a PromptAction in the registry
-  final action = PromptAction<Input>.executable(
-    executablePrompt,
+  final action = PromptAction<Input>.fromPrompt(
+    prompt,
     name: config.fullName,
     description: config.description,
     inputSchema: config.inputSchema,
@@ -664,7 +661,7 @@ definePromptAction<Input, Output, CustomOptions>(
   );
   registry.register(action);
 
-  return executablePrompt;
+  return prompt;
 }
 
 /// Builds prompt metadata for registry/reflection purposes.
@@ -706,7 +703,7 @@ base class PromptAction<Input>
     extends Action<Input, GenerateActionOptions, void, void> {
   // Output-erased: a prompt of any output type is stored here, and
   // `lookupPrompt` re-types it on the way out.
-  final ExecutablePrompt<Input, dynamic>? _executablePrompt;
+  final Prompt<Input, dynamic>? _prompt;
 
   /// A prompt whose request is built by [fn]. Backs
   /// `Genkit.defineCustomPrompt` and plugin-provided prompts (e.g. MCP).
@@ -726,8 +723,8 @@ base class PromptAction<Input>
 
   /// The registry entry for a template prompt; see [definePromptAction].
   @internal
-  PromptAction.executable(
-    ExecutablePrompt<Input, dynamic> prompt, {
+  PromptAction.fromPrompt(
+    Prompt<Input, dynamic> prompt, {
     required String name,
     SchemanticType<Input>? inputSchema,
     String? description,
@@ -737,7 +734,7 @@ base class PromptAction<Input>
          inputSchema: inputSchema,
          description: description,
          metadata: metadata,
-         executablePrompt: prompt,
+         prompt: prompt,
          fn: (input, ctx) => prompt.render(input),
        );
 
@@ -747,17 +744,17 @@ base class PromptAction<Input>
     super.inputSchema,
     super.description,
     Map<String, dynamic>? metadata,
-    this._executablePrompt,
+    this._prompt,
   }) : super(
          actionType: .executablePrompt,
          outputSchema: GenerateActionOptions.$schema,
          metadata: _promptActionMetadata(description, metadata),
        );
 
-  /// The executable prompt, when this action was created by
+  /// The template prompt, when this action was created by
   /// [definePromptAction]; null for a [PromptFn]-backed prompt.
   @internal
-  ExecutablePrompt<Input, dynamic>? get executablePrompt => _executablePrompt;
+  Prompt<Input, dynamic>? get prompt => _prompt;
 }
 
 /// Builds the generate request for a custom prompt from its [input].
@@ -782,7 +779,7 @@ Map<String, dynamic> _promptActionMetadata(
 }
 
 /// Looks up a prompt by name in the registry and returns its
-/// [ExecutablePrompt], typed as `ExecutablePrompt<Input, Output>`.
+/// [Prompt], typed as `Prompt<Input, Output>`.
 ///
 /// The registry does not retain the prompt's input type, so [Input] is purely
 /// the caller's assertion; rendering serializes whatever it is handed.
@@ -801,7 +798,7 @@ Map<String, dynamic> _promptActionMetadata(
 /// schema), since otherwise `output` is always null. Failing here, rather than
 /// on a cast or a silent null in the eventual response, keeps the error at the
 /// call that has to change.
-Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
+Future<Prompt<Input, Output>> lookupPrompt<Input, Output>(
   Registry registry,
   String name, {
   String? variant,
@@ -811,7 +808,7 @@ Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
   final lookupName = variant != null ? '$name.$variant' : name;
   final action = await registry.lookupAction(.executablePrompt, lookupName);
 
-  final found = action is PromptAction ? action.executablePrompt : null;
+  final found = action is PromptAction ? action.prompt : null;
   if (found == null) {
     throw GenkitException('$label not found', status: StatusCode.notFound);
   }
@@ -860,7 +857,7 @@ Future<ExecutablePrompt<Input, Output>> lookupPrompt<Input, Output>(
       status: StatusCode.invalidArgument,
     );
   }
-  return ExecutablePrompt<Input, Output>._retyped(found, resolved);
+  return Prompt<Input, Output>._retyped(found, resolved);
 }
 
 /// Merges a per-call output override over the prompt's own output config.

@@ -237,11 +237,10 @@ final class Genkit extends GenkitAI {
     return interrupt;
   }
 
-  /// Defines an executable prompt with Handlebars template support.
+  /// Defines a prompt with Handlebars template support.
   ///
   /// The prompt is registered in the registry and can be looked up by name.
-  /// Returns an [ExecutablePrompt] that can be called directly, rendered,
-  /// or streamed.
+  /// Returns a [Prompt] that can be called directly, rendered, or streamed.
   ///
   /// Pass [inputSchema] and [outputSchema] to get a fully typed prompt: the
   /// type arguments are inferred, so they rarely need to be written out.
@@ -258,7 +257,7 @@ final class Genkit extends GenkitAI {
   ///
   /// final Joke? j = (await joke(JokeInput(topic: 'cats'))).output;
   /// ```
-  ExecutablePrompt<Input, Output> definePrompt<Input, Output, CustomOptions>({
+  Prompt<Input, Output> definePrompt<Input, Output, CustomOptions>({
     required String name,
     String? variant,
     ModelRef<CustomOptions>? model,
@@ -343,7 +342,7 @@ final class Genkit extends GenkitAI {
 
   /// Looks up a previously defined prompt by name.
   ///
-  /// Returns the [ExecutablePrompt] registered under the given name
+  /// Returns the [Prompt] registered under the given name
   /// and optional variant.
   ///
   /// Supply `Input` / `Output` to get a typed handle. `Input` is asserted by
@@ -365,13 +364,13 @@ final class Genkit extends GenkitAI {
   /// final joke = await ai.prompt<JokeInput, Joke>('joke');
   ///
   /// // A .prompt file with an output.schema: supply the Dart parser.
-  /// // Inferred as ExecutablePrompt<dynamic, Summary>.
+  /// // Inferred as Prompt<dynamic, Summary>.
   /// final summarize = await ai.prompt(
   ///   'summarize',
   ///   outputParserSchema: Summary.$schema,
   /// );
   /// ```
-  Future<ExecutablePrompt<Input, Output>> prompt<Input, Output>(
+  Future<Prompt<Input, Output>> prompt<Input, Output>(
     String name, {
     String? variant,
     SchemanticType<Output>? outputParserSchema,

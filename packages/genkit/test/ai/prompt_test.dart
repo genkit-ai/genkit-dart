@@ -131,12 +131,12 @@ void main() {
       dpRegistry = DotpromptRegistry();
     });
 
-    test('returns an ExecutablePrompt', () {
+    test('returns a Prompt', () {
       final config = PromptConfig(name: 'greet', prompt: 'Hello {{name}}');
 
       final ep = definePromptAction(registry, dpRegistry, config);
 
-      expect(ep, isA<ExecutablePrompt>());
+      expect(ep, isA<Prompt>());
       expect(ep.ref.name, equals('greet'));
       expect(ep.ref.metadata['type'], equals('prompt'));
       expect(
@@ -217,7 +217,7 @@ void main() {
     });
   });
 
-  group('ExecutablePrompt.render', () {
+  group('Prompt.render', () {
     late Registry registry;
     late DotpromptRegistry dpRegistry;
 
@@ -957,7 +957,7 @@ void main() {
       );
 
       final ep = await lookupPrompt(registry, 'greet');
-      expect(ep, isA<ExecutablePrompt>());
+      expect(ep, isA<Prompt>());
       expect(ep.ref.name, equals('greet'));
     });
 
@@ -973,7 +973,7 @@ void main() {
       );
 
       final ep = await lookupPrompt(registry, 'greet', variant: 'formal');
-      expect(ep, isA<ExecutablePrompt>());
+      expect(ep, isA<Prompt>());
       expect(ep.ref.name, equals('greet.formal'));
     });
 
@@ -1040,10 +1040,10 @@ void main() {
       await genkit.shutdown();
     });
 
-    test('definePrompt returns ExecutablePrompt', () {
+    test('definePrompt returns a Prompt', () {
       final ep = genkit.definePrompt(name: 'hi', prompt: 'Say hi to {{name}}');
 
-      expect(ep, isA<ExecutablePrompt>());
+      expect(ep, isA<Prompt>());
       expect(ep.ref.name, equals('hi'));
     });
 
@@ -1062,7 +1062,7 @@ void main() {
       genkit.definePrompt(name: 'greeting', prompt: 'Hello {{name}}');
 
       final ep = await genkit.prompt('greeting');
-      expect(ep, isA<ExecutablePrompt>());
+      expect(ep, isA<Prompt>());
     });
 
     test('prompt() with variant', () async {
@@ -1073,7 +1073,7 @@ void main() {
       );
 
       final ep = await genkit.prompt('greeting', variant: 'formal');
-      expect(ep, isA<ExecutablePrompt>());
+      expect(ep, isA<Prompt>());
       expect(ep.ref.name, equals('greeting.formal'));
     });
 
@@ -1205,7 +1205,7 @@ void main() {
         );
 
         // Verify the prompt was created successfully
-        expect(ep, isA<ExecutablePrompt>());
+        expect(ep, isA<Prompt>());
         final options = await ep.render({});
         expect(options.messages, isNotEmpty);
       },
@@ -1268,7 +1268,7 @@ void main() {
     /// Defines a prompt with [O] pinned as its Output but no outputSchema to
     /// infer it from: the case the schemaless-Output tests exercise. The
     /// return type supplies the inference context for `definePrompt`.
-    ExecutablePrompt<dynamic, O> defineSchemaless<O>(
+    Prompt<dynamic, O> defineSchemaless<O>(
       String name, {
       ModelRef<dynamic>? model,
       GenerateActionOutputConfig? output,
@@ -1295,14 +1295,14 @@ void main() {
         prompt: 'Tell a joke',
       );
 
-      expect(ep, isA<ExecutablePrompt<Map<String, String>, _Joke>>());
+      expect(ep, isA<Prompt<Map<String, String>, _Joke>>());
     });
 
     test('definePrompt without outputSchema leaves Output dynamic', () {
       final ep = genkit.definePrompt(name: 'plain', prompt: 'Say hi');
 
-      expect(ep, isA<ExecutablePrompt<dynamic, dynamic>>());
-      expect(ep, isNot(isA<ExecutablePrompt<dynamic, _Joke>>()));
+      expect(ep, isA<Prompt<dynamic, dynamic>>());
+      expect(ep, isNot(isA<Prompt<dynamic, _Joke>>()));
     });
 
     test('outputSchema reaches the rendered request as a jsonSchema', () async {
@@ -1579,7 +1579,7 @@ void main() {
       );
 
       final ep = await genkit.prompt<dynamic, _Joke>('joke');
-      expect(ep, isA<ExecutablePrompt<dynamic, _Joke>>());
+      expect(ep, isA<Prompt<dynamic, _Joke>>());
     });
 
     test(
@@ -1629,7 +1629,7 @@ void main() {
         );
 
         final ep = await genkit.prompt('joke', outputParserSchema: _jokeSchema);
-        expect(ep, isA<ExecutablePrompt<dynamic, _Joke>>());
+        expect(ep, isA<Prompt<dynamic, _Joke>>());
       },
     );
 
@@ -1641,7 +1641,7 @@ void main() {
       );
 
       final ep = await genkit.prompt('joke', outputParserSchema: _jokeSchema);
-      expect(ep, isA<ExecutablePrompt<dynamic, _Joke>>());
+      expect(ep, isA<Prompt<dynamic, _Joke>>());
     });
 
     test('the request carries the defined schema, not the parser', () async {
@@ -1709,7 +1709,7 @@ void main() {
       // A raw JSON map already satisfies this, so demanding a schema here
       // would reject the common "just give me the decoded JSON" lookup.
       final ep = await genkit.prompt<dynamic, Map<String, dynamic>>('joke');
-      expect(ep, isA<ExecutablePrompt<dynamic, Map<String, dynamic>>>());
+      expect(ep, isA<Prompt<dynamic, Map<String, dynamic>>>());
     });
 
     test('a typed lookup of a text-only prompt is rejected', () async {
@@ -1840,7 +1840,7 @@ Tell a joke.
       // The file supplies the wire schema; the Dart parser comes from here,
       // and Output is inferred from it.
       final ep = await ai.prompt('joke', outputParserSchema: _jokeSchema);
-      expect(ep, isA<ExecutablePrompt<dynamic, _Joke>>());
+      expect(ep, isA<Prompt<dynamic, _Joke>>());
       final response = await ep(null);
 
       expect(response.output?.setup, equals('Why?'));
@@ -1885,7 +1885,7 @@ Tell a joke.
       genkit = Genkit(isDevEnv: false, promptDir: tempDir.path);
 
       final ep = await genkit.prompt('hello');
-      expect(ep, isA<ExecutablePrompt>());
+      expect(ep, isA<Prompt>());
 
       final options = await ep.render({'name': 'World'});
       expect(options.messages.length, equals(1));
@@ -1909,7 +1909,7 @@ Hello {{name}}!
       genkit = Genkit(isDevEnv: false, promptDir: tempDir.path);
 
       final ep = await genkit.prompt('greeting');
-      expect(ep, isA<ExecutablePrompt>());
+      expect(ep, isA<Prompt>());
 
       final options = await ep.render({'name': 'Dart'});
       expect(options.model, equals('test-model'));
@@ -2222,7 +2222,7 @@ Classify: {{text}}
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final ep = await registry.lookupAction(.executablePrompt, 'classify');
-      final options = await (ep as PromptAction).executablePrompt!.render({
+      final options = await (ep as PromptAction).prompt!.render({
         'text': 'hello',
       });
 
@@ -2284,7 +2284,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final ep = await registry.lookupAction(.executablePrompt, 'retrying');
-      final options = await (ep as PromptAction).executablePrompt!.render({
+      final options = await (ep as PromptAction).prompt!.render({
         'name': 'World',
       });
 
@@ -2308,7 +2308,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final ep = await registry.lookupAction(.executablePrompt, 'retrying');
-      final options = await (ep as PromptAction).executablePrompt!.render({
+      final options = await (ep as PromptAction).prompt!.render({
         'name': 'World',
       });
 
@@ -2369,7 +2369,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final ep = await registry.lookupAction(.executablePrompt, 'mixed');
-      final options = await (ep as PromptAction).executablePrompt!.render({
+      final options = await (ep as PromptAction).prompt!.render({
         'name': 'World',
       });
 
@@ -2389,7 +2389,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final ep = await registry.lookupAction(.executablePrompt, 'choosy');
-      final options = await (ep as PromptAction).executablePrompt!.render({
+      final options = await (ep as PromptAction).prompt!.render({
         'name': 'World',
       });
 
@@ -2408,7 +2408,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final ep = await registry.lookupAction(.executablePrompt, 'looped');
-      final options = await (ep as PromptAction).executablePrompt!.render({
+      final options = await (ep as PromptAction).prompt!.render({
         'name': 'World',
       });
 
@@ -2427,7 +2427,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final ep = await registry.lookupAction(.executablePrompt, 'noreturn');
-      final options = await (ep as PromptAction).executablePrompt!.render({
+      final options = await (ep as PromptAction).prompt!.render({
         'name': 'World',
       });
 
@@ -2442,7 +2442,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final ep = await registry.lookupAction(.executablePrompt, 'bare');
-      final options = await (ep as PromptAction).executablePrompt!.render({
+      final options = await (ep as PromptAction).prompt!.render({
         'name': 'World',
       });
 
@@ -2524,7 +2524,7 @@ Hello {{name}}!
       loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
 
       final ep = await registry.lookupAction(.executablePrompt, 'plain');
-      final options = await (ep as PromptAction).executablePrompt!.render({
+      final options = await (ep as PromptAction).prompt!.render({
         'name': 'World',
       });
 
