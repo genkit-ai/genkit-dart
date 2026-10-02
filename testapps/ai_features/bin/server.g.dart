@@ -47,7 +47,7 @@ base class TransferMoneyInput {
   }
 
   int get amount {
-    return _json['amount'] as int;
+    return (_json['amount'] as num).toInt();
   }
 
   set amount(int value) {

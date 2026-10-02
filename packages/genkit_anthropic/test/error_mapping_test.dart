@@ -73,7 +73,13 @@ void main() {
       final response = await genkit.generate(
         model: anthropic.model(_model),
         prompt: 'hello',
-        use: [retry(maxRetries: 1, initialDelayMs: 1, noJitter: true)],
+        use: [
+          retry(
+            maxRetries: 1,
+            initialDelay: const Duration(milliseconds: 1),
+            noJitter: true,
+          ),
+        ],
       );
 
       expect(attempts, 2);

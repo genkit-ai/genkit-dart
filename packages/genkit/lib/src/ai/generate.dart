@@ -14,6 +14,9 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+import 'package:schemantic/schemantic.dart';
+
 import '../core/action.dart';
 import '../core/cancellation.dart';
 import '../core/dynamic_action_provider.dart';
@@ -1151,6 +1154,57 @@ dynamic _parseOutput(Message? message, MessageParser? parser) {
     return parser(message);
   }
   return null;
+}
+
+/// Casts a raw decoded output value to [Output] when no schema is available to
+/// parse it.
+///
+/// A plain `as` would surface a reply of the wrong shape (e.g. a JSON object
+/// for `Output = String`) as a bare `TypeError`; this reports it as a
+/// [GenkitException] naming both types instead.
+///
+/// Null maps to null, so this is safe for aborted or failed responses.
+Output? castOutput<Output>(Object? raw) {
+  if (raw == null) return null;
+  if (raw is Output) return raw as Output;
+  // JSON has one number type: a whole-number reply like `3` decodes to an
+  // int, which a `double` Output must still accept.
+  if (raw is int && <double>[] is List<Output>) {
+    return raw.toDouble() as Output;
+  }
+  throw GenkitException(
+    'Model output of type ${raw.runtimeType} does not match the expected '
+    'output type $Output.',
+  );
+}
+
+/// Parses a raw decoded output value into [Output]: with [schema] when given,
+/// otherwise via [castOutput].
+///
+/// The one rule shared by `generate`, lite `generate`, and prompts, so they
+/// cannot drift.
+@internal
+Output? parseOutput<Output>(Object? raw, SchemanticType<Output>? schema) {
+  if (raw == null) return null;
+  return schema == null ? castOutput<Output>(raw) : schema.parse(raw);
+}
+
+/// Parses a streamed chunk's *partial* output, like [parseOutput].
+///
+/// Partial JSON (e.g. `{"a": null}` while the value is still arriving) often
+/// fails a strict schema or cast. That is not a generation failure, so the
+/// chunk's typed output is just unavailable (null); the final response is
+/// still parsed strictly.
+@internal
+Output? parsePartialOutput<Output>(
+  Object? raw,
+  SchemanticType<Output>? schema,
+) {
+  try {
+    return parseOutput(raw, schema);
+  } on Object {
+    return null;
+  }
 }
 
 Output? parseChunkOutput<Output>(

@@ -28,7 +28,7 @@ base class Candidate {
   Candidate._(this._json);
 
   Candidate({
-    required double index,
+    required int index,
     required Message message,
     GenerationUsage? usage,
     required FinishReason finishReason,
@@ -50,11 +50,11 @@ base class Candidate {
   /// The JSON schema and type descriptor for [Candidate].
   static const SchemanticType<Candidate> $schema = _CandidateTypeFactory();
 
-  double get index {
-    return (_json['index'] as num).toDouble();
+  int get index {
+    return (_json['index'] as num).toInt();
   }
 
-  set index(double value) {
+  set index(int value) {
     _json['index'] = value;
   }
 
@@ -138,7 +138,7 @@ base class _CandidateTypeFactory extends SchemanticType<Candidate> {
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
-        'index': <String, Object?>{'type': 'number'},
+        'index': <String, Object?>{'type': 'integer'},
         'message': <String, Object?>{r'$ref': r'#/$defs/Message'},
         'usage': <String, Object?>{r'$ref': r'#/$defs/GenerationUsage'},
         'finishReason': <String, Object?>{},
@@ -1602,7 +1602,7 @@ base class EvalFnResponse {
   EvalFnResponse._(this._json);
 
   EvalFnResponse({
-    double? sampleIndex,
+    int? sampleIndex,
     required String testCaseId,
     String? traceId,
     String? spanId,
@@ -1623,11 +1623,11 @@ base class EvalFnResponse {
   static const SchemanticType<EvalFnResponse> $schema =
       _EvalFnResponseTypeFactory();
 
-  double? get sampleIndex {
-    return (_json['sampleIndex'] as num?)?.toDouble();
+  int? get sampleIndex {
+    return (_json['sampleIndex'] as num?)?.toInt();
   }
 
-  set sampleIndex(double? value) {
+  set sampleIndex(int? value) {
     if (value == null) {
       _json.remove('sampleIndex');
     } else {
@@ -1709,7 +1709,7 @@ base class _EvalFnResponseTypeFactory extends SchemanticType<EvalFnResponse> {
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
-        'sampleIndex': <String, Object?>{'type': 'number'},
+        'sampleIndex': <String, Object?>{'type': 'integer'},
         'testCaseId': <String, Object?>{'type': 'string'},
         'traceId': <String, Object?>{'type': 'string'},
         'spanId': <String, Object?>{'type': 'string'},
@@ -1738,7 +1738,7 @@ base class Score {
   Score({
     String? id,
     ScoreScore? score,
-    EvalStatusEnum? status,
+    EvalStatus? status,
     String? error,
     Map<String, dynamic>? details,
   }) {
@@ -1777,11 +1777,11 @@ base class Score {
     return _json['score'] as Object?;
   }
 
-  EvalStatusEnum? get status {
-    return _json['status'] as EvalStatusEnum?;
+  EvalStatus? get status {
+    return _json['status'] as EvalStatus?;
   }
 
-  set status(EvalStatusEnum? value) {
+  set status(EvalStatus? value) {
     if (value == null) {
       _json.remove('status');
     } else {
@@ -2695,7 +2695,7 @@ base class ModelResponseChunk {
   }
 
   int? get index {
-    return _json['index'] as int?;
+    return (_json['index'] as num?)?.toInt();
   }
 
   set index(int? value) {
@@ -3207,7 +3207,7 @@ base class GenerateRequest {
     ToolChoice? toolChoice,
     OutputConfig? output,
     List<DocumentData>? docs,
-    double? candidates,
+    int? candidates,
   }) {
     _json = {
       'messages': messages.map((e) => e.toJson()).toList(),
@@ -3302,11 +3302,11 @@ base class GenerateRequest {
     }
   }
 
-  double? get candidates {
-    return (_json['candidates'] as num?)?.toDouble();
+  int? get candidates {
+    return (_json['candidates'] as num?)?.toInt();
   }
 
-  set candidates(double? value) {
+  set candidates(int? value) {
     if (value == null) {
       _json.remove('candidates');
     } else {
@@ -3357,7 +3357,7 @@ base class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
           'type': 'array',
           'items': <String, Object?>{r'$ref': r'#/$defs/DocumentData'},
         },
-        'candidates': <String, Object?>{'type': 'number'},
+        'candidates': <String, Object?>{'type': 'integer'},
       },
       'required': ['messages'],
     },
@@ -3378,20 +3378,20 @@ base class GenerationUsage {
   GenerationUsage._(this._json);
 
   GenerationUsage({
-    double? inputTokens,
-    double? outputTokens,
-    double? totalTokens,
-    double? inputCharacters,
-    double? outputCharacters,
-    double? inputImages,
-    double? outputImages,
-    double? inputVideos,
-    double? outputVideos,
-    double? inputAudioFiles,
-    double? outputAudioFiles,
+    int? inputTokens,
+    int? outputTokens,
+    int? totalTokens,
+    int? inputCharacters,
+    int? outputCharacters,
+    int? inputImages,
+    int? outputImages,
+    int? inputVideos,
+    int? outputVideos,
+    int? inputAudioFiles,
+    int? outputAudioFiles,
     Map<String, dynamic>? custom,
-    double? thoughtsTokens,
-    double? cachedContentTokens,
+    int? thoughtsTokens,
+    int? cachedContentTokens,
   }) {
     _json = {
       'inputTokens': ?inputTokens,
@@ -3417,11 +3417,11 @@ base class GenerationUsage {
   static const SchemanticType<GenerationUsage> $schema =
       _GenerationUsageTypeFactory();
 
-  double? get inputTokens {
-    return (_json['inputTokens'] as num?)?.toDouble();
+  int? get inputTokens {
+    return (_json['inputTokens'] as num?)?.toInt();
   }
 
-  set inputTokens(double? value) {
+  set inputTokens(int? value) {
     if (value == null) {
       _json.remove('inputTokens');
     } else {
@@ -3429,11 +3429,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get outputTokens {
-    return (_json['outputTokens'] as num?)?.toDouble();
+  int? get outputTokens {
+    return (_json['outputTokens'] as num?)?.toInt();
   }
 
-  set outputTokens(double? value) {
+  set outputTokens(int? value) {
     if (value == null) {
       _json.remove('outputTokens');
     } else {
@@ -3441,11 +3441,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get totalTokens {
-    return (_json['totalTokens'] as num?)?.toDouble();
+  int? get totalTokens {
+    return (_json['totalTokens'] as num?)?.toInt();
   }
 
-  set totalTokens(double? value) {
+  set totalTokens(int? value) {
     if (value == null) {
       _json.remove('totalTokens');
     } else {
@@ -3453,11 +3453,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get inputCharacters {
-    return (_json['inputCharacters'] as num?)?.toDouble();
+  int? get inputCharacters {
+    return (_json['inputCharacters'] as num?)?.toInt();
   }
 
-  set inputCharacters(double? value) {
+  set inputCharacters(int? value) {
     if (value == null) {
       _json.remove('inputCharacters');
     } else {
@@ -3465,11 +3465,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get outputCharacters {
-    return (_json['outputCharacters'] as num?)?.toDouble();
+  int? get outputCharacters {
+    return (_json['outputCharacters'] as num?)?.toInt();
   }
 
-  set outputCharacters(double? value) {
+  set outputCharacters(int? value) {
     if (value == null) {
       _json.remove('outputCharacters');
     } else {
@@ -3477,11 +3477,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get inputImages {
-    return (_json['inputImages'] as num?)?.toDouble();
+  int? get inputImages {
+    return (_json['inputImages'] as num?)?.toInt();
   }
 
-  set inputImages(double? value) {
+  set inputImages(int? value) {
     if (value == null) {
       _json.remove('inputImages');
     } else {
@@ -3489,11 +3489,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get outputImages {
-    return (_json['outputImages'] as num?)?.toDouble();
+  int? get outputImages {
+    return (_json['outputImages'] as num?)?.toInt();
   }
 
-  set outputImages(double? value) {
+  set outputImages(int? value) {
     if (value == null) {
       _json.remove('outputImages');
     } else {
@@ -3501,11 +3501,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get inputVideos {
-    return (_json['inputVideos'] as num?)?.toDouble();
+  int? get inputVideos {
+    return (_json['inputVideos'] as num?)?.toInt();
   }
 
-  set inputVideos(double? value) {
+  set inputVideos(int? value) {
     if (value == null) {
       _json.remove('inputVideos');
     } else {
@@ -3513,11 +3513,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get outputVideos {
-    return (_json['outputVideos'] as num?)?.toDouble();
+  int? get outputVideos {
+    return (_json['outputVideos'] as num?)?.toInt();
   }
 
-  set outputVideos(double? value) {
+  set outputVideos(int? value) {
     if (value == null) {
       _json.remove('outputVideos');
     } else {
@@ -3525,11 +3525,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get inputAudioFiles {
-    return (_json['inputAudioFiles'] as num?)?.toDouble();
+  int? get inputAudioFiles {
+    return (_json['inputAudioFiles'] as num?)?.toInt();
   }
 
-  set inputAudioFiles(double? value) {
+  set inputAudioFiles(int? value) {
     if (value == null) {
       _json.remove('inputAudioFiles');
     } else {
@@ -3537,11 +3537,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get outputAudioFiles {
-    return (_json['outputAudioFiles'] as num?)?.toDouble();
+  int? get outputAudioFiles {
+    return (_json['outputAudioFiles'] as num?)?.toInt();
   }
 
-  set outputAudioFiles(double? value) {
+  set outputAudioFiles(int? value) {
     if (value == null) {
       _json.remove('outputAudioFiles');
     } else {
@@ -3561,11 +3561,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get thoughtsTokens {
-    return (_json['thoughtsTokens'] as num?)?.toDouble();
+  int? get thoughtsTokens {
+    return (_json['thoughtsTokens'] as num?)?.toInt();
   }
 
-  set thoughtsTokens(double? value) {
+  set thoughtsTokens(int? value) {
     if (value == null) {
       _json.remove('thoughtsTokens');
     } else {
@@ -3573,11 +3573,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get cachedContentTokens {
-    return (_json['cachedContentTokens'] as num?)?.toDouble();
+  int? get cachedContentTokens {
+    return (_json['cachedContentTokens'] as num?)?.toInt();
   }
 
-  set cachedContentTokens(double? value) {
+  set cachedContentTokens(int? value) {
     if (value == null) {
       _json.remove('cachedContentTokens');
     } else {
@@ -3610,23 +3610,23 @@ base class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
-        'inputTokens': <String, Object?>{'type': 'number'},
-        'outputTokens': <String, Object?>{'type': 'number'},
-        'totalTokens': <String, Object?>{'type': 'number'},
-        'inputCharacters': <String, Object?>{'type': 'number'},
-        'outputCharacters': <String, Object?>{'type': 'number'},
-        'inputImages': <String, Object?>{'type': 'number'},
-        'outputImages': <String, Object?>{'type': 'number'},
-        'inputVideos': <String, Object?>{'type': 'number'},
-        'outputVideos': <String, Object?>{'type': 'number'},
-        'inputAudioFiles': <String, Object?>{'type': 'number'},
-        'outputAudioFiles': <String, Object?>{'type': 'number'},
+        'inputTokens': <String, Object?>{'type': 'integer'},
+        'outputTokens': <String, Object?>{'type': 'integer'},
+        'totalTokens': <String, Object?>{'type': 'integer'},
+        'inputCharacters': <String, Object?>{'type': 'integer'},
+        'outputCharacters': <String, Object?>{'type': 'integer'},
+        'inputImages': <String, Object?>{'type': 'integer'},
+        'outputImages': <String, Object?>{'type': 'integer'},
+        'inputVideos': <String, Object?>{'type': 'integer'},
+        'outputVideos': <String, Object?>{'type': 'integer'},
+        'inputAudioFiles': <String, Object?>{'type': 'integer'},
+        'outputAudioFiles': <String, Object?>{'type': 'integer'},
         'custom': <String, Object?>{
           'type': 'object',
           'additionalProperties': <String, Object?>{},
         },
-        'thoughtsTokens': <String, Object?>{'type': 'number'},
-        'cachedContentTokens': <String, Object?>{'type': 'number'},
+        'thoughtsTokens': <String, Object?>{'type': 'integer'},
+        'cachedContentTokens': <String, Object?>{'type': 'integer'},
       },
     },
     dependencies: [],
@@ -4146,7 +4146,7 @@ base class GenerateActionOptions {
   }
 
   int? get maxTurns {
-    return _json['maxTurns'] as int?;
+    return (_json['maxTurns'] as num?)?.toInt();
   }
 
   set maxTurns(int? value) {

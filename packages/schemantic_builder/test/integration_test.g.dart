@@ -45,7 +45,7 @@ base class User {
   }
 
   int? get age {
-    return _json['age'] as int?;
+    return (_json['age'] as num?)?.toInt();
   }
 
   set age(int? value) {
@@ -290,7 +290,7 @@ base class Keyed {
   }
 
   int? get score {
-    return _json['score'] as int?;
+    return (_json['score'] as num?)?.toInt();
   }
 
   set score(int? value) {
@@ -394,7 +394,7 @@ base class Comprehensive {
   }
 
   int get intField {
-    return _json['i_field'] as int;
+    return (_json['i_field'] as num).toInt();
   }
 
   set intField(int value) {
@@ -613,7 +613,7 @@ base class Defaults {
   }
 
   int get port {
-    return _json['port'] as int;
+    return (_json['port'] as num).toInt();
   }
 
   set port(int value) {
@@ -1213,7 +1213,7 @@ base class ItineraryDay {
       _ItineraryDayTypeFactory();
 
   int get day {
-    return _json['day'] as int;
+    return (_json['day'] as num).toInt();
   }
 
   set day(int value) {

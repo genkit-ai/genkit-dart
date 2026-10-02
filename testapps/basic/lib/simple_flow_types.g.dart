@@ -128,7 +128,7 @@ base class Recipe {
   }
 
   int get servings {
-    return _json['servings'] as int;
+    return (_json['servings'] as num).toInt();
   }
 
   set servings(int value) {

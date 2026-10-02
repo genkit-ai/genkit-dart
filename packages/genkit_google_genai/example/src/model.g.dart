@@ -549,7 +549,7 @@ base class CharacterProfile {
   }
 
   int get age {
-    return _json['age'] as int;
+    return (_json['age'] as num).toInt();
   }
 
   set age(int value) {

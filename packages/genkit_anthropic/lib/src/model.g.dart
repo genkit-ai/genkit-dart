@@ -112,7 +112,7 @@ base class AnthropicOptions {
   }
 
   int? get maxTokens {
-    return _json['maxTokens'] as int?;
+    return (_json['maxTokens'] as num?)?.toInt();
   }
 
   set maxTokens(int? value) {
@@ -148,7 +148,7 @@ base class AnthropicOptions {
   }
 
   int? get topK {
-    return _json['topK'] as int?;
+    return (_json['topK'] as num?)?.toInt();
   }
 
   set topK(int? value) {
@@ -338,7 +338,7 @@ base class ThinkingConfig {
   }
 
   int? get budgetTokens {
-    return _json['budgetTokens'] as int?;
+    return (_json['budgetTokens'] as num?)?.toInt();
   }
 
   set budgetTokens(int? value) {

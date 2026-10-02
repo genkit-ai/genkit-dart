@@ -483,7 +483,7 @@ base class ReflectionRegisterParams {
   }
 
   int get pid {
-    return _json['pid'] as int;
+    return (_json['pid'] as num).toInt();
   }
 
   set pid(int value) {

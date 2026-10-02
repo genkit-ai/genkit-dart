@@ -35,7 +35,7 @@ base class RetryOptions {
     int? maxDelayMs,
     double? backoffFactor,
     bool? noJitter,
-    bool? retryModel,
+    bool? noRetryModel,
     bool? retryTools,
   }) {
     _json = {
@@ -45,7 +45,7 @@ base class RetryOptions {
       'maxDelayMs': ?maxDelayMs,
       'backoffFactor': ?backoffFactor,
       'noJitter': ?noJitter,
-      'retryModel': ?retryModel,
+      'noRetryModel': ?noRetryModel,
       'retryTools': ?retryTools,
     };
   }
@@ -57,7 +57,7 @@ base class RetryOptions {
       _RetryOptionsTypeFactory();
 
   int? get maxRetries {
-    return _json['maxRetries'] as int?;
+    return (_json['maxRetries'] as num?)?.toInt();
   }
 
   set maxRetries(int? value) {
@@ -81,7 +81,7 @@ base class RetryOptions {
   }
 
   int? get initialDelayMs {
-    return _json['initialDelayMs'] as int?;
+    return (_json['initialDelayMs'] as num?)?.toInt();
   }
 
   set initialDelayMs(int? value) {
@@ -93,7 +93,7 @@ base class RetryOptions {
   }
 
   int? get maxDelayMs {
-    return _json['maxDelayMs'] as int?;
+    return (_json['maxDelayMs'] as num?)?.toInt();
   }
 
   set maxDelayMs(int? value) {
@@ -128,15 +128,15 @@ base class RetryOptions {
     }
   }
 
-  bool? get retryModel {
-    return _json['retryModel'] as bool?;
+  bool? get noRetryModel {
+    return _json['noRetryModel'] as bool?;
   }
 
-  set retryModel(bool? value) {
+  set noRetryModel(bool? value) {
     if (value == null) {
-      _json.remove('retryModel');
+      _json.remove('noRetryModel');
     } else {
-      _json['retryModel'] = value;
+      _json['noRetryModel'] = value;
     }
   }
 
@@ -188,7 +188,7 @@ base class _RetryOptionsTypeFactory extends SchemanticType<RetryOptions> {
         'maxDelayMs': <String, Object?>{'type': 'integer'},
         'backoffFactor': <String, Object?>{'type': 'number'},
         'noJitter': <String, Object?>{'type': 'boolean'},
-        'retryModel': <String, Object?>{'type': 'boolean'},
+        'noRetryModel': <String, Object?>{'type': 'boolean'},
         'retryTools': <String, Object?>{'type': 'boolean'},
       },
     },

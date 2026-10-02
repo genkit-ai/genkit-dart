@@ -87,7 +87,7 @@ base class GeminiOptions {
   }
 
   int? get maxOutputTokens {
-    return _json['maxOutputTokens'] as int?;
+    return (_json['maxOutputTokens'] as num?)?.toInt();
   }
 
   set maxOutputTokens(int? value) {
@@ -123,7 +123,7 @@ base class GeminiOptions {
   }
 
   int? get topK {
-    return _json['topK'] as int?;
+    return (_json['topK'] as num?)?.toInt();
   }
 
   set topK(int? value) {
@@ -223,7 +223,7 @@ base class GeminiOptions {
   }
 
   int? get candidateCount {
-    return _json['candidateCount'] as int?;
+    return (_json['candidateCount'] as num?)?.toInt();
   }
 
   set candidateCount(int? value) {
@@ -275,7 +275,7 @@ base class GeminiOptions {
   }
 
   int? get logprobs {
-    return _json['logprobs'] as int?;
+    return (_json['logprobs'] as num?)?.toInt();
   }
 
   set logprobs(int? value) {
@@ -450,7 +450,7 @@ base class ThinkingConfig {
       _ThinkingConfigTypeFactory();
 
   int? get thinkingBudget {
-    return _json['thinkingBudget'] as int?;
+    return (_json['thinkingBudget'] as num?)?.toInt();
   }
 
   set thinkingBudget(int? value) {
@@ -773,7 +773,7 @@ base class LiveGenerationConfig {
   }
 
   int? get maxOutputTokens {
-    return _json['maxOutputTokens'] as int?;
+    return (_json['maxOutputTokens'] as num?)?.toInt();
   }
 
   set maxOutputTokens(int? value) {
@@ -809,7 +809,7 @@ base class LiveGenerationConfig {
   }
 
   int? get topK {
-    return _json['topK'] as int?;
+    return (_json['topK'] as num?)?.toInt();
   }
 
   set topK(int? value) {

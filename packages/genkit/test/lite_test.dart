@@ -184,6 +184,56 @@ void main() {
     });
   });
 
+  test('lite generate reports a wrong-shaped schemaless reply', () async {
+    final model = Model<void>(
+      name: 'shapeTestModel',
+      fn: (request, context) async => ModelResponse(
+        finishReason: FinishReason.stop,
+        message: Message(
+          role: Role.model,
+          content: [TextPart(text: '{"a": 1}')],
+        ),
+      ),
+    );
+
+    await expectLater(
+      lite.generate<String, void>(
+        model: model,
+        prompt: 'Hello',
+        outputFormat: 'json',
+      ),
+      throwsA(
+        isA<GenkitException>().having(
+          (e) => e.message,
+          'message',
+          contains('does not match the expected output type String'),
+        ),
+      ),
+    );
+  });
+
+  test('lite generate parses a whole-number reply into a double', () async {
+    final model = Model<void>(
+      name: 'numModel',
+      fn: (request, context) async => ModelResponse(
+        finishReason: FinishReason.stop,
+        message: Message(
+          role: Role.model,
+          content: [TextPart(text: '3')],
+        ),
+      ),
+    );
+
+    final response = await lite.generate<double, void>(
+      model: model,
+      prompt: 'score',
+      outputFormat: 'json',
+    );
+
+    expect(response.output, isA<double>());
+    expect(response.output, equals(3.0));
+  });
+
   test('lite generateStream with outputSchema does not throw', () async {
     final model = Model<void>(
       name: 'testModelStream',

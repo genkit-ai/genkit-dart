@@ -58,7 +58,7 @@ export 'src/types.dart';
 ///
 /// Pass [outputSchema] to get typed structured output: `response.output` (and
 /// each streamed chunk's `output`) is then parsed into `Output`.
-Future<GenerateResult<Output>> generate<C, Output>({
+Future<GenerateResult<Output>> generate<Output, C>({
   String? system,
   String? prompt,
   List<Part>? promptParts,
@@ -132,25 +132,6 @@ Future<GenerateResult<Output>> generate<C, Output>({
       if (outputNoInstructions == true) 'instructions': false,
     });
   }
-  // Parse raw (JSON) output into `Output` when a schema was given; without
-  // one, `Output` is whatever the caller asserted (typically `dynamic`).
-  Output? parse(Object? raw) => raw == null
-      ? null
-      : outputSchema != null
-      ? outputSchema.parse(raw)
-      : raw as Output;
-
-  // A streamed chunk carries *partial* output (e.g. `{"a": null}` while the
-  // value is still arriving), which a strict schema may reject. That is not
-  // an error: the chunk's output just is not available yet.
-  Output? parsePartial(Object? raw) {
-    try {
-      return parse(raw);
-    } on Object {
-      return null;
-    }
-  }
-
   final raw = await generateHelper(
     registry,
     system: system,
@@ -172,7 +153,7 @@ Future<GenerateResult<Output>> generate<C, Output>({
             GenerateResponseChunk<Output>(
               c.modelChunk,
               previousChunks: List.from(c.previousChunks),
-              output: parsePartial(c.output),
+              output: parsePartialOutput(c.output, outputSchema),
             ),
           ),
     middleware: use
@@ -184,14 +165,14 @@ Future<GenerateResult<Output>> generate<C, Output>({
   return GenerateResult<Output>(
     raw.modelResponse,
     request: raw.modelRequest,
-    output: parse(raw.output),
+    output: parseOutput(raw.output, outputSchema),
     cause: raw.cause,
   );
 }
 
 /// Streams a response from [model]; see [generate].
 ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>
-generateStream<C, Output>({
+generateStream<Output, C>({
   required Model<C> model,
   String? system,
   String? prompt,
@@ -216,7 +197,7 @@ generateStream<C, Output>({
   List<ToolRequestPart>? interruptRestart,
 }) {
   final chunks = StreamController<GenerateResponseChunk<Output>>();
-  final result = generate<C, Output>(
+  final result = generate<Output, C>(
     system: system,
     prompt: prompt,
     promptParts: promptParts,

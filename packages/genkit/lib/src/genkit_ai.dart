@@ -55,7 +55,7 @@ base class GenkitAI {
   }
 
   /// Generates a response using the specified model and context.
-  Future<GenerateResult<Output>> generate<CustomOptions, Output>({
+  Future<GenerateResult<Output>> generate<Output, CustomOptions>({
     String? system,
     String? prompt,
     List<Part>? promptParts,
@@ -155,51 +155,28 @@ base class GenkitAI {
       restart: interruptRestart,
       onChunk: onChunk == null
           ? null
-          : (c) {
-              if (outputSchema != null) {
-                onChunk.call(
-                  GenerateResponseChunk<Output>(
-                    c.modelChunk,
-                    previousChunks: List.from(c.previousChunks),
-                    output: _parsePartial(outputSchema, c.output),
-                  ),
-                );
-              } else {
-                onChunk.call(
-                  GenerateResponseChunk<Output>(
-                    c.modelChunk,
-                    previousChunks: List.from(c.previousChunks),
-                    output: c.output as Output?,
-                  ),
-                );
-              }
-            },
+          : (c) => onChunk(
+              GenerateResponseChunk<Output>(
+                c.modelChunk,
+                previousChunks: List.from(c.previousChunks),
+                output: parsePartialOutput(c.output, outputSchema),
+              ),
+            ),
     );
-    if (outputSchema != null) {
-      return GenerateResult(
-        result.modelResponse,
-        request: result.modelRequest,
-        // An aborted response carries no output; guard the parse so the
-        // aborted response (with its resumable history) survives structured
-        // output calls too.
-        output: result.output == null
-            ? null
-            : outputSchema.parse(result.output),
-        cause: result.cause,
-      );
-    } else {
-      return GenerateResult(
-        result.modelResponse,
-        request: result.modelRequest,
-        output: result.output as Output?,
-        cause: result.cause,
-      );
-    }
+    // An aborted response carries no output; `parseOutput` maps that to null,
+    // so the aborted response (with its resumable history) survives
+    // structured output calls too.
+    return GenerateResult(
+      result.modelResponse,
+      request: result.modelRequest,
+      output: parseOutput(result.output, outputSchema),
+      cause: result.cause,
+    );
   }
 
   /// Streams a response from the specified model.
   ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>
-  generateStream<CustomOptions, Output>({
+  generateStream<Output, CustomOptions>({
     String? system,
     String? prompt,
     List<Part>? promptParts,
@@ -318,21 +295,6 @@ base class GenkitAI {
 
     final response = await action(req) as EmbedResponse;
     return response.embeddings;
-  }
-}
-
-/// Parses a streamed chunk's *partial* output against [schema].
-///
-/// While JSON is still arriving the partial value is often incomplete (e.g.
-/// `{"a": null}` for a map of strings), and a strict schema rejects it. That is
-/// not a generation failure: the chunk's typed output is just not available
-/// yet, so it is `null`. The final response is still parsed strictly.
-Output? _parsePartial<Output>(SchemanticType<Output> schema, Object? raw) {
-  if (raw == null) return null;
-  try {
-    return schema.parse(raw);
-  } on Object {
-    return null;
   }
 }
 

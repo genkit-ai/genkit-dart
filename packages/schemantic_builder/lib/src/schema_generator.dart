@@ -515,13 +515,20 @@ final class SchemaGenerator extends GeneratorForAnnotation<Schema> {
     final convertedTypeName = _convertSchemaType(returnType);
 
     var getterBody = "return _json['$jsonFieldName'] as $typeName;";
+    // Numbers are read through `num` in both directions: JSON from other
+    // runtimes may encode an integer as `12.0` (e.g. Python floats) or a
+    // double as `12`, and `jsonDecode` keeps whichever form was sent.
     if (returnType.isDartCoreDouble && !returnType.isNullable) {
       getterBody = "return (_json['$jsonFieldName'] as num).toDouble();";
+    } else if (returnType.isDartCoreInt && !returnType.isNullable) {
+      getterBody = "return (_json['$jsonFieldName'] as num).toInt();";
     }
 
     if (returnType.isNullable) {
       if (returnType.isDartCoreDouble) {
         getterBody = "return (_json['$jsonFieldName'] as num?)?.toDouble();";
+      } else if (returnType.isDartCoreInt) {
+        getterBody = "return (_json['$jsonFieldName'] as num?)?.toInt();";
       } else {
         getterBody = "return _json['$jsonFieldName'] as $typeName;";
       }

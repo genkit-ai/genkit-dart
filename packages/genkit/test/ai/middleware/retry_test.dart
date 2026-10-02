@@ -15,6 +15,7 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit/src/ai/middleware/retry.dart' show retryDef;
 import 'package:test/test.dart';
 
 void main() {
@@ -49,8 +50,8 @@ void main() {
           use: [
             retry(
               maxRetries: 3,
-              initialDelayMs: 1,
-              maxDelayMs: 5,
+              initialDelay: const Duration(milliseconds: 1),
+              maxDelay: const Duration(milliseconds: 5),
               noJitter: true,
             ),
           ],
@@ -92,8 +93,8 @@ void main() {
         use: [
           retry(
             maxRetries: 3,
-            initialDelayMs: 1,
-            maxDelayMs: 5,
+            initialDelay: const Duration(milliseconds: 1),
+            maxDelay: const Duration(milliseconds: 5),
             noJitter: true,
           ),
         ],
@@ -124,8 +125,8 @@ void main() {
           use: [
             retry(
               maxRetries: 3,
-              initialDelayMs: 1,
-              maxDelayMs: 5,
+              initialDelay: const Duration(milliseconds: 1),
+              maxDelay: const Duration(milliseconds: 5),
               noJitter: true,
               statuses: [StatusCode.unavailable], // Only retry UNAVAILABLE
             ),
@@ -138,7 +139,7 @@ void main() {
       expect(attempts, 1);
     });
 
-    test('should NOT retry model if retryModel is false', () async {
+    test('should NOT retry model if noRetryModel is true', () async {
       var attempts = 0;
 
       genkit.defineModel(
@@ -159,9 +160,9 @@ void main() {
           use: [
             retry(
               maxRetries: 3,
-              initialDelayMs: 1,
+              initialDelay: const Duration(milliseconds: 1),
               noJitter: true,
-              retryModel: false,
+              noRetryModel: true,
             ),
           ],
         );
@@ -223,7 +224,7 @@ void main() {
           use: [
             retry(
               maxRetries: 3,
-              initialDelayMs: 1,
+              initialDelay: const Duration(milliseconds: 1),
               noJitter: true,
               retryTools: true,
             ),
@@ -257,7 +258,7 @@ void main() {
           use: [
             retry(
               maxRetries: 3,
-              initialDelayMs: 1,
+              initialDelay: const Duration(milliseconds: 1),
               noJitter: true,
               statuses: [], // Empty list should trigger defaults
             ),
@@ -289,7 +290,13 @@ void main() {
         await genkit.generate(
           model: modelRef('ref-fail-model'),
           prompt: 'test',
-          use: [retry(maxRetries: 2, initialDelayMs: 1, noJitter: true)],
+          use: [
+            retry(
+              maxRetries: 2,
+              initialDelay: const Duration(milliseconds: 1),
+              noJitter: true,
+            ),
+          ],
         );
       } catch (e) {
         // Expected
@@ -297,6 +304,83 @@ void main() {
 
       // Should retry: 1 + 2 = 3
       expect(attempts, 3);
+    });
+
+    test('retry() maps Durations onto the wire config', () {
+      final ref = retry(
+        initialDelay: const Duration(milliseconds: 250),
+        maxDelay: const Duration(seconds: 10),
+        noJitter: true,
+      );
+      final json =
+          jsonDecode(jsonEncode(ref.config!.toJson())) as Map<String, dynamic>;
+
+      // Same field names and units as the JS SDK and the Dev UI.
+      expect(json, {
+        'initialDelayMs': 250,
+        'maxDelayMs': 10000,
+        'noJitter': true,
+      });
+      expect(jsonEncode(retry().config!.toJson()), '{}');
+    });
+
+    test('JSON config maps back to Durations', () {
+      final m =
+          retryDef.create(
+                RetryOptions.fromJson({
+                  'initialDelayMs': 250,
+                  'maxDelayMs': 10000,
+                  'noJitter': true,
+                }),
+                GenerateMiddlewareContext(ai: genkit),
+              )
+              as RetryMiddleware;
+      expect(m.initialDelay, const Duration(milliseconds: 250));
+      expect(m.maxDelay, const Duration(seconds: 10));
+      expect(m.noJitter, isTrue);
+
+      final noModel =
+          retryDef.create(
+                RetryOptions.fromJson({'noRetryModel': true}),
+                GenerateMiddlewareContext(ai: genkit),
+              )
+              as RetryMiddleware;
+      expect(noModel.noRetryModel, isTrue);
+
+      final defaults =
+          retryDef.create(null, GenerateMiddlewareContext(ai: genkit))
+              as RetryMiddleware;
+      expect(defaults.initialDelay, RetryMiddleware.defaultInitialDelay);
+      expect(defaults.maxDelay, RetryMiddleware.defaultMaxDelay);
+      expect(defaults.noJitter, isFalse);
+      expect(defaults.noRetryModel, isFalse);
+      expect(defaults.retryTools, isFalse);
+    });
+
+    test('rejects the removed retryModel key in JSON config', () {
+      expect(
+        () => retryDef.create(
+          RetryOptions.fromJson({'retryModel': false}),
+          GenerateMiddlewareContext(ai: genkit),
+        ),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
+              .having((e) => e.message, 'message', contains('noRetryModel')),
+        ),
+      );
+    });
+
+    test('rejects negative delays', () {
+      expect(
+        () => RetryMiddleware(initialDelay: const Duration(milliseconds: -1)),
+        throwsArgumentError,
+      );
+      expect(
+        () => RetryMiddleware(maxDelay: const Duration(seconds: -1)),
+        throwsArgumentError,
+      );
+      expect(RetryMiddleware(initialDelay: Duration.zero), isNotNull);
     });
 
     test('retry() serializes statuses as wire names', () {
@@ -438,7 +522,9 @@ void main() {
       final response = await ai.generate(
         model: modelRef('override-fail-model'),
         prompt: 'test',
-        use: [retry(maxRetries: 5, initialDelayMs: 1)],
+        use: [
+          retry(maxRetries: 5, initialDelay: const Duration(milliseconds: 1)),
+        ],
       );
       expect(response.finishReason, FinishReason.failed);
       expect(overrideUsed, isTrue);

@@ -228,8 +228,8 @@ class GenAiInstrumentation implements Instrumentation {
     if (usage != null) {
       _metrics.recordTokenUsage(
         baseAttributes: baseAttrs,
-        inputTokens: usage.inputTokens?.toInt(),
-        outputTokens: usage.outputTokens?.toInt(),
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
       );
     }
 
@@ -396,22 +396,22 @@ class GenAiInstrumentation implements Instrumentation {
     }
     final usage = response.usage;
     if (usage != null) {
-      final inputTokens = usage.inputTokens?.toInt();
+      final inputTokens = usage.inputTokens;
       if (inputTokens != null) {
         span.setIntAttribute(GenAiAttr.usageInputTokens, inputTokens);
       }
-      final outputTokens = usage.outputTokens?.toInt();
+      final outputTokens = usage.outputTokens;
       if (outputTokens != null) {
         span.setIntAttribute(GenAiAttr.usageOutputTokens, outputTokens);
       }
-      final thoughtsTokens = usage.thoughtsTokens?.toInt();
+      final thoughtsTokens = usage.thoughtsTokens;
       if (thoughtsTokens != null) {
         span.setIntAttribute(
           GenAiAttr.usageReasoningOutputTokens,
           thoughtsTokens,
         );
       }
-      final cachedTokens = usage.cachedContentTokens?.toInt();
+      final cachedTokens = usage.cachedContentTokens;
       if (cachedTokens != null) {
         span.setIntAttribute(GenAiAttr.usageCacheReadInputTokens, cachedTokens);
       }
