@@ -243,7 +243,7 @@ void main(List<String> args) async {
             includeThoughts: true,
           ),
         ),
-        onChunk: (chunk) => ctx.sendChunk(chunk),
+        onChunk: (chunk) => ctx.sendChunk(chunk.modelChunk),
       );
       return response.message!;
     },

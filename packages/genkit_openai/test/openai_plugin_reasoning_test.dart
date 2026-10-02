@@ -76,15 +76,14 @@ MockClient reasoningClient(
 ///
 /// The action layer still throws; `ai.generate()` reports the failure on the
 /// response instead (see #413), so a rejected `reasoningEffort` lands here.
-Matcher failsWith(StatusCode status, {String? message}) =>
-    isA<GenerateResponse>()
-        .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
-        .having((r) => r.error?.status, 'error.status', status.wireName)
-        .having(
-          (r) => r.error?.message ?? '',
-          'error.message',
-          message == null ? anything : contains(message),
-        );
+Matcher failsWith(StatusCode status, {String? message}) => isA<GenerateResult>()
+    .having((r) => r.finishReason, 'finishReason', FinishReason.failed)
+    .having((r) => r.error?.status, 'error.status', status.wireName)
+    .having(
+      (r) => r.error?.message ?? '',
+      'error.message',
+      message == null ? anything : contains(message),
+    );
 
 /// The reasoning text a response carries, or null when it carries none.
 String? reasoningOf(GenerateResult<dynamic> response) => response

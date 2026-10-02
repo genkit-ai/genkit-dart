@@ -93,7 +93,7 @@ void main(List<String> args) {
         // Assuming a model that supports thinking is available or aliased
         model: anthropic.model('claude-sonnet-4-5'),
         prompt: prompt,
-        onChunk: ctx.sendChunk,
+        onChunk: (chunk) => ctx.sendChunk(chunk.modelChunk),
         config: AnthropicOptions(thinking: ThinkingConfig(budgetTokens: 2048)),
       );
       // The reasoning reasoning is in response.message.content

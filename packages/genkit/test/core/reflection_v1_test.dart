@@ -19,6 +19,7 @@ import 'dart:io';
 
 import 'package:genkit/src/ai/generate_middleware.dart';
 import 'package:genkit/src/ai/model.dart';
+import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection/reflection_v1.dart';
 import 'package:genkit/src/core/registry.dart';
@@ -169,6 +170,27 @@ void main() {
       final action = body['/test/testAction'];
       expect(action['name'], 'testAction');
     });
+
+    test(
+      'GET /api/actions advertises a tool\'s declared output schema',
+      () async {
+        registry.register(
+          Tool<String, String>(
+            name: 'echoTool',
+            description: 'echoes input',
+            inputSchema: .string(),
+            outputSchema: .string(),
+            fn: (input, _) => .response(input),
+          ),
+        );
+
+        final response = await http.get(Uri.parse('$url/api/actions'));
+        expect(response.statusCode, 200);
+        final body = jsonDecode(response.body);
+        // The declared String schema, not the ToolResult<String> wrapper.
+        expect(body['/tool.v2/echoTool']['outputSchema']['type'], 'string');
+      },
+    );
 
     test('GET /api/values for middleware', () async {
       final def = defineMiddleware<dynamic>(
