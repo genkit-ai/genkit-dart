@@ -298,12 +298,14 @@ base class Tool<Input, Output>
     final schema = inputSchema?.jsonSchema(useRefs: true);
     if (schema == null) return null;
     if (!wrapsInput) return {...schema, r'$schema': _draft07};
+    // Copied: `jsonSchema` implementations may hand out a shared map.
+    final inner = {...schema};
     // `$defs` stay at the root, where `#/$defs/...` references resolve.
-    final defs = schema.remove(r'$defs');
-    schema.remove(r'$schema');
+    final defs = inner.remove(r'$defs');
+    inner.remove(r'$schema');
     return {
       'type': 'object',
-      'properties': {_inputWrapperKey: schema},
+      'properties': {_inputWrapperKey: inner},
       'required': [_inputWrapperKey],
       r'$defs': ?defs,
       r'$schema': _draft07,
