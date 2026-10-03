@@ -145,11 +145,16 @@ Future<GenkitHttpResponse> _runStreaming(
   required bool sendLegacyErrorFrame,
 }) async {
   // The adapter cancels its subscription when the client goes away; stop the
-  // run then so nobody pays for a model/tool loop no one reads. Also fires
-  // after a normal completion, when cancelling is a no-op.
+  // run then so nobody pays for a model/tool loop no one reads. `onCancel`
+  // also fires after a normal close, so skip it once the run has settled: work
+  // the action left running on purpose (a detached agent turn) must not see
+  // a cancellation.
   final cancellation = CancellationController();
+  var settled = false;
   final controller = StreamController<List<int>>(
-    onCancel: () => cancellation.cancel('Client disconnected'),
+    onCancel: () {
+      if (!settled) cancellation.cancel('Client disconnected');
+    },
   );
   // Trace/span ids are only known once the span starts, but headers must be
   // set before the streaming response is returned. Capture them via
@@ -184,11 +189,13 @@ Future<GenkitHttpResponse> _runStreaming(
         cancel: cancellation.token,
       )
       .then((result) {
+        settled = true;
         completeTraceInfoIfPending();
         sendChunk('data:', {'result': result.result});
         controller.close();
       })
       .catchError((Object e) {
+        settled = true;
         // Also covers an action that failed before the span started.
         completeTraceInfoIfPending();
         final (status, message) = _clientError(e);
