@@ -23,7 +23,7 @@ const _name = 'simulateConstrainedGeneration';
 
 /// Lets [simulateConstrainedGeneration] refs resolve. Core registers it on
 /// every `Genkit` instance, so callers never add it themselves.
-final simulateConstrainedGenerationDef = defineMiddleware<void>(
+final simulateConstrainedGenerationDef = generateMiddleware<void>(
   name: _name,
   create: (_, _) => SimulateConstrainedGenerationMiddleware(),
 );

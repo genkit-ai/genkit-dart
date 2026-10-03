@@ -76,7 +76,7 @@ class FilesystemPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<FilesystemOptions>(
+    generateMiddleware<FilesystemOptions>(
       name: 'filesystem',
       configSchema: FilesystemOptions.$schema,
       create: (config, ctx) {

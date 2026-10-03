@@ -33,12 +33,13 @@ export 'src/ai/evaluator.dart' show Evaluator;
 
 export 'src/ai/generate_middleware.dart'
     show
+        DefinedMiddleware,
         GenerateMiddleware,
         GenerateMiddlewareContext,
         GenerateMiddlewareDef,
         GenerateMiddlewareRef,
         GenerateTurnState,
-        defineMiddleware,
+        generateMiddleware,
         middlewareRef;
 export 'src/ai/generate_types.dart'
     show GenerateResponseChunk, GenerateResult, InterruptResponse;

@@ -41,7 +41,7 @@ class SkillsPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<SkillsPluginOptions>(
+    generateMiddleware<SkillsPluginOptions>(
       name: 'skills',
       configSchema: SkillsPluginOptions.$schema,
       create: (config, ctx) =>
