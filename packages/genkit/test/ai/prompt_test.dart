@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dotprompt/dotprompt.dart' as dp;
@@ -2607,6 +2608,99 @@ Ship to {{address.city}}.
       expect(addressSchema['type'], equals('object'));
       expect(addressSchema['properties'], contains('street'));
       expect(addressSchema['properties'], contains('city'));
+    });
+
+    group('a schema defined after the prompt is loaded', () {
+      // `Genkit(promptDir:)` loads prompts in its constructor, so
+      // `ai.defineSchema` always runs after the load (#559).
+      final recipe = {
+        'type': 'object',
+        'properties': {
+          'title': {'type': 'string'},
+        },
+        'required': ['title'],
+      };
+
+      Future<PromptAction> load(String source) async {
+        File(p.join(tempDir.path, 'recipe.prompt')).writeAsStringSync(source);
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        return await registry.lookupAction(.executablePrompt, 'recipe')
+            as PromptAction;
+      }
+
+      test('resolves a bare output.schema name at render time', () async {
+        final action = await load('''
+---
+output:
+  schema: Recipe
+  format: json
+---
+Generate a recipe for {{food}}.
+''');
+        registry.registerValue('schema', 'Recipe', recipe);
+
+        final options = await action.prompt!.render({'food': 'pasta'});
+        expect(options.output!.jsonSchema, recipe);
+        expect(options.output!.format, 'json');
+      });
+
+      test('resolves nested names in input and output schemas', () async {
+        final action = await load('''
+---
+input:
+  schema:
+    favorite: Recipe
+output:
+  schema:
+    recipes(array): Recipe
+---
+More like {{favorite.title}}.
+''');
+        registry.registerValue('schema', 'Recipe', recipe);
+
+        final inputSchema = action.inputSchema!.jsonSchema();
+        expect((inputSchema['properties'] as Map)['favorite'], recipe);
+
+        final options = await action.prompt!.render(<String, dynamic>{});
+        final output = options.output!.jsonSchema!;
+        final recipes = (output['properties'] as Map)['recipes'] as Map;
+        expect(recipes['items'] ?? recipes, containsPair('type', 'object'));
+        expect(jsonEncode(output), isNot(contains(r'"$ref":"Recipe"')));
+      });
+
+      test('fails clearly when the name is never defined', () async {
+        final action = await load('''
+---
+output:
+  schema: Recipe
+---
+Generate a recipe.
+''');
+
+        await expectLater(
+          action.prompt!.render(<String, dynamic>{}),
+          throwsA(
+            isA<GenkitException>()
+                .having(
+                  (e) => e.status,
+                  'status',
+                  StatusCode.failedPrecondition,
+                )
+                .having(
+                  (e) => e.message,
+                  'message',
+                  allOf(contains("'Recipe'"), contains('defineSchema')),
+                ),
+          ),
+        );
+        // The input form metadata still builds, with the name unresolved.
+        expect(action.toJson, returnsNormally);
+
+        // Defining it later makes the same prompt work.
+        registry.registerValue('schema', 'Recipe', recipe);
+        final options = await action.prompt!.render(<String, dynamic>{});
+        expect(options.output!.jsonSchema, recipe);
+      });
     });
 
     test('parses bare-string middleware from the `use` frontmatter', () async {

@@ -161,34 +161,33 @@ void _loadPrompt(
     registryName,
   );
 
-  // Named schemas registered via `defineSchema`. Picoschema may reference these
-  // by name (e.g. `schema: MyAddress`), so they are passed through to the
-  // converter to resolve, mirroring what `_resolveMetadata` does internally.
-  // `listValues` keys are registry paths (`/schema/<name>`); Picoschema looks
-  // schemas up by bare name, so strip the prefix.
-  final schemas = {
-    for (final entry
-        in registry.listValues<Map<String, dynamic>>('schema').entries)
-      entry.key.split('/').last: entry.value,
-  };
+  // The raw metadata from `parse` is not schema-resolved, so Picoschema is
+  // converted to JSON Schema here. Conversion is deferred to each use: the
+  // schemas may name types registered with `defineSchema`, which can only run
+  // after the `Genkit` constructor (and so this loader) has returned.
+  final inputSchema = _frontmatterSchema(
+    metadata.input?.schema,
+    registry,
+    registryName,
+  );
 
-  // Build the input schema from the frontmatter `input.schema`. The raw
-  // metadata from `parse` is not schema-resolved, so Picoschema is converted
-  // to JSON Schema here (mirroring what `renderMetadata` does internally).
-  // Without this the action has no input schema, so the Developer UI cannot
-  // render an input form for the prompt.
-  final inputSchema = _toInputSchema(metadata.input?.schema, schemas);
-
-  // Build output config from parsed metadata. As with the input schema, the
-  // output schema may be Picoschema and must be converted to JSON Schema
-  // before it reaches the model, otherwise the raw Picoschema is sent as the
-  // response schema and the request fails or is ignored.
+  // Without a JSON Schema the raw Picoschema would be sent to the model as
+  // the response schema, and the request would fail or be ignored.
   GenerateActionOutputConfig? outputConfig;
+  Map<String, dynamic> Function()? deferredOutputJsonSchema;
   if (metadata.output != null) {
-    final outputSchema = _toJsonSchema(metadata.output!.schema, schemas);
+    final schema = metadata.output!.schema;
+    final isPicoschema = schema != null && !_isJsonSchema(schema);
+    if (isPicoschema) {
+      deferredOutputJsonSchema = _FrontmatterSchema(
+        schema,
+        registry,
+        registryName,
+      ).resolveForModel;
+    }
     outputConfig = GenerateActionOutputConfig.fromJson({
       'format': ?metadata.output!.format,
-      'jsonSchema': ?outputSchema,
+      if (!isPicoschema) 'jsonSchema': ?schema,
     });
   }
 
@@ -212,6 +211,7 @@ void _loadPrompt(
         returnToolRequests: returnToolRequests,
         messagesTemplate: parsedPrompt.template,
         output: outputConfig,
+        deferredOutputJsonSchema: deferredOutputJsonSchema,
         use: use,
       );
 
@@ -303,15 +303,105 @@ List<GenerateMiddlewareRef>? _toMiddlewareRefs(dynamic use) {
 /// to greet`) that the docs and examples use. [_isJsonSchema] is used instead
 /// so that form is converted rather than passed through raw.
 ///
-/// [schemas] holds named schemas registered via `defineSchema`, so Picoschema
-/// references to them by name can be resolved during conversion.
-Map<String, dynamic>? _toJsonSchema(
+/// Named types (`schema: Recipe`, `address: Address`) are looked up among the
+/// schemas registered with `defineSchema` each time the schema is used, until
+/// they all resolve. See [_FrontmatterSchema].
+SchemanticType<Map<String, dynamic>>? _frontmatterSchema(
   Map<String, dynamic>? schema,
-  Map<String, Map<String, dynamic>> schemas,
+  Registry registry,
+  String promptName,
 ) {
   if (schema == null) return null;
-  if (_isJsonSchema(schema)) return schema;
-  return Picoschema.toJsonSchema(schema, schemas: schemas);
+  if (_isJsonSchema(schema)) {
+    return SchemanticType.from<Map<String, dynamic>>(
+      jsonSchema: schema,
+      parse: _parseInput,
+    );
+  }
+  return _FrontmatterSchema(schema, registry, promptName);
+}
+
+// `parse` is also called with `null` when a prompt is invoked with no input,
+// so guard the cast instead of letting it throw.
+Map<String, dynamic> _parseInput(Object? json) =>
+    json is Map ? json.cast<String, dynamic>() : <String, dynamic>{};
+
+/// A Picoschema frontmatter schema, converted to JSON Schema on use.
+///
+/// Prompt folders are loaded by the `Genkit` constructor, before app code can
+/// call `defineSchema`, so names can't be resolved at load time. Instead they
+/// are looked up in the registry on each use, and the result is cached once
+/// every name has resolved.
+final class _FrontmatterSchema extends SchemanticType<Map<String, dynamic>> {
+  _FrontmatterSchema(this._picoschema, this._registry, this._promptName);
+
+  final Map<String, dynamic> _picoschema;
+  final Registry _registry;
+  final String _promptName;
+  Map<String, dynamic>? _resolved;
+
+  /// Converts the schema with the currently registered names. Names that are
+  /// not registered yet come back as Picoschema's placeholder `{$ref: Name}`.
+  (Map<String, dynamic>, Set<String> unresolved) _convert() {
+    final cached = _resolved;
+    if (cached != null) return (cached, const {});
+    // `listValues` keys are registry paths (`/schema/<name>`); Picoschema
+    // looks schemas up by bare name.
+    final schemas = {
+      for (final entry
+          in _registry.listValues<Map<String, dynamic>>('schema').entries)
+        entry.key.split('/').last: entry.value,
+    };
+    final converted = Picoschema.toJsonSchema(_picoschema, schemas: schemas);
+    final unresolved = _unresolvedNames(converted);
+    if (unresolved.isEmpty) _resolved = converted;
+    return (converted, unresolved);
+  }
+
+  /// The JSON schema for the model. Throws instead of sending a dangling
+  /// `$ref` the provider can't resolve.
+  Map<String, dynamic> resolveForModel() {
+    final (schema, unresolved) = _convert();
+    if (unresolved.isNotEmpty) {
+      final names = unresolved.map((n) => "'$n'").join(', ');
+      throw GenkitException(
+        'Schema $names referenced by prompt \'$_promptName\' '
+        '${unresolved.length == 1 ? 'is' : 'are'} not defined. Register '
+        'it with ai.defineSchema before calling the prompt.',
+        status: StatusCode.failedPrecondition,
+      );
+    }
+    return Map.of(schema);
+  }
+
+  /// For action metadata (the Dev UI input form). Never throws: a name that
+  /// is not registered yet is left as a `$ref`.
+  @override
+  Map<String, Object?> jsonSchema({bool useRefs = false}) =>
+      Map.of(_convert().$1);
+
+  @override
+  Map<String, dynamic> parse(Object? json) => _parseInput(json);
+}
+
+/// Names Picoschema could not resolve. It emits them as `{$ref: Name}`, while
+/// real JSON Schema references are URIs (`#/$defs/...`, `https://...`).
+Set<String> _unresolvedNames(Object? schema) {
+  final names = <String>{};
+  void visit(Object? node) {
+    if (node is Map) {
+      final ref = node[r'$ref'];
+      if (ref is String && !ref.contains('#') && !ref.contains('/')) {
+        names.add(ref);
+      }
+      node.values.forEach(visit);
+    } else if (node is List) {
+      node.forEach(visit);
+    }
+  }
+
+  visit(schema);
+  return names;
 }
 
 /// Whether [schema] is already a JSON Schema (as opposed to Picoschema).
@@ -346,27 +436,4 @@ bool _isJsonSchema(Map<String, dynamic> schema) {
     'null',
   };
   return jsonSchemaTypes.contains(schema['type']);
-}
-
-/// Builds a [SchemanticType] for a prompt's input from its frontmatter
-/// `input.schema`, converting Picoschema to JSON Schema as needed.
-///
-/// Returns `null` when no input schema is declared, in which case the prompt
-/// accepts free-form input as before.
-///
-/// [schemas] holds named schemas registered via `defineSchema`, so Picoschema
-/// references to them by name can be resolved during conversion.
-SchemanticType<Map<String, dynamic>>? _toInputSchema(
-  Map<String, dynamic>? schema,
-  Map<String, Map<String, dynamic>> schemas,
-) {
-  final jsonSchema = _toJsonSchema(schema, schemas);
-  if (jsonSchema == null) return null;
-  return SchemanticType.from<Map<String, dynamic>>(
-    jsonSchema: jsonSchema,
-    // `parse` is also called with `null` when a prompt is invoked with no
-    // input, so guard the cast instead of letting it throw.
-    parse: (json) =>
-        json is Map ? json.cast<String, dynamic>() : <String, dynamic>{},
-  );
 }
