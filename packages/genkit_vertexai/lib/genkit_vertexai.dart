@@ -20,17 +20,19 @@ import 'src/vertex_api_client.dart';
 
 export 'package:genkit_google_genai/genkit_google_genai.dart'
     show
+        GeminiEmbedderOptions,
+        GeminiFileSearch,
+        GeminiFunctionCallingConfig,
+        GeminiGoogleSearch,
+        GeminiMultiSpeakerVoiceConfig,
         GeminiOptions,
+        GeminiPrebuiltVoiceConfig,
+        GeminiSafetySettings,
+        GeminiSpeakerVoiceConfig,
+        GeminiSpeechConfig,
+        GeminiThinkingConfig,
         GeminiTtsOptions,
-        GoogleSearch,
-        MultiSpeakerVoiceConfig,
-        PrebuiltVoiceConfig,
-        SafetySettings,
-        SpeakerVoiceConfig,
-        SpeechConfig,
-        TextEmbedderOptions,
-        ThinkingConfig,
-        VoiceConfig;
+        GeminiVoiceConfig;
 
 const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 
@@ -61,10 +63,10 @@ class VertexAiPluginHandle {
     return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
   }
 
-  EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
+  EmbedderRef<GeminiEmbedderOptions> textEmbedding(String name) {
     return embedderRef(
       'vertexai/$name',
-      customOptions: TextEmbedderOptions.$schema,
+      customOptions: GeminiEmbedderOptions.$schema,
     );
   }
 }

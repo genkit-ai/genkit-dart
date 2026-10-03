@@ -37,7 +37,7 @@ void main() {
       test('$model defaults to adaptive', () async {
         final body = await requestOnTheWire(
           model: model,
-          thinking: ThinkingConfig(),
+          thinking: AnthropicThinkingConfig(),
         );
         expect(body['thinking'], {'type': 'adaptive'});
       });
@@ -46,7 +46,7 @@ void main() {
     test('dated adaptive snapshot uses its curated alias', () async {
       final body = await requestOnTheWire(
         model: 'claude-opus-4-7-20260205',
-        thinking: ThinkingConfig(),
+        thinking: AnthropicThinkingConfig(),
       );
       expect(body['thinking'], {'type': 'adaptive'});
     });
@@ -54,15 +54,15 @@ void main() {
     test('Claude 4.5 models default to manual thinking', () async {
       final sonnet = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        thinking: ThinkingConfig(),
+        thinking: AnthropicThinkingConfig(),
       );
       final haiku = await requestOnTheWire(
         model: 'claude-haiku-4-5-20251001',
-        thinking: ThinkingConfig(budgetTokens: 2048),
+        thinking: AnthropicThinkingConfig(budgetTokens: 2048),
       );
       final opus = await requestOnTheWire(
         model: 'claude-opus-4-5',
-        thinking: ThinkingConfig(),
+        thinking: AnthropicThinkingConfig(),
       );
 
       expect(sonnet['thinking'], {'type': 'enabled', 'budget_tokens': 1024});
@@ -73,11 +73,11 @@ void main() {
     test('explicit types override curated defaults', () async {
       final manual = await requestOnTheWire(
         model: 'claude-opus-4-7',
-        thinking: ThinkingConfig(type: 'enabled', budgetTokens: 2048),
+        thinking: AnthropicThinkingConfig(type: 'enabled', budgetTokens: 2048),
       );
       final adaptive = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        thinking: ThinkingConfig(type: 'adaptive', budgetTokens: 2048),
+        thinking: AnthropicThinkingConfig(type: 'adaptive', budgetTokens: 2048),
       );
 
       expect(manual['thinking'], {'type': 'enabled', 'budget_tokens': 2048});
@@ -87,7 +87,7 @@ void main() {
     test('explicit type works for an unknown model', () async {
       final body = await requestOnTheWire(
         model: 'claude-future-model',
-        thinking: ThinkingConfig(type: 'disabled'),
+        thinking: AnthropicThinkingConfig(type: 'disabled'),
       );
       expect(body['thinking'], {'type': 'disabled'});
     });
@@ -96,7 +96,7 @@ void main() {
       await expectLater(
         requestOnTheWire(
           model: 'claude-future-model',
-          thinking: ThinkingConfig(),
+          thinking: AnthropicThinkingConfig(),
         ),
         throwsA(
           isA<GenkitException>()
@@ -136,7 +136,7 @@ void main() {
     test('replays a prior assistant turn with its thinking block', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+        thinking: AnthropicThinkingConfig(type: 'enabled', budgetTokens: 1024),
         messages: [
           Message(
             role: Role.user,
@@ -314,7 +314,7 @@ void main() {
     test('omits an unsigned thinking block from the wire', () async {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
-        thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+        thinking: AnthropicThinkingConfig(type: 'enabled', budgetTokens: 1024),
         messages: [
           Message(
             role: Role.user,

@@ -139,7 +139,10 @@ Flow<String, Recipe, void, void> defineRecipeWithToolsFlow(Genkit ai) {
         tools: [pantry],
         outputSchema: Recipe.$schema,
         config: AnthropicOptions(
-          thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+          thinking: AnthropicThinkingConfig(
+            type: 'enabled',
+            budgetTokens: 1024,
+          ),
         ),
       );
       return response.output!;

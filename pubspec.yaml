@@ -41,6 +41,7 @@ workspace:
   - testapps/schemantic_sample
 
 dev_dependencies:
+  analyzer: ^13.0.0
   args: ^2.7.0
   dart_flutter_team_lints: ^3.0.0
   glob: ^2.1.3
