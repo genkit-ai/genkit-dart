@@ -37,13 +37,13 @@ GenkitException _wireError(
   required String fallbackMessage,
 }) {
   var error = body;
-  if (error is Map<String, dynamic> && error['error'] is Map<String, dynamic>) {
+  if (error is Map && error['error'] is Map) {
     error = error['error'];
   }
 
   StatusCode? status;
   String? message;
-  if (error is Map<String, dynamic>) {
+  if (error is Map) {
     if (error['status'] case final String wireName) {
       // An explicit `UNKNOWN` from the server is kept as is.
       status = StatusCode.fromWireName(wireName);
@@ -59,7 +59,7 @@ GenkitException _wireError(
     message ?? fallbackMessage,
     // Null falls back to GenkitException's default (`internal`).
     status: status,
-    details: body is String ? body : jsonEncode(body),
+    details: body == null ? null : (body is String ? body : jsonEncode(body)),
   );
 }
 
