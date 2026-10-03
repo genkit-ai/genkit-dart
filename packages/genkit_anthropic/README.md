@@ -109,7 +109,7 @@ final response = await ai.generate(
   prompt: 'Solve this 24 game: 2, 3, 10, 10',
   config: AnthropicOptions(
     // Uses the model's compatible default thinking mode.
-    thinking: ThinkingConfig(),
+    thinking: AnthropicThinkingConfig(),
     outputConfig: AnthropicOutputConfig(effort: 'high'),
   ),
 );
@@ -121,7 +121,7 @@ print(response.message?.content);
 An omitted thinking type resolves to the model's own default: Claude 4.6 and
 newer default to `adaptive`, while Claude 4.5 models default to `enabled`,
 which uses a manual token budget. You can also select a mode explicitly with
-`ThinkingConfig(type: 'enabled', budgetTokens: 2048)`. For model names outside
+`AnthropicThinkingConfig(type: 'enabled', budgetTokens: 2048)`. For model names outside
 the curated catalog, set `thinking.type` explicitly so the plugin does not
 guess an incompatible mode.
 

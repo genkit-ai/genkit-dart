@@ -238,7 +238,7 @@ void main(List<String> args) async {
         prompt: prompt,
         config: GeminiOptions(
           // Configured to return thoughts as ReasoningParts.
-          thinkingConfig: ThinkingConfig(
+          thinkingConfig: GeminiThinkingConfig(
             thinkingBudget: 2048,
             includeThoughts: true,
           ),
@@ -262,7 +262,7 @@ void main(List<String> args) async {
         prompt: prompt,
         config: GeminiOptions(
           safetySettings: [
-            SafetySettings(
+            GeminiSafetySettings(
               category: 'HARM_CATEGORY_HATE_SPEECH',
               threshold: 'BLOCK_MEDIUM_AND_ABOVE',
             ),
@@ -284,7 +284,7 @@ void main(List<String> args) async {
       final response = await ai.generate(
         model: vertexAI.gemini('gemini-flash-latest'),
         prompt: prompt,
-        config: GeminiOptions(googleSearch: GoogleSearch()),
+        config: GeminiOptions(googleSearch: GeminiGoogleSearch()),
       );
       return response.raw!;
     },
@@ -318,9 +318,9 @@ void main(List<String> args) async {
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
-          speechConfig: SpeechConfig(
-            voiceConfig: VoiceConfig(
-              prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
+          speechConfig: GeminiSpeechConfig(
+            voiceConfig: GeminiVoiceConfig(
+              prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(voiceName: 'Puck'),
             ),
           ),
         ),
@@ -348,19 +348,23 @@ void main(List<String> args) async {
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
-          speechConfig: SpeechConfig(
-            multiSpeakerVoiceConfig: MultiSpeakerVoiceConfig(
+          speechConfig: GeminiSpeechConfig(
+            multiSpeakerVoiceConfig: GeminiMultiSpeakerVoiceConfig(
               speakerVoiceConfigs: [
-                SpeakerVoiceConfig(
+                GeminiSpeakerVoiceConfig(
                   speaker: 'Speaker A',
-                  voiceConfig: VoiceConfig(
-                    prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
+                  voiceConfig: GeminiVoiceConfig(
+                    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
+                      voiceName: 'Puck',
+                    ),
                   ),
                 ),
-                SpeakerVoiceConfig(
+                GeminiSpeakerVoiceConfig(
                   speaker: 'Speaker B',
-                  voiceConfig: VoiceConfig(
-                    prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Kore'),
+                  voiceConfig: GeminiVoiceConfig(
+                    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
+                      voiceName: 'Kore',
+                    ),
                   ),
                 ),
               ],
@@ -403,7 +407,7 @@ void main(List<String> args) async {
         documents: [
           DocumentData(content: [TextPart(text: input)]),
         ],
-        options: TextEmbedderOptions(
+        options: GeminiEmbedderOptions(
           outputDimensionality: 256,
           taskType: 'RETRIEVAL_DOCUMENT',
         ),

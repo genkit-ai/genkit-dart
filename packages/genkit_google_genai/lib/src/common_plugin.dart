@@ -432,7 +432,7 @@ gcl.GenerationConfig toGeminiTtsSettings(
   );
 }
 
-Map<String, dynamic>? _toSpeechConfig(SpeechConfig? config) {
+Map<String, dynamic>? _toSpeechConfig(GeminiSpeechConfig? config) {
   if (config == null) return null;
   return {
     if (config.voiceConfig != null)
@@ -444,7 +444,7 @@ Map<String, dynamic>? _toSpeechConfig(SpeechConfig? config) {
   };
 }
 
-Map<String, dynamic>? _toThinkingConfig(ThinkingConfig? config) {
+Map<String, dynamic>? _toThinkingConfig(GeminiThinkingConfig? config) {
   if (config == null) return null;
   return {
     if (config.includeThoughts != null)
@@ -455,7 +455,7 @@ Map<String, dynamic>? _toThinkingConfig(ThinkingConfig? config) {
 }
 
 Map<String, dynamic>? _toMultiSpeakerVoiceConfig(
-  MultiSpeakerVoiceConfig? config,
+  GeminiMultiSpeakerVoiceConfig? config,
 ) {
   if (config == null) return null;
   return {
@@ -465,28 +465,30 @@ Map<String, dynamic>? _toMultiSpeakerVoiceConfig(
   };
 }
 
-Map<String, Object?> _toSpeakerVoiceConfig(SpeakerVoiceConfig config) {
+Map<String, Object?> _toSpeakerVoiceConfig(GeminiSpeakerVoiceConfig config) {
   return {
     'speaker': config.speaker,
     'voiceConfig': _toVoiceConfig(config.voiceConfig),
   };
 }
 
-Map<String, Object?>? _toVoiceConfig(VoiceConfig? config) {
+Map<String, Object?>? _toVoiceConfig(GeminiVoiceConfig? config) {
   if (config == null) return null;
   return {
     'prebuiltVoiceConfig': _toPrebuiltVoiceConfig(config.prebuiltVoiceConfig),
   };
 }
 
-Map<String, Object?>? _toPrebuiltVoiceConfig(PrebuiltVoiceConfig? config) {
+Map<String, Object?>? _toPrebuiltVoiceConfig(
+  GeminiPrebuiltVoiceConfig? config,
+) {
   if (config == null) return null;
   return {'voiceName': config.voiceName};
 }
 
 @visibleForTesting
 List<gcl.SafetySetting>? toGeminiSafetySettings(
-  List<SafetySettings>? safetySettings,
+  List<GeminiSafetySettings>? safetySettings,
 ) {
   if (safetySettings == null) return null;
   final settings = <gcl.SafetySetting>[];
@@ -508,7 +510,7 @@ List<gcl.SafetySetting>? toGeminiSafetySettings(
 List<gcl.Tool> toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
-  GoogleSearch? googleSearch,
+  GeminiGoogleSearch? googleSearch,
 }) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
@@ -529,7 +531,7 @@ List<gcl.Tool> toGeminiTools(
 /// contradictory (`required` would demand a call to nothing).
 @visibleForTesting
 gcl.ToolConfig? toGeminiToolConfig(
-  FunctionCallingConfig? functionCallingConfig, {
+  GeminiFunctionCallingConfig? functionCallingConfig, {
   ToolChoice? toolChoice,
   bool hasFunctionTools = false,
 }) {

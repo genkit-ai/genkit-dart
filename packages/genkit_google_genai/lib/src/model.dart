@@ -23,16 +23,16 @@ abstract class $GeminiOptions {
   // String? get apiVersion;
   // String? get baseUrl;
 
-  List<$SafetySettings>? get safetySettings;
+  List<$GeminiSafetySettings>? get safetySettings;
 
   bool? get codeExecution;
-  $FunctionCallingConfig? get functionCallingConfig;
-  $ThinkingConfig? get thinkingConfig;
+  $GeminiFunctionCallingConfig? get functionCallingConfig;
+  $GeminiThinkingConfig? get thinkingConfig;
   List<String>? get responseModalities;
 
   // Retrieval
-  $GoogleSearch? get googleSearch;
-  $FileSearch? get fileSearch;
+  $GeminiGoogleSearch? get googleSearch;
+  $GeminiFileSearch? get fileSearch;
   // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
 
   @DoubleField(minimum: 0.0, maximum: 2.0)
@@ -53,11 +53,11 @@ abstract class $GeminiOptions {
   double? get frequencyPenalty;
   int? get seed;
 
-  $SpeechConfig? get speechConfig;
+  $GeminiSpeechConfig? get speechConfig;
 }
 
 @Schema()
-abstract class $SafetySettings {
+abstract class $GeminiSafetySettings {
   @StringField(
     enumValues: [
       'HARM_CATEGORY_UNSPECIFIED',
@@ -82,7 +82,7 @@ abstract class $SafetySettings {
 }
 
 @Schema()
-abstract class $ThinkingConfig {
+abstract class $GeminiThinkingConfig {
   @Field(
     description:
         'Indicates whether to include thoughts in the response.'
@@ -113,14 +113,14 @@ abstract class $ThinkingConfig {
 }
 
 @Schema()
-abstract class $FunctionCallingConfig {
+abstract class $GeminiFunctionCallingConfig {
   @StringField(enumValues: ['MODE_UNSPECIFIED', 'AUTO', 'ANY', 'NONE'])
   String? get mode;
   List<String>? get allowedFunctionNames;
 }
 
 @Schema()
-abstract class $FileSearch {
+abstract class $GeminiFileSearch {
   List<String>? get fileSearchStoreNames;
 }
 
@@ -131,16 +131,16 @@ abstract class $GeminiTtsOptions {
   // String? get apiVersion;
   // String? get baseUrl;
 
-  List<$SafetySettings>? get safetySettings;
+  List<$GeminiSafetySettings>? get safetySettings;
 
   bool? get codeExecution;
-  $FunctionCallingConfig? get functionCallingConfig;
-  $ThinkingConfig? get thinkingConfig;
+  $GeminiFunctionCallingConfig? get functionCallingConfig;
+  $GeminiThinkingConfig? get thinkingConfig;
   List<String>? get responseModalities;
 
   // Retrieval
-  $GoogleSearch? get googleSearch;
-  $FileSearch? get fileSearch;
+  $GeminiGoogleSearch? get googleSearch;
+  $GeminiFileSearch? get fileSearch;
   // TODO: Add urlContext if needed, structure unclear from proto/zod vs usage
 
   @DoubleField(minimum: 0.0, maximum: 2.0)
@@ -161,38 +161,38 @@ abstract class $GeminiTtsOptions {
   double? get frequencyPenalty;
   int? get seed;
 
-  $SpeechConfig? get speechConfig;
+  $GeminiSpeechConfig? get speechConfig;
 }
 
 @Schema(description: 'Speech generation config')
-abstract class $SpeechConfig {
-  $VoiceConfig? get voiceConfig;
-  $MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig;
+abstract class $GeminiSpeechConfig {
+  $GeminiVoiceConfig? get voiceConfig;
+  $GeminiMultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig;
 }
 
 @Schema(description: 'Configuration for multi-speaker setup')
-abstract class $MultiSpeakerVoiceConfig {
+abstract class $GeminiMultiSpeakerVoiceConfig {
   @Field(description: 'Configuration for all the enabled speaker voices')
-  List<$SpeakerVoiceConfig> get speakerVoiceConfigs;
+  List<$GeminiSpeakerVoiceConfig> get speakerVoiceConfigs;
 }
 
 @Schema(
   description: 'Configuration for a single speaker in a multi speaker setup',
 )
-abstract class $SpeakerVoiceConfig {
+abstract class $GeminiSpeakerVoiceConfig {
   @StringField(description: 'Name of the speaker to use')
   String get speaker;
 
-  $VoiceConfig get voiceConfig;
+  $GeminiVoiceConfig get voiceConfig;
 }
 
 @Schema(description: 'Configuration for the voice to use')
-abstract class $VoiceConfig {
-  $PrebuiltVoiceConfig? get prebuiltVoiceConfig;
+abstract class $GeminiVoiceConfig {
+  $GeminiPrebuiltVoiceConfig? get prebuiltVoiceConfig;
 }
 
 @Schema(description: 'Configuration for the prebuilt speaker to use')
-abstract class $PrebuiltVoiceConfig {
+abstract class $GeminiPrebuiltVoiceConfig {
   @StringField(
     description:
         'Name of the preset voice to use. '
@@ -206,12 +206,12 @@ abstract class $PrebuiltVoiceConfig {
 }
 
 @Schema()
-abstract class $GoogleSearch {
+abstract class $GeminiGoogleSearch {
   // TODO: Add timeRangeFilter or other configurations if needed
 }
 
 @Schema()
-abstract class $TextEmbedderOptions {
+abstract class $GeminiEmbedderOptions {
   @IntegerField(
     description:
         'Optional. reduced dimension for the output embedding. If set, excessive values in the output embedding are truncated from the end.',

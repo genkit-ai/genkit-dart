@@ -30,13 +30,13 @@ base class GeminiOptions {
 
   GeminiOptions({
     String? apiKey,
-    List<SafetySettings>? safetySettings,
+    List<GeminiSafetySettings>? safetySettings,
     bool? codeExecution,
-    FunctionCallingConfig? functionCallingConfig,
-    ThinkingConfig? thinkingConfig,
+    GeminiFunctionCallingConfig? functionCallingConfig,
+    GeminiThinkingConfig? thinkingConfig,
     List<String>? responseModalities,
-    GoogleSearch? googleSearch,
-    FileSearch? fileSearch,
+    GeminiGoogleSearch? googleSearch,
+    GeminiFileSearch? fileSearch,
     double? temperature,
     double? topP,
     int? topK,
@@ -49,7 +49,7 @@ base class GeminiOptions {
     double? presencePenalty,
     double? frequencyPenalty,
     int? seed,
-    SpeechConfig? speechConfig,
+    GeminiSpeechConfig? speechConfig,
   }) {
     _json = {
       'apiKey': ?apiKey,
@@ -94,13 +94,13 @@ base class GeminiOptions {
     }
   }
 
-  List<SafetySettings>? get safetySettings {
+  List<GeminiSafetySettings>? get safetySettings {
     return (_json['safetySettings'] as List?)
-        ?.map((e) => SafetySettings.fromJson(e as Map<String, dynamic>))
+        ?.map((e) => GeminiSafetySettings.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  set safetySettings(List<SafetySettings>? value) {
+  set safetySettings(List<GeminiSafetySettings>? value) {
     if (value == null) {
       _json.remove('safetySettings');
     } else {
@@ -120,15 +120,15 @@ base class GeminiOptions {
     }
   }
 
-  FunctionCallingConfig? get functionCallingConfig {
+  GeminiFunctionCallingConfig? get functionCallingConfig {
     return _json['functionCallingConfig'] == null
         ? null
-        : FunctionCallingConfig.fromJson(
+        : GeminiFunctionCallingConfig.fromJson(
             _json['functionCallingConfig'] as Map<String, dynamic>,
           );
   }
 
-  set functionCallingConfig(FunctionCallingConfig? value) {
+  set functionCallingConfig(GeminiFunctionCallingConfig? value) {
     if (value == null) {
       _json.remove('functionCallingConfig');
     } else {
@@ -136,15 +136,15 @@ base class GeminiOptions {
     }
   }
 
-  ThinkingConfig? get thinkingConfig {
+  GeminiThinkingConfig? get thinkingConfig {
     return _json['thinkingConfig'] == null
         ? null
-        : ThinkingConfig.fromJson(
+        : GeminiThinkingConfig.fromJson(
             _json['thinkingConfig'] as Map<String, dynamic>,
           );
   }
 
-  set thinkingConfig(ThinkingConfig? value) {
+  set thinkingConfig(GeminiThinkingConfig? value) {
     if (value == null) {
       _json.remove('thinkingConfig');
     } else {
@@ -164,13 +164,15 @@ base class GeminiOptions {
     }
   }
 
-  GoogleSearch? get googleSearch {
+  GeminiGoogleSearch? get googleSearch {
     return _json['googleSearch'] == null
         ? null
-        : GoogleSearch.fromJson(_json['googleSearch'] as Map<String, dynamic>);
+        : GeminiGoogleSearch.fromJson(
+            _json['googleSearch'] as Map<String, dynamic>,
+          );
   }
 
-  set googleSearch(GoogleSearch? value) {
+  set googleSearch(GeminiGoogleSearch? value) {
     if (value == null) {
       _json.remove('googleSearch');
     } else {
@@ -178,13 +180,15 @@ base class GeminiOptions {
     }
   }
 
-  FileSearch? get fileSearch {
+  GeminiFileSearch? get fileSearch {
     return _json['fileSearch'] == null
         ? null
-        : FileSearch.fromJson(_json['fileSearch'] as Map<String, dynamic>);
+        : GeminiFileSearch.fromJson(
+            _json['fileSearch'] as Map<String, dynamic>,
+          );
   }
 
-  set fileSearch(FileSearch? value) {
+  set fileSearch(GeminiFileSearch? value) {
     if (value == null) {
       _json.remove('fileSearch');
     } else {
@@ -336,13 +340,15 @@ base class GeminiOptions {
     }
   }
 
-  SpeechConfig? get speechConfig {
+  GeminiSpeechConfig? get speechConfig {
     return _json['speechConfig'] == null
         ? null
-        : SpeechConfig.fromJson(_json['speechConfig'] as Map<String, dynamic>);
+        : GeminiSpeechConfig.fromJson(
+            _json['speechConfig'] as Map<String, dynamic>,
+          );
   }
 
-  set speechConfig(SpeechConfig? value) {
+  set speechConfig(GeminiSpeechConfig? value) {
     if (value == null) {
       _json.remove('speechConfig');
     } else {
@@ -378,19 +384,23 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'apiKey': <String, Object?>{'type': 'string'},
         'safetySettings': <String, Object?>{
           'type': 'array',
-          'items': <String, Object?>{r'$ref': r'#/$defs/SafetySettings'},
+          'items': <String, Object?>{r'$ref': r'#/$defs/GeminiSafetySettings'},
         },
         'codeExecution': <String, Object?>{'type': 'boolean'},
         'functionCallingConfig': <String, Object?>{
-          r'$ref': r'#/$defs/FunctionCallingConfig',
+          r'$ref': r'#/$defs/GeminiFunctionCallingConfig',
         },
-        'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
+        'thinkingConfig': <String, Object?>{
+          r'$ref': r'#/$defs/GeminiThinkingConfig',
+        },
         'responseModalities': <String, Object?>{
           'type': 'array',
           'items': <String, Object?>{'type': 'string'},
         },
-        'googleSearch': <String, Object?>{r'$ref': r'#/$defs/GoogleSearch'},
-        'fileSearch': <String, Object?>{r'$ref': r'#/$defs/FileSearch'},
+        'googleSearch': <String, Object?>{
+          r'$ref': r'#/$defs/GeminiGoogleSearch',
+        },
+        'fileSearch': <String, Object?>{r'$ref': r'#/$defs/GeminiFileSearch'},
         'temperature': <String, Object?>{
           'type': 'number',
           'minimum': 0.0,
@@ -414,36 +424,38 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'presencePenalty': <String, Object?>{'type': 'number'},
         'frequencyPenalty': <String, Object?>{'type': 'number'},
         'seed': <String, Object?>{'type': 'integer'},
-        'speechConfig': <String, Object?>{r'$ref': r'#/$defs/SpeechConfig'},
+        'speechConfig': <String, Object?>{
+          r'$ref': r'#/$defs/GeminiSpeechConfig',
+        },
       },
     },
     dependencies: [
-      SafetySettings.$schema,
-      FunctionCallingConfig.$schema,
-      ThinkingConfig.$schema,
-      GoogleSearch.$schema,
-      FileSearch.$schema,
-      SpeechConfig.$schema,
+      GeminiSafetySettings.$schema,
+      GeminiFunctionCallingConfig.$schema,
+      GeminiThinkingConfig.$schema,
+      GeminiGoogleSearch.$schema,
+      GeminiFileSearch.$schema,
+      GeminiSpeechConfig.$schema,
     ],
   );
 }
 
-base class SafetySettings {
-  /// Creates a [SafetySettings] from a JSON map.
-  factory SafetySettings.fromJson(Map<String, dynamic> json) =>
+base class GeminiSafetySettings {
+  /// Creates a [GeminiSafetySettings] from a JSON map.
+  factory GeminiSafetySettings.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  SafetySettings._(this._json);
+  GeminiSafetySettings._(this._json);
 
-  SafetySettings({String? category, String? threshold}) {
+  GeminiSafetySettings({String? category, String? threshold}) {
     _json = {'category': ?category, 'threshold': ?threshold};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [SafetySettings].
-  static const SchemanticType<SafetySettings> $schema =
-      _SafetySettingsTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiSafetySettings].
+  static const SchemanticType<GeminiSafetySettings> $schema =
+      _GeminiSafetySettingsTypeFactory();
 
   String? get category {
     return _json['category'] as String?;
@@ -474,23 +486,24 @@ base class SafetySettings {
     return _json.toString();
   }
 
-  /// Serializes this [SafetySettings] to a JSON map.
+  /// Serializes this [GeminiSafetySettings] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
-  const _SafetySettingsTypeFactory();
+base class _GeminiSafetySettingsTypeFactory
+    extends SchemanticType<GeminiSafetySettings> {
+  const _GeminiSafetySettingsTypeFactory();
 
   @override
-  SafetySettings parse(Object? json) {
-    return SafetySettings._(json as Map<String, dynamic>);
+  GeminiSafetySettings parse(Object? json) {
+    return GeminiSafetySettings._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'SafetySettings',
+    name: 'GeminiSafetySettings',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
@@ -520,14 +533,14 @@ base class _SafetySettingsTypeFactory extends SchemanticType<SafetySettings> {
   );
 }
 
-base class ThinkingConfig {
-  /// Creates a [ThinkingConfig] from a JSON map.
-  factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
+base class GeminiThinkingConfig {
+  /// Creates a [GeminiThinkingConfig] from a JSON map.
+  factory GeminiThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ThinkingConfig._(this._json);
+  GeminiThinkingConfig._(this._json);
 
-  ThinkingConfig({
+  GeminiThinkingConfig({
     bool? includeThoughts,
     int? thinkingBudget,
     String? thinkingLevel,
@@ -541,9 +554,9 @@ base class ThinkingConfig {
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [ThinkingConfig].
-  static const SchemanticType<ThinkingConfig> $schema =
-      _ThinkingConfigTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiThinkingConfig].
+  static const SchemanticType<GeminiThinkingConfig> $schema =
+      _GeminiThinkingConfigTypeFactory();
 
   bool? get includeThoughts {
     return _json['includeThoughts'] as bool?;
@@ -586,23 +599,24 @@ base class ThinkingConfig {
     return _json.toString();
   }
 
-  /// Serializes this [ThinkingConfig] to a JSON map.
+  /// Serializes this [GeminiThinkingConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
-  const _ThinkingConfigTypeFactory();
+base class _GeminiThinkingConfigTypeFactory
+    extends SchemanticType<GeminiThinkingConfig> {
+  const _GeminiThinkingConfigTypeFactory();
 
   @override
-  ThinkingConfig parse(Object? json) {
-    return ThinkingConfig._(json as Map<String, dynamic>);
+  GeminiThinkingConfig parse(Object? json) {
+    return GeminiThinkingConfig._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ThinkingConfig',
+    name: 'GeminiThinkingConfig',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
@@ -630,22 +644,25 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
   );
 }
 
-base class FunctionCallingConfig {
-  /// Creates a [FunctionCallingConfig] from a JSON map.
-  factory FunctionCallingConfig.fromJson(Map<String, dynamic> json) =>
+base class GeminiFunctionCallingConfig {
+  /// Creates a [GeminiFunctionCallingConfig] from a JSON map.
+  factory GeminiFunctionCallingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  FunctionCallingConfig._(this._json);
+  GeminiFunctionCallingConfig._(this._json);
 
-  FunctionCallingConfig({String? mode, List<String>? allowedFunctionNames}) {
+  GeminiFunctionCallingConfig({
+    String? mode,
+    List<String>? allowedFunctionNames,
+  }) {
     _json = {'mode': ?mode, 'allowedFunctionNames': ?allowedFunctionNames};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [FunctionCallingConfig].
-  static const SchemanticType<FunctionCallingConfig> $schema =
-      _FunctionCallingConfigTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiFunctionCallingConfig].
+  static const SchemanticType<GeminiFunctionCallingConfig> $schema =
+      _GeminiFunctionCallingConfigTypeFactory();
 
   String? get mode {
     return _json['mode'] as String?;
@@ -676,24 +693,24 @@ base class FunctionCallingConfig {
     return _json.toString();
   }
 
-  /// Serializes this [FunctionCallingConfig] to a JSON map.
+  /// Serializes this [GeminiFunctionCallingConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _FunctionCallingConfigTypeFactory
-    extends SchemanticType<FunctionCallingConfig> {
-  const _FunctionCallingConfigTypeFactory();
+base class _GeminiFunctionCallingConfigTypeFactory
+    extends SchemanticType<GeminiFunctionCallingConfig> {
+  const _GeminiFunctionCallingConfigTypeFactory();
 
   @override
-  FunctionCallingConfig parse(Object? json) {
-    return FunctionCallingConfig._(json as Map<String, dynamic>);
+  GeminiFunctionCallingConfig parse(Object? json) {
+    return GeminiFunctionCallingConfig._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'FunctionCallingConfig',
+    name: 'GeminiFunctionCallingConfig',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
@@ -711,20 +728,22 @@ base class _FunctionCallingConfigTypeFactory
   );
 }
 
-base class FileSearch {
-  /// Creates a [FileSearch] from a JSON map.
-  factory FileSearch.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+base class GeminiFileSearch {
+  /// Creates a [GeminiFileSearch] from a JSON map.
+  factory GeminiFileSearch.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
 
-  FileSearch._(this._json);
+  GeminiFileSearch._(this._json);
 
-  FileSearch({List<String>? fileSearchStoreNames}) {
+  GeminiFileSearch({List<String>? fileSearchStoreNames}) {
     _json = {'fileSearchStoreNames': ?fileSearchStoreNames};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [FileSearch].
-  static const SchemanticType<FileSearch> $schema = _FileSearchTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiFileSearch].
+  static const SchemanticType<GeminiFileSearch> $schema =
+      _GeminiFileSearchTypeFactory();
 
   List<String>? get fileSearchStoreNames {
     return (_json['fileSearchStoreNames'] as List?)?.cast<String>();
@@ -743,23 +762,24 @@ base class FileSearch {
     return _json.toString();
   }
 
-  /// Serializes this [FileSearch] to a JSON map.
+  /// Serializes this [GeminiFileSearch] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _FileSearchTypeFactory extends SchemanticType<FileSearch> {
-  const _FileSearchTypeFactory();
+base class _GeminiFileSearchTypeFactory
+    extends SchemanticType<GeminiFileSearch> {
+  const _GeminiFileSearchTypeFactory();
 
   @override
-  FileSearch parse(Object? json) {
-    return FileSearch._(json as Map<String, dynamic>);
+  GeminiFileSearch parse(Object? json) {
+    return GeminiFileSearch._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'FileSearch',
+    name: 'GeminiFileSearch',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
@@ -782,13 +802,13 @@ base class GeminiTtsOptions {
 
   GeminiTtsOptions({
     String? apiKey,
-    List<SafetySettings>? safetySettings,
+    List<GeminiSafetySettings>? safetySettings,
     bool? codeExecution,
-    FunctionCallingConfig? functionCallingConfig,
-    ThinkingConfig? thinkingConfig,
+    GeminiFunctionCallingConfig? functionCallingConfig,
+    GeminiThinkingConfig? thinkingConfig,
     List<String>? responseModalities,
-    GoogleSearch? googleSearch,
-    FileSearch? fileSearch,
+    GeminiGoogleSearch? googleSearch,
+    GeminiFileSearch? fileSearch,
     double? temperature,
     double? topP,
     int? topK,
@@ -801,7 +821,7 @@ base class GeminiTtsOptions {
     double? presencePenalty,
     double? frequencyPenalty,
     int? seed,
-    SpeechConfig? speechConfig,
+    GeminiSpeechConfig? speechConfig,
   }) {
     _json = {
       'apiKey': ?apiKey,
@@ -846,13 +866,13 @@ base class GeminiTtsOptions {
     }
   }
 
-  List<SafetySettings>? get safetySettings {
+  List<GeminiSafetySettings>? get safetySettings {
     return (_json['safetySettings'] as List?)
-        ?.map((e) => SafetySettings.fromJson(e as Map<String, dynamic>))
+        ?.map((e) => GeminiSafetySettings.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
-  set safetySettings(List<SafetySettings>? value) {
+  set safetySettings(List<GeminiSafetySettings>? value) {
     if (value == null) {
       _json.remove('safetySettings');
     } else {
@@ -872,15 +892,15 @@ base class GeminiTtsOptions {
     }
   }
 
-  FunctionCallingConfig? get functionCallingConfig {
+  GeminiFunctionCallingConfig? get functionCallingConfig {
     return _json['functionCallingConfig'] == null
         ? null
-        : FunctionCallingConfig.fromJson(
+        : GeminiFunctionCallingConfig.fromJson(
             _json['functionCallingConfig'] as Map<String, dynamic>,
           );
   }
 
-  set functionCallingConfig(FunctionCallingConfig? value) {
+  set functionCallingConfig(GeminiFunctionCallingConfig? value) {
     if (value == null) {
       _json.remove('functionCallingConfig');
     } else {
@@ -888,15 +908,15 @@ base class GeminiTtsOptions {
     }
   }
 
-  ThinkingConfig? get thinkingConfig {
+  GeminiThinkingConfig? get thinkingConfig {
     return _json['thinkingConfig'] == null
         ? null
-        : ThinkingConfig.fromJson(
+        : GeminiThinkingConfig.fromJson(
             _json['thinkingConfig'] as Map<String, dynamic>,
           );
   }
 
-  set thinkingConfig(ThinkingConfig? value) {
+  set thinkingConfig(GeminiThinkingConfig? value) {
     if (value == null) {
       _json.remove('thinkingConfig');
     } else {
@@ -916,13 +936,15 @@ base class GeminiTtsOptions {
     }
   }
 
-  GoogleSearch? get googleSearch {
+  GeminiGoogleSearch? get googleSearch {
     return _json['googleSearch'] == null
         ? null
-        : GoogleSearch.fromJson(_json['googleSearch'] as Map<String, dynamic>);
+        : GeminiGoogleSearch.fromJson(
+            _json['googleSearch'] as Map<String, dynamic>,
+          );
   }
 
-  set googleSearch(GoogleSearch? value) {
+  set googleSearch(GeminiGoogleSearch? value) {
     if (value == null) {
       _json.remove('googleSearch');
     } else {
@@ -930,13 +952,15 @@ base class GeminiTtsOptions {
     }
   }
 
-  FileSearch? get fileSearch {
+  GeminiFileSearch? get fileSearch {
     return _json['fileSearch'] == null
         ? null
-        : FileSearch.fromJson(_json['fileSearch'] as Map<String, dynamic>);
+        : GeminiFileSearch.fromJson(
+            _json['fileSearch'] as Map<String, dynamic>,
+          );
   }
 
-  set fileSearch(FileSearch? value) {
+  set fileSearch(GeminiFileSearch? value) {
     if (value == null) {
       _json.remove('fileSearch');
     } else {
@@ -1088,13 +1112,15 @@ base class GeminiTtsOptions {
     }
   }
 
-  SpeechConfig? get speechConfig {
+  GeminiSpeechConfig? get speechConfig {
     return _json['speechConfig'] == null
         ? null
-        : SpeechConfig.fromJson(_json['speechConfig'] as Map<String, dynamic>);
+        : GeminiSpeechConfig.fromJson(
+            _json['speechConfig'] as Map<String, dynamic>,
+          );
   }
 
-  set speechConfig(SpeechConfig? value) {
+  set speechConfig(GeminiSpeechConfig? value) {
     if (value == null) {
       _json.remove('speechConfig');
     } else {
@@ -1131,19 +1157,23 @@ base class _GeminiTtsOptionsTypeFactory
         'apiKey': <String, Object?>{'type': 'string'},
         'safetySettings': <String, Object?>{
           'type': 'array',
-          'items': <String, Object?>{r'$ref': r'#/$defs/SafetySettings'},
+          'items': <String, Object?>{r'$ref': r'#/$defs/GeminiSafetySettings'},
         },
         'codeExecution': <String, Object?>{'type': 'boolean'},
         'functionCallingConfig': <String, Object?>{
-          r'$ref': r'#/$defs/FunctionCallingConfig',
+          r'$ref': r'#/$defs/GeminiFunctionCallingConfig',
         },
-        'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
+        'thinkingConfig': <String, Object?>{
+          r'$ref': r'#/$defs/GeminiThinkingConfig',
+        },
         'responseModalities': <String, Object?>{
           'type': 'array',
           'items': <String, Object?>{'type': 'string'},
         },
-        'googleSearch': <String, Object?>{r'$ref': r'#/$defs/GoogleSearch'},
-        'fileSearch': <String, Object?>{r'$ref': r'#/$defs/FileSearch'},
+        'googleSearch': <String, Object?>{
+          r'$ref': r'#/$defs/GeminiGoogleSearch',
+        },
+        'fileSearch': <String, Object?>{r'$ref': r'#/$defs/GeminiFileSearch'},
         'temperature': <String, Object?>{
           'type': 'number',
           'minimum': 0.0,
@@ -1167,30 +1197,32 @@ base class _GeminiTtsOptionsTypeFactory
         'presencePenalty': <String, Object?>{'type': 'number'},
         'frequencyPenalty': <String, Object?>{'type': 'number'},
         'seed': <String, Object?>{'type': 'integer'},
-        'speechConfig': <String, Object?>{r'$ref': r'#/$defs/SpeechConfig'},
+        'speechConfig': <String, Object?>{
+          r'$ref': r'#/$defs/GeminiSpeechConfig',
+        },
       },
     },
     dependencies: [
-      SafetySettings.$schema,
-      FunctionCallingConfig.$schema,
-      ThinkingConfig.$schema,
-      GoogleSearch.$schema,
-      FileSearch.$schema,
-      SpeechConfig.$schema,
+      GeminiSafetySettings.$schema,
+      GeminiFunctionCallingConfig.$schema,
+      GeminiThinkingConfig.$schema,
+      GeminiGoogleSearch.$schema,
+      GeminiFileSearch.$schema,
+      GeminiSpeechConfig.$schema,
     ],
   );
 }
 
-base class SpeechConfig {
-  /// Creates a [SpeechConfig] from a JSON map.
-  factory SpeechConfig.fromJson(Map<String, dynamic> json) =>
+base class GeminiSpeechConfig {
+  /// Creates a [GeminiSpeechConfig] from a JSON map.
+  factory GeminiSpeechConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  SpeechConfig._(this._json);
+  GeminiSpeechConfig._(this._json);
 
-  SpeechConfig({
-    VoiceConfig? voiceConfig,
-    MultiSpeakerVoiceConfig? multiSpeakerVoiceConfig,
+  GeminiSpeechConfig({
+    GeminiVoiceConfig? voiceConfig,
+    GeminiMultiSpeakerVoiceConfig? multiSpeakerVoiceConfig,
   }) {
     _json = {
       'voiceConfig': ?voiceConfig?.toJson(),
@@ -1200,17 +1232,19 @@ base class SpeechConfig {
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [SpeechConfig].
-  static const SchemanticType<SpeechConfig> $schema =
-      _SpeechConfigTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiSpeechConfig].
+  static const SchemanticType<GeminiSpeechConfig> $schema =
+      _GeminiSpeechConfigTypeFactory();
 
-  VoiceConfig? get voiceConfig {
+  GeminiVoiceConfig? get voiceConfig {
     return _json['voiceConfig'] == null
         ? null
-        : VoiceConfig.fromJson(_json['voiceConfig'] as Map<String, dynamic>);
+        : GeminiVoiceConfig.fromJson(
+            _json['voiceConfig'] as Map<String, dynamic>,
+          );
   }
 
-  set voiceConfig(VoiceConfig? value) {
+  set voiceConfig(GeminiVoiceConfig? value) {
     if (value == null) {
       _json.remove('voiceConfig');
     } else {
@@ -1218,15 +1252,15 @@ base class SpeechConfig {
     }
   }
 
-  MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig {
+  GeminiMultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig {
     return _json['multiSpeakerVoiceConfig'] == null
         ? null
-        : MultiSpeakerVoiceConfig.fromJson(
+        : GeminiMultiSpeakerVoiceConfig.fromJson(
             _json['multiSpeakerVoiceConfig'] as Map<String, dynamic>,
           );
   }
 
-  set multiSpeakerVoiceConfig(MultiSpeakerVoiceConfig? value) {
+  set multiSpeakerVoiceConfig(GeminiMultiSpeakerVoiceConfig? value) {
     if (value == null) {
       _json.remove('multiSpeakerVoiceConfig');
     } else {
@@ -1239,46 +1273,50 @@ base class SpeechConfig {
     return _json.toString();
   }
 
-  /// Serializes this [SpeechConfig] to a JSON map.
+  /// Serializes this [GeminiSpeechConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
-  const _SpeechConfigTypeFactory();
+base class _GeminiSpeechConfigTypeFactory
+    extends SchemanticType<GeminiSpeechConfig> {
+  const _GeminiSpeechConfigTypeFactory();
 
   @override
-  SpeechConfig parse(Object? json) {
-    return SpeechConfig._(json as Map<String, dynamic>);
+  GeminiSpeechConfig parse(Object? json) {
+    return GeminiSpeechConfig._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'SpeechConfig',
+    name: 'GeminiSpeechConfig',
     definition: <String, Object?>{
       'type': 'object',
       'description': 'Speech generation config',
       'properties': <String, Object?>{
-        'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/VoiceConfig'},
+        'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/GeminiVoiceConfig'},
         'multiSpeakerVoiceConfig': <String, Object?>{
-          r'$ref': r'#/$defs/MultiSpeakerVoiceConfig',
+          r'$ref': r'#/$defs/GeminiMultiSpeakerVoiceConfig',
         },
       },
     },
-    dependencies: [VoiceConfig.$schema, MultiSpeakerVoiceConfig.$schema],
+    dependencies: [
+      GeminiVoiceConfig.$schema,
+      GeminiMultiSpeakerVoiceConfig.$schema,
+    ],
   );
 }
 
-base class MultiSpeakerVoiceConfig {
-  /// Creates a [MultiSpeakerVoiceConfig] from a JSON map.
-  factory MultiSpeakerVoiceConfig.fromJson(Map<String, dynamic> json) =>
+base class GeminiMultiSpeakerVoiceConfig {
+  /// Creates a [GeminiMultiSpeakerVoiceConfig] from a JSON map.
+  factory GeminiMultiSpeakerVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  MultiSpeakerVoiceConfig._(this._json);
+  GeminiMultiSpeakerVoiceConfig._(this._json);
 
-  MultiSpeakerVoiceConfig({
-    required List<SpeakerVoiceConfig> speakerVoiceConfigs,
+  GeminiMultiSpeakerVoiceConfig({
+    required List<GeminiSpeakerVoiceConfig> speakerVoiceConfigs,
   }) {
     _json = {
       'speakerVoiceConfigs': speakerVoiceConfigs
@@ -1289,17 +1327,19 @@ base class MultiSpeakerVoiceConfig {
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [MultiSpeakerVoiceConfig].
-  static const SchemanticType<MultiSpeakerVoiceConfig> $schema =
-      _MultiSpeakerVoiceConfigTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiMultiSpeakerVoiceConfig].
+  static const SchemanticType<GeminiMultiSpeakerVoiceConfig> $schema =
+      _GeminiMultiSpeakerVoiceConfigTypeFactory();
 
-  List<SpeakerVoiceConfig> get speakerVoiceConfigs {
+  List<GeminiSpeakerVoiceConfig> get speakerVoiceConfigs {
     return (_json['speakerVoiceConfigs'] as List)
-        .map((e) => SpeakerVoiceConfig.fromJson(e as Map<String, dynamic>))
+        .map(
+          (e) => GeminiSpeakerVoiceConfig.fromJson(e as Map<String, dynamic>),
+        )
         .toList();
   }
 
-  set speakerVoiceConfigs(List<SpeakerVoiceConfig> value) {
+  set speakerVoiceConfigs(List<GeminiSpeakerVoiceConfig> value) {
     _json['speakerVoiceConfigs'] = value.map((e) => e.toJson()).toList();
   }
 
@@ -1308,24 +1348,24 @@ base class MultiSpeakerVoiceConfig {
     return _json.toString();
   }
 
-  /// Serializes this [MultiSpeakerVoiceConfig] to a JSON map.
+  /// Serializes this [GeminiMultiSpeakerVoiceConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _MultiSpeakerVoiceConfigTypeFactory
-    extends SchemanticType<MultiSpeakerVoiceConfig> {
-  const _MultiSpeakerVoiceConfigTypeFactory();
+base class _GeminiMultiSpeakerVoiceConfigTypeFactory
+    extends SchemanticType<GeminiMultiSpeakerVoiceConfig> {
+  const _GeminiMultiSpeakerVoiceConfigTypeFactory();
 
   @override
-  MultiSpeakerVoiceConfig parse(Object? json) {
-    return MultiSpeakerVoiceConfig._(json as Map<String, dynamic>);
+  GeminiMultiSpeakerVoiceConfig parse(Object? json) {
+    return GeminiMultiSpeakerVoiceConfig._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'MultiSpeakerVoiceConfig',
+    name: 'GeminiMultiSpeakerVoiceConfig',
     definition: <String, Object?>{
       'type': 'object',
       'description': 'Configuration for multi-speaker setup',
@@ -1333,34 +1373,36 @@ base class _MultiSpeakerVoiceConfigTypeFactory
         'speakerVoiceConfigs': <String, Object?>{
           'type': 'array',
           'description': 'Configuration for all the enabled speaker voices',
-          'items': <String, Object?>{r'$ref': r'#/$defs/SpeakerVoiceConfig'},
+          'items': <String, Object?>{
+            r'$ref': r'#/$defs/GeminiSpeakerVoiceConfig',
+          },
         },
       },
       'required': ['speakerVoiceConfigs'],
     },
-    dependencies: [SpeakerVoiceConfig.$schema],
+    dependencies: [GeminiSpeakerVoiceConfig.$schema],
   );
 }
 
-base class SpeakerVoiceConfig {
-  /// Creates a [SpeakerVoiceConfig] from a JSON map.
-  factory SpeakerVoiceConfig.fromJson(Map<String, dynamic> json) =>
+base class GeminiSpeakerVoiceConfig {
+  /// Creates a [GeminiSpeakerVoiceConfig] from a JSON map.
+  factory GeminiSpeakerVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  SpeakerVoiceConfig._(this._json);
+  GeminiSpeakerVoiceConfig._(this._json);
 
-  SpeakerVoiceConfig({
+  GeminiSpeakerVoiceConfig({
     required String speaker,
-    required VoiceConfig voiceConfig,
+    required GeminiVoiceConfig voiceConfig,
   }) {
     _json = {'speaker': speaker, 'voiceConfig': voiceConfig.toJson()};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [SpeakerVoiceConfig].
-  static const SchemanticType<SpeakerVoiceConfig> $schema =
-      _SpeakerVoiceConfigTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiSpeakerVoiceConfig].
+  static const SchemanticType<GeminiSpeakerVoiceConfig> $schema =
+      _GeminiSpeakerVoiceConfigTypeFactory();
 
   String get speaker {
     return _json['speaker'] as String;
@@ -1370,11 +1412,13 @@ base class SpeakerVoiceConfig {
     _json['speaker'] = value;
   }
 
-  VoiceConfig get voiceConfig {
-    return VoiceConfig.fromJson(_json['voiceConfig'] as Map<String, dynamic>);
+  GeminiVoiceConfig get voiceConfig {
+    return GeminiVoiceConfig.fromJson(
+      _json['voiceConfig'] as Map<String, dynamic>,
+    );
   }
 
-  set voiceConfig(VoiceConfig value) {
+  set voiceConfig(GeminiVoiceConfig value) {
     _json['voiceConfig'] = value.toJson();
   }
 
@@ -1383,24 +1427,24 @@ base class SpeakerVoiceConfig {
     return _json.toString();
   }
 
-  /// Serializes this [SpeakerVoiceConfig] to a JSON map.
+  /// Serializes this [GeminiSpeakerVoiceConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _SpeakerVoiceConfigTypeFactory
-    extends SchemanticType<SpeakerVoiceConfig> {
-  const _SpeakerVoiceConfigTypeFactory();
+base class _GeminiSpeakerVoiceConfigTypeFactory
+    extends SchemanticType<GeminiSpeakerVoiceConfig> {
+  const _GeminiSpeakerVoiceConfigTypeFactory();
 
   @override
-  SpeakerVoiceConfig parse(Object? json) {
-    return SpeakerVoiceConfig._(json as Map<String, dynamic>);
+  GeminiSpeakerVoiceConfig parse(Object? json) {
+    return GeminiSpeakerVoiceConfig._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'SpeakerVoiceConfig',
+    name: 'GeminiSpeakerVoiceConfig',
     definition: <String, Object?>{
       'type': 'object',
       'description':
@@ -1410,39 +1454,40 @@ base class _SpeakerVoiceConfigTypeFactory
           'type': 'string',
           'description': 'Name of the speaker to use',
         },
-        'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/VoiceConfig'},
+        'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/GeminiVoiceConfig'},
       },
       'required': ['speaker', 'voiceConfig'],
     },
-    dependencies: [VoiceConfig.$schema],
+    dependencies: [GeminiVoiceConfig.$schema],
   );
 }
 
-base class VoiceConfig {
-  /// Creates a [VoiceConfig] from a JSON map.
-  factory VoiceConfig.fromJson(Map<String, dynamic> json) =>
+base class GeminiVoiceConfig {
+  /// Creates a [GeminiVoiceConfig] from a JSON map.
+  factory GeminiVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  VoiceConfig._(this._json);
+  GeminiVoiceConfig._(this._json);
 
-  VoiceConfig({PrebuiltVoiceConfig? prebuiltVoiceConfig}) {
+  GeminiVoiceConfig({GeminiPrebuiltVoiceConfig? prebuiltVoiceConfig}) {
     _json = {'prebuiltVoiceConfig': ?prebuiltVoiceConfig?.toJson()};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [VoiceConfig].
-  static const SchemanticType<VoiceConfig> $schema = _VoiceConfigTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiVoiceConfig].
+  static const SchemanticType<GeminiVoiceConfig> $schema =
+      _GeminiVoiceConfigTypeFactory();
 
-  PrebuiltVoiceConfig? get prebuiltVoiceConfig {
+  GeminiPrebuiltVoiceConfig? get prebuiltVoiceConfig {
     return _json['prebuiltVoiceConfig'] == null
         ? null
-        : PrebuiltVoiceConfig.fromJson(
+        : GeminiPrebuiltVoiceConfig.fromJson(
             _json['prebuiltVoiceConfig'] as Map<String, dynamic>,
           );
   }
 
-  set prebuiltVoiceConfig(PrebuiltVoiceConfig? value) {
+  set prebuiltVoiceConfig(GeminiPrebuiltVoiceConfig? value) {
     if (value == null) {
       _json.remove('prebuiltVoiceConfig');
     } else {
@@ -1455,52 +1500,53 @@ base class VoiceConfig {
     return _json.toString();
   }
 
-  /// Serializes this [VoiceConfig] to a JSON map.
+  /// Serializes this [GeminiVoiceConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _VoiceConfigTypeFactory extends SchemanticType<VoiceConfig> {
-  const _VoiceConfigTypeFactory();
+base class _GeminiVoiceConfigTypeFactory
+    extends SchemanticType<GeminiVoiceConfig> {
+  const _GeminiVoiceConfigTypeFactory();
 
   @override
-  VoiceConfig parse(Object? json) {
-    return VoiceConfig._(json as Map<String, dynamic>);
+  GeminiVoiceConfig parse(Object? json) {
+    return GeminiVoiceConfig._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'VoiceConfig',
+    name: 'GeminiVoiceConfig',
     definition: <String, Object?>{
       'type': 'object',
       'description': 'Configuration for the voice to use',
       'properties': <String, Object?>{
         'prebuiltVoiceConfig': <String, Object?>{
-          r'$ref': r'#/$defs/PrebuiltVoiceConfig',
+          r'$ref': r'#/$defs/GeminiPrebuiltVoiceConfig',
         },
       },
     },
-    dependencies: [PrebuiltVoiceConfig.$schema],
+    dependencies: [GeminiPrebuiltVoiceConfig.$schema],
   );
 }
 
-base class PrebuiltVoiceConfig {
-  /// Creates a [PrebuiltVoiceConfig] from a JSON map.
-  factory PrebuiltVoiceConfig.fromJson(Map<String, dynamic> json) =>
+base class GeminiPrebuiltVoiceConfig {
+  /// Creates a [GeminiPrebuiltVoiceConfig] from a JSON map.
+  factory GeminiPrebuiltVoiceConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  PrebuiltVoiceConfig._(this._json);
+  GeminiPrebuiltVoiceConfig._(this._json);
 
-  PrebuiltVoiceConfig({String? voiceName}) {
+  GeminiPrebuiltVoiceConfig({String? voiceName}) {
     _json = {'voiceName': ?voiceName};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [PrebuiltVoiceConfig].
-  static const SchemanticType<PrebuiltVoiceConfig> $schema =
-      _PrebuiltVoiceConfigTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiPrebuiltVoiceConfig].
+  static const SchemanticType<GeminiPrebuiltVoiceConfig> $schema =
+      _GeminiPrebuiltVoiceConfigTypeFactory();
 
   String? get voiceName {
     return _json['voiceName'] as String?;
@@ -1519,24 +1565,24 @@ base class PrebuiltVoiceConfig {
     return _json.toString();
   }
 
-  /// Serializes this [PrebuiltVoiceConfig] to a JSON map.
+  /// Serializes this [GeminiPrebuiltVoiceConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _PrebuiltVoiceConfigTypeFactory
-    extends SchemanticType<PrebuiltVoiceConfig> {
-  const _PrebuiltVoiceConfigTypeFactory();
+base class _GeminiPrebuiltVoiceConfigTypeFactory
+    extends SchemanticType<GeminiPrebuiltVoiceConfig> {
+  const _GeminiPrebuiltVoiceConfigTypeFactory();
 
   @override
-  PrebuiltVoiceConfig parse(Object? json) {
-    return PrebuiltVoiceConfig._(json as Map<String, dynamic>);
+  GeminiPrebuiltVoiceConfig parse(Object? json) {
+    return GeminiPrebuiltVoiceConfig._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'PrebuiltVoiceConfig',
+    name: 'GeminiPrebuiltVoiceConfig',
     definition: <String, Object?>{
       'type': 'object',
       'description': 'Configuration for the prebuilt speaker to use',
@@ -1552,45 +1598,46 @@ base class _PrebuiltVoiceConfigTypeFactory
   );
 }
 
-base class GoogleSearch {
-  /// Creates a [GoogleSearch] from a JSON map.
-  factory GoogleSearch.fromJson(Map<String, dynamic> json) =>
+base class GeminiGoogleSearch {
+  /// Creates a [GeminiGoogleSearch] from a JSON map.
+  factory GeminiGoogleSearch.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  GoogleSearch._(this._json);
+  GeminiGoogleSearch._(this._json);
 
-  GoogleSearch() {
+  GeminiGoogleSearch() {
     _json = {};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [GoogleSearch].
-  static const SchemanticType<GoogleSearch> $schema =
-      _GoogleSearchTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiGoogleSearch].
+  static const SchemanticType<GeminiGoogleSearch> $schema =
+      _GeminiGoogleSearchTypeFactory();
 
   @override
   String toString() {
     return _json.toString();
   }
 
-  /// Serializes this [GoogleSearch] to a JSON map.
+  /// Serializes this [GeminiGoogleSearch] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _GoogleSearchTypeFactory extends SchemanticType<GoogleSearch> {
-  const _GoogleSearchTypeFactory();
+base class _GeminiGoogleSearchTypeFactory
+    extends SchemanticType<GeminiGoogleSearch> {
+  const _GeminiGoogleSearchTypeFactory();
 
   @override
-  GoogleSearch parse(Object? json) {
-    return GoogleSearch._(json as Map<String, dynamic>);
+  GeminiGoogleSearch parse(Object? json) {
+    return GeminiGoogleSearch._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'GoogleSearch',
+    name: 'GeminiGoogleSearch',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{},
@@ -1599,14 +1646,14 @@ base class _GoogleSearchTypeFactory extends SchemanticType<GoogleSearch> {
   );
 }
 
-base class TextEmbedderOptions {
-  /// Creates a [TextEmbedderOptions] from a JSON map.
-  factory TextEmbedderOptions.fromJson(Map<String, dynamic> json) =>
+base class GeminiEmbedderOptions {
+  /// Creates a [GeminiEmbedderOptions] from a JSON map.
+  factory GeminiEmbedderOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  TextEmbedderOptions._(this._json);
+  GeminiEmbedderOptions._(this._json);
 
-  TextEmbedderOptions({
+  GeminiEmbedderOptions({
     int? outputDimensionality,
     String? taskType,
     String? title,
@@ -1620,9 +1667,9 @@ base class TextEmbedderOptions {
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [TextEmbedderOptions].
-  static const SchemanticType<TextEmbedderOptions> $schema =
-      _TextEmbedderOptionsTypeFactory();
+  /// The JSON schema and type descriptor for [GeminiEmbedderOptions].
+  static const SchemanticType<GeminiEmbedderOptions> $schema =
+      _GeminiEmbedderOptionsTypeFactory();
 
   int? get outputDimensionality {
     return (_json['outputDimensionality'] as num?)?.toInt();
@@ -1665,24 +1712,24 @@ base class TextEmbedderOptions {
     return _json.toString();
   }
 
-  /// Serializes this [TextEmbedderOptions] to a JSON map.
+  /// Serializes this [GeminiEmbedderOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _TextEmbedderOptionsTypeFactory
-    extends SchemanticType<TextEmbedderOptions> {
-  const _TextEmbedderOptionsTypeFactory();
+base class _GeminiEmbedderOptionsTypeFactory
+    extends SchemanticType<GeminiEmbedderOptions> {
+  const _GeminiEmbedderOptionsTypeFactory();
 
   @override
-  TextEmbedderOptions parse(Object? json) {
-    return TextEmbedderOptions._(json as Map<String, dynamic>);
+  GeminiEmbedderOptions parse(Object? json) {
+    return GeminiEmbedderOptions._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'TextEmbedderOptions',
+    name: 'GeminiEmbedderOptions',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{

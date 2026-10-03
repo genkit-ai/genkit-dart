@@ -48,10 +48,10 @@ class GoogleGenAiPluginHandle {
   /// narrows to it, which is a breaking change for callers.
   ModelRef<GeminiOptions> gemma(String name) => gemini(name);
 
-  EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
+  EmbedderRef<GeminiEmbedderOptions> textEmbedding(String name) {
     return embedderRef(
       'googleai/$name',
-      customOptions: TextEmbedderOptions.$schema,
+      customOptions: GeminiEmbedderOptions.$schema,
     );
   }
 }

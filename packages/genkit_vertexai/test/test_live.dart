@@ -171,7 +171,7 @@ void main() {
           documents: [
             DocumentData(content: [TextPart(text: 'Hello')]),
           ],
-          options: TextEmbedderOptions(
+          options: GeminiEmbedderOptions(
             outputDimensionality: 256,
             taskType: 'RETRIEVAL_DOCUMENT',
           ),
