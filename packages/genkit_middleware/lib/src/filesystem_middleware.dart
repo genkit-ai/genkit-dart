@@ -154,7 +154,8 @@ class FilesystemMiddleware extends GenerateMiddleware {
       if (type == FileSystemEntityType.link) {
         // Same limit as Linux's MAXSYMLINKS; also stops link cycles.
         if (++hops > 40) throw _accessDenied();
-        final parent = File(p.dirname(current)).resolveSymbolicLinksSync();
+        final parent = Directory(p.dirname(current)).resolveSymbolicLinksSync();
+        // `join` returns an absolute target as is.
         current = p.normalize(p.join(parent, Link(current).targetSync()));
         continue;
       }

@@ -335,6 +335,18 @@ void main() {
         expect(paths.any((path) => path.contains('secret')), isFalse);
       });
 
+      test('denies relative link targets that climb out of the root', () async {
+        // The other tests use absolute targets; this covers relative ones.
+        await Link(
+          p.join(root.path, 'rel.txt'),
+        ).create(p.join('..', 'outside', 'secret.txt'));
+
+        expect(
+          () => toolNamed('read_file').runRaw({'filePath': 'rel.txt'}),
+          deniedMatcher,
+        );
+      });
+
       test('allows links that stay inside the root', () async {
         await Directory(p.join(root.path, 'real')).create();
         await File(p.join(root.path, 'real', 'f.txt')).writeAsString('inside');
