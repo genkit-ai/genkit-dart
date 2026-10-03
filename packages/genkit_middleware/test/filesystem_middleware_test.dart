@@ -210,13 +210,183 @@ void main() {
       expect(
         () => readTool.runRaw({'filePath': '../outside.txt'}),
         throwsA(
-          isA<Exception>().having(
-            (e) => e.toString(),
-            'message',
-            contains('Access denied'),
-          ),
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.permissionDenied)
+              .having((e) => e.message, 'message', contains('Access denied')),
         ),
       );
+    });
+
+    group('symlinks', () {
+      // Layout: tempDir/root is the sandbox, tempDir/outside is not.
+      late Directory root;
+      late Directory outside;
+      late FilesystemMiddleware mw;
+
+      Tool toolNamed(String name) => mw.tools.firstWhere((t) => t.name == name);
+
+      final deniedMatcher = throwsA(
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.permissionDenied)
+            .having((e) => e.message, 'message', contains('Access denied')),
+      );
+
+      setUp(() async {
+        root = await Directory(p.join(tempDir.path, 'root')).create();
+        outside = await Directory(p.join(tempDir.path, 'outside')).create();
+        await File(p.join(outside.path, 'secret.txt')).writeAsString('secret');
+        mw = FilesystemMiddleware(root.path);
+      });
+
+      test('denies reading through a link to an outside file', () async {
+        await Link(
+          p.join(root.path, 'link.txt'),
+        ).create(p.join(outside.path, 'secret.txt'));
+
+        expect(
+          () => toolNamed('read_file').runRaw({'filePath': 'link.txt'}),
+          deniedMatcher,
+        );
+      });
+
+      test('denies reading through a link to an outside directory', () async {
+        await Link(p.join(root.path, 'dir')).create(outside.path);
+
+        expect(
+          () => toolNamed('read_file').runRaw({'filePath': 'dir/secret.txt'}),
+          deniedMatcher,
+        );
+        expect(
+          () => toolNamed('list_files').runRaw({'dirPath': 'dir'}),
+          deniedMatcher,
+        );
+      });
+
+      test('denies writing through a link to an outside file', () async {
+        await Link(
+          p.join(root.path, 'link.txt'),
+        ).create(p.join(outside.path, 'secret.txt'));
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'link.txt', 'content': 'pwned'}),
+          deniedMatcher,
+        );
+        expect(
+          File(p.join(outside.path, 'secret.txt')).readAsStringSync(),
+          'secret',
+        );
+      });
+
+      test('denies writing a new file under a linked directory', () async {
+        await Link(p.join(root.path, 'dir')).create(outside.path);
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'dir/new/file.txt', 'content': 'pwned'}),
+          deniedMatcher,
+        );
+        expect(Directory(p.join(outside.path, 'new')).existsSync(), isFalse);
+      });
+
+      test('denies writing through a dangling link', () async {
+        final target = p.join(outside.path, 'created.txt');
+        await Link(p.join(root.path, 'dangling.txt')).create(target);
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'dangling.txt', 'content': 'pwned'}),
+          deniedMatcher,
+        );
+        expect(File(target).existsSync(), isFalse);
+      });
+
+      test('denies search_and_replace through a link', () async {
+        await Link(
+          p.join(root.path, 'link.txt'),
+        ).create(p.join(outside.path, 'secret.txt'));
+
+        expect(
+          () => toolNamed('search_and_replace').runRaw({
+            'filePath': 'link.txt',
+            'edits': [
+              '<<<<<<< SEARCH\nsecret\n=======\npwned\n>>>>>>> REPLACE',
+            ],
+          }),
+          deniedMatcher,
+        );
+      });
+
+      test('recursive listing does not descend into links', () async {
+        await File(p.join(root.path, 'a.txt')).create();
+        await Link(p.join(root.path, 'dir')).create(outside.path);
+
+        final result = await toolNamed(
+          'list_files',
+        ).runRaw({'dirPath': '', 'recursive': true});
+        final paths = (result.result.output as List<ListFileOutputItem>)
+            .map((i) => i.path)
+            .toList();
+
+        expect(paths, containsAll(['a.txt', 'dir']));
+        expect(paths.any((path) => path.contains('secret')), isFalse);
+      });
+
+      test('allows links that stay inside the root', () async {
+        await Directory(p.join(root.path, 'real')).create();
+        await File(p.join(root.path, 'real', 'f.txt')).writeAsString('inside');
+        await Link(
+          p.join(root.path, 'alias'),
+        ).create(p.join(root.path, 'real'));
+
+        await toolNamed(
+          'write_file',
+        ).runRaw({'filePath': 'alias/g.txt', 'content': 'written'});
+        expect(
+          File(p.join(root.path, 'real', 'g.txt')).readAsStringSync(),
+          'written',
+        );
+        await toolNamed('read_file').runRaw({'filePath': 'alias/f.txt'});
+      });
+
+      test('works when the root itself is a link', () async {
+        final linkedRoot = Link(p.join(tempDir.path, 'linked-root'));
+        await linkedRoot.create(root.path);
+        mw = FilesystemMiddleware(linkedRoot.path);
+
+        await toolNamed(
+          'write_file',
+        ).runRaw({'filePath': 'f.txt', 'content': 'ok'});
+        expect(File(p.join(root.path, 'f.txt')).readAsStringSync(), 'ok');
+        expect(
+          () => toolNamed(
+            'read_file',
+          ).runRaw({'filePath': '../outside/secret.txt'}),
+          deniedMatcher,
+        );
+      });
+
+      test('works with a relative root', () async {
+        final previous = Directory.current;
+        Directory.current = tempDir;
+        addTearDown(() => Directory.current = previous);
+        mw = FilesystemMiddleware('root');
+
+        await toolNamed(
+          'write_file',
+        ).runRaw({'filePath': 'f.txt', 'content': 'ok'});
+        expect(File(p.join(root.path, 'f.txt')).readAsStringSync(), 'ok');
+        await Link(
+          p.join(root.path, 'link.txt'),
+        ).create(p.join(outside.path, 'secret.txt'));
+        expect(
+          () => toolNamed('read_file').runRaw({'filePath': 'link.txt'}),
+          deniedMatcher,
+        );
+      });
     });
 
     test('should write file', () async {
