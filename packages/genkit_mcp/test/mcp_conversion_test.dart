@@ -161,7 +161,7 @@ void main() {
     expect(() => mcp.Tool.fromJson(payload), returnsNormally);
   });
 
-  test('tool conversion rejects non-object input schemas', () {
+  test('tool conversion wraps non-object input schemas', () {
     final tool = Tool<String, String>(
       name: 'scalarInputTool',
       description: 'scalar input tool',
@@ -169,16 +169,14 @@ void main() {
       fn: (input, _) async => .response(input),
     );
 
-    expect(
-      () => toMcpTool(tool),
-      throwsA(
-        predicate(
-          (error) =>
-              error is GenkitException &&
-              error.status == StatusCode.failedPrecondition,
-        ),
-      ),
-    );
+    final payload = toMcpTool(tool);
+    final inputSchema = payload['inputSchema'] as Map<String, dynamic>;
+    expect(inputSchema['type'], 'object');
+    expect(inputSchema['properties'], {
+      'input': {'type': 'string'},
+    });
+    expect(inputSchema['required'], ['input']);
+    expect(() => mcp.Tool.fromJson(payload), returnsNormally);
   });
 
   test('tool conversion omits non-object output schemas', () {

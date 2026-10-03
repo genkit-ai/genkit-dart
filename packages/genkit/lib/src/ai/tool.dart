@@ -267,6 +267,94 @@ base class Tool<Input, Output>
   @override
   @internal
   SchemanticType? get manifestOutputSchema => toolOutputSchema;
+
+  /// Whether the model sees this tool's input wrapped as `{"input": <value>}`.
+  ///
+  /// Model providers (and MCP) only accept object-typed tool parameters, so a
+  /// tool whose [inputSchema] is a primitive, a list, or another non-object
+  /// type is presented to the model through a one-field object instead:
+  ///
+  /// ```dart
+  /// ai.defineTool(
+  ///   name: 'echo',
+  ///   description: 'Echoes a string back.',
+  ///   inputSchema: .string(),
+  ///   fn: (input, _) async => .response('echo: $input'), // input is a String
+  /// );
+  /// // The model sees:
+  /// // {"type":"object","properties":{"input":{"type":"string"}},"required":["input"]}
+  /// ```
+  ///
+  /// Only schemas that are known to be non-object are wrapped. A missing or
+  /// empty schema (`.dynamicSchema()`) is left as is, since providers already
+  /// treat it as an object.
+  late final bool wrapsInput =
+      inputSchema != null &&
+      _isNonObjectSchema(inputSchema!.jsonSchema(useRefs: true));
+
+  /// The JSON schema the model sees for this tool's input: [inputSchema],
+  /// wrapped as described in [wrapsInput]. Null when there is no input schema.
+  Map<String, dynamic>? get modelInputSchema {
+    final schema = inputSchema?.jsonSchema(useRefs: true);
+    if (schema == null) return null;
+    if (!wrapsInput) return {...schema, r'$schema': _draft07};
+    // Copied: `jsonSchema` implementations may hand out a shared map.
+    final inner = {...schema};
+    // `$defs` stay at the root, where `#/$defs/...` references resolve.
+    final defs = inner.remove(r'$defs');
+    inner.remove(r'$schema');
+    return {
+      'type': 'object',
+      'properties': {_inputWrapperKey: inner},
+      'required': [_inputWrapperKey],
+      r'$defs': ?defs,
+      r'$schema': _draft07,
+    };
+  }
+
+  /// Converts a tool request input from the model (see [wrapsInput]) into the
+  /// value this tool's function expects.
+  ///
+  /// Inputs that aren't wrapped are returned unchanged, so a caller-supplied
+  /// replacement input (e.g. on an interrupt restart) can use either form.
+  Object? inputFromModel(Object? input) {
+    if (wrapsInput && input is Map && input.containsKey(_inputWrapperKey)) {
+      return input[_inputWrapperKey];
+    }
+    return input;
+  }
+}
+
+const _inputWrapperKey = 'input';
+const _draft07 = 'http://json-schema.org/draft-07/schema#';
+
+/// Whether [schema] definitely describes a non-object value. Follows a root
+/// `$ref` into `$defs` (how schemantic emits named types) and treats a union as
+/// non-object when any non-null branch is.
+bool _isNonObjectSchema(
+  Map<String, dynamic> schema, [
+  Map<String, dynamic>? defs,
+]) {
+  defs ??= (schema[r'$defs'] as Map?)?.cast<String, dynamic>();
+  final ref = schema[r'$ref'];
+  if (ref is String) {
+    const prefix = r'#/$defs/';
+    if (defs == null || !ref.startsWith(prefix)) return false;
+    final target = defs[ref.substring(prefix.length)];
+    return target is Map &&
+        _isNonObjectSchema(target.cast<String, dynamic>(), defs);
+  }
+  final type = schema['type'];
+  if (type is String) return type != 'object';
+  if (type is List) return !type.contains('object');
+  final branches = schema['anyOf'] ?? schema['oneOf'];
+  if (branches is List) {
+    return branches.whereType<Map>().any((branch) {
+      final b = branch.cast<String, dynamic>();
+      return b['type'] != 'null' && _isNonObjectSchema(b, defs);
+    });
+  }
+  return false;
 }
 
 /// A special kind of [Tool] that always interrupts the generation loop.
