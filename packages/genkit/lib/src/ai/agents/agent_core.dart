@@ -33,6 +33,7 @@ import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../core/cancellation.dart';
+import '../../exception.dart';
 import '../../experimental_types.dart';
 import '../../schema_extensions.dart';
 import '../../types.dart';
@@ -1045,9 +1046,10 @@ final class AgentChat<State> {
 
   AgentError<State> _toAgentError(Object e) {
     if (e is AgentError<State>) return e;
-    final message = e.toString();
-    final match = RegExp(r'^([A-Z_]+):').firstMatch(message);
-    final status = match != null ? match.group(1)! : 'UNKNOWN';
+    final (status, message) = switch (e) {
+      GenkitException() => (e.status.wireName, e.message),
+      _ => ('UNKNOWN', e.toString()),
+    };
     final raw = AgentOutput(
       finishReason: AgentFinishReason.failed,
       error: AgentErrorInfo(status: status, message: message),

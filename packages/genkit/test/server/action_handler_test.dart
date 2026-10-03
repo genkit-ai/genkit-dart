@@ -316,6 +316,130 @@ void main() {
     expect(body['message'], 'You shall not pass');
   });
 
+  group('the client keeps the server error status and message', () {
+    // FAILED_PRECONDITION shares HTTP 400 with INVALID_ARGUMENT, so it shows
+    // whether the status comes from the body or from the HTTP code.
+    late String base;
+    setUp(() async {
+      final failing = ai.defineFlow(
+        name: 'failing',
+        fn: (String _, ctx) async {
+          ctx.sendChunk('partial');
+          throw GenkitException(
+            'Not ready yet',
+            status: StatusCode.failedPrecondition,
+          );
+        },
+        inputSchema: .string(),
+        outputSchema: .string(),
+        streamSchema: .string(),
+      );
+      server = await (GenkitRouter()..addAction(failing)).serve(port: 0);
+      base = 'http://127.0.0.1:${server!.port}';
+    });
+
+    final isPrecondition = isA<GenkitException>()
+        .having((e) => e.status, 'status', StatusCode.failedPrecondition)
+        .having((e) => e.message, 'message', 'Not ready yet');
+
+    test('unary non-200', () async {
+      final action = defineRemoteAction(
+        url: '$base/failing',
+        outputSchema: .string(),
+      );
+      await expectLater(action(input: 'x'), throwsA(isPrecondition));
+    });
+
+    test('stream error frame', () async {
+      final action = defineRemoteAction(
+        url: '$base/failing',
+        outputSchema: .string(),
+        streamSchema: .string(),
+      );
+      final stream = action.stream(input: 'x');
+      await expectLater(stream.drain<void>(), throwsA(isPrecondition));
+    });
+
+    test('streaming non-200', () async {
+      // A context provider rejects before the stream starts.
+      await server!.close(force: true);
+      final guarded = ai.defineFlow(
+        name: 'guarded',
+        fn: (String _, ctx) async => 'unreachable',
+        inputSchema: .string(),
+        outputSchema: .string(),
+        streamSchema: .string(),
+      );
+      server =
+          await (GenkitRouter()..addAction(
+                guarded,
+                contextProvider: (_) => throw GenkitException(
+                  'Not ready yet',
+                  status: StatusCode.failedPrecondition,
+                ),
+              ))
+              .serve(port: 0);
+
+      final action = defineRemoteAction(
+        url: 'http://127.0.0.1:${server!.port}/guarded',
+        outputSchema: .string(),
+        streamSchema: .string(),
+      );
+      final stream = action.stream(input: 'x');
+      await expectLater(stream.drain<void>(), throwsA(isPrecondition));
+    });
+
+    test('200 with an error body', () async {
+      final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => proxy.close(force: true));
+      proxy.listen((request) {
+        request.response
+          ..headers.contentType = ContentType.json
+          ..write(
+            jsonEncode({
+              'error': {
+                'status': 'FAILED_PRECONDITION',
+                'message': 'Not ready yet',
+              },
+            }),
+          )
+          ..close();
+      });
+
+      final action = defineRemoteAction(
+        url: 'http://127.0.0.1:${proxy.port}/any',
+        outputSchema: .string(),
+      );
+      await expectLater(action(input: 'x'), throwsA(isPrecondition));
+    });
+
+    test('falls back to the HTTP status for a non-Genkit body', () async {
+      final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => proxy.close(force: true));
+      proxy.listen((request) {
+        request.response
+          ..statusCode = 502
+          ..headers.contentType = ContentType.html
+          ..write('<html>Bad Gateway</html>')
+          ..close();
+      });
+
+      final action = defineRemoteAction(
+        url: 'http://127.0.0.1:${proxy.port}/any',
+        outputSchema: .string(),
+      );
+      await expectLater(
+        action(input: 'x'),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.unknown)
+              .having((e) => e.message, 'message', 'Server returned error: 502')
+              .having((e) => e.details, 'details', '<html>Bad Gateway</html>'),
+        ),
+      );
+    });
+  });
+
   test('Unary flow rejects a null input with 400', () async {
     final echoFlow = ai.defineFlow(
       name: 'echoNonNull',

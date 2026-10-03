@@ -113,6 +113,32 @@ void main() {
     expect(await agent.abort(res.snapshotId!), SnapshotStatus.completed);
   });
 
+  test('a rejected remote turn surfaces the server status', () async {
+    final greeter = _defineGreeter(
+      ai,
+      'greeter',
+      store: InMemorySessionStore(),
+    );
+    final base = await serve(
+      GenkitRouter()..addAgent(
+        greeter,
+        contextProvider: (_) => throw GenkitException(
+          'Sign in first',
+          status: StatusCode.unauthenticated,
+        ),
+      ),
+    );
+
+    await expectLater(
+      remoteAgent(url: '$base/greeter').chat().send(text: 'hi'),
+      throwsA(
+        isA<AgentError<dynamic>>()
+            .having((e) => e.status, 'status', 'UNAUTHENTICATED')
+            .having((e) => e.message, 'message', 'Sign in first'),
+      ),
+    );
+  });
+
   test('serves at a custom path', () async {
     final greeter = _defineGreeter(
       ai,
