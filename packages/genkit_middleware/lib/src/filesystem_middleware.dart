@@ -106,14 +106,67 @@ class FilesystemMiddleware extends GenerateMiddleware {
 
   FilesystemMiddleware(this.rootDirectory);
 
+  late final String _lexicalRoot = p.canonicalize(rootDirectory);
+
+  // Resolved lazily (and once) so a root that doesn't exist yet still works,
+  // and so a root that is itself a symlink (e.g. macOS /tmp) compares equal to
+  // the real paths of its children.
+  late final String _realRoot = _realPath(_lexicalRoot);
+
+  /// Resolves [relativePath] against [rootDirectory] and returns the real
+  /// (symlink-free) path, or throws if it points outside the root.
+  ///
+  /// There is an unavoidable gap between this check and the I/O that follows
+  /// (TOCTOU). None of the tools can create links, so the model can't exploit
+  /// it on its own; something else would have to swap a path for a link in
+  /// between.
   String _resolvePath(String relativePath) {
-    // Normalize and resolve the path
-    final resolved = p.canonicalize(p.join(rootDirectory, relativePath));
-    // Check if the path is within the root path
-    if (!p.isWithin(rootDirectory, resolved) && resolved != rootDirectory) {
-      throw Exception('Access denied: Path is outside of root directory.');
+    // Lexical check first: cheap, and rejects `..` and absolute paths early.
+    final lexical = p.canonicalize(p.join(rootDirectory, relativePath));
+    if (!_isWithinOrEqual(_lexicalRoot, lexical)) throw _accessDenied();
+
+    // Then follow symlinks, so a link inside the root can't point outside it.
+    final real = _realPath(lexical);
+    if (!_isWithinOrEqual(_realRoot, real)) throw _accessDenied();
+    return real;
+  }
+
+  static bool _isWithinOrEqual(String root, String path) =>
+      p.equals(root, path) || p.isWithin(root, path);
+
+  static GenkitException _accessDenied() => GenkitException(
+    'Access denied: Path is outside of root directory.',
+    status: StatusCode.permissionDenied,
+  );
+
+  /// Returns the real path of [path], following every symlink along the way.
+  ///
+  /// Paths that don't exist yet (e.g. for `write_file`) are resolved through
+  /// their nearest existing ancestor. Dangling links are followed by hand,
+  /// because `resolveSymbolicLinksSync` throws on them, and writing through
+  /// one would create its (possibly outside) target.
+  static String _realPath(String path) {
+    var current = path;
+    final rest = <String>[];
+    var hops = 0;
+    while (true) {
+      final type = FileSystemEntity.typeSync(current, followLinks: false);
+      if (type == FileSystemEntityType.link) {
+        // Same limit as Linux's MAXSYMLINKS; also stops link cycles.
+        if (++hops > 40) throw _accessDenied();
+        final parent = Directory(p.dirname(current)).resolveSymbolicLinksSync();
+        // `join` returns an absolute target as is.
+        current = p.normalize(p.join(parent, Link(current).targetSync()));
+        continue;
+      }
+      if (type != FileSystemEntityType.notFound) {
+        return p.joinAll([File(current).resolveSymbolicLinksSync(), ...rest]);
+      }
+      final parent = p.dirname(current);
+      if (parent == current) return p.joinAll([current, ...rest]);
+      rest.insert(0, p.basename(current));
+      current = parent;
     }
-    return resolved;
   }
 
   @override
@@ -133,7 +186,10 @@ class FilesystemMiddleware extends GenerateMiddleware {
           final d = Directory(dir);
           if (!await d.exists()) return results;
 
-          await for (final entity in d.list()) {
+          // Links are listed (as non-directories) but never recursed into, so
+          // a link to a directory outside the root can't leak its contents.
+          // Listing a link explicitly goes through `_resolvePath`.
+          await for (final entity in d.list(followLinks: false)) {
             final name = p.basename(entity.path);
             final relativePath = p.join(base, name);
             final isDirectory = entity is Directory;
