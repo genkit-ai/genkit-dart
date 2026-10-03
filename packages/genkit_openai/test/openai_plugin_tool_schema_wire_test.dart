@@ -143,40 +143,57 @@ void main() {
       await ai.shutdown();
     });
 
-    test(
-      'tool with a primitive input schema fails before any request',
-      () async {
-        final captured = <Map<String, dynamic>>[];
-        final ai = Genkit(
-          plugins: [
-            openAI(apiKey: 'test-key', httpClient: wireClient(captured)),
-          ],
-        );
-        ai.defineTool<String, String>(
-          name: 'echo',
-          description: 'Echoes the input',
-          inputSchema: .string(),
-          outputSchema: .string(),
-          fn: (input, ctx) async => .response(input),
-        );
+    test('a tool with a primitive input schema goes out wrapped', () async {
+      final captured = <Map<String, dynamic>>[];
+      final ai = Genkit(
+        plugins: [openAI(apiKey: 'test-key', httpClient: wireClient(captured))],
+      );
+      ai.defineTool<String, String>(
+        name: 'echo',
+        description: 'Echoes the input',
+        inputSchema: .string(),
+        outputSchema: .string(),
+        fn: (input, ctx) async => .response(input),
+      );
 
-        // The primitive tool schema throws while building the request, before
-        // any HTTP call. `generate` no longer rethrows: it resolves to a
-        // `failed` response carrying the error, so assert on that (and that
-        // nothing hit the wire).
-        final res = await ai.generate(
-          model: openAI.model('gpt-4o'),
-          prompt: 'Echo hello.',
-          toolNames: ['echo'],
-        );
-        expect(res.finishReason, FinishReason.failed);
-        expect(res.error, isNotNull);
-        expect(res.error!.status, StatusCode.invalidArgument.wireName);
-        expect(res.error!.message, allOf(contains('echo'), contains('object')));
-        expect(captured, isEmpty);
+      final res = await ai.generate(
+        model: openAI.model('gpt-4o'),
+        prompt: 'Echo hello.',
+        toolNames: ['echo'],
+      );
+      expect(res.finishReason, isNot(FinishReason.failed));
 
-        await ai.shutdown();
-      },
-    );
+      final tools = (captured.single['tools'] as List)
+          .cast<Map<String, dynamic>>();
+      final parameters = (tools.single['function'] as Map)['parameters'] as Map;
+      expect(parameters['type'], 'object');
+      expect(parameters['properties'], {
+        'input': {'type': 'string'},
+      });
+      expect(parameters['required'], ['input']);
+
+      await ai.shutdown();
+    });
+
+    test('a hand-built primitive ToolDefinition is still rejected', () {
+      // Tools defined through Genkit are wrapped in core; this check is the
+      // safety net for definitions built by hand.
+      expect(
+        () => GenkitConverter.toOpenAITool(
+          ToolDefinition(
+            name: 'echo',
+            description: 'Echoes the input',
+            inputSchema: {'type': 'string'},
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+    });
   });
 }

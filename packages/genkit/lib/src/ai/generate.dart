@@ -90,9 +90,9 @@ ToolDefinition toToolDefinition(Tool tool) {
     name: name,
     key: tool.key,
     description: tool.description!,
-    inputSchema: tool.inputSchema?.jsonSchema != null
-        ? toJsonSchema(type: tool.inputSchema)
-        : null,
+    // Non-object inputs are wrapped in `{input: ...}` (see `Tool.wrapsInput`)
+    // and unwrapped again right before the tool runs.
+    inputSchema: tool.modelInputSchema,
     outputSchema: tool.toolOutputSchema?.jsonSchema != null
         ? toJsonSchema(type: tool.toolOutputSchema)
         : null,
@@ -1438,8 +1438,11 @@ _executeTools(
     ) async {
       _recordResumedMetadata(c.context);
       c.cancel?.throwIfCancelled();
+      // Unwrapped here, at the last moment, so history keeps the request
+      // exactly as the model sent it (needed for replays and provider
+      // round-trips). Middleware `tool` hooks therefore see the wrapped form.
       return (await tool.runRaw(
-        req.toolRequest.input,
+        tool.inputFromModel(req.toolRequest.input),
         context: c.context,
         cancel: c.cancel,
       )).result;

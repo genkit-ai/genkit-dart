@@ -212,6 +212,40 @@ void main() {
     await server.close();
   });
 
+  test('a primitive tool input is wrapped for MCP clients', () async {
+    final ai = Genkit();
+    ai.defineTool<String, String>(
+      name: 'echo',
+      description: 'Echo a string back.',
+      inputSchema: .string(),
+      fn: (input, _) async => .response('echo: $input'),
+    );
+    final server = _createServer(ai);
+    await _request(server, 'initialize', id: 1, params: {});
+
+    final tools = await _request(server, 'tools/list', id: 2, params: {});
+    final toolList = _asList(_asMap(tools?['result'])['tools']);
+    final inputSchema = _asMap(_asMap(toolList.single)['inputSchema']);
+    expect(inputSchema['type'], 'object');
+    expect(inputSchema['properties'], {
+      'input': {'type': 'string'},
+    });
+
+    final call = await _request(
+      server,
+      'tools/call',
+      id: 3,
+      params: {
+        'name': 'echo',
+        'arguments': {'input': 'hello'},
+      },
+    );
+    final content = _asList(_asMap(call?['result'])['content']);
+    expect(_asMap(content.first)['text'], 'echo: hello');
+
+    await server.close();
+  });
+
   test('MCP server lists and executes actions', () async {
     final ai = Genkit();
     ai.defineTool<Map<String, dynamic>, String>(

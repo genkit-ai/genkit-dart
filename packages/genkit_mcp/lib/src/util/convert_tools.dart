@@ -22,7 +22,11 @@ Map<String, dynamic> toMcpTool(
   final meta = _extractMcpMeta(tool.metadata);
   final metaEntry = meta == null ? null : {'_meta': meta};
   final annotations = _extractMcpAnnotations(tool.metadata);
-  final inputSchema = _toMcpObjectSchema(tool.inputSchema);
+  // Non-object inputs are wrapped in `{input: ...}`, the same way they are
+  // for models (see `Tool.wrapsInput`); `_callTool` unwraps them.
+  final inputSchema = tool.wrapsInput
+      ? tool.modelInputSchema
+      : _toMcpObjectSchema(tool.inputSchema);
   if (tool.inputSchema != null && inputSchema == null) {
     throw GenkitException(
       'MCP tool "${tool.name}" input schema must have root type "object".',
