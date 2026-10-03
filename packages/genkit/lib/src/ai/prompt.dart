@@ -177,9 +177,17 @@ final class PromptConfig<Input, Output, CustomOptions> {
   /// options stay free of an empty `output` block. Cached once resolved: the
   /// config is immutable and this is read on every render (and every agent
   /// turn). A deferred schema that fails to resolve is retried next time.
-  GenerateActionOutputConfig? get resolvedOutput =>
-      _resolvedOutput ??= _resolveOutput();
+  GenerateActionOutputConfig? get resolvedOutput {
+    // A throwing `_resolveOutput` leaves the flag unset, so it is retried.
+    if (!_outputResolved) {
+      _resolvedOutput = _resolveOutput();
+      _outputResolved = true;
+    }
+    return _resolvedOutput;
+  }
+
   GenerateActionOutputConfig? _resolvedOutput;
+  bool _outputResolved = false;
 
   GenerateActionOutputConfig? _resolveOutput() {
     final jsonSchema = outputSchema != null
