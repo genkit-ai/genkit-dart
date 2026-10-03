@@ -1,0 +1,10 @@
+---
+model: googleai/gemini-flash-latest
+input:
+  schema:
+    food: string, the dish to make
+output:
+  format: json
+  schema: Recipe
+---
+Generate a short recipe for {{food}}.

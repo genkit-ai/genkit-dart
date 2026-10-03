@@ -108,6 +108,13 @@ final class PromptConfig<Input, Output, CustomOptions> {
   /// Middleware references.
   final List<GenerateMiddlewareRef>? use;
 
+  /// Supplies [output]'s JSON schema at render time instead of up front.
+  ///
+  /// Set by the `.prompt` loader for Picoschema output schemas, which may name
+  /// types registered with `defineSchema` after the prompt was loaded. Called
+  /// on every render until it succeeds; throws when a name is still undefined.
+  final Map<String, dynamic> Function()? deferredOutputJsonSchema;
+
   PromptConfig({
     required this.name,
     this.variant,
@@ -130,6 +137,7 @@ final class PromptConfig<Input, Output, CustomOptions> {
     this.toolNames,
     this.toolChoice,
     this.use,
+    this.deferredOutputJsonSchema,
   }) {
     if (outputSchema != null && output?.jsonSchema != null) {
       throw ArgumentError(
@@ -149,22 +157,48 @@ final class PromptConfig<Input, Output, CustomOptions> {
   /// Whether the model is asked for structured output, i.e. whether a
   /// formatter will parse the response into `output` at all.
   bool get _requestsStructuredOutput =>
-      resolvedOutput?.format != null || resolvedOutput?.jsonSchema != null;
+      output?.format != null || _definesWireSchema;
+
+  /// Whether the model is given an output schema. Known without resolving a
+  /// deferred schema, so definition-time checks don't depend on what has been
+  /// registered yet.
+  bool get _definesWireSchema =>
+      outputSchema != null ||
+      output?.jsonSchema != null ||
+      deferredOutputJsonSchema != null;
 
   /// The full name including variant.
   String get fullName => variant != null ? '$name.$variant' : name;
 
-  /// The wire output config, with [outputSchema]'s JSON schema folded in.
+  /// The wire output config, with [outputSchema]'s (or the deferred) JSON
+  /// schema folded in.
   ///
   /// Null when the prompt configures no output at all, so the rendered
-  /// options stay free of an empty `output` block. Computed once: the config
-  /// is immutable and this is read on every render (and every agent turn).
-  late final GenerateActionOutputConfig? resolvedOutput = outputSchema == null
-      ? output
-      : GenerateActionOutputConfig.fromJson({
-          ...?output?.toJson(),
-          'jsonSchema': toJsonSchema(type: outputSchema),
-        });
+  /// options stay free of an empty `output` block. Cached once resolved: the
+  /// config is immutable and this is read on every render (and every agent
+  /// turn). A deferred schema that fails to resolve is retried next time.
+  GenerateActionOutputConfig? get resolvedOutput {
+    // A throwing `_resolveOutput` leaves the flag unset, so it is retried.
+    if (!_outputResolved) {
+      _resolvedOutput = _resolveOutput();
+      _outputResolved = true;
+    }
+    return _resolvedOutput;
+  }
+
+  GenerateActionOutputConfig? _resolvedOutput;
+  bool _outputResolved = false;
+
+  GenerateActionOutputConfig? _resolveOutput() {
+    final jsonSchema = outputSchema != null
+        ? toJsonSchema(type: outputSchema)
+        : deferredOutputJsonSchema?.call();
+    if (jsonSchema == null) return output;
+    return GenerateActionOutputConfig.fromJson({
+      ...?output?.toJson(),
+      'jsonSchema': jsonSchema,
+    });
+  }
 }
 
 /// Options for generating from a prompt (everything except prompt/system
@@ -848,7 +882,7 @@ String? _outputTypeError<Output>({
   final lookup = site == _OutputCheckSite.lookup;
   // Covers every way a prompt defines its wire schema: `outputSchema`, a
   // `jsonSchema` on `output`, and a `.prompt` file's `output.schema`.
-  final hasWireSchema = config.resolvedOutput?.jsonSchema != null;
+  final hasWireSchema = config._definesWireSchema;
   final requestsJson = config._requestsStructuredOutput;
 
   if (hasParser || !_isJsonAssignable<Output>()) {
