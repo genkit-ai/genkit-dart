@@ -1349,8 +1349,8 @@ Agent<State> defineCustomAgent<State>(
       final detachCompleter = Completer<void>();
       // Own a controller for this turn (cancelled on detach-abort or when
       // the persisted snapshot flips to `aborted`) and link the ambient
-      // transport token to it, so an attached `runTurn(cancel:)` also
-      // cooperatively stops this turn's `generate`.
+      // transport token to it while the turn is attached, so an attached
+      // `runTurn(cancel:)` also cooperatively stops this turn's `generate`.
       final cancelController = CancellationController();
       // Capture the disposer so a reused, long-lived `ctx.cancel` token
       // doesn't accumulate one stranded listener (pinning this turn's
@@ -1411,6 +1411,11 @@ Agent<State> defineCustomAgent<State>(
         cancel: cancelToken,
         onDetach: (snapshotId) {
           detachedSnapshotId = snapshotId;
+          // A detached turn outlives the request that started it: from here
+          // on it is stopped only via abort / the snapshot status (below).
+          // Without this, a transport that cancels its token once the
+          // response is sent (the streaming HTTP handler) aborts the turn.
+          unlinkCancel?.call();
           if (!detachCompleter.isCompleted) detachCompleter.complete();
 
           // Refresh the detached snapshot's heartbeat periodically. The
