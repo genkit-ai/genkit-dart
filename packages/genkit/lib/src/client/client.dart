@@ -23,13 +23,64 @@ import '../exception.dart';
 
 const _flowStreamDelimiter = '\n\n';
 
-/// Maps the `error` payload of a streamed error frame to a [GenkitException].
-GenkitException _streamError(Object? error) {
-  final message = error is Map<String, dynamic>
-      ? (error['message'] as String?) ?? 'Unknown streaming error'
-      : 'Unknown streaming error';
-  return GenkitException(message, details: jsonEncode(error));
+/// Builds a [GenkitException] from a Genkit error body, keeping the server's
+/// status and message.
+///
+/// Accepts the bare shape (`{code, status, message}`, the non-200 body sent by
+/// GenkitRouter) and the wrapped one (`{error: {...}}`). [httpStatus] is only
+/// a fallback for bodies without a recognizable status (a proxy's HTML page,
+/// say): the HTTP mapping is lossy, e.g. both `FAILED_PRECONDITION` and
+/// `INVALID_ARGUMENT` are sent as 400.
+GenkitException _wireError(
+  Object? body, {
+  int? httpStatus,
+  required String fallbackMessage,
+}) {
+  var error = body;
+  if (error is Map<String, dynamic> && error['error'] is Map<String, dynamic>) {
+    error = error['error'];
+  }
+
+  StatusCode? status;
+  String? message;
+  if (error is Map<String, dynamic>) {
+    if (error['status'] case final String wireName) {
+      // An explicit `UNKNOWN` from the server is kept as is.
+      status = StatusCode.fromWireName(wireName);
+      if (status == StatusCode.unknown && wireName != 'UNKNOWN') status = null;
+    }
+    if (error['message'] case final String m when m.isNotEmpty) message = m;
+  }
+  if (status == null && httpStatus != null) {
+    status = StatusCode.fromHttpStatus(httpStatus);
+  }
+
+  return GenkitException(
+    message ?? fallbackMessage,
+    // Null falls back to GenkitException's default (`internal`).
+    status: status,
+    details: body is String ? body : jsonEncode(body),
+  );
 }
+
+/// Like [_wireError], for a raw response body that may not be JSON.
+GenkitException _httpError(int statusCode, String body) {
+  Object? decoded = body;
+  try {
+    decoded = jsonDecode(body);
+  } on FormatException {
+    // Not a Genkit error body; fall back to the HTTP status below.
+  }
+  return _wireError(
+    decoded,
+    httpStatus: statusCode,
+    fallbackMessage: 'Server returned error: $statusCode',
+  );
+}
+
+/// Maps the `error` payload of a streamed error frame to a [GenkitException].
+GenkitException _streamError(Object? error) =>
+    _wireError(error, fallbackMessage: 'Unknown streaming error');
 
 Future<Output?> streamFlow<Output, Chunk>({
   required String url,
@@ -62,12 +113,7 @@ Future<Output?> streamFlow<Output, Chunk>({
 
   if (streamedResponse.statusCode != 200) {
     final body = await streamedResponse.stream.bytesToString();
-
-    throw GenkitException(
-      'Server returned error: ${streamedResponse.statusCode}',
-      status: StatusCode.fromHttpStatus(streamedResponse.statusCode),
-      details: body,
-    );
+    throw _httpError(streamedResponse.statusCode, body);
   }
 
   var errorOccurred = false;
@@ -294,11 +340,7 @@ interface class RemoteAction<Input, Output, Chunk, Init> {
     }
 
     if (response.statusCode != 200) {
-      throw GenkitException(
-        'Server returned error: ${response.statusCode}',
-        status: StatusCode.fromHttpStatus(response.statusCode),
-        details: response.body,
-      );
+      throw _httpError(response.statusCode, response.body);
     }
 
     dynamic decodedBody;
@@ -316,12 +358,7 @@ interface class RemoteAction<Input, Output, Chunk, Init> {
     if (decodedBody is Map<String, dynamic>) {
       if (decodedBody.containsKey('error')) {
         final errorData = decodedBody['error'];
-        final message =
-            (errorData is Map<String, dynamic> &&
-                errorData.containsKey('message'))
-            ? errorData['message'] as String
-            : errorData.toString();
-        throw GenkitException(message, details: jsonEncode(errorData));
+        throw _wireError(errorData, fallbackMessage: errorData.toString());
       }
       if (decodedBody.containsKey('result')) {
         return _fromResponse(decodedBody['result']);
