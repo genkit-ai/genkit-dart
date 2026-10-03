@@ -25,6 +25,7 @@ import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection/reflection_v2.dart';
 import 'package:genkit/src/core/registry.dart';
+import 'package:genkit/src/genkit_class.dart';
 import 'package:genkit/src/o11y/direct_http_instrumentation.dart';
 import 'package:genkit/src/o11y/instrumentation.dart'
     show configureInstrumentation, isInstrumentedBy, resetInstrumentation;
@@ -157,7 +158,7 @@ void main() {
     });
 
     test('should handle listValues for middleware', () async {
-      final def = defineMiddleware<dynamic>(
+      final def = generateMiddleware<dynamic>(
         name: 'retry',
         create: (config, ctx) => throw UnimplementedError(),
       );
@@ -195,6 +196,40 @@ void main() {
         decoded['result']['values']['/middleware/retry']['name'],
         equals('retry'),
       );
+    });
+
+    test('lists middleware registered with ai.defineMiddleware', () async {
+      final ai = Genkit(isDevEnv: false, promptDir: null);
+      addTearDown(ai.shutdown);
+      ai.defineMiddleware<void>(
+        name: 'appMiddleware',
+        create: (config, ctx) => throw UnimplementedError(),
+      );
+
+      reflectionServer = ReflectionServerV2(
+        ai.registry,
+        url: 'ws://localhost:$port',
+        runtimeId: 'test-runtime-id',
+      );
+      await reflectionServer.start();
+
+      final ws = await wsConnection.future;
+      final queue = StreamQueue(ws);
+      await queue.next; // register
+
+      ws.add(
+        jsonEncode({
+          'jsonrpc': '2.0',
+          'method': 'listValues',
+          'params': {'type': 'middleware'},
+          'id': 'list-middleware',
+        }),
+      );
+
+      final decoded =
+          jsonDecode(await queue.next as String) as Map<String, dynamic>;
+      final values = decoded['result']['values'] as Map<String, dynamic>;
+      expect(values['/middleware/appMiddleware']['name'], 'appMiddleware');
     });
 
     test('should skip non-conforming values in listValues', () async {

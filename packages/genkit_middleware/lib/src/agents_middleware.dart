@@ -310,7 +310,7 @@ class AgentsPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<AgentsOptions>(
+    generateMiddleware<AgentsOptions>(
       name: 'agents',
       configSchema: AgentsOptions.$schema,
       create: (config, ctx) {

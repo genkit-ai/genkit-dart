@@ -1615,9 +1615,9 @@ package:genkit/experimental_io.dart (experimental):
   GenkitRouterAgents (extension on GenkitRouter):
     addAgent (method: void Function(Agent<dynamic>, {FutureOr<Map<String, dynamic>> Function(RequestData)? contextProvider, bool hideAbort, bool hideGetSnapshot, String? path}))
 package:genkit/genkit.dart:
-  defineMiddleware (function: GenerateMiddlewareDef<CustomOptions> Function<CustomOptions>({SchemanticType<CustomOptions>? configSchema, required GenerateMiddleware Function(CustomOptions?, GenerateMiddlewareContext) create, required String name}))
   embedderMetadata (function: ActionMetadata<dynamic, dynamic, dynamic, dynamic> Function(String, {SchemanticType<dynamic>? customOptions}))
   embedderRef (function: EmbedderRef<CustomOptions> Function<CustomOptions>(String, {SchemanticType<CustomOptions>? customOptions}))
+  generateMiddleware (function: GenerateMiddlewareDef<CustomOptions> Function<CustomOptions>({SchemanticType<CustomOptions>? configSchema, required GenerateMiddleware Function(CustomOptions?, GenerateMiddlewareContext) create, required String name}))
   middlewareRef (function: GenerateMiddlewareRef<CustomOptions> Function<CustomOptions>({CustomOptions? config, required String name}))
   modelMetadata (function: ActionMetadata<dynamic, dynamic, dynamic, dynamic> Function(String, {SchemanticType<dynamic>? customOptions, ModelInfo? info}))
   modelRef (function: ModelRef<CustomOptions> Function<CustomOptions>(String, {CustomOptions? config, SchemanticType<CustomOptions>? customOptions}))
@@ -1721,6 +1721,13 @@ package:genkit/genkit.dart:
   Candidate (see above)
   CustomPart (see above)
   DataPart (see above)
+  DefinedMiddleware (class<CustomOptions> extends Object implements GenerateMiddlewareDef<CustomOptions>, final):
+    new (constructor: DefinedMiddleware<CustomOptions> Function({SchemanticType<CustomOptions>? configSchema, required GenerateMiddleware Function(CustomOptions?, GenerateMiddlewareContext) create, required String name}), internal)
+    configJsonSchema (getter: Map<String, Object?>?)
+    configSchema (getter: SchemanticType<CustomOptions>?)
+    name (getter: String)
+    call (method: GenerateMiddlewareRef<CustomOptions> Function([CustomOptions?]))
+    create (method: GenerateMiddleware Function(CustomOptions?, GenerateMiddlewareContext))
   DocumentData (see above)
   DynamicActionProvider (class extends Action<void, List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>, void, void>, base):
     new (constructor: DynamicActionProvider Function({Duration? cacheTtl, FutureOr<Action<dynamic, dynamic, dynamic, dynamic>?> Function(ActionType, String)? getActionFn, FutureOr<Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>> Function()? listActionsFn, Map<String, dynamic>? metadata, required String name}))
@@ -1826,6 +1833,7 @@ package:genkit/genkit.dart:
     defineFlow (method: Flow<Input, Output, Chunk, Init> Function<Input, Output, Chunk, Init>({required Future<Output> Function(Input, ActionFnArg<Chunk, Input, Init>) fn, SchemanticType<Init>? initSchema, SchemanticType<Input>? inputSchema, required String name, SchemanticType<Output>? outputSchema, SchemanticType<Chunk>? streamSchema}))
     defineHelper (method: void Function(String, dynamic Function(List<dynamic>, TemplateHelperOptions)))
     defineInterrupt (method: Interrupt<Input, Output> Function<Input, Output>({required String description, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema, FutureOr<Object?> Function(Input, ToolFnArg<Input>)? requestMetadata}))
+    defineMiddleware (method: DefinedMiddleware<CustomOptions> Function<CustomOptions>({SchemanticType<CustomOptions>? configSchema, required GenerateMiddleware Function(CustomOptions?, GenerateMiddlewareContext) create, required String name}))
     defineModel (method: Model<dynamic> Function({required Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) fn, ModelInfo? info, required String name}))
     definePartial (method: void Function(String, String))
     definePrompt (method: Prompt<Input, Output> Function<Input, Output, CustomOptions>({CustomOptions? config, String? description, SchemanticType<Input>? inputSchema, int? maxTurns, List<Message>? messages, String? messagesTemplate, Map<String, dynamic>? metadata, ModelRef<CustomOptions>? model, required String name, GenerateActionOutputConfig? output, SchemanticType<Output>? outputSchema, String? prompt, List<Part>? promptParts, bool? returnToolRequests, String? system, List<Part>? systemParts, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddlewareRef<dynamic>>? use, String? variant}))
@@ -2189,9 +2197,9 @@ package:genkit/lite.dart:
 package:genkit/plugin.dart:
   genkitVersion (static const getter: String)
   createResourceMatcher (function: bool Function(ResourceInput) Function({required String? template, required String? uri}))
-  defineMiddleware (see above)
   embedderMetadata (see above)
   embedderRef (see above)
+  generateMiddleware (see above)
   getConfigVar (function: String? Function(String))
   getPlatformLanguageVersion (function: String Function())
   middlewareRef (see above)
@@ -2246,6 +2254,7 @@ package:genkit/plugin.dart:
   Candidate (see above)
   CustomPart (see above)
   DataPart (see above)
+  DefinedMiddleware (see above)
   DocumentData (see above)
   EmbedRequest (see above)
   EmbedResponse (see above)

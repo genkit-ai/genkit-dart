@@ -59,7 +59,7 @@ const _name = 'retry';
 
 /// Lets [retry] refs resolve. Core registers it on every `Genkit` instance,
 /// so callers never add it themselves.
-final retryDef = defineMiddleware<RetryOptions>(
+final retryDef = generateMiddleware<RetryOptions>(
   name: _name,
   configSchema: RetryOptions.$schema,
   create: (config, ctx) {
