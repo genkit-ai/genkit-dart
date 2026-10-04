@@ -2807,6 +2807,193 @@ Generate a recipe.
           );
         });
       });
+
+      test('lists every undefined name in one error', () async {
+        final action = await load('''
+---
+output:
+  schema:
+    first: Recipe
+    second: Menu
+---
+Plan a meal.
+''');
+
+        await expectLater(
+          action.prompt!.render(<String, dynamic>{}),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains("'Recipe'"), contains("'Menu'")),
+            ),
+          ),
+        );
+      });
+
+      test('the input form leaves an undefined name open', () async {
+        final action = await load('''
+---
+input:
+  schema:
+    favorite: Recipe
+---
+More like {{favorite.title}}.
+''');
+        // Not registered yet: the Dev UI form still builds, accepting anything.
+        final props =
+            action.inputSchema!.jsonSchema()['properties']
+                as Map<String, dynamic>;
+        expect(props['favorite'], isEmpty);
+        expect(action.toJson, returnsNormally);
+
+        // Registered later: the next read picks it up.
+        registry.registerValue('schema', 'Recipe', recipe);
+        final resolved =
+            action.inputSchema!.jsonSchema()['properties']
+                as Map<String, dynamic>;
+        expect(resolved['favorite'], recipe);
+      });
+    });
+
+    group('Picoschema (spec forms, #562)', () {
+      Future<GenerateActionOptions> render(String source) async {
+        File(p.join(tempDir.path, 'pico.prompt')).writeAsStringSync(source);
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        final action =
+            await registry.lookupAction(.executablePrompt, 'pico')
+                as PromptAction;
+        return action.prompt!.render(<String, dynamic>{});
+      }
+
+      test('parenthesized types produce arrays, objects, enums', () async {
+        final options = await render('''
+---
+output:
+  schema:
+    tags(array): string
+    steps(array, the steps):
+      number: integer
+      instruction: string
+    obj(object):
+      x: integer
+    status(enum): [A, B]
+    (*): string
+---
+hi
+''');
+        final schema = options.output!.jsonSchema!;
+        final props = schema['properties'] as Map<String, dynamic>;
+
+        expect(props['tags'], {
+          'type': 'array',
+          'items': {'type': 'string'},
+        });
+        final steps = props['steps'] as Map<String, dynamic>;
+        expect(steps['type'], 'array');
+        expect(steps['description'], 'the steps');
+        expect(
+          (steps['items'] as Map)['properties'],
+          allOf(contains('number'), contains('instruction')),
+        );
+        expect(props['obj'], containsPair('type', 'object'));
+        expect(props['status'], {
+          'enum': ['A', 'B'],
+        });
+        // The wildcard is additionalProperties, not a required property.
+        expect(props, isNot(contains('*')));
+        expect(schema['additionalProperties'], {'type': 'string'});
+        expect(schema['required'], ['tags', 'steps', 'obj', 'status']);
+      });
+
+      test('the same forms apply to input.schema', () async {
+        File(p.join(tempDir.path, 'in.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    tags(array): string
+---
+Tags: {{tags}}
+''');
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        final action =
+            await registry.lookupAction(.executablePrompt, 'in')
+                as PromptAction;
+        final props =
+            action.inputSchema!.jsonSchema()['properties']
+                as Map<String, dynamic>;
+        expect(props['tags'], {
+          'type': 'array',
+          'items': {'type': 'string'},
+        });
+      });
+
+      // Pre-2.0 Dart-only syntax is now rejected. It is reported at load time
+      // since it does not depend on what is registered.
+      for (final (label, field) in [
+        ('a bad parenthetical type', 'tags(list): string'),
+        ('the old description syntax', 'email(the email): string'),
+        ('a duplicate optional field', 'a: string\n    a?: string'),
+      ]) {
+        test('$label fails at load time', () {
+          File(p.join(tempDir.path, 'bad.prompt')).writeAsStringSync('''
+---
+output:
+  schema:
+    $field
+---
+hi
+''');
+          expect(
+            () => loadPromptFolder(registry, dpRegistry, dir: tempDir.path),
+            throwsA(
+              isA<GenkitException>()
+                  .having((e) => e.status, 'status', StatusCode.invalidArgument)
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    contains("Invalid schema in prompt 'bad'"),
+                  ),
+            ),
+          );
+        });
+      }
+
+      test('an unknown scalar-like name is an undefined type', () async {
+        // `int` is not a Picoschema type, so it is looked up as a named
+        // schema, which fails at render with a hint about scalar types.
+        await expectLater(
+          render('''
+---
+output:
+  schema:
+    n: int
+---
+hi
+'''),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains("'int'"), contains('integer')),
+            ),
+          ),
+        );
+      });
+
+      test('top-level JSON Schema is passed through untouched', () async {
+        final options = await render('''
+---
+output:
+  schema:
+    type: [string, "null"]
+---
+hi
+''');
+        expect(options.output!.jsonSchema, {
+          'type': ['string', 'null'],
+        });
+      });
     });
 
     test('parses bare-string middleware from the `use` frontmatter', () async {
