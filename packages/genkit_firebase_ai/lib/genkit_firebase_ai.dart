@@ -246,6 +246,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         final contents = toGeminiContent(
           req.messages.where((m) => m.role != Role.system).toList(),
         );
+        if (contents.isEmpty) {
+          throw GenkitException(
+            'Request must contain at least one non-system message.',
+            status: StatusCode.invalidArgument,
+          );
+        }
 
         final model = _firebaseAI.generativeModel(
           model: modelName,
