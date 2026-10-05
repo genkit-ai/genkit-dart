@@ -140,9 +140,12 @@ class FirebaseGenAiPluginHandle {
 
   /// Creates the Firebase AI plugin.
   ///
-  /// [httpClient] is used for every `generateContent` request the plugin's
-  /// models make; it does not apply to live (bidi) models, which use a
-  /// WebSocket. When omitted, the Firebase AI SDK's default client is used.
+  /// [httpClient] is used for every request the plugin's models make, streaming
+  /// or not. Useful for proxies, instrumentation, or a mock transport in tests.
+  /// Live (bidi) models connect over a WebSocket and do not use it. The caller
+  /// owns it: the plugin never closes a client it was given, so close it
+  /// yourself once you are done with the plugin. When omitted, the Firebase AI
+  /// SDK's default client is used.
   GenkitPlugin call({
     fcore.FirebaseApp? app,
     fac.FirebaseAppCheck? appCheck,
