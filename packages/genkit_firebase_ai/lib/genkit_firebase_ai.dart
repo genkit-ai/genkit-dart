@@ -848,6 +848,7 @@ fai.ToolConfig? toGeminiToolConfig(
   return fai.ToolConfig(functionCallingConfig: mConfig);
 }
 
+/// Converts Firebase AI [fai.UsageMetadata] into Genkit [GenerationUsage].
 @visibleForTesting
 GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
   if (metadata == null) return null;
