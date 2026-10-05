@@ -445,9 +445,12 @@ String _describe(PicoschemaException e) {
 /// instead (with an empty schema, recording the name in [missing]) lets one
 /// pass collect all missing names and still yield a usable schema for the
 /// Dev UI. So `[]` answers for any name, while [keys] (and so `length`,
-/// `containsKey` and iteration) reflect only the registered names. If a later
-/// Picoschema copied this map instead of indexing it, registered names would
-/// still resolve; only listing every missing name in one error would be lost.
+/// `containsKey` and iteration) reflect only the registered names.
+///
+/// This relies on Picoschema indexing the map rather than copying it: if it
+/// copied, a name not registered at load would throw, and the prompt would be
+/// marked invalid for good. The deferred-name tests catch that on a dotprompt
+/// upgrade.
 final class _RegistrySchemas extends MapBase<String, Map<String, dynamic>> {
   _RegistrySchemas(this._registry);
 

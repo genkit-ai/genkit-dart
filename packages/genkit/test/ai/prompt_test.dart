@@ -2982,7 +2982,7 @@ hi
           final good =
               await registry.lookupAction(.executablePrompt, 'good')
                   as PromptAction;
-          expect(good.prompt!.render(null), completes);
+          await expectLater(good.prompt!.render(null), completes);
         });
       }
 
@@ -3038,19 +3038,26 @@ More like {{favorite.title}}.
 
       test('a top-level items without type is Picoschema', () async {
         // Matches JS/Python: only `type`/`properties` (and a few keywords)
-        // mark JSON Schema, so `items` here is an ordinary field.
+        // mark JSON Schema, so `items` here is an ordinary field. Before
+        // dotprompt 2.0, genkit passed this through as JSON Schema.
         final options = await render('''
 ---
 output:
   schema:
-    items(array): string
+    items: string
     total: number
 ---
 hi
 ''');
-        final props =
-            options.output!.jsonSchema!['properties'] as Map<String, dynamic>;
-        expect(props.keys, ['items', 'total']);
+        expect(options.output!.jsonSchema, {
+          'type': 'object',
+          'properties': {
+            'items': {'type': 'string'},
+            'total': {'type': 'number'},
+          },
+          'additionalProperties': false,
+          'required': ['items', 'total'],
+        });
       });
 
       test('an unknown scalar-like name is an undefined type', () async {
