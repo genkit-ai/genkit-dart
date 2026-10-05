@@ -245,7 +245,8 @@ void main() {
         constrained: true,
       );
       expect(settings.responseMimeType, 'application/json');
-      expect(settings.responseSchema, isNotNull);
+      expect(settings.responseJsonSchema, {'type': 'string'});
+      expect(settings.responseSchema, isNull);
     });
 
     test('toGeminiSettings withholds the output schema when unconstrained', () {
@@ -253,6 +254,7 @@ void main() {
         'type': 'string',
       }, true);
       expect(settings.responseMimeType, 'application/json');
+      expect(settings.responseJsonSchema, isNull);
       expect(settings.responseSchema, isNull);
     });
 
