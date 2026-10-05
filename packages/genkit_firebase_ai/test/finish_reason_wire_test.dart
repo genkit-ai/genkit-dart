@@ -52,7 +52,7 @@ void main() {
   });
 
   for (final MapEntry(key: wire, value: expected) in _expected.entries) {
-    test('$wire maps to ${expected.value} and keeps the wire value', () async {
+    test('$wire maps to ${expected.value}', () async {
       final client = WireClient(
         response: textResponse('partial', finishReason: wire),
       );
@@ -60,7 +60,8 @@ void main() {
       final response = await wireModel(client)(userRequest('hello'));
 
       expect(response.finishReason, expected);
-      expect(response.finishMessage, wire);
+      expect(response.finishMessage, isNull);
+      expect(response.custom?['finishReason'], wire);
       expect(response.message?.text, 'partial');
     });
   }
@@ -74,6 +75,7 @@ void main() {
 
     expect(response.finishReason, FinishReason.unknown);
     expect(response.finishMessage, isNull);
+    expect(response.custom, isNull);
   });
 
   test('an unrecognized wire value maps to unknown', () async {
@@ -84,10 +86,11 @@ void main() {
     final response = await wireModel(client)(userRequest('hello'));
 
     expect(response.finishReason, FinishReason.unknown);
-    expect(response.finishMessage, 'UNKNOWN');
+    expect(response.finishMessage, isNull);
+    expect(response.custom?['finishReason'], 'UNKNOWN');
   });
 
-  test('the candidate finishMessage follows the wire value', () async {
+  test('finishMessage carries the candidate finishMessage', () async {
     final client = WireClient(
       response: {
         'candidates': [
@@ -108,7 +111,8 @@ void main() {
     final response = await wireModel(client)(userRequest('hello'));
 
     expect(response.finishReason, FinishReason.blocked);
-    expect(response.finishMessage, 'SAFETY: Flagged for harassment.');
+    expect(response.finishMessage, 'Flagged for harassment.');
+    expect(response.custom?['finishReason'], 'SAFETY');
   });
 
   test('streaming aggregation keeps the mapped finish reason', () async {
@@ -128,6 +132,7 @@ void main() {
     expect(chunks.map((c) => c.text), ['Hello, ', 'wor']);
     expect(response.message?.text, 'Hello, wor');
     expect(response.finishReason, FinishReason.length);
-    expect(response.finishMessage, 'MAX_TOKENS');
+    expect(response.finishMessage, isNull);
+    expect(response.custom?['finishReason'], 'MAX_TOKENS');
   });
 }
