@@ -96,7 +96,32 @@ void main() {
     final response = await model(userRequest('hello'));
 
     final part = response.message!.content.single;
-    expect(part.custom, containsPair('futurePart', {'value': 42}));
+    expect(
+      part.custom,
+      equals({
+        'futurePart': {'value': 42},
+      }),
+    );
+  });
+
+  test('camelCase fileData part becomes a custom part (pins upstream '
+      'firebase_ai limitation: only snake_case file_data is parsed)', () async {
+    final client = WireClient(
+      response: partsResponse([
+        {
+          'fileData': {'fileUri': 'gs://b/f.png', 'mimeType': 'image/png'},
+        },
+      ]),
+    );
+    final model = wireModel(client);
+
+    final response = await model(userRequest('show me'));
+
+    final part = response.message!.content.single;
+    expect(part.media, isNull);
+    expect(part.custom, {
+      'fileData': {'fileUri': 'gs://b/f.png', 'mimeType': 'image/png'},
+    });
   });
 
   test('code execution parts survive streaming aggregation', () async {

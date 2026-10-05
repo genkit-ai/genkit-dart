@@ -665,6 +665,9 @@ Part fromGeminiPart(fai.Part p) {
       metadata: metadata,
     );
   }
+  if (p is fai.UnknownPart) {
+    return CustomPart(custom: p.data, metadata: metadata);
+  }
   return CustomPart(custom: pJson, metadata: metadata);
 }
 
