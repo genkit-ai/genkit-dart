@@ -121,6 +121,9 @@ sealed class FirebaseAiProvider {
   /// The Agent Platform Gemini API (formerly Vertex AI) in [location].
   ///
   /// When [location] is omitted the Firebase AI SDK default, `global`, is used.
+  ///
+  /// This currently calls the SDK's `FirebaseAI.agentPlatform` and will follow
+  /// the SDK rename to `FirebaseAI.geminiEnterprise` when it ships.
   const factory FirebaseAiProvider.geminiEnterprise({String? location}) =
       _GeminiEnterpriseProvider;
 }
