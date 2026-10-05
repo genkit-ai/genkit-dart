@@ -290,16 +290,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           return ModelResponse(
             finishReason: finishReason,
             message: message,
-            raw: {
-              'candidates': aggregated.candidates
-                  .map(
-                    (c) => {
-                      'content': c.content.parts.length,
-                      'finishReason': c.finishReason?.name,
-                    },
-                  )
-                  .toList(),
-            },
+            raw: _rawResponse(aggregated),
             usage: extractUsage(aggregated.usageMetadata),
           );
         } else {
@@ -320,25 +311,10 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             response.candidates.first,
           );
 
-          final raw = <String, dynamic>{
-            // Recreate structure
-            'candidates': response.candidates
-                .map(
-                  (c) => {
-                    'content': c
-                        .content
-                        .parts
-                        .length, // content.toJson() might not exist or be simple
-                    'finishReason': c.finishReason?.name,
-                  },
-                )
-                .toList(),
-          };
-
           return ModelResponse(
             finishReason: finishReason,
             message: message,
-            raw: raw,
+            raw: _rawResponse(response),
             usage: extractUsage(response.usageMetadata),
           );
         }
@@ -890,6 +866,57 @@ GenkitException _noCandidatesException(fai.PromptFeedback? feedback) {
     status: StatusCode.invalidArgument,
   );
 }
+
+/// Rebuilds the wire JSON of [response] from the fields `firebase_ai` parses.
+///
+/// Citation, grounding and URL context metadata are left out because the SDK
+/// gives them no serialization.
+Map<String, dynamic> _rawResponse(fai.GenerateContentResponse response) => {
+  'candidates': [
+    for (final c in response.candidates)
+      {
+        'content': c.content.toJson(),
+        'finishReason': ?c.finishReason?.toJson(),
+        'finishMessage': ?c.finishMessage,
+        'safetyRatings': ?c.safetyRatings?.map(_rawSafetyRating).toList(),
+      },
+  ],
+  if (response.promptFeedback case final feedback?)
+    'promptFeedback': {
+      'blockReason': ?feedback.blockReason?.toJson(),
+      'blockReasonMessage': ?feedback.blockReasonMessage,
+      'safetyRatings': feedback.safetyRatings.map(_rawSafetyRating).toList(),
+    },
+  if (response.usageMetadata case final usage?)
+    'usageMetadata': {
+      'promptTokenCount': ?usage.promptTokenCount,
+      'candidatesTokenCount': ?usage.candidatesTokenCount,
+      'totalTokenCount': ?usage.totalTokenCount,
+      'thoughtsTokenCount': ?usage.thoughtsTokenCount,
+      'toolUsePromptTokenCount': ?usage.toolUsePromptTokenCount,
+      'cachedContentTokenCount': ?usage.cachedContentTokenCount,
+      for (final (key, details) in [
+        ('promptTokensDetails', usage.promptTokensDetails),
+        ('candidatesTokensDetails', usage.candidatesTokensDetails),
+        ('toolUsePromptTokensDetails', usage.toolUsePromptTokensDetails),
+        ('cacheTokensDetails', usage.cacheTokensDetails),
+      ])
+        if (details != null)
+          key: [
+            for (final d in details)
+              {'modality': d.modality.toJson(), 'tokenCount': d.tokenCount},
+          ],
+    },
+};
+
+Map<String, dynamic> _rawSafetyRating(fai.SafetyRating rating) => {
+  'category': rating.category.toJson(),
+  'probability': rating.probability.toJson(),
+  'probabilityScore': ?rating.probabilityScore,
+  'blocked': ?rating.isBlocked,
+  'severity': ?rating.severity?.toJson(),
+  'severityScore': ?rating.severityScore,
+};
 
 /// Records the HTTP status of the last response, which `firebase_ai` drops
 /// from most of the exceptions it throws.
