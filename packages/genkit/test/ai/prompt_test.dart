@@ -21,6 +21,7 @@ import 'package:genkit/src/ai/dotprompt_registry.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:genkit/src/ai/prompt.dart';
 import 'package:genkit/src/ai/prompt_loader.dart';
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -2928,36 +2929,129 @@ Tags: {{tags}}
         });
       });
 
-      // Pre-2.0 Dart-only syntax is now rejected. It is reported at load time
-      // since it does not depend on what is registered.
-      for (final (label, field) in [
-        ('a bad parenthetical type', 'tags(list): string'),
-        ('the old description syntax', 'email(the email): string'),
-        ('a duplicate optional field', 'a: string\n    a?: string'),
+      // Pre-2.0 Dart-only syntax is now rejected. It is logged at load and
+      // fails only that prompt at render, so the rest of the folder (and the
+      // `Genkit(promptDir:)` constructor) keeps working.
+      for (final (label, schemaKey, field) in [
+        ('a bad parenthetical type', 'output', 'tags(list): string'),
+        ('the old description syntax', 'output', 'email(the email): string'),
+        ('a duplicate optional field', 'output', 'a: string\n    a?: string'),
+        ('an input schema error', 'input', 'tags(list): string'),
       ]) {
-        test('$label fails at load time', () {
+        test('$label warns at load and fails at render', () async {
           File(p.join(tempDir.path, 'bad.prompt')).writeAsStringSync('''
 ---
-output:
+$schemaKey:
   schema:
     $field
 ---
 hi
 ''');
-          expect(
-            () => loadPromptFolder(registry, dpRegistry, dir: tempDir.path),
+          File(p.join(tempDir.path, 'good.prompt')).writeAsStringSync('Hello!');
+
+          final warnings = <String>[];
+          final sub = Logger.root.onRecord
+              .where((r) => r.level == Level.WARNING)
+              .listen((r) => warnings.add(r.message));
+          addTearDown(sub.cancel);
+
+          loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+          expect(warnings, [contains("Invalid schema in prompt 'bad'")]);
+
+          final bad =
+              await registry.lookupAction(.executablePrompt, 'bad')
+                  as PromptAction;
+          // Action listing (the Dev UI) must not throw.
+          expect(bad.toJson, returnsNormally);
+          await expectLater(
+            bad.prompt!.render(<String, dynamic>{}),
             throwsA(
               isA<GenkitException>()
                   .having((e) => e.status, 'status', StatusCode.invalidArgument)
                   .having(
                     (e) => e.message,
                     'message',
-                    contains("Invalid schema in prompt 'bad'"),
+                    allOf(
+                      contains("Invalid schema in prompt 'bad'"),
+                      isNot(contains('Picoschema:')),
+                    ),
                   ),
             ),
           );
+
+          final good =
+              await registry.lookupAction(.executablePrompt, 'good')
+                  as PromptAction;
+          expect(good.prompt!.render(null), completes);
         });
       }
+
+      test('the old description syntax hints at the new one', () async {
+        await expectLater(
+          render('''
+---
+output:
+  schema:
+    email(the email): string
+---
+hi
+'''),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              contains('`email: string, the email`'),
+            ),
+          ),
+        );
+      });
+
+      test('an undefined name in input.schema fails at render', () async {
+        File(p.join(tempDir.path, 'typo.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    favorite: Recpie
+---
+More like {{favorite.title}}.
+''');
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        final action =
+            await registry.lookupAction(.executablePrompt, 'typo')
+                as PromptAction;
+
+        await expectLater(
+          action.prompt!.render(<String, dynamic>{}),
+          throwsA(
+            isA<GenkitException>()
+                .having(
+                  (e) => e.status,
+                  'status',
+                  StatusCode.failedPrecondition,
+                )
+                .having((e) => e.message, 'message', contains("'Recpie'")),
+          ),
+        );
+        // The Dev UI form still builds.
+        expect(action.toJson, returnsNormally);
+      });
+
+      test('a top-level items without type is Picoschema', () async {
+        // Matches JS/Python: only `type`/`properties` (and a few keywords)
+        // mark JSON Schema, so `items` here is an ordinary field.
+        final options = await render('''
+---
+output:
+  schema:
+    items(array): string
+    total: number
+---
+hi
+''');
+        final props =
+            options.output!.jsonSchema!['properties'] as Map<String, dynamic>;
+        expect(props.keys, ['items', 'total']);
+      });
 
       test('an unknown scalar-like name is an undefined type', () async {
         // `int` is not a Picoschema type, so it is looked up as a named

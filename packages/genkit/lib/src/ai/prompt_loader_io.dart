@@ -299,6 +299,11 @@ List<GenerateMiddlewareRef>? _toMiddlewareRefs(dynamic use) {
 /// untouched, so it is converted here; values that are already JSON Schema are
 /// returned unchanged. Returns `null` when there is no schema.
 ///
+/// JSON Schema is detected by [Picoschema.isPicoschema], like in JS and
+/// Python: it needs a top-level `type` or `properties` (or `$ref`, `$schema`,
+/// `anyOf`/`oneOf`/`allOf`/`enum`). A bare `items` or `$defs` is not enough,
+/// since `{items: string, total: number}` is a valid Picoschema object.
+///
 /// Named types (`schema: Recipe`, `address: Address`) are looked up among the
 /// schemas registered with `defineSchema` each time the schema is used, until
 /// they all resolve. See [_FrontmatterSchema].
@@ -329,50 +334,69 @@ Map<String, dynamic> _parseInput(Object? json) =>
 /// are looked up in the registry on each use, and the result is cached once
 /// every name has resolved.
 ///
-/// Syntax errors (e.g. `tags(list): string`) don't depend on what is
-/// registered, so they are reported when the prompt is loaded, like other
-/// invalid frontmatter.
-final class _FrontmatterSchema extends SchemanticType<Map<String, dynamic>> {
+/// Invalid Picoschema (e.g. `tags(list): string`) is logged when the prompt is
+/// loaded and thrown when the prompt is rendered, like an undefined name. It
+/// is not thrown at load because that would stop `Genkit(promptDir:)` and
+/// every unrelated flow and prompt with it (JS also fails only that prompt).
+final class _FrontmatterSchema extends SchemanticType<Map<String, dynamic>>
+    implements DeferredSchema {
   _FrontmatterSchema(this._picoschema, this._registry, this._promptName) {
-    _convert();
+    try {
+      _last = _convertNow();
+    } on GenkitException catch (e) {
+      _invalid = e;
+      _logger.warning(e.message);
+    }
   }
 
   final Map<String, dynamic> _picoschema;
   final Registry _registry;
   final String _promptName;
-  Map<String, dynamic>? _resolved;
 
-  /// Converts the schema with the currently registered names, returning the
-  /// names that are not registered (yet). Those convert to an empty schema.
-  ///
-  /// Throws a [GenkitException] for invalid Picoschema. Because unknown names
-  /// never throw, that can only happen on the first call (from the
-  /// constructor).
-  (Map<String, dynamic>, Set<String> unresolved) _convert() {
-    final cached = _resolved;
-    if (cached != null) return (cached, const {});
+  /// Set when the schema is not valid Picoschema. That doesn't depend on
+  /// what is registered, so it is final.
+  GenkitException? _invalid;
+
+  /// The latest conversion and the names it could not resolve. Reused until
+  /// one of those names is registered, so a name that is never defined
+  /// doesn't cost a full conversion on every use.
+  (Map<String, dynamic>, Set<String> missing)? _last;
+
+  (Map<String, dynamic>, Set<String> missing) _convertNow() {
     final schemas = _RegistrySchemas(_registry);
-    final Map<String, dynamic> converted;
     try {
-      converted = Picoschema.toJsonSchema(_picoschema, schemas: schemas);
+      final converted = Picoschema.toJsonSchema(_picoschema, schemas: schemas);
+      return (converted, schemas.missing);
     } on PicoschemaException catch (e) {
       throw GenkitException(
-        "Invalid schema in prompt '$_promptName': ${e.message}",
+        "Invalid schema in prompt '$_promptName': ${_describe(e)}",
         status: StatusCode.invalidArgument,
         cause: e,
       );
     }
-    if (schemas.missing.isEmpty) _resolved = converted;
-    return (converted, schemas.missing);
+  }
+
+  /// Converts the schema with the currently registered names, returning the
+  /// names that are not registered (yet). Those convert to an empty schema.
+  ///
+  /// Throws the load-time [GenkitException] for invalid Picoschema.
+  (Map<String, dynamic>, Set<String> missing) _convert() {
+    if (_invalid case final invalid?) throw invalid;
+    final last = _last!;
+    final nowRegistered = last.$2.any(
+      (name) =>
+          _registry.lookupValue<Map<String, dynamic>>('schema', name) != null,
+    );
+    return nowRegistered ? _last = _convertNow() : last;
   }
 
   /// The JSON schema for the model. Throws instead of sending a schema with
   /// a hole where an undefined name was.
   Map<String, dynamic> resolveForModel() {
-    final (schema, unresolved) = _convert();
-    if (unresolved.isNotEmpty) {
-      final names = unresolved.map((n) => "'$n'").join(', ');
-      final plural = unresolved.length > 1;
+    final (schema, missing) = _convert();
+    if (missing.isNotEmpty) {
+      final names = missing.map((n) => "'$n'").join(', ');
+      final plural = missing.length > 1;
       throw GenkitException(
         'Unknown type${plural ? 's' : ''} $names in prompt \'$_promptName\'. '
         'Use a Picoschema scalar type (string, number, integer, boolean, '
@@ -384,14 +408,34 @@ final class _FrontmatterSchema extends SchemanticType<Map<String, dynamic>> {
     return Map.of(schema);
   }
 
+  @override
+  void ensureResolved() => resolveForModel();
+
   /// For action metadata (the Dev UI input form). Never throws: a name that
-  /// is not registered yet is left as an empty (any) schema.
+  /// is not registered yet is left as an empty (any) schema, and so is the
+  /// whole schema when it is invalid.
   @override
   Map<String, Object?> jsonSchema({bool useRefs = false}) =>
-      Map.of(_convert().$1);
+      _invalid != null ? <String, Object?>{} : Map.of(_convert().$1);
 
   @override
   Map<String, dynamic> parse(Object? json) => _parseInput(json);
+}
+
+/// The message of a Picoschema error, without dotprompt's `Picoschema: `
+/// prefix (the caller already names the prompt).
+///
+/// The old Dart-only `name(description): type` form now fails as a bad
+/// parenthetical type, the most likely error after the dotprompt 2.0
+/// upgrade, so that message also says where descriptions go.
+String _describe(PicoschemaException e) {
+  const prefix = 'Picoschema: ';
+  final message = e.message.startsWith(prefix)
+      ? e.message.substring(prefix.length)
+      : e.message;
+  if (!message.contains('parenthetical types')) return message;
+  return '$message. Descriptions go after a comma, as in '
+      '`email: string, the email` or `tags(array, the tags): string`.';
 }
 
 /// The `schemas` lookup handed to [Picoschema.toJsonSchema], backed by the
@@ -400,8 +444,10 @@ final class _FrontmatterSchema extends SchemanticType<Map<String, dynamic>> {
 /// Picoschema throws on the first unknown name. Answering every lookup
 /// instead (with an empty schema, recording the name in [missing]) lets one
 /// pass collect all missing names and still yield a usable schema for the
-/// Dev UI. Picoschema only reads names through `[]`, so the other members
-/// are minimal: [keys] lists nothing and the map is read-only.
+/// Dev UI. So `[]` answers for any name, while [keys] (and so `length`,
+/// `containsKey` and iteration) reflect only the registered names. If a later
+/// Picoschema copied this map instead of indexing it, registered names would
+/// still resolve; only listing every missing name in one error would be lost.
 final class _RegistrySchemas extends MapBase<String, Map<String, dynamic>> {
   _RegistrySchemas(this._registry);
 
@@ -419,8 +465,12 @@ final class _RegistrySchemas extends MapBase<String, Map<String, dynamic>> {
     return const {};
   }
 
+  // `listValues` keys are registry paths (`/schema/<name>`).
   @override
-  Iterable<String> get keys => const [];
+  Iterable<String> get keys => _registry
+      .listValues<Map<String, dynamic>>('schema')
+      .keys
+      .map((path) => path.substring('/schema/'.length));
 
   @override
   void operator []=(String key, Map<String, dynamic> value) =>
