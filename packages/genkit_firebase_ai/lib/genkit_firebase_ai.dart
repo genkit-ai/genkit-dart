@@ -650,7 +650,28 @@ Part fromGeminiPart(fai.Part p) {
       metadata: metadata,
     );
   }
-  throw UnimplementedError('Part type $p not supported yet in response');
+  if (p is fai.FileData) {
+    return MediaPart(
+      media: Media(url: p.fileUri, contentType: p.mimeType),
+      metadata: metadata,
+    );
+  }
+  if (p is fai.ExecutableCodePart) {
+    return CustomPart(
+      custom: {'executableCode': pJson['executableCode']},
+      metadata: metadata,
+    );
+  }
+  if (p is fai.CodeExecutionResultPart) {
+    return CustomPart(
+      custom: {'codeExecutionResult': pJson['codeExecutionResult']},
+      metadata: metadata,
+    );
+  }
+  if (p is fai.UnknownPart) {
+    return CustomPart(custom: p.data, metadata: metadata);
+  }
+  return CustomPart(custom: pJson, metadata: metadata);
 }
 
 ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
