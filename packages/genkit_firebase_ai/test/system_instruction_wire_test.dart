@@ -81,4 +81,80 @@ void main() {
     expect(request.isStreaming, isTrue);
     _expectSystemInstructionSplit(request);
   });
+
+  test('generate rejects a system-only request without calling the '
+      'backend', () async {
+    final client = WireClient();
+
+    await expectLater(
+      wireModel(client)(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.system,
+              content: [TextPart(text: 'Be terse.')],
+            ),
+          ],
+        ),
+      ),
+      throwsA(
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.invalidArgument)
+            .having(
+              (e) => e.message,
+              'message',
+              'Request must contain at least one non-system message.',
+            ),
+      ),
+    );
+    expect(client.requests, isEmpty);
+  });
+
+  test('generate lifts a mid-conversation system message into '
+      'systemInstruction and keeps the other turns in order', () async {
+    final client = WireClient();
+
+    await wireModel(client)(
+      ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hi')],
+          ),
+          Message(
+            role: Role.model,
+            content: [TextPart(text: 'hello')],
+          ),
+          Message(
+            role: Role.system,
+            content: [TextPart(text: 'Be terse.')],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'how are you?')],
+          ),
+        ],
+      ),
+    );
+
+    final body = client.requests.single.body;
+    expect(body['systemInstruction'], {
+      'role': 'system',
+      'parts': [containsPair('text', 'Be terse.')],
+    });
+    expect(body['contents'], [
+      {
+        'role': 'user',
+        'parts': [containsPair('text', 'hi')],
+      },
+      {
+        'role': 'model',
+        'parts': [containsPair('text', 'hello')],
+      },
+      {
+        'role': 'user',
+        'parts': [containsPair('text', 'how are you?')],
+      },
+    ]);
+  });
 }
