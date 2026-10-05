@@ -276,6 +276,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             }
           }
           final aggregated = aggregateResponses(chunks);
+          if (aggregated.candidates.isEmpty) {
+            throw _noCandidatesException(aggregated.promptFeedback);
+          }
           final (message, finishReason) = fromGeminiCandidate(
             aggregated.candidates.first,
           );
@@ -300,8 +303,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           );
 
           if (response.candidates.isEmpty) {
-            // TODO: Consider inspecting response.promptFeedback for the block reason.
-            throw GenkitException('Model returned no candidates.');
+            throw _noCandidatesException(response.promptFeedback);
           }
 
           final (message, finishReason) = fromGeminiCandidate(
@@ -858,5 +860,18 @@ GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
     inputTokens: metadata.promptTokenCount ?? 0,
     outputTokens: metadata.candidatesTokenCount ?? 0,
     totalTokens: metadata.totalTokenCount ?? 0,
+  );
+}
+
+GenkitException _noCandidatesException(fai.PromptFeedback? feedback) {
+  final blockReason = feedback?.blockReason;
+  if (blockReason == null) {
+    return GenkitException('Model returned no candidates.');
+  }
+  final detail = feedback!.blockReasonMessage;
+  return GenkitException(
+    'Prompt was blocked (${blockReason.toJson()})'
+    '${detail == null ? '.' : ': $detail'}',
+    status: StatusCode.invalidArgument,
   );
 }
