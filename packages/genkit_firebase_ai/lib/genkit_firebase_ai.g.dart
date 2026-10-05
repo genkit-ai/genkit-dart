@@ -332,6 +332,8 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         },
         'responseJsonSchema': <String, Object?>{
           'type': 'object',
+          'description':
+              'JSON Schema the response must conform to, sent to Gemini unchanged. Requires responseMimeType "application/json". Takes precedence over responseSchema when both are set.',
           'additionalProperties': <String, Object?>{},
         },
         'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
