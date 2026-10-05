@@ -13,11 +13,12 @@
 // limitations under the License.
 
 /// An app-level middleware defined with `ai.defineGenerateMiddleware`, no
-/// plugin needed. It logs each model call and enforces a per-call turn budget.
+/// plugin needed. It logs each model call and caps how many model calls a
+/// single `generate` call can make, counting retried attempts too.
 ///
 /// Run with `dart run bin/custom_middleware.dart` (or `genkit start -- dart
 /// run bin/custom_middleware.dart` to try it from the Developer UI, where the
-/// `turnBudget` middleware can be configured on any generate request).
+/// `modelCallBudget` middleware can be configured on any generate request).
 library;
 
 import 'package:genkit/genkit.dart';
@@ -27,7 +28,7 @@ import 'package:schemantic/schemantic.dart';
 part 'custom_middleware.g.dart';
 
 @Schema()
-abstract class $TurnBudgetOptions {
+abstract class $ModelCallBudgetOptions {
   @Field(description: 'Maximum number of model calls per generate call.')
   int? get maxModelCalls;
 
@@ -37,10 +38,10 @@ abstract class $TurnBudgetOptions {
 
 /// One instance per `generate` call, so `_calls` counts calls for that
 /// generation only.
-class TurnBudgetMiddleware extends GenerateMiddleware {
-  TurnBudgetMiddleware(TurnBudgetOptions? options)
+class ModelCallBudgetMiddleware extends GenerateMiddleware {
+  ModelCallBudgetMiddleware(ModelCallBudgetOptions? options)
     : maxModelCalls = options?.maxModelCalls ?? 3,
-      label = options?.label ?? 'turnBudget';
+      label = options?.label ?? 'modelCallBudget';
 
   final int maxModelCalls;
   final String label;
@@ -57,9 +58,11 @@ class TurnBudgetMiddleware extends GenerateMiddleware {
     next,
   ) async {
     if (++_calls > maxModelCalls) {
+      // Not a retryable status (unlike resourceExhausted), so `retry` won't
+      // back off and try again: the budget is a hard stop.
       throw GenkitException(
         'Model call budget of $maxModelCalls exceeded.',
-        status: StatusCode.resourceExhausted,
+        status: StatusCode.failedPrecondition,
       );
     }
     print('[$label] model call $_calls/$maxModelCalls');
@@ -71,11 +74,11 @@ void main() async {
   final ai = Genkit(plugins: [googleAI()]);
 
   // Registers the middleware (so it shows up in the Developer UI) and returns
-  // a callable that builds the ref for `use:`.
-  final turnBudget = ai.defineGenerateMiddleware<TurnBudgetOptions>(
-    name: 'turnBudget',
-    configSchema: TurnBudgetOptions.$schema,
-    create: (config, ctx) => TurnBudgetMiddleware(config),
+  // its definition; call it to build the ref for `use:`.
+  final modelCallBudget = ai.defineGenerateMiddleware<ModelCallBudgetOptions>(
+    name: 'modelCallBudget',
+    configSchema: ModelCallBudgetOptions.$schema,
+    create: (config, ctx) => ModelCallBudgetMiddleware(config),
   );
 
   final weather = ai.defineTool(
@@ -94,9 +97,13 @@ void main() async {
         model: googleAI.gemini('gemini-flash-latest'),
         prompt: question,
         tools: [weather],
+        // Middleware listed first wraps the ones after it. With the budget
+        // inside `retry`, every retried model call counts against it.
         use: [
-          turnBudget(TurnBudgetOptions(maxModelCalls: 4, label: 'weather')),
           retry(maxRetries: 2),
+          modelCallBudget(
+            ModelCallBudgetOptions(maxModelCalls: 4, label: 'weather'),
+          ),
         ],
       );
       return response.text;

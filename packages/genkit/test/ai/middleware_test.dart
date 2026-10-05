@@ -461,7 +461,7 @@ void main() {
         );
       });
 
-      test('the ref config round-trips through the config schema', () async {
+      test('parses a JSON ref config with the config schema', () async {
         final tagging = defineTagging();
         // A ref with a JSON config (e.g. from a .prompt file or the Dev UI)
         // is parsed with the config schema.
@@ -496,6 +496,7 @@ void main() {
       });
 
       test('replaces a plugin middleware with the same name', () async {
+        await genkit.shutdown(); // the group's instance; tearDown gets this one
         genkit = Genkit(
           isDevEnv: false,
           plugins: [
@@ -535,7 +536,7 @@ void main() {
           create: (config, ctx) =>
               TestMiddleware(log, config?.tag ?? 'untagged'),
         );
-        await genkit.shutdown();
+        await genkit.shutdown(); // the group's instance; tearDown gets this one
         genkit = Genkit(
           isDevEnv: false,
           plugins: [

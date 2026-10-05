@@ -21,22 +21,22 @@ part of 'custom_middleware.dart';
 // SchemaGenerator
 // **************************************************************************
 
-base class TurnBudgetOptions {
-  /// Creates a [TurnBudgetOptions] from a JSON map.
-  factory TurnBudgetOptions.fromJson(Map<String, dynamic> json) =>
+base class ModelCallBudgetOptions {
+  /// Creates a [ModelCallBudgetOptions] from a JSON map.
+  factory ModelCallBudgetOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  TurnBudgetOptions._(this._json);
+  ModelCallBudgetOptions._(this._json);
 
-  TurnBudgetOptions({int? maxModelCalls, String? label}) {
+  ModelCallBudgetOptions({int? maxModelCalls, String? label}) {
     _json = {'maxModelCalls': ?maxModelCalls, 'label': ?label};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [TurnBudgetOptions].
-  static const SchemanticType<TurnBudgetOptions> $schema =
-      _TurnBudgetOptionsTypeFactory();
+  /// The JSON schema and type descriptor for [ModelCallBudgetOptions].
+  static const SchemanticType<ModelCallBudgetOptions> $schema =
+      _ModelCallBudgetOptionsTypeFactory();
 
   int? get maxModelCalls {
     return (_json['maxModelCalls'] as num?)?.toInt();
@@ -67,24 +67,24 @@ base class TurnBudgetOptions {
     return _json.toString();
   }
 
-  /// Serializes this [TurnBudgetOptions] to a JSON map.
+  /// Serializes this [ModelCallBudgetOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _TurnBudgetOptionsTypeFactory
-    extends SchemanticType<TurnBudgetOptions> {
-  const _TurnBudgetOptionsTypeFactory();
+base class _ModelCallBudgetOptionsTypeFactory
+    extends SchemanticType<ModelCallBudgetOptions> {
+  const _ModelCallBudgetOptionsTypeFactory();
 
   @override
-  TurnBudgetOptions parse(Object? json) {
-    return TurnBudgetOptions._(json as Map<String, dynamic>);
+  ModelCallBudgetOptions parse(Object? json) {
+    return ModelCallBudgetOptions._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'TurnBudgetOptions',
+    name: 'ModelCallBudgetOptions',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
