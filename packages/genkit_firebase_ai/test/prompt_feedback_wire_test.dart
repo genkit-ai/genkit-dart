@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:firebase_ai/firebase_ai.dart' show FirebaseAISdkException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
@@ -40,11 +39,13 @@ final _blockedWithoutRatings = {
   'promptFeedback': {'blockReason': 'PROHIBITED_CONTENT'},
 };
 
-final _isUnparsedFeedbackException = isA<FirebaseAISdkException>().having(
-  (e) => e.message,
-  'message',
-  contains('Unhandled format for PromptFeedback'),
-);
+final _isUnparsedFeedbackException = isA<GenkitException>()
+    .having((e) => e.status, 'status', StatusCode.internal)
+    .having(
+      (e) => e.message,
+      'message',
+      contains('Unhandled format for PromptFeedback'),
+    );
 
 void main() {
   setUpAll(setUpFirebaseApp);
