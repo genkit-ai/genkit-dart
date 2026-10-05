@@ -25,6 +25,7 @@ import 'package:firebase_core/firebase_core.dart' as fcore;
 // semantic-versioning stability guarantees and may change in any MINOR release.
 import 'package:genkit/experimental.dart' show BidiModel;
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
@@ -137,12 +138,21 @@ const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
 class FirebaseGenAiPluginHandle {
   const FirebaseGenAiPluginHandle();
 
+  /// Creates the Firebase AI plugin.
+  ///
+  /// [httpClient] is used for every request the plugin's models make, streaming
+  /// or not. Useful for proxies, instrumentation, or a mock transport in tests.
+  /// Live (bidi) models connect over a WebSocket and do not use it. The caller
+  /// owns it: the plugin never closes a client it was given, so close it
+  /// yourself once you are done with the plugin. When omitted, the Firebase AI
+  /// SDK's default client is used.
   GenkitPlugin call({
     fcore.FirebaseApp? app,
     fac.FirebaseAppCheck? appCheck,
     fauth.FirebaseAuth? auth,
     bool? useLimitedUseAppCheckTokens,
     FirebaseAiProvider provider = const FirebaseAiProvider.googleAI(),
+    http.Client? httpClient,
   }) {
     return _FirebaseGenAiPlugin(
       app: app,
@@ -150,6 +160,7 @@ class FirebaseGenAiPluginHandle {
       auth: auth,
       useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
       provider: provider,
+      httpClient: httpClient,
     );
   }
 
@@ -167,6 +178,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   final fauth.FirebaseAuth? auth;
   final bool? useLimitedUseAppCheckTokens;
   final FirebaseAiProvider provider;
+  final http.Client? httpClient;
 
   @override
   String get name => 'firebaseai';
@@ -177,6 +189,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     this.auth,
     this.useLimitedUseAppCheckTokens,
     this.provider = const FirebaseAiProvider.googleAI(),
+    this.httpClient,
   });
 
   fai.FirebaseAI get _firebaseAI {
@@ -243,6 +256,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           ),
+          httpClient: httpClient,
         );
 
         if (ctx.streamingRequested) {
