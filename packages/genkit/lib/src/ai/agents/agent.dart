@@ -797,6 +797,8 @@ class AgentFnOptions {
   final void Function(AgentStreamChunk chunk) sendChunk;
 
   /// Cooperative cancellation token (the Dart stand-in for `AbortSignal`).
+  /// After a detach it fires only on abort, not when the request that started
+  /// the turn goes away.
   final CancellationToken? cancel;
 
   /// The ambient request context.
@@ -1100,8 +1102,9 @@ final class _InProcessTransport extends AgentTransport {
 
   // [cancel] is threaded into the agent action's `generate` call (via
   // `streamBidi`), so aborting an attached in-process turn cooperatively stops
-  // the in-flight model call. The detached path additionally observes the
-  // persisted `aborted` status via `SnapshotChangeNotifier`.
+  // the in-flight model call. Once a turn detaches it stops listening to
+  // [cancel] and is stopped only through the persisted `aborting` status
+  // (`SnapshotChangeNotifier`).
   @override
   TurnStream runTurn(
     AgentInput input,

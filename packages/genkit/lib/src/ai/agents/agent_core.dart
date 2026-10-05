@@ -78,6 +78,10 @@ abstract base class AgentTransport {
   /// agent derives its context server-side from the incoming HTTP request
   /// (headers, auth, etc.), so the remote transport rejects a non-empty
   /// [context] with an [UnsupportedError] rather than silently dropping it.
+  ///
+  /// [cancel] stops the turn while it is attached. A detached turn
+  /// (`AgentInput.detach`) stops listening to [cancel] once it detaches; use
+  /// [abort] to stop it after that.
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {

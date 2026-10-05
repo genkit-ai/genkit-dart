@@ -116,7 +116,10 @@ void main() {
 
   test('a remote detach keeps running after the response closes', () async {
     // Regression for #558: closing the streaming response used to cancel the
-    // request's token, which was still linked to the detached turn.
+    // request's token, which was still linked to the detached turn. End to
+    // end only: either fix alone makes this pass. The per-layer checks are in
+    // agent_test (unlink on detach) and action_handler_test (no cancel after
+    // the run settles).
     final release = Completer<void>();
     final agent = ai.defineCustomAgent(
       name: 'slow',
