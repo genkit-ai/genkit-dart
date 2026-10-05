@@ -243,6 +243,14 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
+        final systemParts = [
+          for (final m in req.messages)
+            if (m.role == Role.system) ...m.content.map(toGeminiPart),
+        ];
+        final contents = toGeminiContent(
+          req.messages.where((m) => m.role != Role.system).toList(),
+        );
+
         final model = _firebaseAI.generativeModel(
           model: modelName,
           generationConfig: toGeminiSettings(
@@ -257,13 +265,14 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           ),
+          systemInstruction: systemParts.isEmpty
+              ? null
+              : fai.Content('system', systemParts),
           httpClient: httpClient,
         );
 
         if (ctx.streamingRequested) {
-          final stream = model.generateContentStream(
-            toGeminiContent(req.messages),
-          );
+          final stream = model.generateContentStream(contents);
           final chunks = <fai.GenerateContentResponse>[];
           await for (final chunk in stream) {
             chunks.add(chunk);
@@ -296,9 +305,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             usage: extractUsage(aggregated.usageMetadata),
           );
         } else {
-          final response = await model.generateContent(
-            toGeminiContent(req.messages),
-          );
+          final response = await model.generateContent(contents);
 
           if (response.candidates.isEmpty) {
             // TODO: Consider inspecting response.promptFeedback for the block reason.
