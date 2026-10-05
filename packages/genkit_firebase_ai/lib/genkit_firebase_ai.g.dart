@@ -523,7 +523,7 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
           'type': 'string',
           'description':
               'Thinking level for Gemini 3 and newer models, which use it in place of thinkingBudget. Cannot be set together with thinkingBudget.',
-          'enum': ['minimal', 'low', 'medium', 'high'],
+          'enum': ['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'],
         },
       },
     },
