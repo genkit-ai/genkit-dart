@@ -1127,6 +1127,58 @@ void main() {
       expect(stored!.status?.value, 'aborted');
     });
 
+    test(
+      'cancelling the caller token after detach does not abort the turn',
+      () async {
+        // Once detached, the turn is stopped only through abort / the snapshot
+        // status, not through the request that started it (#558).
+        final store = InMemorySessionStore();
+        final release = Completer<void>();
+        final agent = ai.defineCustomAgent(
+          name: 'outlivesCaller',
+          store: store,
+          fn: (sess, options) async {
+            await sess.run((input, ctx) async {
+              await Future.any([release.future, options.cancel!.whenCancelled]);
+              options.cancel!.throwIfCancelled();
+              return TurnResult(finishReason: AgentFinishReason.stop);
+            });
+            return AgentResult(finishReason: sess.lastTurnFinishReason);
+          },
+        );
+
+        final caller = CancellationController();
+        final bidi = agent.action.streamBidi(
+          init: AgentInit(),
+          cancel: caller.token,
+        );
+        bidi.send(
+          AgentInput(
+            message: Message(
+              role: .user,
+              content: [TextPart(text: 'go')],
+            ),
+            detach: true,
+          ),
+        );
+        unawaited(bidi.close());
+        final out = await bidi.onResult;
+        expect(out.finishReason, AgentFinishReason.detached);
+
+        caller.cancel('caller went away');
+        await Future<void>.delayed(const Duration(milliseconds: 20));
+        release.complete();
+
+        SessionSnapshot? stored;
+        for (var i = 0; i < 100; i++) {
+          stored = await store.getSnapshot(snapshotId: out.snapshotId);
+          if (stored?.status?.value != 'pending') break;
+          await Future<void>.delayed(const Duration(milliseconds: 10));
+        }
+        expect(stored?.status?.value, 'completed');
+      },
+    );
+
     test('getSnapshotData requires a store', () async {
       final agent = ai.defineCustomAgent(
         name: 'noStore',
