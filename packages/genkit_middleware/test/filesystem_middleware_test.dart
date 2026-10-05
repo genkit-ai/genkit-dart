@@ -320,19 +320,134 @@ void main() {
         );
       });
 
-      test('recursive listing does not descend into links', () async {
-        await File(p.join(root.path, 'a.txt')).create();
-        await Link(p.join(root.path, 'dir')).create(outside.path);
-
+      Future<Map<String, bool>> listRecursive() async {
         final result = await toolNamed(
           'list_files',
         ).runRaw({'dirPath': '', 'recursive': true});
-        final paths = (result.result.output as List<ListFileOutputItem>)
-            .map((i) => i.path)
-            .toList();
+        return {
+          for (final item in result.result.output as List<ListFileOutputItem>)
+            item.path: item.isDirectory,
+        };
+      }
 
-        expect(paths, containsAll(['a.txt', 'dir']));
-        expect(paths.any((path) => path.contains('secret')), isFalse);
+      test('recursive listing does not descend into outside links', () async {
+        await File(p.join(root.path, 'a.txt')).create();
+        await Link(p.join(root.path, 'dir')).create(outside.path);
+        await Link(
+          p.join(root.path, 'dangling'),
+        ).create(p.join(outside.path, 'nope'));
+
+        expect(await listRecursive(), {
+          'a.txt': false,
+          'dir': false,
+          'dangling': false,
+        });
+      });
+
+      test('recursive listing flags links to directories inside the root '
+          'without descending into them', () async {
+        await Directory(p.join(root.path, 'real')).create();
+        await File(p.join(root.path, 'real', 'f.txt')).create();
+        await File(p.join(root.path, 'g.txt')).create();
+        await Link(p.join(root.path, 'ldir')).create('real');
+        await Link(p.join(root.path, 'lfile')).create('g.txt');
+        await Link(p.join(root.path, 'real', 'up')).create('..');
+        await Link(p.join(root.path, 'real', 'self')).create('.');
+
+        expect(await listRecursive(), {
+          'real': true,
+          'real/f.txt': false,
+          'real/up': true,
+          'real/self': true,
+          'g.txt': false,
+          'ldir': true,
+          'lfile': false,
+        });
+
+        // The link can still be listed explicitly.
+        final result = await toolNamed(
+          'list_files',
+        ).runRaw({'dirPath': 'ldir'});
+        expect(
+          (result.result.output as List<ListFileOutputItem>).map((i) => i.path),
+          unorderedEquals(['ldir/f.txt', 'ldir/up', 'ldir/self']),
+        );
+      });
+
+      test('applies `..` in a link target after the links before it', () async {
+        // The OS resolves `inner/..` to `real`, not to the root.
+        await Directory(
+          p.join(root.path, 'real', 'deep'),
+        ).create(recursive: true);
+        await Link(p.join(root.path, 'inner')).create('real/deep');
+        await Link(p.join(root.path, 'a')).create('inner/../x.txt');
+
+        await toolNamed(
+          'write_file',
+        ).runRaw({'filePath': 'a', 'content': 'via link'});
+        expect(
+          File(p.join(root.path, 'real', 'x.txt')).readAsStringSync(),
+          'via link',
+        );
+        expect(File(p.join(root.path, 'x.txt')).existsSync(), isFalse);
+      });
+
+      test('denies link cycles', () async {
+        await Link(p.join(root.path, 'l1')).create('l2');
+        await Link(p.join(root.path, 'l2')).create('l1');
+
+        expect(
+          () => toolNamed('read_file').runRaw({'filePath': 'l1'}),
+          deniedMatcher,
+        );
+        expect(await listRecursive(), {'l1': false, 'l2': false});
+      });
+
+      test('denies writing through a dangling chain of links', () async {
+        await Link(p.join(root.path, 'a')).create('b');
+        await Link(
+          p.join(root.path, 'b'),
+        ).create(p.join(outside.path, 'x', 'y.txt'));
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'a', 'content': 'pwned'}),
+          deniedMatcher,
+        );
+        expect(Directory(p.join(outside.path, 'x')).existsSync(), isFalse);
+      });
+
+      test('denies writing below a dangling directory link', () async {
+        await Link(
+          p.join(root.path, 'dl'),
+        ).create(p.join(outside.path, 'nope'));
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'dl/q/r.txt', 'content': 'pwned'}),
+          deniedMatcher,
+        );
+        expect(Directory(p.join(outside.path, 'nope')).existsSync(), isFalse);
+      });
+
+      test('I/O errors report the path the model gave', () async {
+        // With an aliased root, the resolved path would reveal the real
+        // location of the root.
+        final linkedRoot = Link(p.join(tempDir.path, 'linked-root'));
+        await linkedRoot.create(root.path);
+        mw = FilesystemMiddleware(linkedRoot.path);
+        await File(p.join(root.path, 'f.txt')).create();
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'f.txt/x', 'content': 'nope'}),
+          throwsA(
+            isA<FileSystemException>().having((e) => e.path, 'path', 'f.txt/x'),
+          ),
+        );
       });
 
       test('denies relative link targets that climb out of the root', () async {
