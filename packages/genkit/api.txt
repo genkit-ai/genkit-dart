@@ -568,10 +568,11 @@ package:genkit/client.dart:
     toJson (method: Map<String, dynamic> Function())
     toString (method: String Function())
   GenkitException (class extends Object implements Exception):
-    new (constructor: GenkitException Function(String, {Object? cause, String? details, StackTrace? stackTrace, StatusCode? status}))
+    new (constructor: GenkitException Function(String, {Object? cause, String? details, Duration? retryAfter, StackTrace? stackTrace, StatusCode? status}))
     cause (getter: Object?)
     details (getter: String?)
     message (getter: String)
+    retryAfter (getter: Duration?)
     stackTrace (getter: StackTrace?)
     status (getter: StatusCode)
     toString (method: String Function())
@@ -1954,6 +1955,7 @@ package:genkit/genkit.dart:
     onError (getter: bool Function(Object, int)?)
     retryTools (getter: bool)
     statuses (getter: List<StatusCode>)
+    calculateDelay (method: Duration Function(int, {Duration? retryAfter}), visible for testing)
     model (method: Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>, Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>)))
     tool (method: Future<ToolResult<dynamic>> Function(ToolRequestPart, ActionFnArg<void, dynamic, void>, Future<ToolResult<dynamic>> Function(ToolRequestPart, ActionFnArg<void, dynamic, void>)))
   RetryOptions (class extends Object, base):
@@ -2197,6 +2199,7 @@ package:genkit/plugin.dart:
   middlewareRef (see above)
   modelMetadata (see above)
   modelRef (see above)
+  parseRetryAfter (function: Duration? Function(String?, {DateTime? now}))
   $BaseDataPoint (see above)
   $Candidate (see above)
   $CustomPart (see above)
@@ -2351,6 +2354,7 @@ dart:async:
   StreamSink (referenced)
   StreamView (referenced)
 dart:core:
+  DateTime (referenced)
   Duration (referenced)
   Exception (referenced)
   Iterable (referenced)

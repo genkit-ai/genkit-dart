@@ -150,5 +150,52 @@ void main() {
         ),
       );
     });
+
+    // 529 rather than 429: the SDK retries 429s internally (sleeping on the
+    // header), and only sets RateLimitException.retryAfter for 429, so this
+    // also covers reading the raw header.
+    test(
+      'Retry-After on an overloaded response surfaces as retryAfter',
+      () async {
+        final client = MockClient(
+          (request) async => http.Response(
+            jsonEncode({
+              'type': 'error',
+              'error': {'type': 'overloaded_error', 'message': 'Overloaded'},
+            }),
+            529,
+            headers: {'content-type': 'application/json', 'Retry-After': '7'},
+          ),
+        );
+        final plugin = AnthropicPluginImpl(
+          apiKey: 'test-key',
+          httpClient: client,
+        );
+        addTearDown(plugin.close);
+        final action = plugin.resolve(.model, _model) as Model;
+
+        await expectLater(
+          action(
+            ModelRequest(
+              messages: [
+                Message(
+                  role: Role.user,
+                  content: [TextPart(text: 'hello')],
+                ),
+              ],
+            ),
+          ),
+          throwsA(
+            isA<GenkitException>()
+                .having((e) => e.status, 'status', StatusCode.unavailable)
+                .having(
+                  (e) => e.retryAfter,
+                  'retryAfter',
+                  const Duration(seconds: 7),
+                ),
+          ),
+        );
+      },
+    );
   });
 }

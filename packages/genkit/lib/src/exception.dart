@@ -14,6 +14,7 @@
 
 import 'dart:convert';
 
+import 'package:http_parser/http_parser.dart' show parseHttpDate;
 import 'package:stack_trace/stack_trace.dart';
 
 /// Canonical status codes for Genkit operations.
@@ -192,12 +193,20 @@ class GenkitException implements Exception {
   /// The stack trace of [cause], when it was captured.
   final StackTrace? stackTrace;
 
+  /// Provider-suggested wait before retrying, typically parsed from a
+  /// `Retry-After` header (see [parseRetryAfter]).
+  ///
+  /// In-process only: it is not serialized over the wire. Retry middleware
+  /// treats it as a minimum delay.
+  final Duration? retryAfter;
+
   GenkitException(
     this.message, {
     StatusCode? status,
     this.details,
     this.cause,
     this.stackTrace,
+    this.retryAfter,
   }) : status = status ?? StatusCode.internal;
 
   @override
@@ -206,6 +215,9 @@ class GenkitException implements Exception {
     final sb = StringBuffer('GenkitException: $message');
     if (status != StatusCode.unknown) {
       sb.write(' (Status: ${status.wireName}, Code: ${status.value})');
+    }
+    if (retryAfter != null) {
+      sb.write(' (Retry after: ${retryAfter!.inMilliseconds}ms)');
     }
 
     // section 2: details
@@ -233,6 +245,33 @@ ${Trace.from(stackTrace!).terse}'''
       );
     }
     return sb.toString();
+  }
+}
+
+/// Parses a `Retry-After` HTTP header value.
+///
+/// Accepts both forms defined by RFC 9110: delay-seconds (`"120"`) and an
+/// HTTP-date (`"Wed, 21 Oct 2026 07:28:00 GMT"`). A date in the past yields
+/// [Duration.zero]. Returns null for a missing or unparseable value.
+///
+/// [now] is for tests.
+Duration? parseRetryAfter(String? value, {DateTime? now}) {
+  final trimmed = value?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+
+  // Fractional seconds aren't allowed by the spec, but some servers send them.
+  final seconds = num.tryParse(trimmed);
+  if (seconds != null) {
+    if (seconds.isNaN || seconds.isInfinite || seconds < 0) return null;
+    return Duration(milliseconds: (seconds * 1000).round());
+  }
+
+  try {
+    final date = parseHttpDate(trimmed);
+    final delta = date.difference(now ?? DateTime.now());
+    return delta.isNegative ? Duration.zero : delta;
+  } on FormatException {
+    return null;
   }
 }
 

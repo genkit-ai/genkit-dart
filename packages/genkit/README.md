@@ -341,6 +341,10 @@ final response = await ai.generate(
 );
 ```
 
+When a provider says how long to wait (a `Retry-After` header, or Gemini's
+`RetryInfo`), the plugin exposes it as `GenkitException.retryAfter` and the
+retry middleware never waits less than that, even if it exceeds `maxDelay`.
+
 #### Simulated Constrained Generation
 
 With an `outputSchema`, Genkit asks the model for native constrained output:
