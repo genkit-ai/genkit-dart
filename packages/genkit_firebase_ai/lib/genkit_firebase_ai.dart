@@ -278,6 +278,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           );
           return ModelResponse(
             finishReason: finishReason,
+            finishMessage: _toFinishMessage(aggregated.candidates.first),
             message: message,
             raw: {
               'candidates': aggregated.candidates
@@ -322,6 +323,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
           return ModelResponse(
             finishReason: finishReason,
+            finishMessage: _toFinishMessage(response.candidates.first),
             message: message,
             raw: raw,
             usage: extractUsage(response.usageMetadata),
@@ -607,12 +609,49 @@ fai.Part toGeminiPart(Part p) {
 
 @visibleForTesting
 (Message, FinishReason) fromGeminiCandidate(fai.Candidate candidate) {
-  final finishReason = FinishReason(candidate.finishReason?.name ?? 'unknown');
   final message = Message(
     role: Role(candidate.content.role ?? 'model'),
     content: candidate.content.parts.map(fromGeminiPart).toList(),
   );
-  return (message, finishReason);
+  return (message, _toFinishReason(candidate.finishReason));
+}
+
+/// Maps a Gemini finish reason onto Genkit's vocabulary.
+///
+/// `firebase_ai` parses unrecognized wire values as
+/// [fai.FinishReason.unknown], so those surface as [FinishReason.unknown].
+FinishReason _toFinishReason(fai.FinishReason? reason) => switch (reason) {
+  null || fai.FinishReason.unknown => FinishReason.unknown,
+  fai.FinishReason.stop => FinishReason.stop,
+  fai.FinishReason.maxTokens => FinishReason.length,
+  fai.FinishReason.safety ||
+  fai.FinishReason.recitation ||
+  fai.FinishReason.language ||
+  fai.FinishReason.blocklist ||
+  fai.FinishReason.prohibitedContent ||
+  fai.FinishReason.spii ||
+  fai.FinishReason.imageSafety ||
+  fai.FinishReason.imageProhibitedContent ||
+  fai.FinishReason.imageRecitation => FinishReason.blocked,
+  fai.FinishReason.malformedFunctionCall ||
+  fai.FinishReason.unexpectedToolCall ||
+  fai.FinishReason.tooManyToolCalls ||
+  fai.FinishReason.noImage ||
+  fai.FinishReason.imageOther ||
+  fai.FinishReason.malformedResponse ||
+  fai.FinishReason.missingThoughtSignature ||
+  fai.FinishReason.other => FinishReason.other,
+};
+
+/// The upstream finish reason as its wire value, followed by the candidate's
+/// `finishMessage` when present.
+String? _toFinishMessage(fai.Candidate candidate) {
+  final message = candidate.finishMessage;
+  final parts = [
+    ?candidate.finishReason?.toJson(),
+    if (message != null && message.isNotEmpty) message,
+  ];
+  return parts.isEmpty ? null : parts.join(': ');
 }
 
 @visibleForTesting
