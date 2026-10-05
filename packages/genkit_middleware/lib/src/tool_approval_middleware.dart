@@ -37,7 +37,7 @@ class ToolApprovalPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<ToolApprovalOptions>(
+    generateMiddleware<ToolApprovalOptions>(
       name: 'toolApproval',
       configSchema: ToolApprovalOptions.$schema,
       create: (config, ctx) {

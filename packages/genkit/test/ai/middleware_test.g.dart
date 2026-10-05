@@ -78,3 +78,59 @@ base class _TestToolInputTypeFactory extends SchemanticType<TestToolInput> {
     dependencies: [],
   );
 }
+
+base class TagOptions {
+  /// Creates a [TagOptions] from a JSON map.
+  factory TagOptions.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  TagOptions._(this._json);
+
+  TagOptions({required String tag}) {
+    _json = {'tag': tag};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [TagOptions].
+  static const SchemanticType<TagOptions> $schema = _TagOptionsTypeFactory();
+
+  String get tag {
+    return _json['tag'] as String;
+  }
+
+  set tag(String value) {
+    _json['tag'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [TagOptions] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _TagOptionsTypeFactory extends SchemanticType<TagOptions> {
+  const _TagOptionsTypeFactory();
+
+  @override
+  TagOptions parse(Object? json) {
+    return TagOptions._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'TagOptions',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'tag': <String, Object?>{'type': 'string'},
+      },
+      'required': ['tag'],
+    },
+    dependencies: [],
+  );
+}

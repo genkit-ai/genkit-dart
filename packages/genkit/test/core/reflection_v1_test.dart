@@ -193,7 +193,7 @@ void main() {
     );
 
     test('GET /api/values for middleware', () async {
-      final def = defineMiddleware<dynamic>(
+      final def = generateMiddleware<dynamic>(
         name: 'retry',
         create: (config, ctx) => throw UnimplementedError(),
       );

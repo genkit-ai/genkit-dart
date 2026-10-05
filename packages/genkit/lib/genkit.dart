@@ -38,7 +38,7 @@ export 'src/ai/generate_middleware.dart'
         GenerateMiddlewareDef,
         GenerateMiddlewareRef,
         GenerateTurnState,
-        defineMiddleware,
+        generateMiddleware,
         middlewareRef;
 export 'src/ai/generate_types.dart'
     show GenerateResponseChunk, GenerateResult, InterruptResponse;

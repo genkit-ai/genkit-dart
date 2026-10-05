@@ -16,16 +16,17 @@ import 'package:genkit/genkit.dart';
 class PrintMiddleware extends GenerateMiddleware {
   @override
   Future<GenerateResult> generate(
-    GenerateActionOptions options,
+    GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     Future<GenerateResult> Function(
-      GenerateActionOptions options,
+      GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     ) next,
   ) async {
-    print('Generate action started for model: ${options.model}');
-    final response = await next(options, ctx);
-    print('Generate action finished');
+    print('Turn ${envelope.currentTurn} started for model: '
+        '${envelope.request.model}');
+    final response = await next(envelope, ctx);
+    print('Turn ${envelope.currentTurn} finished');
     return response;
   }
 
@@ -35,7 +36,7 @@ class PrintMiddleware extends GenerateMiddleware {
     ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
     Future<ModelResponse> Function(
       ModelRequest request,
-       ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
     ) next,
   ) async {
     print('Model request started: ${request.messages.length} messages');
@@ -46,20 +47,11 @@ class PrintMiddleware extends GenerateMiddleware {
 }
 ```
 
-## Registered Middleware Architecture (Best Practice)
+## Configurable Middleware
 
-While you can pass raw middleware instances directly to `generate` (e.g. `use: [PrintMiddleware()]`), Genkit encourages using the **Registered Middleware Architecture**. **Crucially, only registered middleware can be configured and utilized via the Genkit Developer UI.** Unregistered, raw middleware instances cannot be represented or configured in the Dev UI.
+The rest of this page builds a configurable `logger` middleware, first registered in app code and then packaged in a plugin. Both use the same options schema and middleware class.
 
-This pattern, used by built-in middleware like `retry` and by the `genkit_middleware` plugins, also provides the best Developer Experience (DX) in code by supporting:
-
-1. **Dev UI Integration:** Allowing full visibility and configurability from the Developer UI.
-2. **Type-Safe Configurations:** Using Schemantic to define validated configuration schemas.
-3. **Dynamic Resolution:** Allowing configurations to be resolved at runtime via the Genkit Registry.
-4. **Ergonomic Usage:** Providing simple, named-parameter helper functions for consumers.
-
-Here is how you build a production-ready middleware following these DX focused principles.
-
-### 1. Define the Configuration Schema
+### Configuration Schema
 
 Use `schemantic` to define the configuration options for your middleware. This ensures that the configuration can be safely serialized and validated.
 
@@ -75,7 +67,7 @@ abstract class $LoggerOptions {
 }
 ```
 
-### 2. Implement the Middleware Logic
+### Middleware Logic
 
 Create the actual middleware implementation. By convention, name the concrete class with an `Middleware` suffix (e.g., `LoggerMiddleware`).
 
@@ -104,52 +96,88 @@ class LoggerMiddleware extends GenerateMiddleware {
 }
 ```
 
-### 3. Define the Middleware and Plugin
+## Defining Middleware in Your App
 
-Use `defineMiddleware` to link your schema and implementation. Then, expose it via a `GenkitPlugin` so it can be registered when Genkit initializes. By convention, name the plugin class with a `Plugin` suffix (e.g., `LoggerPlugin`).
+While you can pass raw middleware instances directly to `generate` (e.g. `use: [PrintMiddleware()]`), prefer registering it. **Only registered middleware shows up in the Genkit Developer UI**, where it can be configured and used.
+
+In app code, `ai.defineGenerateMiddleware` registers a middleware and returns its definition. Call the definition to build the ref for `use:`:
 
 ```dart
+final logger = ai.defineGenerateMiddleware<LoggerOptions>(
+  name: 'logger',
+  configSchema: LoggerOptions.$schema,
+  create: (config, ctx) => LoggerMiddleware(
+    enableColor: config?.enableColor ?? false,
+    maxLogLength: config?.maxLogLength ?? 1000,
+  ),
+);
+
+await ai.generate(
+  model: googleAI.gemini('gemini-flash-latest'),
+  prompt: 'Hello world',
+  use: [logger(LoggerOptions(enableColor: true)), retry(maxRetries: 2)],
+);
+
+await ai.generate(prompt: 'Hi again', use: [logger()]); // config is optional
+```
+
+A middleware defined this way replaces a built-in or plugin middleware with the same name.
+
+`configSchema` is optional, but without it the middleware can't take a JSON config, for example from the Developer UI or a `.prompt` file. Such a config fails with an `INVALID_ARGUMENT` error.
+
+## Packaging Middleware in a Plugin
+
+To ship middleware in a reusable package, build the definition with `generateMiddleware` and register it from a plugin. This pattern, used by built-in middleware like `retry` and by the `genkit_middleware` plugins, supports:
+
+1. **Dev UI Integration:** Allowing full visibility and configurability from the Developer UI.
+2. **Type-Safe Configurations:** Using Schemantic to define validated configuration schemas.
+3. **Dynamic Resolution:** Allowing configurations to be resolved at runtime via the Genkit Registry.
+4. **Ergonomic Usage:** Providing simple, named-parameter helper functions for consumers.
+
+Here is how you package the `LoggerOptions` schema and `LoggerMiddleware` class from [Configurable Middleware](#configurable-middleware).
+
+### 1. Define the Middleware and Plugin
+
+Use `generateMiddleware` to link your schema and implementation. Unlike `ai.defineGenerateMiddleware`, it only builds the definition; expose it via a `GenkitPlugin` so it is registered when Genkit initializes. By convention, name the plugin class with a `Plugin` suffix (e.g., `LoggerPlugin`).
+
+```dart
+final loggerDef = generateMiddleware<LoggerOptions>(
+  // name should be reasonably unique to avoid conflicts with other plugins.
+  name: 'logger',
+  configSchema: LoggerOptions.$schema,
+  create: (config, ctx) => LoggerMiddleware(
+    enableColor: config?.enableColor ?? false,
+    maxLogLength: config?.maxLogLength ?? 1000,
+  ),
+);
+
 // The plugin that registers the middleware definition
 class LoggerPlugin extends GenkitPlugin {
   @override
   String get name => 'logger';
 
   @override
-  List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<LoggerOptions>(
-      // name should be reasonably unique to avoid conflicts with other plugins.
-      name: 'logger',
-      configSchema: LoggerOptions.$schema,
-      create: (config, ctx) => LoggerMiddleware(
-        enableColor: config?.enableColor ?? false,
-        maxLogLength: config?.maxLogLength ?? 1000,
-      ),
-    ),
-  ];
+  List<GenerateMiddlewareDef> middleware() => [loggerDef];
 }
 ```
 
-### 4. Create the DX Helper Function
+Like the one returned by `ai.defineGenerateMiddleware`, the definition is callable: `loggerDef(LoggerOptions(enableColor: true))` builds a ref for `use:`.
 
-To provide the best developer experience, create a factory function that returns a `GenerateMiddlewareRef`. Instead of forcing the user to instantiate the configuration object directly, use named parameters. This makes the middleware incredibly easy to use inline.
+### 2. Create the DX Helper Function
+
+For the best developer experience, wrap the definition in a factory function with named parameters, so users don't have to build the options object themselves.
 
 ```dart
 /// Convenient helper to use the middleware in `generate(use: [...])`
 GenerateMiddlewareRef<LoggerOptions> logger({
   bool? enableColor,
   int? maxLogLength,
-}) {
-  return middlewareRef(
-    name: 'logger',
-    config: LoggerOptions(
-      enableColor: enableColor,
-      maxLogLength: maxLogLength,
-    ),
-  );
-}
+}) => loggerDef(
+  LoggerOptions(enableColor: enableColor, maxLogLength: maxLogLength),
+);
 ```
 
-## Usage
+### 3. Usage
 
 Consumers first register the plugin when initializing Genkit, and then use your DX helper function directly in their `generate` calls!
 
@@ -174,8 +202,9 @@ void main() {
 
 ## Accessing AI from Middleware (Middleware Context)
 
-The `create` callback you pass to `defineMiddleware` receives two positional
-arguments: the resolved `config`, and a `GenerateMiddlewareContext` (`ctx`).
+The `create` callback you pass to `ai.defineGenerateMiddleware` or `generateMiddleware`
+receives two positional arguments: the resolved `config`, and a
+`GenerateMiddlewareContext` (`ctx`).
 
 ```dart
 create: (config, ctx) => LoggerMiddleware(...),
@@ -197,7 +226,7 @@ class RiskClassifierPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<RiskClassifierOptions>(
+    generateMiddleware<RiskClassifierOptions>(
       name: 'risk_classifier',
       configSchema: RiskClassifierOptions.$schema,
       // Pass the ephemeral GenkitAI to the middleware via the context.
@@ -215,21 +244,22 @@ class RiskClassifierMiddleware extends GenerateMiddleware {
 
   @override
   Future<GenerateResult> generate(
-    GenerateActionOptions options,
+    GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     Future<GenerateResult> Function(
-      GenerateActionOptions options,
+      GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     ) next,
   ) async {
     // Run a nested generate to classify the request before continuing.
+    final lastMessage = envelope.request.messages.last.text;
     final verdict = await ai.generate(
-      prompt: 'Classify the risk of this request: $options',
+      prompt: 'Classify the risk of this request: $lastMessage',
     );
     if (verdict.text.contains('BLOCK')) {
       throw GenkitException('Request blocked by risk classifier');
     }
-    return next(options, ctx);
+    return next(envelope, ctx);
   }
 }
 ```
@@ -243,7 +273,7 @@ final agent = await ctx.ai.registry.lookupAction('agent', 'researcher');
 
 ## Lifecycle and Stateful Middleware
 
-When you register a middleware using the `GenerateMiddlewareRef` pattern, **a new instance of the middleware is instantiated for every single `generate` call.** 
+When you use a registered middleware (via `ai.defineGenerateMiddleware` or a plugin), **a new instance of the middleware is instantiated for every single `generate` call.**
 
 Because of this per-request lifecycle, the middleware instance is isolated safely to that specific generation execution. This makes it the perfect place to maintain state across the different interceptors (`generate`, `model`, and `tool`) and across multi-turn tool calling loops.
 

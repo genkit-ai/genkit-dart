@@ -341,6 +341,40 @@ final response = await ai.generate(
 );
 ```
 
+#### Custom Middleware
+
+Extend `GenerateMiddleware` and override the hooks you need (`generate`, `model`, `tool`). Register it with `ai.defineGenerateMiddleware`, then call the returned definition to build the ref for `use:`:
+
+```dart
+class LoggingMiddleware extends GenerateMiddleware {
+  @override
+  Future<ModelResponse> model(
+    ModelRequest request,
+    ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    Future<ModelResponse> Function(
+      ModelRequest request,
+      ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    ) next,
+  ) async {
+    print('Calling the model with ${request.messages.length} messages');
+    return next(request, ctx);
+  }
+}
+
+final logging = ai.defineGenerateMiddleware<void>(
+  name: 'logging',
+  create: (config, ctx) => LoggingMiddleware(),
+);
+
+await ai.generate(
+  model: googleAI.gemini('gemini-flash-latest'),
+  prompt: 'Hello',
+  use: [logging(), retry(maxRetries: 2)],
+);
+```
+
+Registered middleware also shows up in the Developer UI. See [Generate Middleware](https://github.com/genkit-ai/genkit-dart/blob/main/docs/generate-middleware.md) for typed config and packaging middleware in a plugin.
+
 #### Simulated Constrained Generation
 
 With an `outputSchema`, Genkit asks the model for native constrained output:

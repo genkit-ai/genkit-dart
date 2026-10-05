@@ -498,7 +498,7 @@ void main() {
         isDevEnv: false,
         plugins: [
           _MiddlewarePlugin([
-            defineMiddleware<Object?>(
+            generateMiddleware<Object?>(
               name: 'retry',
               create: (_, _) {
                 overrideUsed = true;
