@@ -560,6 +560,69 @@ void main() {
         );
         expect(log, contains('plugin:generate:start'));
       });
+
+      Matcher throwsInvalidArgument(String message) => throwsA(
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.invalidArgument)
+            .having((e) => e.message, 'message', contains(message)),
+      );
+
+      test('rejects a typed config meant for the middleware it replaced', () {
+        // Replaces the built-in `retry`, whose refs carry RetryOptions.
+        genkit.defineGenerateMiddleware<TagOptions>(
+          name: 'retry',
+          create: (config, ctx) => TestMiddleware(log, config!.tag),
+        );
+
+        expect(
+          genkit.generate(
+            model: modelRef('echo'),
+            prompt: 'hi',
+            use: [retry(maxRetries: 2)],
+          ),
+          throwsInvalidArgument(
+            "Middleware 'retry' expects a config of type TagOptions, "
+            'got RetryOptions.',
+          ),
+        );
+      });
+
+      test('rejects a JSON config when there is no config schema', () {
+        genkit.defineGenerateMiddleware<TagOptions>(
+          name: 'noSchema',
+          create: (config, ctx) => TestMiddleware(log, config!.tag),
+        );
+
+        expect(
+          genkit.generate(
+            model: modelRef('echo'),
+            prompt: 'hi',
+            use: [
+              middlewareRef(name: 'noSchema', config: {'tag': 'json'}),
+            ],
+          ),
+          throwsInvalidArgument('It has no configSchema'),
+        );
+      });
+
+      test(
+        'passes a JSON config through when the options type is a Map',
+        () async {
+          genkit.defineGenerateMiddleware<Map<String, dynamic>>(
+            name: 'mapConfig',
+            create: (config, ctx) => TestMiddleware(log, '${config!['tag']}'),
+          );
+
+          await genkit.generate(
+            model: modelRef('echo'),
+            prompt: 'hi',
+            use: [
+              middlewareRef(name: 'mapConfig', config: {'tag': 'map'}),
+            ],
+          );
+          expect(log, contains('map:generate:start'));
+        },
+      );
     });
 
     test('should inject tools from middleware', () async {

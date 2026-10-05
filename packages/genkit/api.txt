@@ -1762,7 +1762,7 @@ package:genkit/genkit.dart:
   GenerateMiddlewareContext (class extends Object, final):
     new (constructor: GenerateMiddlewareContext Function({required GenkitAI ai}))
     ai (getter: GenkitAI)
-  GenerateMiddlewareDef (class<CustomOptions> extends Object, abstract, interface):
+  GenerateMiddlewareDef (class<CustomOptions> extends Object, final):
     configJsonSchema (getter: Map<String, Object?>?)
     configSchema (getter: SchemanticType<CustomOptions>?)
     name (getter: String)

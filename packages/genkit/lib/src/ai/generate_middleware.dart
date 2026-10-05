@@ -12,9 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
+import '../exception.dart';
 import '../genkit_ai.dart';
 import '../types.dart';
 import 'generate_types.dart';
@@ -175,25 +177,13 @@ final class GenerateMiddlewareContext {
 /// use: [logging(LoggingOptions(level: 'debug'))]
 /// use: [logging()] // config is optional
 /// ```
-abstract interface class GenerateMiddlewareDef<CustomOptions> {
-  String get name;
-  SchemanticType<CustomOptions>? get configSchema;
-  Map<String, Object?>? get configJsonSchema;
-
-  GenerateMiddleware create(
-    CustomOptions? config,
-    GenerateMiddlewareContext ctx,
-  );
-
-  /// Builds a ref to this middleware for `use:`, with an optional [config].
-  GenerateMiddlewareRef<CustomOptions> call([CustomOptions? config]);
-}
-
-class _GenerateMiddlewareDef<CustomOptions>
-    implements GenerateMiddlewareDef<CustomOptions> {
-  @override
+///
+/// `final` with a private constructor: build one with [generateMiddleware].
+/// Owning the only implementation lets members be added without breaking
+/// anyone, and lets refs be type-checked against [CustomOptions] when they
+/// are resolved (see [createMiddlewareFromRef]).
+final class GenerateMiddlewareDef<CustomOptions> {
   final String name;
-  @override
   final SchemanticType<CustomOptions>? configSchema;
   final GenerateMiddleware Function(
     CustomOptions? config,
@@ -201,21 +191,60 @@ class _GenerateMiddlewareDef<CustomOptions>
   )
   _create;
 
-  _GenerateMiddlewareDef(this.name, this._create, this.configSchema);
+  GenerateMiddlewareDef._(this.name, this._create, this.configSchema);
 
-  @override
   Map<String, Object?>? get configJsonSchema => configSchema?.jsonSchema();
 
-  @override
   GenerateMiddleware create(
     CustomOptions? config,
     GenerateMiddlewareContext ctx,
   ) => _create(config, ctx);
 
-  @override
+  /// Builds a ref to this middleware for `use:`, with an optional [config].
   GenerateMiddlewareRef<CustomOptions> call([CustomOptions? config]) =>
       middlewareRef(name: name, config: config);
+
+  GenerateMiddleware _createFromRef(
+    Object? config,
+    GenerateMiddlewareContext ctx,
+  ) {
+    final typed = switch (config) {
+      null => null,
+      final Map<String, dynamic> json when configSchema != null =>
+        configSchema!.parse(json),
+      // Also matches a Map when CustomOptions is a Map, dynamic, void, etc.
+      final CustomOptions typed => typed,
+      _ => throw _configTypeError(config),
+    };
+    return _create(typed, ctx);
+  }
+
+  GenkitException _configTypeError(Object config) {
+    final hint = config is Map
+        ? ' It has no configSchema, so it cannot take a JSON config '
+              '(e.g. from the Developer UI or a .prompt file).'
+        : '';
+    return GenkitException(
+      "Middleware '$name' expects a config of type $CustomOptions, "
+      'got ${config.runtimeType}.$hint',
+      status: StatusCode.invalidArgument,
+    );
+  }
 }
+
+/// Instantiates [def] for a ref's [config], which may be a JSON Map (from the
+/// Developer UI, a `.prompt` file or the generate action) or a typed object.
+///
+/// Throws an `INVALID_ARGUMENT` [GenkitException] when [config] doesn't fit
+/// the def's options type, e.g. after an app middleware replaced a built-in
+/// one with the same name but different options. Without this the mismatch
+/// would surface as a `TypeError` from deep inside `create`.
+@internal
+GenerateMiddleware createMiddlewareFromRef(
+  GenerateMiddlewareDef<dynamic> def,
+  Object? config,
+  GenerateMiddlewareContext ctx,
+) => def._createFromRef(config, ctx);
 
 /// Builds a middleware definition without registering it. For plugin authors:
 /// return it from `GenkitPlugin.middleware`.
@@ -260,7 +289,7 @@ GenerateMiddlewareDef<CustomOptions> generateMiddleware<CustomOptions>({
   create,
   SchemanticType<CustomOptions>? configSchema,
 }) {
-  return _GenerateMiddlewareDef<CustomOptions>(name, create, configSchema);
+  return GenerateMiddlewareDef<CustomOptions>._(name, create, configSchema);
 }
 
 abstract interface class GenerateMiddlewareRef<CustomOptions> {
