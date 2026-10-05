@@ -58,6 +58,7 @@ class _CandidateState {
   List<gcl.SafetyRating> safetyRatings = [];
   gcl.CitationMetadata? citationMetadata;
   gcl.GroundingMetadata? groundingMetadata;
+  gcl.UrlContextMetadata? urlContextMetadata;
   String role = 'model';
   List<gcl.Part> parts = [];
 
@@ -78,6 +79,9 @@ class _CandidateState {
     }
     if (chunk.groundingMetadata != null) {
       groundingMetadata = chunk.groundingMetadata;
+    }
+    if (chunk.urlContextMetadata != null) {
+      urlContextMetadata = chunk.urlContextMetadata;
     }
     if (chunk.content != null) {
       if (chunk.content!.role != null) {
@@ -115,6 +119,7 @@ class _CandidateState {
       safetyRatings: safetyRatings,
       citationMetadata: citationMetadata,
       groundingMetadata: groundingMetadata,
+      urlContextMetadata: urlContextMetadata,
       content: gcl.Content(role: role, parts: parts),
     );
   }
