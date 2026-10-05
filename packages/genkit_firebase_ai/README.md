@@ -34,21 +34,22 @@ void main() async {
 
 ### Configuration
 
-You can optionally pass in `FirebaseApp`, `FirebaseAppCheck`, `FirebaseAuth`,
-`FirebaseAiProvider` instances, and `useLimitedUseAppCheckTokens` flag when
-initializing the plugin.
+You can optionally pass in `FirebaseApp` and `FirebaseAiProvider` instances,
+and the `useLimitedUseAppCheckTokens` flag when initializing the plugin. App
+Check and Auth are read from the `FirebaseApp`.
 
 ```dart
 final firebasePlugin = firebaseAI(
   app: Firebase.app('my-app'),
-  appCheck: FirebaseAppCheck.instanceFor(app: Firebase.app('my-app')),
-  auth: FirebaseAuth.instanceFor(app: Firebase.app('my-app')),
-  provider: FirebaseAiProvider.vertexAI(location: 'us-central1'),
+  provider: FirebaseAiProvider.geminiEnterprise(location: 'us-central1'),
   useLimitedUseAppCheckTokens: true,
 );
 
 final ai = Genkit(plugins: [firebasePlugin]);
 ```
+
+`FirebaseAiProvider.geminiEnterprise` defaults `location` to `global`, not
+`us-central1`.
 
 ### Tool Calling
 

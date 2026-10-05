@@ -12,13 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: invalid_use_of_visible_for_testing_member, deprecated_member_use
+// ignore_for_file: invalid_use_of_visible_for_testing_member
 
 import 'dart:convert';
 
 import 'package:firebase_ai/firebase_ai.dart' as fai;
-import 'package:firebase_app_check/firebase_app_check.dart' as fac;
-import 'package:firebase_auth/firebase_auth.dart' as fauth;
 import 'package:firebase_core/firebase_core.dart' as fcore;
 // Live (bidi) model support builds on Genkit's experimental surface. Like
 // `package:genkit/experimental.dart`, `BidiModel` is NOT covered by
@@ -119,18 +117,22 @@ sealed class FirebaseAiProvider {
   const FirebaseAiProvider();
 
   const factory FirebaseAiProvider.googleAI() = _GoogleAIProvider;
-  const factory FirebaseAiProvider.vertexAI({String? location}) =
-      _VertexAIProvider;
+
+  /// The Agent Platform Gemini API (formerly Vertex AI) in [location].
+  ///
+  /// When [location] is omitted the Firebase AI SDK default, `global`, is used.
+  const factory FirebaseAiProvider.geminiEnterprise({String? location}) =
+      _GeminiEnterpriseProvider;
 }
 
 class _GoogleAIProvider extends FirebaseAiProvider {
   const _GoogleAIProvider();
 }
 
-class _VertexAIProvider extends FirebaseAiProvider {
+class _GeminiEnterpriseProvider extends FirebaseAiProvider {
   final String? location;
 
-  const _VertexAIProvider({this.location});
+  const _GeminiEnterpriseProvider({this.location});
 }
 
 const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
@@ -145,16 +147,12 @@ class FirebaseGenAiPluginHandle {
   /// WebSocket. When omitted, the Firebase AI SDK's default client is used.
   GenkitPlugin call({
     fcore.FirebaseApp? app,
-    fac.FirebaseAppCheck? appCheck,
-    fauth.FirebaseAuth? auth,
     bool? useLimitedUseAppCheckTokens,
     FirebaseAiProvider provider = const FirebaseAiProvider.googleAI(),
     http.Client? httpClient,
   }) {
     return _FirebaseGenAiPlugin(
       app: app,
-      appCheck: appCheck,
-      auth: auth,
       useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
       provider: provider,
       httpClient: httpClient,
@@ -171,8 +169,6 @@ class FirebaseGenAiPluginHandle {
 
 class _FirebaseGenAiPlugin extends GenkitPlugin {
   final fcore.FirebaseApp? app;
-  final fac.FirebaseAppCheck? appCheck;
-  final fauth.FirebaseAuth? auth;
   final bool? useLimitedUseAppCheckTokens;
   final FirebaseAiProvider provider;
   final http.Client? httpClient;
@@ -182,8 +178,6 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
   _FirebaseGenAiPlugin({
     this.app,
-    this.appCheck,
-    this.auth,
     this.useLimitedUseAppCheckTokens,
     this.provider = const FirebaseAiProvider.googleAI(),
     this.httpClient,
@@ -191,17 +185,14 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
   fai.FirebaseAI get _firebaseAI {
     return switch (provider) {
-      _VertexAIProvider(:final location) => fai.FirebaseAI.vertexAI(
-        app: app,
-        appCheck: appCheck,
-        auth: auth,
-        useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
-        location: location,
-      ),
+      _GeminiEnterpriseProvider(:final location) =>
+        fai.FirebaseAI.agentPlatform(
+          app: app,
+          location: location,
+          useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
+        ),
       _GoogleAIProvider() => fai.FirebaseAI.googleAI(
         app: app,
-        appCheck: appCheck,
-        auth: auth,
         useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
       ),
     };
@@ -803,6 +794,7 @@ fai.GenerationConfig toGeminiSettings(
         .toList(),
     thinkingConfig: options.thinkingConfig == null
         ? null
+        // ignore: deprecated_member_use
         : fai.ThinkingConfig(
             includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
             thinkingBudget: options.thinkingConfig!.thinkingBudget,
