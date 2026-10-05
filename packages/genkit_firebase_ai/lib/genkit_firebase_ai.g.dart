@@ -440,10 +440,15 @@ base class ThinkingConfig {
 
   ThinkingConfig._(this._json);
 
-  ThinkingConfig({int? thinkingBudget, bool? includeThoughts}) {
+  ThinkingConfig({
+    int? thinkingBudget,
+    bool? includeThoughts,
+    String? thinkingLevel,
+  }) {
     _json = {
       'thinkingBudget': ?thinkingBudget,
       'includeThoughts': ?includeThoughts,
+      'thinkingLevel': ?thinkingLevel,
     };
   }
 
@@ -477,6 +482,18 @@ base class ThinkingConfig {
     }
   }
 
+  String? get thinkingLevel {
+    return _json['thinkingLevel'] as String?;
+  }
+
+  set thinkingLevel(String? value) {
+    if (value == null) {
+      _json.remove('thinkingLevel');
+    } else {
+      _json['thinkingLevel'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -504,6 +521,12 @@ base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
       'properties': <String, Object?>{
         'thinkingBudget': <String, Object?>{'type': 'integer'},
         'includeThoughts': <String, Object?>{'type': 'boolean'},
+        'thinkingLevel': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Thinking level for Gemini 3 and newer models, which use it in place of thinkingBudget. Cannot be set together with thinkingBudget.',
+          'enum': ['minimal', 'low', 'medium', 'high'],
+        },
       },
     },
     dependencies: [],

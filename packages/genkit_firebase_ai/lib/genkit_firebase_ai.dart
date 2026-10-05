@@ -96,6 +96,14 @@ abstract class $FunctionCallingConfig {
 abstract class $ThinkingConfig {
   int? get thinkingBudget;
   bool? get includeThoughts;
+
+  @StringField(
+    enumValues: ['minimal', 'low', 'medium', 'high'],
+    description:
+        'Thinking level for Gemini 3 and newer models, which use it in place '
+        'of thinkingBudget. Cannot be set together with thinkingBudget.',
+  )
+  String? get thinkingLevel;
 }
 
 @Schema()
@@ -889,11 +897,36 @@ fai.GenerationConfig toGeminiSettings(
         .toList(),
     thinkingConfig: options.thinkingConfig == null
         ? null
-        // ignore: deprecated_member_use
-        : fai.ThinkingConfig(
-            includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
-            thinkingBudget: options.thinkingConfig!.thinkingBudget,
-          ),
+        : _toGeminiThinkingConfig(options.thinkingConfig!),
+  );
+}
+
+fai.ThinkingConfig _toGeminiThinkingConfig(ThinkingConfig config) {
+  final includeThoughts = config.includeThoughts ?? false;
+  final level = config.thinkingLevel;
+  if (level == null) {
+    return fai.ThinkingConfig.withThinkingBudget(
+      config.thinkingBudget,
+      includeThoughts: includeThoughts,
+    );
+  }
+  if (config.thinkingBudget != null) {
+    throw GenkitException(
+      'thinkingConfig cannot set both thinkingBudget and thinkingLevel.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  final thinkingLevel = fai.ThinkingLevel.values.asNameMap()[level];
+  if (thinkingLevel == null) {
+    throw GenkitException(
+      'Unknown thinkingConfig.thinkingLevel "$level"; expected one of '
+      '${fai.ThinkingLevel.values.map((l) => l.name).join(', ')}.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  return fai.ThinkingConfig.withThinkingLevel(
+    thinkingLevel,
+    includeThoughts: includeThoughts,
   );
 }
 
