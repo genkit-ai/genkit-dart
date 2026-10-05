@@ -1,0 +1,122 @@
+name: firebase_ai Canary
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    # Mondays 04:00 UTC.
+    - cron: '0 4 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  upstream:
+    name: flutterfire main (${{ matrix.dir }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dir: packages/genkit_firebase_ai
+            test: true
+          - dir: testapps/firebase_ai
+            test: false
+    defaults:
+      run:
+        working-directory: ${{ matrix.dir }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: 'stable'
+
+      # Inserted directly under the existing header so the keys stay sorted (sort_pub_dependencies).
+      - name: Override firebase_ai with flutterfire main
+        run: |
+          cat > "$RUNNER_TEMP/overrides.yaml" <<'EOF'
+            firebase_ai:
+              git:
+                url: https://github.com/firebase/flutterfire.git
+                path: packages/firebase_ai/firebase_ai
+                ref: main
+          EOF
+          sed -i "/^dependency_overrides:\$/r $RUNNER_TEMP/overrides.yaml" pubspec.yaml
+          grep -q 'url: https://github.com/firebase/flutterfire.git' pubspec.yaml
+
+      - name: Resolve dependencies
+        run: flutter pub get
+
+      - name: Show resolved firebase_ai
+        run: grep -A8 '^  firebase_ai:' pubspec.lock
+
+      - name: build_runner
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Ensure firebase_options.dart exists
+        if: matrix.dir == 'testapps/firebase_ai'
+        run: ./tool/stub_firebase_options.sh
+
+      - name: Analyzer
+        run: flutter analyze
+
+      - name: Tests
+        if: matrix.test
+        run: flutter test
+
+  floor:
+    name: firebase_ai declared floor
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/genkit_firebase_ai
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: 'stable'
+
+      # No build_runner: its lowest allowed transitive deps do not compile on current Dart.
+      - name: Resolve lowest allowed dependencies
+        run: flutter pub downgrade
+
+      - name: Analyzer
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
+
+  report:
+    name: Report failure
+    needs: [upstream, floor]
+    if: failure() && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update tracking issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TITLE: firebase_ai upstream canary failed
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body="The firebase_ai canary failed: $RUN_URL"
+          number=$(gh issue list --state open --search "\"$TITLE\" in:title" --json number,title \
+            --jq "map(select(.title == env.TITLE)) | first | .number // empty")
+          if [ -n "$number" ]; then
+            gh issue comment "$number" --body "$body"
+          else
+            gh issue create --title "$TITLE" --body "$body"
+          fi
