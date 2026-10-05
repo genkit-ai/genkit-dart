@@ -93,7 +93,7 @@ abstract class $ThinkingConfig {
   bool? get includeThoughts;
 
   @StringField(
-    enumValues: ['minimal', 'low', 'medium', 'high'],
+    enumValues: ['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'],
     description:
         'Thinking level for Gemini 3 and newer models, which use it in place '
         'of thinkingBudget. Cannot be set together with thinkingBudget.',
@@ -841,11 +841,12 @@ fai.ThinkingConfig _toGeminiThinkingConfig(ThinkingConfig config) {
       status: StatusCode.invalidArgument,
     );
   }
-  final thinkingLevel = fai.ThinkingLevel.values.asNameMap()[level];
+  final thinkingLevel = fai.ThinkingLevel.values
+      .asNameMap()[level.toLowerCase()];
   if (thinkingLevel == null) {
     throw GenkitException(
       'Unknown thinkingConfig.thinkingLevel "$level"; expected one of '
-      '${fai.ThinkingLevel.values.map((l) => l.name).join(', ')}.',
+      '${fai.ThinkingLevel.values.map((l) => l.toJson()).join(', ')}.',
       status: StatusCode.invalidArgument,
     );
   }

@@ -33,7 +33,7 @@ void main() {
 
   test('thinkingLevel is sent and no budget is sent', () async {
     final thinkingConfig = await _thinkingConfigOnTheWire({
-      'thinkingLevel': 'high',
+      'thinkingLevel': 'HIGH',
     });
 
     expect(thinkingConfig['thinkingLevel'], 'HIGH');
@@ -51,7 +51,7 @@ void main() {
 
   test('includeThoughts is sent with thinkingLevel', () async {
     final thinkingConfig = await _thinkingConfigOnTheWire({
-      'thinkingLevel': 'low',
+      'thinkingLevel': 'LOW',
       'includeThoughts': true,
     });
 
@@ -77,7 +77,7 @@ void main() {
         userRequest(
           'hello',
           config: {
-            'thinkingConfig': {'thinkingBudget': 1024, 'thinkingLevel': 'high'},
+            'thinkingConfig': {'thinkingBudget': 1024, 'thinkingLevel': 'HIGH'},
           },
         ),
       ),
@@ -102,7 +102,7 @@ void main() {
         userRequest(
           'hello',
           config: {
-            'thinkingConfig': {'thinkingLevel': 'extreme'},
+            'thinkingConfig': {'thinkingLevel': 'EXTREME'},
           },
         ),
       ),
