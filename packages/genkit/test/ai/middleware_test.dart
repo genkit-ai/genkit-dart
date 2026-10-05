@@ -428,7 +428,7 @@ void main() {
         );
       });
 
-      DefinedMiddleware<TagOptions> defineTagging() =>
+      GenerateMiddlewareDef<TagOptions> defineTagging() =>
           genkit.defineMiddleware<TagOptions>(
             name: 'tagging',
             configSchema: TagOptions.$schema,
@@ -528,11 +528,37 @@ void main() {
         expect(log, isNot(contains('plugin:generate:start')));
       });
 
-      test('can be returned from a plugin', () {
-        final tagging = defineTagging();
-        // DefinedMiddleware implements GenerateMiddlewareDef, so moving it
-        // into a plugin later needs no changes.
-        expect(MiddlewarePlugin([tagging]).middleware(), [tagging]);
+      test('a generateMiddleware def from a plugin is callable', () async {
+        final tagging = generateMiddleware<TagOptions>(
+          name: 'tagging',
+          configSchema: TagOptions.$schema,
+          create: (config, ctx) =>
+              TestMiddleware(log, config?.tag ?? 'untagged'),
+        );
+        await genkit.shutdown();
+        genkit = Genkit(
+          isDevEnv: false,
+          plugins: [
+            MiddlewarePlugin([tagging]),
+          ],
+        );
+        genkit.defineModel(
+          name: 'echo',
+          fn: (req, ctx) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'ok')],
+            ),
+          ),
+        );
+
+        await genkit.generate(
+          model: modelRef('echo'),
+          prompt: 'hi',
+          use: [tagging(TagOptions(tag: 'plugin'))],
+        );
+        expect(log, contains('plugin:generate:start'));
       });
     });
 

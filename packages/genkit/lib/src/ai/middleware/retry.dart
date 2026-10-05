@@ -146,9 +146,8 @@ GenerateMiddlewareRef<RetryOptions> retry({
   bool? noRetryModel,
   bool? retryTools,
 }) {
-  return middlewareRef(
-    name: _name,
-    config: RetryOptions(
+  return retryDef(
+    RetryOptions(
       maxRetries: maxRetries,
       statuses: statuses?.map((s) => s.wireName).toList(),
       initialDelayMs: initialDelay?.inMilliseconds,

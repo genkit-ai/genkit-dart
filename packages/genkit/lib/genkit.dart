@@ -33,7 +33,6 @@ export 'src/ai/evaluator.dart' show Evaluator;
 
 export 'src/ai/generate_middleware.dart'
     show
-        DefinedMiddleware,
         GenerateMiddleware,
         GenerateMiddlewareContext,
         GenerateMiddlewareDef,

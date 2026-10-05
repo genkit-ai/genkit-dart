@@ -25,7 +25,6 @@ export 'package:genkit/src/ai/embedder.dart'
 export 'package:genkit/src/ai/evaluator.dart' show Evaluator;
 export 'package:genkit/src/ai/generate_middleware.dart'
     show
-        DefinedMiddleware,
         GenerateMiddleware,
         GenerateMiddlewareContext,
         GenerateMiddlewareDef,

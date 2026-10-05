@@ -343,7 +343,7 @@ final response = await ai.generate(
 
 #### Custom Middleware
 
-Extend `GenerateMiddleware` and override the hooks you need (`generate`, `model`, `tool`). Register it with `ai.defineMiddleware`, which returns a callable that builds the ref for `use:`:
+Extend `GenerateMiddleware` and override the hooks you need (`generate`, `model`, `tool`). Register it with `ai.defineMiddleware`, then call the returned definition to build the ref for `use:`:
 
 ```dart
 class LoggingMiddleware extends GenerateMiddleware {

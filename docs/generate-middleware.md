@@ -50,7 +50,7 @@ class PrintMiddleware extends GenerateMiddleware {
 
 While you can pass raw middleware instances directly to `generate` (e.g. `use: [PrintMiddleware()]`), prefer registering it. **Only registered middleware shows up in the Genkit Developer UI**, where it can be configured and used.
 
-In app code, `ai.defineMiddleware` registers a middleware and returns a callable that builds the ref for `use:`:
+In app code, `ai.defineMiddleware` registers a middleware and returns its definition. Call the definition to build the ref for `use:`:
 
 ```dart
 final logging = ai.defineMiddleware<LoggerOptions>(
@@ -134,44 +134,40 @@ class LoggerMiddleware extends GenerateMiddleware {
 Use `generateMiddleware` to link your schema and implementation. Unlike `ai.defineMiddleware`, it only builds the definition; expose it via a `GenkitPlugin` so it is registered when Genkit initializes. By convention, name the plugin class with a `Plugin` suffix (e.g., `LoggerPlugin`).
 
 ```dart
+final loggerDef = generateMiddleware<LoggerOptions>(
+  // name should be reasonably unique to avoid conflicts with other plugins.
+  name: 'logger',
+  configSchema: LoggerOptions.$schema,
+  create: (config, ctx) => LoggerMiddleware(
+    enableColor: config?.enableColor ?? false,
+    maxLogLength: config?.maxLogLength ?? 1000,
+  ),
+);
+
 // The plugin that registers the middleware definition
 class LoggerPlugin extends GenkitPlugin {
   @override
   String get name => 'logger';
 
   @override
-  List<GenerateMiddlewareDef> middleware() => [
-    generateMiddleware<LoggerOptions>(
-      // name should be reasonably unique to avoid conflicts with other plugins.
-      name: 'logger',
-      configSchema: LoggerOptions.$schema,
-      create: (config, ctx) => LoggerMiddleware(
-        enableColor: config?.enableColor ?? false,
-        maxLogLength: config?.maxLogLength ?? 1000,
-      ),
-    ),
-  ];
+  List<GenerateMiddlewareDef> middleware() => [loggerDef];
 }
 ```
 
+Like the one returned by `ai.defineMiddleware`, the definition is callable: `loggerDef(LoggerOptions(enableColor: true))` builds a ref for `use:`.
+
 ### 4. Create the DX Helper Function
 
-To provide the best developer experience, create a factory function that returns a `GenerateMiddlewareRef`. Instead of forcing the user to instantiate the configuration object directly, use named parameters. This makes the middleware incredibly easy to use inline.
+For the best developer experience, wrap the definition in a factory function with named parameters, so users don't have to build the options object themselves.
 
 ```dart
 /// Convenient helper to use the middleware in `generate(use: [...])`
 GenerateMiddlewareRef<LoggerOptions> logger({
   bool? enableColor,
   int? maxLogLength,
-}) {
-  return middlewareRef(
-    name: 'logger',
-    config: LoggerOptions(
-      enableColor: enableColor,
-      maxLogLength: maxLogLength,
-    ),
-  );
-}
+}) => loggerDef(
+  LoggerOptions(enableColor: enableColor, maxLogLength: maxLogLength),
+);
 ```
 
 ### 5. Usage

@@ -190,8 +190,8 @@ final class Genkit extends GenkitAI {
     return tool;
   }
 
-  /// Defines and registers a generate middleware, and returns it as a
-  /// callable that builds the ref for `use:`.
+  /// Defines and registers a generate middleware. Call the returned
+  /// definition to build the ref for `use:`.
   ///
   /// ```dart
   /// final logging = ai.defineMiddleware<LoggingOptions>(
@@ -212,7 +212,7 @@ final class Genkit extends GenkitAI {
   ///
   /// To ship middleware in a package, build it with [generateMiddleware] and
   /// return it from a plugin's `middleware()` instead.
-  DefinedMiddleware<CustomOptions> defineMiddleware<CustomOptions>({
+  GenerateMiddlewareDef<CustomOptions> defineMiddleware<CustomOptions>({
     required String name,
     required GenerateMiddleware Function(
       CustomOptions? config,
@@ -221,7 +221,7 @@ final class Genkit extends GenkitAI {
     create,
     SchemanticType<CustomOptions>? configSchema,
   }) {
-    final middleware = DefinedMiddleware<CustomOptions>(
+    final middleware = generateMiddleware<CustomOptions>(
       name: name,
       create: create,
       configSchema: configSchema,

@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
@@ -167,6 +166,15 @@ final class GenerateMiddlewareContext {
   GenerateMiddlewareContext({required this.ai});
 }
 
+/// A named, configurable middleware, built with [generateMiddleware] or
+/// `ai.defineMiddleware`.
+///
+/// Call it to build the ref passed to `use:`:
+///
+/// ```dart
+/// await ai.generate(prompt: 'hi', use: [logging(LoggingOptions(level: 'debug'))]);
+/// await ai.generate(prompt: 'hi', use: [logging()]); // config is optional
+/// ```
 abstract interface class GenerateMiddlewareDef<CustomOptions> {
   String get name;
   SchemanticType<CustomOptions>? get configSchema;
@@ -176,6 +184,9 @@ abstract interface class GenerateMiddlewareDef<CustomOptions> {
     CustomOptions? config,
     GenerateMiddlewareContext ctx,
   );
+
+  /// Builds a ref to this middleware for `use:`, with an optional [config].
+  GenerateMiddlewareRef<CustomOptions> call([CustomOptions? config]);
 }
 
 class _GenerateMiddlewareDef<CustomOptions>
@@ -200,11 +211,18 @@ class _GenerateMiddlewareDef<CustomOptions>
     CustomOptions? config,
     GenerateMiddlewareContext ctx,
   ) => _create(config, ctx);
+
+  @override
+  GenerateMiddlewareRef<CustomOptions> call([CustomOptions? config]) =>
+      middlewareRef(name: name, config: config);
 }
 
 /// Builds a middleware definition without registering it. For plugin authors:
-/// return it from `GenkitPlugin.middleware`, and expose a factory function
-/// that builds the ref for `use:` (see `retry`).
+/// return it from `GenkitPlugin.middleware`.
+///
+/// The definition is callable (`loggerDef(LoggerOptions(...))` builds the ref
+/// for `use:`). Packaged middleware usually also exposes a named-param
+/// factory on top, which reads better at the call site (see `retry`).
 ///
 /// ```dart
 /// final loggerDef = generateMiddleware<LoggerOptions>(
@@ -221,11 +239,10 @@ class _GenerateMiddlewareDef<CustomOptions>
 ///   List<GenerateMiddlewareDef> middleware() => [loggerDef];
 /// }
 ///
+/// // Optional sugar: `logger(enableColor: true)` instead of
+/// // `loggerDef(LoggerOptions(enableColor: true))`.
 /// GenerateMiddlewareRef<LoggerOptions> logger({bool? enableColor}) =>
-///     middlewareRef(
-///       name: 'logger',
-///       config: LoggerOptions(enableColor: enableColor),
-///     );
+///     loggerDef(LoggerOptions(enableColor: enableColor));
 /// ```
 ///
 /// App code that doesn't need a plugin should use `ai.defineMiddleware`,
@@ -244,62 +261,6 @@ GenerateMiddlewareDef<CustomOptions> generateMiddleware<CustomOptions>({
   SchemanticType<CustomOptions>? configSchema,
 }) {
   return _GenerateMiddlewareDef<CustomOptions>(name, create, configSchema);
-}
-
-/// A middleware registered with `ai.defineMiddleware`: the definition, plus
-/// [call] to build the ref passed to `use:`.
-///
-/// ```dart
-/// final logging = ai.defineMiddleware<LoggingOptions>(
-///   name: 'logging',
-///   configSchema: LoggingOptions.$schema,
-///   create: (config, ctx) => LoggingMiddleware(config),
-/// );
-///
-/// await ai.generate(
-///   prompt: 'hi',
-///   use: [logging(LoggingOptions(level: 'debug'))],
-/// );
-/// ```
-///
-/// Packaged middleware exposes named-param factory functions instead (for
-/// example `retry(maxRetries: 2)`). Because this implements
-/// [GenerateMiddlewareDef], the same value can also be returned from a
-/// plugin's `middleware()`.
-final class DefinedMiddleware<CustomOptions>
-    implements GenerateMiddlewareDef<CustomOptions> {
-  /// Use `ai.defineMiddleware`, which also registers it.
-  @internal
-  DefinedMiddleware({
-    required String name,
-    required GenerateMiddleware Function(
-      CustomOptions? config,
-      GenerateMiddlewareContext ctx,
-    )
-    create,
-    SchemanticType<CustomOptions>? configSchema,
-  }) : _def = _GenerateMiddlewareDef(name, create, configSchema);
-
-  final GenerateMiddlewareDef<CustomOptions> _def;
-
-  @override
-  String get name => _def.name;
-
-  @override
-  SchemanticType<CustomOptions>? get configSchema => _def.configSchema;
-
-  @override
-  Map<String, Object?>? get configJsonSchema => _def.configJsonSchema;
-
-  @override
-  GenerateMiddleware create(
-    CustomOptions? config,
-    GenerateMiddlewareContext ctx,
-  ) => _def.create(config, ctx);
-
-  /// Builds a ref to this middleware for `use:`, with an optional [config].
-  GenerateMiddlewareRef<CustomOptions> call([CustomOptions? config]) =>
-      middlewareRef(name: name, config: config);
 }
 
 abstract interface class GenerateMiddlewareRef<CustomOptions> {

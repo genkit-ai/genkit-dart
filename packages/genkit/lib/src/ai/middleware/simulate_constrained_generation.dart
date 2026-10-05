@@ -46,7 +46,7 @@ final simulateConstrainedGenerationDef = generateMiddleware<void>(
 /// `supports.constrained`. See [SimulateConstrainedGenerationMiddleware] for
 /// exactly what it changes.
 GenerateMiddlewareRef<void> simulateConstrainedGeneration() =>
-    middlewareRef(name: _name);
+    simulateConstrainedGenerationDef();
 
 /// Rewrites a constrained request into an unconstrained one that carries the
 /// schema as prompt instructions.
