@@ -497,10 +497,9 @@ void main() {
       });
 
       test('works with a relative root', () async {
-        final previous = Directory.current;
-        Directory.current = tempDir;
-        addTearDown(() => Directory.current = previous);
-        mw = FilesystemMiddleware('root');
+        // Relative to the current directory rather than changing it:
+        // Directory.current is process-wide and test files run concurrently.
+        mw = FilesystemMiddleware(p.relative(root.path));
 
         await toolNamed(
           'write_file',

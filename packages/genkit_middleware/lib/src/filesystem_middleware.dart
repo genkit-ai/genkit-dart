@@ -126,7 +126,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
   /// Like [_resolvePath], but returns null instead of throwing.
   String? _resolvePathOrNull(String relativePath) {
     // Lexical check first: cheap, and rejects `..` and absolute paths early.
-    final lexical = p.canonicalize(p.join(rootDirectory, relativePath));
+    final lexical = p.canonicalize(p.join(_lexicalRoot, relativePath));
     if (!_isWithinOrEqual(_lexicalRoot, lexical)) return null;
 
     // Then follow symlinks, so a link inside the root can't point outside it.
