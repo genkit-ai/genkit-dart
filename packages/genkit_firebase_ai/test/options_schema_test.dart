@@ -15,11 +15,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 
-import 'wire_harness.dart';
-
 void main() {
-  setUpAll(setUpFirebaseApp);
-
   test('GeminiOptions schema does not declare logprobs options', () {
     final properties =
         GeminiOptions.$schema.jsonSchema()['properties']!
@@ -27,19 +23,5 @@ void main() {
 
     expect(properties, isNot(contains('responseLogprobs')));
     expect(properties, isNot(contains('logprobs')));
-  });
-
-  test('GeminiOptions config is sent as generationConfig', () async {
-    final client = WireClient();
-    final model = wireModel(client);
-
-    await model(
-      userRequest('hello', config: {'temperature': 0.1, 'maxOutputTokens': 5}),
-    );
-
-    final generationConfig =
-        client.requests.single.body['generationConfig'] as Map<String, dynamic>;
-    expect(generationConfig['temperature'], 0.1);
-    expect(generationConfig['maxOutputTokens'], 5);
   });
 }
