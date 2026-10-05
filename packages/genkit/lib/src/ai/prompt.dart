@@ -33,6 +33,16 @@ import 'model.dart';
 import 'prompt_types.dart';
 import 'tool.dart';
 
+/// An input schema whose named types are resolved on use, set by the
+/// `.prompt` loader. [Prompt.render] calls [ensureResolved] so an undefined
+/// name fails the render instead of loosening the schema.
+@internal
+abstract interface class DeferredSchema {
+  /// Throws a [GenkitException] if the schema is invalid or names a type
+  /// that is still undefined.
+  void ensureResolved();
+}
+
 /// Configuration for defining a prompt.
 ///
 /// This holds all the metadata needed to define a prompt action.
@@ -367,6 +377,10 @@ final class Prompt<Input, Output> {
     return runInNewSpan(
       'render',
       (telemetryContext) async {
+        if (_config.inputSchema case final DeferredSchema schema) {
+          schema.ensureResolved();
+        }
+
         final messages = <Message>[];
 
         // 1. Render system prompt

@@ -21,6 +21,7 @@ import 'package:genkit/src/ai/dotprompt_registry.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:genkit/src/ai/prompt.dart';
 import 'package:genkit/src/ai/prompt_loader.dart';
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -2805,6 +2806,293 @@ Generate a recipe.
             ),
             throwsA(isA<GenkitException>()),
           );
+        });
+      });
+
+      test('lists every undefined name in one error', () async {
+        final action = await load('''
+---
+output:
+  schema:
+    first: Recipe
+    second: Menu
+---
+Plan a meal.
+''');
+
+        await expectLater(
+          action.prompt!.render(<String, dynamic>{}),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains("'Recipe'"), contains("'Menu'")),
+            ),
+          ),
+        );
+      });
+
+      test('the input form leaves an undefined name open', () async {
+        final action = await load('''
+---
+input:
+  schema:
+    favorite: Recipe
+---
+More like {{favorite.title}}.
+''');
+        // Not registered yet: the Dev UI form still builds, accepting anything.
+        final props =
+            action.inputSchema!.jsonSchema()['properties']
+                as Map<String, dynamic>;
+        expect(props['favorite'], isEmpty);
+        expect(action.toJson, returnsNormally);
+
+        // Registered later: the next read picks it up.
+        registry.registerValue('schema', 'Recipe', recipe);
+        final resolved =
+            action.inputSchema!.jsonSchema()['properties']
+                as Map<String, dynamic>;
+        expect(resolved['favorite'], recipe);
+      });
+    });
+
+    group('Picoschema (spec forms, #562)', () {
+      Future<GenerateActionOptions> render(String source) async {
+        File(p.join(tempDir.path, 'pico.prompt')).writeAsStringSync(source);
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        final action =
+            await registry.lookupAction(.executablePrompt, 'pico')
+                as PromptAction;
+        return action.prompt!.render(<String, dynamic>{});
+      }
+
+      test('parenthesized types produce arrays, objects, enums', () async {
+        final options = await render('''
+---
+output:
+  schema:
+    tags(array): string
+    steps(array, the steps):
+      number: integer
+      instruction: string
+    obj(object):
+      x: integer
+    status(enum): [A, B]
+    (*): string
+---
+hi
+''');
+        final schema = options.output!.jsonSchema!;
+        final props = schema['properties'] as Map<String, dynamic>;
+
+        expect(props['tags'], {
+          'type': 'array',
+          'items': {'type': 'string'},
+        });
+        final steps = props['steps'] as Map<String, dynamic>;
+        expect(steps['type'], 'array');
+        expect(steps['description'], 'the steps');
+        expect(
+          (steps['items'] as Map)['properties'],
+          allOf(contains('number'), contains('instruction')),
+        );
+        expect(props['obj'], containsPair('type', 'object'));
+        expect(props['status'], {
+          'enum': ['A', 'B'],
+        });
+        // The wildcard is additionalProperties, not a required property.
+        expect(props, isNot(contains('*')));
+        expect(schema['additionalProperties'], {'type': 'string'});
+        expect(schema['required'], ['tags', 'steps', 'obj', 'status']);
+      });
+
+      test('the same forms apply to input.schema', () async {
+        File(p.join(tempDir.path, 'in.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    tags(array): string
+---
+Tags: {{tags}}
+''');
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        final action =
+            await registry.lookupAction(.executablePrompt, 'in')
+                as PromptAction;
+        final props =
+            action.inputSchema!.jsonSchema()['properties']
+                as Map<String, dynamic>;
+        expect(props['tags'], {
+          'type': 'array',
+          'items': {'type': 'string'},
+        });
+      });
+
+      // Pre-2.0 Dart-only syntax is now rejected. It is logged at load and
+      // fails only that prompt at render, so the rest of the folder (and the
+      // `Genkit(promptDir:)` constructor) keeps working.
+      for (final (label, schemaKey, field) in [
+        ('a bad parenthetical type', 'output', 'tags(list): string'),
+        ('the old description syntax', 'output', 'email(the email): string'),
+        ('a duplicate optional field', 'output', 'a: string\n    a?: string'),
+        ('an input schema error', 'input', 'tags(list): string'),
+      ]) {
+        test('$label warns at load and fails at render', () async {
+          File(p.join(tempDir.path, 'bad.prompt')).writeAsStringSync('''
+---
+$schemaKey:
+  schema:
+    $field
+---
+hi
+''');
+          File(p.join(tempDir.path, 'good.prompt')).writeAsStringSync('Hello!');
+
+          final warnings = <String>[];
+          final sub = Logger.root.onRecord
+              .where((r) => r.level == Level.WARNING)
+              .listen((r) => warnings.add(r.message));
+          addTearDown(sub.cancel);
+
+          loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+          expect(warnings, [contains("Invalid schema in prompt 'bad'")]);
+
+          final bad =
+              await registry.lookupAction(.executablePrompt, 'bad')
+                  as PromptAction;
+          // Action listing (the Dev UI) must not throw.
+          expect(bad.toJson, returnsNormally);
+          await expectLater(
+            bad.prompt!.render(<String, dynamic>{}),
+            throwsA(
+              isA<GenkitException>()
+                  .having((e) => e.status, 'status', StatusCode.invalidArgument)
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    allOf(
+                      contains("Invalid schema in prompt 'bad'"),
+                      isNot(contains('Picoschema:')),
+                    ),
+                  ),
+            ),
+          );
+
+          final good =
+              await registry.lookupAction(.executablePrompt, 'good')
+                  as PromptAction;
+          await expectLater(good.prompt!.render(null), completes);
+        });
+      }
+
+      test('the old description syntax hints at the new one', () async {
+        await expectLater(
+          render('''
+---
+output:
+  schema:
+    email(the email): string
+---
+hi
+'''),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              contains('`email: string, the email`'),
+            ),
+          ),
+        );
+      });
+
+      test('an undefined name in input.schema fails at render', () async {
+        File(p.join(tempDir.path, 'typo.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    favorite: Recpie
+---
+More like {{favorite.title}}.
+''');
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        final action =
+            await registry.lookupAction(.executablePrompt, 'typo')
+                as PromptAction;
+
+        await expectLater(
+          action.prompt!.render(<String, dynamic>{}),
+          throwsA(
+            isA<GenkitException>()
+                .having(
+                  (e) => e.status,
+                  'status',
+                  StatusCode.failedPrecondition,
+                )
+                .having((e) => e.message, 'message', contains("'Recpie'")),
+          ),
+        );
+        // The Dev UI form still builds.
+        expect(action.toJson, returnsNormally);
+      });
+
+      test('a top-level items without type is Picoschema', () async {
+        // Matches JS/Python: only `type`/`properties` (and a few keywords)
+        // mark JSON Schema, so `items` here is an ordinary field. Before
+        // dotprompt 2.0, genkit passed this through as JSON Schema.
+        final options = await render('''
+---
+output:
+  schema:
+    items: string
+    total: number
+---
+hi
+''');
+        expect(options.output!.jsonSchema, {
+          'type': 'object',
+          'properties': {
+            'items': {'type': 'string'},
+            'total': {'type': 'number'},
+          },
+          'additionalProperties': false,
+          'required': ['items', 'total'],
+        });
+      });
+
+      test('an unknown scalar-like name is an undefined type', () async {
+        // `int` is not a Picoschema type, so it is looked up as a named
+        // schema, which fails at render with a hint about scalar types.
+        await expectLater(
+          render('''
+---
+output:
+  schema:
+    n: int
+---
+hi
+'''),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains("'int'"), contains('integer')),
+            ),
+          ),
+        );
+      });
+
+      test('top-level JSON Schema is passed through untouched', () async {
+        final options = await render('''
+---
+output:
+  schema:
+    type: [string, "null"]
+---
+hi
+''');
+        expect(options.output!.jsonSchema, {
+          'type': ['string', 'null'],
         });
       });
     });
