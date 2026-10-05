@@ -48,8 +48,11 @@ final firebasePlugin = firebaseAI(
 final ai = Genkit(plugins: [firebasePlugin]);
 ```
 
-`FirebaseAiProvider.geminiEnterprise` defaults `location` to `global`, not
-`us-central1`.
+Migrating from earlier versions: `FirebaseAiProvider.vertexAI` is now
+`FirebaseAiProvider.geminiEnterprise`. The `appCheck` and `auth` parameters of
+`firebaseAI` are removed; configure App Check and Auth on the `FirebaseApp`
+instead. `FirebaseAiProvider.geminiEnterprise` defaults `location` to `global`,
+not `us-central1`.
 
 To route requests through your own `http.Client` (a proxy, logging, retries,
 or a mock in tests), pass `httpClient`. Live models connect over a WebSocket

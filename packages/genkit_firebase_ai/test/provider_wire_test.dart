@@ -36,6 +36,7 @@ void main() {
 
     await model(userRequest('hello'));
 
+    expect(client.requests.single.url.host, 'firebasevertexai.googleapis.com');
     expect(
       client.requests.single.url.path,
       '${projectPath()}/locations/europe-west1/publishers/google'
@@ -52,6 +53,7 @@ void main() {
 
     await model(userRequest('hello'));
 
+    expect(client.requests.single.url.host, 'firebasevertexai.googleapis.com');
     expect(
       client.requests.single.url.path,
       '${projectPath()}/locations/global/publishers/google'
@@ -65,6 +67,7 @@ void main() {
 
     await model(userRequest('hello'));
 
+    expect(client.requests.single.url.host, 'firebasevertexai.googleapis.com');
     expect(
       client.requests.single.url.path,
       '${projectPath()}/models/gemini-2.5-flash:generateContent',
