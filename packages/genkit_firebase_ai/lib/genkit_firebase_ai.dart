@@ -180,6 +180,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   final FirebaseAiProvider provider;
   final http.Client? httpClient;
 
+  late final http.Client _defaultClient = http.Client();
+
   @override
   String get name => 'firebaseai';
 
@@ -242,6 +244,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
+        final transport = _StatusRecordingClient(httpClient ?? _defaultClient);
         final model = _firebaseAI.generativeModel(
           model: modelName,
           generationConfig: toGeminiSettings(
@@ -256,13 +259,15 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           ),
-          httpClient: httpClient,
+          httpClient: transport,
         );
+        GenkitException mapError(Object e, StackTrace stack) =>
+            _toGenkitException(e, stack, httpStatus: transport.lastStatusCode);
 
         if (ctx.streamingRequested) {
-          final stream = model.generateContentStream(
-            toGeminiContent(req.messages),
-          );
+          final stream = model
+              .generateContentStream(toGeminiContent(req.messages))
+              .handleError((Object e, StackTrace s) => throw mapError(e, s));
           final chunks = <fai.GenerateContentResponse>[];
           await for (final chunk in stream) {
             chunks.add(chunk);
@@ -298,9 +303,14 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             usage: extractUsage(aggregated.usageMetadata),
           );
         } else {
-          final response = await model.generateContent(
-            toGeminiContent(req.messages),
-          );
+          final fai.GenerateContentResponse response;
+          try {
+            response = await model.generateContent(
+              toGeminiContent(req.messages),
+            );
+          } catch (e, stack) {
+            throw mapError(e, stack);
+          }
 
           if (response.candidates.isEmpty) {
             throw _noCandidatesException(response.promptFeedback);
@@ -393,7 +403,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             'Modalities: ${liveConfig.responseModalities!.map((e) => e.name).toList()}',
           );
         }
-        var session = await model.connect();
+        final fai.LiveSession session;
+        try {
+          session = await model.connect();
+        } catch (e, stack) {
+          throw _toGenkitException(e, stack);
+        }
         _logger.info('Connected to model: $modelName');
 
         // Send initial history
@@ -873,5 +888,53 @@ GenkitException _noCandidatesException(fai.PromptFeedback? feedback) {
     'Prompt was blocked (${blockReason.toJson()})'
     '${detail == null ? '.' : ': $detail'}',
     status: StatusCode.invalidArgument,
+  );
+}
+
+/// Records the HTTP status of the last response, which `firebase_ai` drops
+/// from most of the exceptions it throws.
+class _StatusRecordingClient extends http.BaseClient {
+  _StatusRecordingClient(this._inner);
+
+  final http.Client _inner;
+
+  int? lastStatusCode;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final response = await _inner.send(request);
+    lastStatusCode = response.statusCode;
+    return response;
+  }
+}
+
+GenkitException _toGenkitException(
+  Object e,
+  StackTrace stack, {
+  int? httpStatus,
+}) {
+  if (e is GenkitException) return e;
+  final status = switch (e) {
+    fai.QuotaExceeded() => StatusCode.resourceExhausted,
+    fai.InvalidApiKey() => StatusCode.unauthenticated,
+    fai.ServiceApiNotEnabled() => StatusCode.permissionDenied,
+    fai.UnsupportedUserLocation() => StatusCode.failedPrecondition,
+    _ when httpStatus != null && httpStatus != 200 =>
+      switch (StatusCode.fromHttpStatus(httpStatus)) {
+        StatusCode.unknown => StatusCode.internal,
+        final code => code,
+      },
+    http.ClientException() => StatusCode.unavailable,
+    _ => StatusCode.internal,
+  };
+  return GenkitException(
+    switch (e) {
+      fai.FirebaseAIException(:final message) => message,
+      fai.FirebaseAISdkException(:final message) => message,
+      _ => e.toString(),
+    },
+    status: status,
+    cause: e,
+    stackTrace: stack,
   );
 }
