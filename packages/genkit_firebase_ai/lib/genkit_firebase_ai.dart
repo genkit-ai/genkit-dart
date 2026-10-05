@@ -278,7 +278,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           );
           return ModelResponse(
             finishReason: finishReason,
-            finishMessage: _toFinishMessage(aggregated.candidates.first),
+            finishMessage: aggregated.candidates.first.finishMessage,
+            custom: _finishCustom(aggregated.candidates.first),
             message: message,
             raw: {
               'candidates': aggregated.candidates
@@ -323,7 +324,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
           return ModelResponse(
             finishReason: finishReason,
-            finishMessage: _toFinishMessage(response.candidates.first),
+            finishMessage: response.candidates.first.finishMessage,
+            custom: _finishCustom(response.candidates.first),
             message: message,
             raw: raw,
             usage: extractUsage(response.usageMetadata),
@@ -618,40 +620,42 @@ fai.Part toGeminiPart(Part p) {
 
 /// Maps a Gemini finish reason onto Genkit's vocabulary.
 ///
-/// `firebase_ai` parses unrecognized wire values as
-/// [fai.FinishReason.unknown], so those surface as [FinishReason.unknown].
-FinishReason _toFinishReason(fai.FinishReason? reason) => switch (reason) {
-  null || fai.FinishReason.unknown => FinishReason.unknown,
-  fai.FinishReason.stop => FinishReason.stop,
-  fai.FinishReason.maxTokens => FinishReason.length,
-  fai.FinishReason.safety ||
-  fai.FinishReason.recitation ||
-  fai.FinishReason.language ||
-  fai.FinishReason.blocklist ||
-  fai.FinishReason.prohibitedContent ||
-  fai.FinishReason.spii ||
-  fai.FinishReason.imageSafety ||
-  fai.FinishReason.imageProhibitedContent ||
-  fai.FinishReason.imageRecitation => FinishReason.blocked,
-  fai.FinishReason.malformedFunctionCall ||
-  fai.FinishReason.unexpectedToolCall ||
-  fai.FinishReason.tooManyToolCalls ||
-  fai.FinishReason.noImage ||
-  fai.FinishReason.imageOther ||
-  fai.FinishReason.malformedResponse ||
-  fai.FinishReason.missingThoughtSignature ||
-  fai.FinishReason.other => FinishReason.other,
-};
+/// Switches on the wire value, not the enum, because `firebase_ai` adds
+/// members in minor releases. `firebase_ai` parses unrecognized wire values
+/// as [fai.FinishReason.unknown], so those surface as [FinishReason.unknown].
+FinishReason _toFinishReason(fai.FinishReason? reason) {
+  switch (reason?.toJson()) {
+    case 'STOP':
+      return FinishReason.stop;
+    case 'MAX_TOKENS':
+      return FinishReason.length;
+    case 'SAFETY':
+    case 'RECITATION':
+    case 'LANGUAGE':
+    case 'BLOCKLIST':
+    case 'PROHIBITED_CONTENT':
+    case 'SPII':
+    case 'IMAGE_SAFETY':
+    case 'IMAGE_PROHIBITED_CONTENT':
+    case 'IMAGE_RECITATION':
+      return FinishReason.blocked;
+    case 'MALFORMED_FUNCTION_CALL':
+    case 'UNEXPECTED_TOOL_CALL':
+    case 'TOO_MANY_TOOL_CALLS':
+    case 'NO_IMAGE':
+    case 'IMAGE_OTHER':
+    case 'MALFORMED_RESPONSE':
+    case 'MISSING_THOUGHT_SIGNATURE':
+    case 'OTHER':
+      return FinishReason.other;
+    default:
+      return FinishReason.unknown;
+  }
+}
 
-/// The upstream finish reason as its wire value, followed by the candidate's
-/// `finishMessage` when present.
-String? _toFinishMessage(fai.Candidate candidate) {
-  final message = candidate.finishMessage;
-  final parts = [
-    ?candidate.finishReason?.toJson(),
-    if (message != null && message.isNotEmpty) message,
-  ];
-  return parts.isEmpty ? null : parts.join(': ');
+Map<String, dynamic>? _finishCustom(fai.Candidate candidate) {
+  final raw = candidate.finishReason?.toJson();
+  return raw == null ? null : {'finishReason': raw};
 }
 
 @visibleForTesting
