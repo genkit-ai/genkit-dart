@@ -68,8 +68,6 @@ abstract class $GeminiOptions {
   int? get candidateCount;
   bool? get codeExecution;
   $FunctionCallingConfig? get functionCallingConfig;
-  bool? get responseLogprobs;
-  int? get logprobs;
 }
 
 @Schema()
