@@ -281,6 +281,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           );
           return ModelResponse(
             finishReason: finishReason,
+            finishMessage: aggregated.candidates.first.finishMessage,
+            custom: _finishCustom(aggregated.candidates.first),
             message: message,
             raw: {
               'candidates': aggregated.candidates
@@ -325,6 +327,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
           return ModelResponse(
             finishReason: finishReason,
+            finishMessage: response.candidates.first.finishMessage,
+            custom: _finishCustom(response.candidates.first),
             message: message,
             raw: raw,
             usage: extractUsage(response.usageMetadata),
@@ -610,12 +614,51 @@ fai.Part toGeminiPart(Part p) {
 
 @visibleForTesting
 (Message, FinishReason) fromGeminiCandidate(fai.Candidate candidate) {
-  final finishReason = FinishReason(candidate.finishReason?.name ?? 'unknown');
   final message = Message(
     role: Role(candidate.content.role ?? 'model'),
     content: candidate.content.parts.map(fromGeminiPart).toList(),
   );
-  return (message, finishReason);
+  return (message, _toFinishReason(candidate.finishReason));
+}
+
+/// Maps a Gemini finish reason onto Genkit's vocabulary.
+///
+/// Switches on the wire value, not the enum, because `firebase_ai` adds
+/// members in minor releases. `firebase_ai` parses unrecognized wire values
+/// as [fai.FinishReason.unknown], so those surface as [FinishReason.unknown].
+FinishReason _toFinishReason(fai.FinishReason? reason) {
+  switch (reason?.toJson()) {
+    case 'STOP':
+      return FinishReason.stop;
+    case 'MAX_TOKENS':
+      return FinishReason.length;
+    case 'SAFETY':
+    case 'RECITATION':
+    case 'LANGUAGE':
+    case 'BLOCKLIST':
+    case 'PROHIBITED_CONTENT':
+    case 'SPII':
+    case 'IMAGE_SAFETY':
+    case 'IMAGE_PROHIBITED_CONTENT':
+    case 'IMAGE_RECITATION':
+      return FinishReason.blocked;
+    case 'MALFORMED_FUNCTION_CALL':
+    case 'UNEXPECTED_TOOL_CALL':
+    case 'TOO_MANY_TOOL_CALLS':
+    case 'NO_IMAGE':
+    case 'IMAGE_OTHER':
+    case 'MALFORMED_RESPONSE':
+    case 'MISSING_THOUGHT_SIGNATURE':
+    case 'OTHER':
+      return FinishReason.other;
+    default:
+      return FinishReason.unknown;
+  }
+}
+
+Map<String, dynamic>? _finishCustom(fai.Candidate candidate) {
+  final raw = candidate.finishReason?.toJson();
+  return raw == null ? null : {'finishReason': raw};
 }
 
 @visibleForTesting
