@@ -167,13 +167,13 @@ final class GenerateMiddlewareContext {
 }
 
 /// A named, configurable middleware, built with [generateMiddleware] or
-/// `ai.defineMiddleware`.
+/// `ai.defineGenerateMiddleware`.
 ///
 /// Call it to build the ref passed to `use:`:
 ///
 /// ```dart
-/// await ai.generate(prompt: 'hi', use: [logging(LoggingOptions(level: 'debug'))]);
-/// await ai.generate(prompt: 'hi', use: [logging()]); // config is optional
+/// use: [logging(LoggingOptions(level: 'debug'))]
+/// use: [logging()] // config is optional
 /// ```
 abstract interface class GenerateMiddlewareDef<CustomOptions> {
   String get name;
@@ -245,8 +245,8 @@ class _GenerateMiddlewareDef<CustomOptions>
 ///     loggerDef(LoggerOptions(enableColor: enableColor));
 /// ```
 ///
-/// App code that doesn't need a plugin should use `ai.defineMiddleware`,
-/// which also registers the middleware.
+/// App code that doesn't need a plugin should use
+/// `ai.defineGenerateMiddleware`, which also registers the middleware.
 ///
 /// Matches JS's `generateMiddleware`. The types are named differently: what
 /// JS calls `GenerateMiddleware` (the definition) is [GenerateMiddlewareDef]

@@ -410,7 +410,7 @@ void main() {
       );
     });
 
-    group('ai.defineMiddleware', () {
+    group('ai.defineGenerateMiddleware', () {
       final log = <String>[];
 
       setUp(() {
@@ -429,7 +429,7 @@ void main() {
       });
 
       GenerateMiddlewareDef<TagOptions> defineTagging() =>
-          genkit.defineMiddleware<TagOptions>(
+          genkit.defineGenerateMiddleware<TagOptions>(
             name: 'tagging',
             configSchema: TagOptions.$schema,
             create: (config, ctx) =>
@@ -477,7 +477,7 @@ void main() {
 
       test('creates a fresh instance per generate call', () async {
         var created = 0;
-        final counting = genkit.defineMiddleware<void>(
+        final counting = genkit.defineGenerateMiddleware<void>(
           name: 'counting',
           create: (_, _) {
             created++;

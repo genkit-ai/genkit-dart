@@ -194,7 +194,7 @@ final class Genkit extends GenkitAI {
   /// definition to build the ref for `use:`.
   ///
   /// ```dart
-  /// final logging = ai.defineMiddleware<LoggingOptions>(
+  /// final logging = ai.defineGenerateMiddleware<LoggingOptions>(
   ///   name: 'logging',
   ///   configSchema: LoggingOptions.$schema,
   ///   create: (config, ctx) => LoggingMiddleware(config),
@@ -212,7 +212,7 @@ final class Genkit extends GenkitAI {
   ///
   /// To ship middleware in a package, build it with [generateMiddleware] and
   /// return it from a plugin's `middleware()` instead.
-  GenerateMiddlewareDef<CustomOptions> defineMiddleware<CustomOptions>({
+  GenerateMiddlewareDef<CustomOptions> defineGenerateMiddleware<CustomOptions>({
     required String name,
     required GenerateMiddleware Function(
       CustomOptions? config,

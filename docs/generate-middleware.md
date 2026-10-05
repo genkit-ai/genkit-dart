@@ -50,10 +50,10 @@ class PrintMiddleware extends GenerateMiddleware {
 
 While you can pass raw middleware instances directly to `generate` (e.g. `use: [PrintMiddleware()]`), prefer registering it. **Only registered middleware shows up in the Genkit Developer UI**, where it can be configured and used.
 
-In app code, `ai.defineMiddleware` registers a middleware and returns its definition. Call the definition to build the ref for `use:`:
+In app code, `ai.defineGenerateMiddleware` registers a middleware and returns its definition. Call the definition to build the ref for `use:`:
 
 ```dart
-final logging = ai.defineMiddleware<LoggerOptions>(
+final logging = ai.defineGenerateMiddleware<LoggerOptions>(
   name: 'logging',
   configSchema: LoggerOptions.$schema,
   create: (config, ctx) => LoggerMiddleware(
@@ -131,7 +131,7 @@ class LoggerMiddleware extends GenerateMiddleware {
 
 ### 3. Define the Middleware and Plugin
 
-Use `generateMiddleware` to link your schema and implementation. Unlike `ai.defineMiddleware`, it only builds the definition; expose it via a `GenkitPlugin` so it is registered when Genkit initializes. By convention, name the plugin class with a `Plugin` suffix (e.g., `LoggerPlugin`).
+Use `generateMiddleware` to link your schema and implementation. Unlike `ai.defineGenerateMiddleware`, it only builds the definition; expose it via a `GenkitPlugin` so it is registered when Genkit initializes. By convention, name the plugin class with a `Plugin` suffix (e.g., `LoggerPlugin`).
 
 ```dart
 final loggerDef = generateMiddleware<LoggerOptions>(
@@ -154,7 +154,7 @@ class LoggerPlugin extends GenkitPlugin {
 }
 ```
 
-Like the one returned by `ai.defineMiddleware`, the definition is callable: `loggerDef(LoggerOptions(enableColor: true))` builds a ref for `use:`.
+Like the one returned by `ai.defineGenerateMiddleware`, the definition is callable: `loggerDef(LoggerOptions(enableColor: true))` builds a ref for `use:`.
 
 ### 4. Create the DX Helper Function
 
@@ -195,7 +195,7 @@ void main() {
 
 ## Accessing AI from Middleware (Middleware Context)
 
-The `create` callback you pass to `ai.defineMiddleware` or `generateMiddleware`
+The `create` callback you pass to `ai.defineGenerateMiddleware` or `generateMiddleware`
 receives two positional arguments: the resolved `config`, and a
 `GenerateMiddlewareContext` (`ctx`).
 
@@ -265,7 +265,7 @@ final agent = await ctx.ai.registry.lookupAction('agent', 'researcher');
 
 ## Lifecycle and Stateful Middleware
 
-When you use a registered middleware (via `ai.defineMiddleware` or a plugin), **a new instance of the middleware is instantiated for every single `generate` call.**
+When you use a registered middleware (via `ai.defineGenerateMiddleware` or a plugin), **a new instance of the middleware is instantiated for every single `generate` call.**
 
 Because of this per-request lifecycle, the middleware instance is isolated safely to that specific generation execution. This makes it the perfect place to maintain state across the different interceptors (`generate`, `model`, and `tool`) and across multi-turn tool calling loops.
 

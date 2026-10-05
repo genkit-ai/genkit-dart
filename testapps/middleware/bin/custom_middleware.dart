@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// An app-level middleware defined with `ai.defineMiddleware`, no plugin
-/// needed. It logs each model call and enforces a per-call turn budget.
+/// An app-level middleware defined with `ai.defineGenerateMiddleware`, no
+/// plugin needed. It logs each model call and enforces a per-call turn budget.
 ///
 /// Run with `dart run bin/custom_middleware.dart` (or `genkit start -- dart
 /// run bin/custom_middleware.dart` to try it from the Developer UI, where the
@@ -72,7 +72,7 @@ void main() async {
 
   // Registers the middleware (so it shows up in the Developer UI) and returns
   // a callable that builds the ref for `use:`.
-  final turnBudget = ai.defineMiddleware<TurnBudgetOptions>(
+  final turnBudget = ai.defineGenerateMiddleware<TurnBudgetOptions>(
     name: 'turnBudget',
     configSchema: TurnBudgetOptions.$schema,
     create: (config, ctx) => TurnBudgetMiddleware(config),
