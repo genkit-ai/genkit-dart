@@ -167,6 +167,15 @@ final class PromptConfig<Input, Output, CustomOptions> {
       output?.jsonSchema != null ||
       deferredOutputJsonSchema != null;
 
+  /// Whether the prompt configures any output, i.e. whether [resolvedOutput]
+  /// is non-null. Known without resolving a deferred schema.
+  bool get _hasOutput => output != null || _definesWireSchema;
+
+  /// The format [resolvedOutput] is parsed with (`_effectiveFormat` of it),
+  /// known without resolving a deferred schema.
+  String? get _outputFormat =>
+      output?.format ?? (_definesWireSchema ? 'json' : null);
+
   /// The full name including variant.
   String get fullName => variant != null ? '$name.$variant' : name;
 
@@ -411,7 +420,7 @@ final class Prompt<Input, Output> {
           returnToolRequests:
               opts?.returnToolRequests ?? _config.returnToolRequests,
           maxTurns: opts?.maxTurns ?? _config.maxTurns,
-          output: _applyOutputOverride(_config.resolvedOutput, opts?.output),
+          output: _applyOutputOverride(_config, opts?.output),
           use: resolvedUse.isNotEmpty ? resolvedUse : null,
         );
       },
@@ -475,9 +484,10 @@ final class Prompt<Input, Output> {
     Object? raw, {
     bool partial = false,
   }) {
+    // Compared without resolving the prompt's schema, which may be deferred
+    // and undefined when the call brought its own.
     final switchedFormat =
-        _effectiveFormat(request.output) !=
-        _effectiveFormat(_config.resolvedOutput);
+        _effectiveFormat(request.output) != _config._outputFormat;
     if (switchedFormat) {
       return _isUnconstrained<Output>() ? raw as Output? : null;
     }
@@ -937,19 +947,22 @@ String? _effectiveFormat(GenerateActionOutputConfig? output) =>
 /// json + schema, while `format: 'text'` drops both, and a typed prompt then
 /// yields a null `output` (see [Prompt._parseOutput]). A `jsonSchema` set on
 /// the override wins over the prompt's.
+///
+/// The prompt's schema is resolved only when the result carries it, so an
+/// override with its own schema or format still works while a deferred
+/// schema name is undefined.
 GenerateActionOutputConfig? _applyOutputOverride(
-  GenerateActionOutputConfig? base,
+  PromptConfig<dynamic, dynamic, dynamic> config,
   GenerateActionOutputConfig? override,
 ) {
-  if (override == null) return base;
-  final baseFormat = _effectiveFormat(base);
+  if (override == null) return config.resolvedOutput;
   final switchesFormat =
-      override.format != null && override.format != baseFormat;
-  if (base == null || switchesFormat) return override;
+      override.format != null && override.format != config._outputFormat;
+  if (!config._hasOutput || switchesFormat) return override;
   return GenerateActionOutputConfig.fromJson({
     ...override.toJson(),
-    'format': ?base.format,
-    'jsonSchema': ?(override.jsonSchema ?? base.jsonSchema),
+    'format': ?config.output?.format,
+    'jsonSchema': ?(override.jsonSchema ?? config.resolvedOutput?.jsonSchema),
   });
 }
 
