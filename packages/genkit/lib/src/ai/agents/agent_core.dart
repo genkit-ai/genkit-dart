@@ -1046,13 +1046,13 @@ final class AgentChat<State> {
 
   AgentError<State> _toAgentError(Object e) {
     if (e is AgentError<State>) return e;
-    final (status, message) = switch (e) {
-      GenkitException() => (e.status.wireName, e.message),
-      _ => ('UNKNOWN', e.toString()),
+    final (status, message, details) = switch (e) {
+      GenkitException() => (e.status.wireName, e.message, e.details),
+      _ => ('UNKNOWN', e.toString(), null),
     };
     final raw = AgentOutput(
       finishReason: AgentFinishReason.failed,
-      error: AgentErrorInfo(status: status, message: message),
+      error: AgentErrorInfo(status: status, message: message, details: details),
     );
     final response = _response(raw);
     return AgentError<State>(

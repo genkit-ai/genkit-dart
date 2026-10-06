@@ -134,7 +134,36 @@ void main() {
       throwsA(
         isA<AgentError<dynamic>>()
             .having((e) => e.status, 'status', 'UNAUTHENTICATED')
-            .having((e) => e.message, 'message', 'Sign in first'),
+            .having((e) => e.message, 'message', 'Sign in first')
+            .having(
+              (e) => e.response.error?.details,
+              'response.error.details',
+              contains('Sign in first'),
+            ),
+      ),
+    );
+  });
+
+  test('a malformed remote stream keeps the cause in the message', () async {
+    final fake = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => fake.close(force: true));
+    fake.listen((request) {
+      request.response
+        ..headers.contentType = ContentType('text', 'event-stream')
+        ..write('garbage\n\n')
+        ..close();
+    });
+
+    await expectLater(
+      remoteAgent(
+        url: 'http://127.0.0.1:${fake.port}/any',
+      ).chat().send(text: 'hi'),
+      throwsA(
+        isA<AgentError<dynamic>>().having(
+          (e) => e.message,
+          'message',
+          contains('Invalid SSE data chunk'),
+        ),
       ),
     );
   });

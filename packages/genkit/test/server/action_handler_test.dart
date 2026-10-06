@@ -389,44 +389,134 @@ void main() {
       await expectLater(stream.drain<void>(), throwsA(isPrecondition));
     });
 
-    test('200 with an error body', () async {
-      final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      addTearDown(() => proxy.close(force: true));
-      proxy.listen((request) {
+    /// Serves [body] verbatim for every request, standing in for another SDK
+    /// or a proxy, and returns a remote action pointing at it.
+    Future<RemoteAction<String, String, String, void>> fakeServer(
+      String body, {
+      int statusCode = 200,
+      ContentType? contentType,
+    }) async {
+      final fake = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(() => fake.close(force: true));
+      fake.listen((request) {
         request.response
-          ..headers.contentType = ContentType.json
-          ..write(
-            jsonEncode({
-              'error': {
-                'status': 'FAILED_PRECONDITION',
-                'message': 'Not ready yet',
-              },
-            }),
-          )
+          ..statusCode = statusCode
+          ..headers.contentType = contentType ?? ContentType.json
+          ..write(body)
           ..close();
       });
-
-      final action = defineRemoteAction(
-        url: 'http://127.0.0.1:${proxy.port}/any',
+      return defineRemoteAction(
+        url: 'http://127.0.0.1:${fake.port}/any',
         outputSchema: .string(),
+        streamSchema: .string(),
+      );
+    }
+
+    final sseType = ContentType('text', 'event-stream');
+
+    test('200 with an error body', () async {
+      final action = await fakeServer(
+        jsonEncode({
+          'error': {
+            'status': 'FAILED_PRECONDITION',
+            'message': 'Not ready yet',
+          },
+        }),
       );
       await expectLater(action(input: 'x'), throwsA(isPrecondition));
     });
 
-    test('falls back to the HTTP status for a non-Genkit body', () async {
-      final proxy = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
-      addTearDown(() => proxy.close(force: true));
-      proxy.listen((request) {
-        request.response
-          ..statusCode = 502
-          ..headers.contentType = ContentType.html
-          ..write('<html>Bad Gateway</html>')
-          ..close();
-      });
+    test('non-200 with a wrapped error body', () async {
+      final action = await fakeServer(
+        jsonEncode({
+          'error': {
+            'status': 'FAILED_PRECONDITION',
+            'message': 'Not ready yet',
+          },
+        }),
+        statusCode: 400,
+      );
+      await expectLater(action(input: 'x'), throwsA(isPrecondition));
+    });
 
-      final action = defineRemoteAction(
-        url: 'http://127.0.0.1:${proxy.port}/any',
-        outputSchema: .string(),
+    test('an unrecognized status on a non-200 uses the HTTP status', () async {
+      // JS express sends 'INVALID ARGUMENT' (with a space) on its 400 path.
+      final action = await fakeServer(
+        jsonEncode({'status': 'INVALID ARGUMENT', 'message': 'Bad body'}),
+        statusCode: 400,
+      );
+      await expectLater(
+        action(input: 'x'),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
+              .having((e) => e.message, 'message', 'Bad body'),
+        ),
+      );
+    });
+
+    test('an unrecognized status in a stream frame is UNKNOWN', () async {
+      final action = await fakeServer(
+        'data: ${jsonEncode({
+          'error': {'status': 'SOMETHING_NEW', 'message': 'Not ready yet'},
+        })}\n\n',
+        contentType: sseType,
+      );
+      await expectLater(
+        action.stream(input: 'x').drain<void>(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.unknown)
+              .having((e) => e.message, 'message', 'Not ready yet'),
+        ),
+      );
+    });
+
+    test('an unwrapped legacy error frame (JS Next.js plugin)', () async {
+      final action = await fakeServer(
+        'error: ${jsonEncode({'status': 'FAILED_PRECONDITION', 'message': 'Not ready yet'})}\n\n',
+        contentType: sseType,
+      );
+      await expectLater(
+        action.stream(input: 'x').drain<void>(),
+        throwsA(isPrecondition),
+      );
+    });
+
+    test('a string error payload is the message on both paths', () async {
+      final isQuota = isA<GenkitException>().having(
+        (e) => e.message,
+        'message',
+        'quota exceeded',
+      );
+      final unary = await fakeServer(jsonEncode({'error': 'quota exceeded'}));
+      await expectLater(unary(input: 'x'), throwsA(isQuota));
+
+      final streaming = await fakeServer(
+        'data: ${jsonEncode({'error': 'quota exceeded'})}\n\n',
+        contentType: sseType,
+      );
+      await expectLater(
+        streaming.stream(input: 'x').drain<void>(),
+        throwsA(isQuota),
+      );
+    });
+
+    test('keeps the raw non-200 body in details', () async {
+      const body =
+          '{ "status": "FAILED_PRECONDITION", "message": "Not ready yet" }';
+      final action = await fakeServer(body, statusCode: 400);
+      await expectLater(
+        action(input: 'x'),
+        throwsA(isPrecondition.having((e) => e.details, 'details', body)),
+      );
+    });
+
+    test('falls back to the HTTP status for a non-Genkit body', () async {
+      final action = await fakeServer(
+        '<html>Bad Gateway</html>',
+        statusCode: 502,
+        contentType: ContentType.html,
       );
       await expectLater(
         action(input: 'x'),
@@ -435,6 +525,25 @@ void main() {
               .having((e) => e.status, 'status', StatusCode.unknown)
               .having((e) => e.message, 'message', 'Server returned error: 502')
               .having((e) => e.details, 'details', '<html>Bad Gateway</html>'),
+        ),
+      );
+    });
+
+    test('a plain-text non-200 body gets the HTTP status', () async {
+      // The Go server sends errors this way (`http.Error`); only JSON bodies
+      // are read for status and message.
+      final action = await fakeServer(
+        'Not ready yet\n',
+        statusCode: 400,
+        contentType: ContentType.text,
+      );
+      await expectLater(
+        action(input: 'x'),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
+              .having((e) => e.message, 'message', 'Server returned error: 400')
+              .having((e) => e.details, 'details', 'Not ready yet\n'),
         ),
       );
     });

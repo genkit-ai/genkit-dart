@@ -31,56 +31,80 @@ const _flowStreamDelimiter = '\n\n';
 /// a fallback for bodies without a recognizable status (a proxy's HTML page,
 /// say): the HTTP mapping is lossy, e.g. both `FAILED_PRECONDITION` and
 /// `INVALID_ARGUMENT` are sent as 400.
+///
+/// [details] defaults to [body] (encoded as JSON unless it is a string).
 GenkitException _wireError(
   Object? body, {
   int? httpStatus,
   required String fallbackMessage,
+  String? details,
 }) {
   var error = body;
   if (error is Map && error['error'] is Map) {
     error = error['error'];
   }
 
-  StatusCode? status;
+  String? wireName;
   String? message;
   if (error is Map) {
-    if (error['status'] case final String wireName) {
-      // An explicit `UNKNOWN` from the server is kept as is.
-      status = StatusCode.fromWireName(wireName);
-      if (status == StatusCode.unknown && wireName != 'UNKNOWN') status = null;
-    }
+    if (error['status'] case final String s) wireName = s;
     if (error['message'] case final String m when m.isNotEmpty) message = m;
   }
-  if (status == null && httpStatus != null) {
+
+  var status = wireName == null ? null : StatusCode.fromWireName(wireName);
+  // fromWireName maps unrecognized names (a newer server's, or JS express's
+  // 'INVALID ARGUMENT') to UNKNOWN. Prefer the HTTP-derived status when there
+  // is one, unless the server really sent UNKNOWN.
+  final recognized =
+      status != null && (status != StatusCode.unknown || wireName == 'UNKNOWN');
+  if (!recognized && httpStatus != null) {
     status = StatusCode.fromHttpStatus(httpStatus);
   }
 
   return GenkitException(
     message ?? fallbackMessage,
-    // Null falls back to GenkitException's default (`internal`).
+    // Null (no status at all) falls back to GenkitException's default
+    // (`internal`).
     status: status,
-    details: body == null ? null : (body is String ? body : jsonEncode(body)),
+    details:
+        details ??
+        (body == null ? null : (body is String ? body : jsonEncode(body))),
   );
 }
 
-/// Like [_wireError], for a raw response body that may not be JSON.
+/// Like [_wireError], for a raw non-200 response body.
+///
+/// Only a JSON body is read for status and message. Anything else (a proxy's
+/// HTML page, the Go server's plain-text errors) gets the HTTP-derived status
+/// and a generic message; the raw body is always kept in `details`.
 GenkitException _httpError(int statusCode, String body) {
-  Object? decoded = body;
+  Object? decoded;
   try {
     decoded = jsonDecode(body);
   } on FormatException {
-    // Not a Genkit error body; fall back to the HTTP status below.
+    // Not JSON; leave `decoded` null so only the HTTP status is used.
   }
   return _wireError(
     decoded,
     httpStatus: statusCode,
     fallbackMessage: 'Server returned error: $statusCode',
+    details: body.isEmpty ? null : body,
   );
 }
 
+/// Maps the `error` payload of a response or stream frame to a
+/// [GenkitException]. A plain string payload is used as the message.
+GenkitException _errorPayload(Object? error, String fallbackMessage) =>
+    _wireError(
+      error,
+      fallbackMessage: error is String && error.isNotEmpty
+          ? error
+          : fallbackMessage,
+    );
+
 /// Maps the `error` payload of a streamed error frame to a [GenkitException].
 GenkitException _streamError(Object? error) =>
-    _wireError(error, fallbackMessage: 'Unknown streaming error');
+    _errorPayload(error, 'Unknown streaming error');
 
 Future<Output?> streamFlow<Output, Chunk>({
   required String url,
@@ -125,7 +149,9 @@ Future<Output?> streamFlow<Output, Chunk>({
     final finalError = error is GenkitException
         ? error
         : GenkitException(
-            'Error in stream',
+            // The cause text goes in the message too: callers such as the
+            // agent client surface only `message`.
+            'Error in stream: $error',
             cause: error,
             stackTrace: stackTrace,
           );
@@ -150,22 +176,20 @@ Future<Output?> streamFlow<Output, Chunk>({
 
             // Stream errors arrive as `data: {"error": ...}` (handled below,
             // as Go, Python and current Dart servers send). The legacy
-            // `error: {"error": ...}` frame comes from JS servers and Dart
-            // servers with `sendLegacyErrorFrame` set.
+            // `error: ...` frame comes from JS servers and Dart servers with
+            // `sendLegacyErrorFrame` set. JS express wraps the payload
+            // (`{"error": {...}}`); the JS Next.js plugin doesn't
+            // (`{status, message}`).
             if (chunkString.startsWith('error: ')) {
               final jsonString = chunkString.substring('error: '.length);
               final errorData = jsonDecode(jsonString);
-              if (errorData is Map<String, dynamic> &&
-                  errorData.containsKey('error')) {
-                return handleError(_streamError(errorData['error']));
-              } else {
-                return handleError(
-                  GenkitException(
-                    errorData.toString(),
-                    details: jsonEncode(errorData),
-                  ),
-                );
-              }
+              return handleError(
+                _streamError(
+                  errorData is Map && errorData.containsKey('error')
+                      ? errorData['error']
+                      : errorData,
+                ),
+              );
             }
 
             if (!chunkString.startsWith('data: ')) {
@@ -358,7 +382,7 @@ interface class RemoteAction<Input, Output, Chunk, Init> {
     if (decodedBody is Map<String, dynamic>) {
       if (decodedBody.containsKey('error')) {
         final errorData = decodedBody['error'];
-        throw _wireError(errorData, fallbackMessage: errorData.toString());
+        throw _errorPayload(errorData, 'Unknown server error');
       }
       if (decodedBody.containsKey('result')) {
         return _fromResponse(decodedBody['result']);
