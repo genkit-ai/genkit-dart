@@ -106,33 +106,6 @@ void main() {
     });
   });
 
-  group('PromptGenerateOptions', () {
-    test('creates with all optional fields', () {
-      final opts = PromptGenerateOptions(
-        model: modelRef('override-model'),
-        config: {'temperature': 0.5},
-        toolChoice: .required,
-        returnToolRequests: false,
-        maxTurns: 3,
-        context: {'user': 'test'},
-      );
-
-      expect(opts.model!.name, equals('override-model'));
-      expect(opts.config, equals({'temperature': 0.5}));
-      expect(opts.toolChoice, equals('required'));
-      expect(opts.returnToolRequests, isFalse);
-      expect(opts.maxTurns, equals(3));
-      expect(opts.context, equals({'user': 'test'}));
-    });
-
-    test('creates with no fields', () {
-      final opts = PromptGenerateOptions();
-      expect(opts.model, isNull);
-      expect(opts.config, isNull);
-      expect(opts.tools, isNull);
-    });
-  });
-
   group('definePromptAction', () {
     late Registry registry;
     late DotpromptRegistry dpRegistry;
@@ -354,10 +327,7 @@ void main() {
         ),
       );
 
-      final options = await ep.render(
-        {},
-        PromptGenerateOptions(model: modelRef('override-model')),
-      );
+      final options = await ep.render({}, model: modelRef('override-model'));
 
       expect(options.model, equals('override-model'));
     });
@@ -375,7 +345,7 @@ void main() {
 
       final options = await ep.render(
         {},
-        PromptGenerateOptions(config: {'temperature': 0.5, 'topP': 0.9}),
+        config: {'temperature': 0.5, 'topP': 0.9},
       );
 
       // opts should override config's temperature
@@ -419,10 +389,7 @@ void main() {
         PromptConfig(name: 'test', toolChoice: .auto, prompt: 'Hello'),
       );
 
-      final options = await ep.render(
-        {},
-        PromptGenerateOptions(toolChoice: .required),
-      );
+      final options = await ep.render({}, toolChoice: .required);
 
       expect(options.toolChoice, ToolChoice.required);
     });
@@ -464,10 +431,7 @@ void main() {
         PromptConfig(name: 'test', prompt: 'Hello'),
       );
 
-      final options = await ep.render(
-        {},
-        PromptGenerateOptions(use: [middlewareRef(name: 'mw2')]),
-      );
+      final options = await ep.render({}, use: [middlewareRef(name: 'mw2')]);
 
       expect(options.use, isNotNull);
       expect(options.use!.length, equals(1));
@@ -485,10 +449,7 @@ void main() {
         ),
       );
 
-      final options = await ep.render(
-        {},
-        PromptGenerateOptions(use: [middlewareRef(name: 'optsMw')]),
-      );
+      final options = await ep.render({}, use: [middlewareRef(name: 'optsMw')]);
 
       // Config middleware should come first, then opts middleware.
       expect(options.use, isNotNull);
@@ -576,10 +537,7 @@ void main() {
         ),
       ];
 
-      final options = await ep.render(
-        {},
-        PromptGenerateOptions(messages: history),
-      );
+      final options = await ep.render({}, messages: history);
 
       // JS: messages: [history user, history model, prompt user]
       expect(options.messages.length, equals(3));
@@ -702,14 +660,12 @@ void main() {
 
       final options = await ep.render(
         {},
-        PromptGenerateOptions(
-          messages: [
-            Message(
-              role: Role.user,
-              content: [TextPart(text: 'Opts message')],
-            ),
-          ],
-        ),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'Opts message')],
+          ),
+        ],
       );
 
       // Config messages should be used, not opts messages
@@ -838,9 +794,7 @@ void main() {
         ),
       ];
 
-      final options = await ep.render({
-        'name': 'World',
-      }, PromptGenerateOptions(messages: history));
+      final options = await ep.render({'name': 'World'}, messages: history);
 
       // JS: messages: [template, history user, history model] — 3 messages
       // History is inserted after the template content
@@ -884,9 +838,7 @@ void main() {
           ),
         ];
 
-        final options = await ep.render({
-          'name': 'World',
-        }, PromptGenerateOptions(messages: history));
+        final options = await ep.render({'name': 'World'}, messages: history);
 
         // JS: messages: [template user, history user (purpose:history),
         //                history model (purpose:history)]
@@ -1124,6 +1076,68 @@ void main() {
       expect(options.config!['temperature'], equals(0.9));
       expect(options.maxTurns, equals(3));
       expect(options.toolChoice, equals('auto'));
+    });
+
+    test('call and stream forward per-call named options', () async {
+      final requests = <ModelRequest>[];
+      final contexts = <Map<String, dynamic>?>[];
+      genkit.defineModel(
+        name: 'echo',
+        fn: (request, ctx) async {
+          requests.add(request);
+          contexts.add(ctx.context);
+          return ModelResponse(
+            finishReason: .stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: 'ok')],
+            ),
+          );
+        },
+      );
+      // Not registered: it only reaches the model through `tools:`.
+      final tool = Tool<Map<String, dynamic>, String>(
+        name: 'lookup',
+        description: 'Looks things up',
+        fn: (input, ctx) async => .response('found'),
+      );
+      final ep = genkit.definePrompt(
+        name: 'ask',
+        model: modelRef('unused'),
+        config: {'temperature': 0.9, 'topK': 40},
+        prompt: 'Question',
+      );
+      final history = [
+        Message(
+          role: .user,
+          content: [TextPart(text: 'Earlier')],
+        ),
+      ];
+
+      final response = await ep(
+        null,
+        model: modelRef('echo'),
+        config: {'temperature': 0.1},
+        tools: [tool],
+        messages: history,
+        context: {'user': 'u1'},
+      );
+      final stream = ep.stream(
+        null,
+        model: modelRef('echo'),
+        context: {'user': 'u2'},
+      );
+      await stream.drain<void>();
+      await stream.onResult;
+
+      expect(response.text, equals('ok'));
+      expect(requests[0].config, equals({'temperature': 0.1, 'topK': 40}));
+      expect(requests[0].tools?.map((t) => t.name), equals(['lookup']));
+      expect(
+        requests[0].messages.map((m) => m.text),
+        equals(['Earlier', 'Question']),
+      );
+      expect(contexts.map((c) => c?['user']), equals(['u1', 'u2']));
     });
 
     test('defineCustomPrompt works for programmatic prompt building', () async {
@@ -1510,9 +1524,7 @@ void main() {
 
       final response = await ep(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(constrained: false),
-        ),
+        output: GenerateActionOutputConfig(constrained: false),
       );
 
       // The override only set `constrained`; the prompt's output contract
@@ -1537,9 +1549,7 @@ void main() {
 
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(constrained: false),
-        ),
+        output: GenerateActionOutputConfig(constrained: false),
       );
 
       expect(options.output?.constrained, isFalse);
@@ -1564,9 +1574,7 @@ void main() {
       // (format + schema) carries over.
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(contentType: 'application/json'),
-        ),
+        output: GenerateActionOutputConfig(contentType: 'application/json'),
       );
 
       final output = options.output!.toJson();
@@ -1586,9 +1594,7 @@ void main() {
 
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(format: 'text'),
-        ),
+        output: GenerateActionOutputConfig(format: 'text'),
       );
 
       expect(options.output?.format, equals('text'));
@@ -1604,9 +1610,7 @@ void main() {
 
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(format: 'json'),
-        ),
+        output: GenerateActionOutputConfig(format: 'json'),
       );
 
       expect(options.output?.format, equals('json'));
@@ -1630,9 +1634,7 @@ void main() {
 
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(jsonSchema: override),
-        ),
+        output: GenerateActionOutputConfig(jsonSchema: override),
       );
 
       expect(options.output?.jsonSchema, equals(override));
@@ -1643,9 +1645,7 @@ void main() {
 
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(format: 'json'),
-        ),
+        output: GenerateActionOutputConfig(format: 'json'),
       );
 
       expect(options.output?.toJson(), equals({'format': 'json'}));
@@ -1693,9 +1693,7 @@ void main() {
 
         final response = await ep(
           null,
-          PromptGenerateOptions(
-            output: GenerateActionOutputConfig(format: 'text'),
-          ),
+          output: GenerateActionOutputConfig(format: 'text'),
         );
 
         expect(requests.single.output?.schema, isNull);
@@ -1721,9 +1719,7 @@ void main() {
         final ep = await genkit.prompt('joke');
         final response = await ep(
           null,
-          PromptGenerateOptions(
-            output: GenerateActionOutputConfig(format: 'text'),
-          ),
+          output: GenerateActionOutputConfig(format: 'text'),
         );
 
         expect(response.output, equals('Why? Because.'));
@@ -1742,9 +1738,7 @@ void main() {
 
       final stream = ep.stream(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(format: 'text'),
-        ),
+        output: GenerateActionOutputConfig(format: 'text'),
       );
       final chunkOutputs = [await for (final c in stream) c.output];
 
@@ -1787,10 +1781,7 @@ void main() {
       );
 
       final controller = CancellationController()..cancel();
-      final response = await ep(
-        null,
-        PromptGenerateOptions(cancel: controller.token),
-      );
+      final response = await ep(null, cancel: controller.token);
 
       // Nothing to parse, but the response itself still comes back.
       expect(response.finishReason, equals(FinishReason.aborted));
@@ -2298,9 +2289,7 @@ Generate a recipe.
         final ep = await genkit.prompt('recipe');
         final response = await ep(
           null,
-          PromptGenerateOptions(
-            output: GenerateActionOutputConfig(jsonSchema: own),
-          ),
+          output: GenerateActionOutputConfig(jsonSchema: own),
         );
 
         expect(requests.single.output?.schema, own);
@@ -2773,9 +2762,7 @@ Generate a recipe.
 
           final options = await action.prompt!.render(
             <String, dynamic>{},
-            PromptGenerateOptions(
-              output: GenerateActionOutputConfig(jsonSchema: own),
-            ),
+            output: GenerateActionOutputConfig(jsonSchema: own),
           );
           expect(options.output!.jsonSchema, own);
           expect(options.output!.format, 'json');
@@ -2786,9 +2773,7 @@ Generate a recipe.
 
           final options = await action.prompt!.render(
             <String, dynamic>{},
-            PromptGenerateOptions(
-              output: GenerateActionOutputConfig(format: 'text'),
-            ),
+            output: GenerateActionOutputConfig(format: 'text'),
           );
           expect(options.output!.format, 'text');
           expect(options.output!.jsonSchema, isNull);
@@ -2800,9 +2785,7 @@ Generate a recipe.
           await expectLater(
             action.prompt!.render(
               <String, dynamic>{},
-              PromptGenerateOptions(
-                output: GenerateActionOutputConfig(constrained: false),
-              ),
+              output: GenerateActionOutputConfig(constrained: false),
             ),
             throwsA(isA<GenkitException>()),
           );

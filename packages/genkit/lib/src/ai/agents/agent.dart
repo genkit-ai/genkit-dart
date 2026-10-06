@@ -1857,7 +1857,7 @@ Agent<State> definePromptAgent<State>(
 
       var genOpts = await cachedPrompt!.render(
         promptInput ?? <String, dynamic>{},
-        PromptGenerateOptions(messages: history),
+        messages: history,
       );
 
       // Tag non-history messages as prompt-template, strip the history tag.
