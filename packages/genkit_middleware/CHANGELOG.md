@@ -1,3 +1,7 @@
+## 1.0.0-rc.3
+
+ - updated internal dependencies.
+
 ## 1.0.0-rc.2
 
 ### Breaking Changes

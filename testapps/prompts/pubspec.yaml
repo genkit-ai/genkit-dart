@@ -7,8 +7,8 @@ environment:
   sdk: ^3.12.0
 
 dependencies:
-  genkit: ^1.0.0-rc.2
-  genkit_google_genai: ^1.0.0-rc.2
+  genkit: ^1.0.0-rc.3
+  genkit_google_genai: ^1.0.0-rc.3
   json_annotation: ^4.11.0
   schemantic: ^1.0.0-rc.1
 

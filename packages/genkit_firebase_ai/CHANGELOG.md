@@ -1,3 +1,10 @@
+## 0.3.0-rc.3
+
+### Other Changes
+
+ - temporarily pin analyzer below 14.5.0 (#625)
+
+
 ## 0.3.0-rc.2
 
  - updated internal dependencies.

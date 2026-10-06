@@ -1,3 +1,10 @@
+## 1.0.0-rc.3
+
+### Breaking Changes
+
+ - take prompt call options as named parameters (#622)
+
+
 ## 1.0.0-rc.2
 
 ### Breaking Changes
