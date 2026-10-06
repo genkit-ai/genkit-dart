@@ -1,3 +1,10 @@
+## 1.0.0-rc.2
+
+### Breaking Changes
+
+ - prefix exported option types with provider (#572)
+
+
 ## 1.0.0-rc.1
 
 ### Breaking Changes

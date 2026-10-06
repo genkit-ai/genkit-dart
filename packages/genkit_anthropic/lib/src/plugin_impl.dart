@@ -763,7 +763,7 @@ Map<String, dynamic> _extractOutput(Map<String, dynamic> input) {
 
 /// Resolves the effective thinking type, applying the curated per-model default
 /// when the request does not name one.
-String _resolveThinkingType(ThinkingConfig config, String modelName) {
+String _resolveThinkingType(AnthropicThinkingConfig config, String modelName) {
   final type =
       config.type ?? knownClaudeModelFor(modelName)?.defaultThinkingMode.name;
   if (type == null) {
@@ -776,7 +776,7 @@ String _resolveThinkingType(ThinkingConfig config, String modelName) {
 }
 
 sdk.ThinkingConfig? _mapThinkingConfig(
-  ThinkingConfig? config,
+  AnthropicThinkingConfig? config,
   String modelName,
 ) {
   if (config == null) return null;

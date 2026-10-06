@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:dotprompt/dotprompt.dart' as dp;
@@ -20,6 +21,7 @@ import 'package:genkit/src/ai/dotprompt_registry.dart';
 import 'package:genkit/src/ai/formatters/formatters.dart';
 import 'package:genkit/src/ai/prompt.dart';
 import 'package:genkit/src/ai/prompt_loader.dart';
+import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -52,6 +54,28 @@ final _jokeSchema = SchemanticType.from<_Joke>(
   },
   parse: (json) => _Joke.fromJson(json as Map<String, dynamic>),
 );
+
+/// Records each generate request, including fields the model request does
+/// not carry (`maxTurns`, `returnToolRequests`, `use`, ...).
+class _CaptureRequests extends GenerateMiddleware {
+  _CaptureRequests(this.requests);
+
+  final List<GenerateActionOptions> requests;
+
+  @override
+  Future<GenerateResult> generate(
+    GenerateTurnState state,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    Future<GenerateResult> Function(
+      GenerateTurnState state,
+      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    )
+    next,
+  ) {
+    requests.add(state.request);
+    return next(state, ctx);
+  }
+}
 
 void main() {
   group('PromptConfig', () {
@@ -101,33 +125,6 @@ void main() {
       // Read on every render; rebuilding the JSON schema each time is waste.
       expect(identical(config.resolvedOutput, config.resolvedOutput), isTrue);
       expect(config.resolvedOutput?.jsonSchema, isNotNull);
-    });
-  });
-
-  group('PromptGenerateOptions', () {
-    test('creates with all optional fields', () {
-      final opts = PromptGenerateOptions(
-        model: modelRef('override-model'),
-        config: {'temperature': 0.5},
-        toolChoice: .required,
-        returnToolRequests: false,
-        maxTurns: 3,
-        context: {'user': 'test'},
-      );
-
-      expect(opts.model!.name, equals('override-model'));
-      expect(opts.config, equals({'temperature': 0.5}));
-      expect(opts.toolChoice, equals('required'));
-      expect(opts.returnToolRequests, isFalse);
-      expect(opts.maxTurns, equals(3));
-      expect(opts.context, equals({'user': 'test'}));
-    });
-
-    test('creates with no fields', () {
-      final opts = PromptGenerateOptions();
-      expect(opts.model, isNull);
-      expect(opts.config, isNull);
-      expect(opts.tools, isNull);
     });
   });
 
@@ -352,10 +349,7 @@ void main() {
         ),
       );
 
-      final options = await ep.render(
-        {},
-        PromptGenerateOptions(model: modelRef('override-model')),
-      );
+      final options = await ep.render({}, model: modelRef('override-model'));
 
       expect(options.model, equals('override-model'));
     });
@@ -373,7 +367,7 @@ void main() {
 
       final options = await ep.render(
         {},
-        PromptGenerateOptions(config: {'temperature': 0.5, 'topP': 0.9}),
+        config: {'temperature': 0.5, 'topP': 0.9},
       );
 
       // opts should override config's temperature
@@ -417,10 +411,7 @@ void main() {
         PromptConfig(name: 'test', toolChoice: .auto, prompt: 'Hello'),
       );
 
-      final options = await ep.render(
-        {},
-        PromptGenerateOptions(toolChoice: .required),
-      );
+      final options = await ep.render({}, toolChoice: .required);
 
       expect(options.toolChoice, ToolChoice.required);
     });
@@ -462,10 +453,7 @@ void main() {
         PromptConfig(name: 'test', prompt: 'Hello'),
       );
 
-      final options = await ep.render(
-        {},
-        PromptGenerateOptions(use: [middlewareRef(name: 'mw2')]),
-      );
+      final options = await ep.render({}, use: [middlewareRef(name: 'mw2')]);
 
       expect(options.use, isNotNull);
       expect(options.use!.length, equals(1));
@@ -483,10 +471,7 @@ void main() {
         ),
       );
 
-      final options = await ep.render(
-        {},
-        PromptGenerateOptions(use: [middlewareRef(name: 'optsMw')]),
-      );
+      final options = await ep.render({}, use: [middlewareRef(name: 'optsMw')]);
 
       // Config middleware should come first, then opts middleware.
       expect(options.use, isNotNull);
@@ -574,10 +559,7 @@ void main() {
         ),
       ];
 
-      final options = await ep.render(
-        {},
-        PromptGenerateOptions(messages: history),
-      );
+      final options = await ep.render({}, messages: history);
 
       // JS: messages: [history user, history model, prompt user]
       expect(options.messages.length, equals(3));
@@ -700,14 +682,12 @@ void main() {
 
       final options = await ep.render(
         {},
-        PromptGenerateOptions(
-          messages: [
-            Message(
-              role: Role.user,
-              content: [TextPart(text: 'Opts message')],
-            ),
-          ],
-        ),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'Opts message')],
+          ),
+        ],
       );
 
       // Config messages should be used, not opts messages
@@ -836,9 +816,7 @@ void main() {
         ),
       ];
 
-      final options = await ep.render({
-        'name': 'World',
-      }, PromptGenerateOptions(messages: history));
+      final options = await ep.render({'name': 'World'}, messages: history);
 
       // JS: messages: [template, history user, history model] — 3 messages
       // History is inserted after the template content
@@ -882,9 +860,7 @@ void main() {
           ),
         ];
 
-        final options = await ep.render({
-          'name': 'World',
-        }, PromptGenerateOptions(messages: history));
+        final options = await ep.render({'name': 'World'}, messages: history);
 
         // JS: messages: [template user, history user (purpose:history),
         //                history model (purpose:history)]
@@ -1122,6 +1098,145 @@ void main() {
       expect(options.config!['temperature'], equals(0.9));
       expect(options.maxTurns, equals(3));
       expect(options.toolChoice, equals('auto'));
+    });
+
+    // `call` and `stream` each build their own copy of the per-call options,
+    // so both run with the same arguments and the same assertions: a field
+    // dropped from either copy fails here.
+    group('per-call named options', () {
+      late Prompt<dynamic, dynamic> ep;
+      late List<GenerateActionOptions> generateRequests;
+      late List<ModelRequest> modelRequests;
+      late List<Map<String, dynamic>?> modelContexts;
+
+      setUp(() {
+        generateRequests = [];
+        modelRequests = [];
+        modelContexts = [];
+        genkit.defineGenerateMiddleware<void>(
+          name: 'capture',
+          create: (_, _) => _CaptureRequests(generateRequests),
+        );
+        genkit.defineModel(
+          name: 'echo',
+          fn: (request, ctx) async {
+            modelRequests.add(request);
+            modelContexts.add(ctx.context);
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+        ep = genkit.definePrompt(
+          name: 'ask',
+          model: modelRef('unused'),
+          config: {'temperature': 0.9, 'topK': 40},
+          toolNames: ['fromPrompt'],
+          prompt: 'Question',
+        );
+      });
+
+      // Runs [via] (`call` or `stream`) with [args]. `Function.apply` passes
+      // the exact same named arguments to both methods, which spelling the
+      // calls out twice would not guarantee.
+      Future<GenerateResult<dynamic>> invoke(
+        String via,
+        Map<Symbol, Object?> args,
+      ) async {
+        if (via == 'call') {
+          return await (Function.apply(ep.call, [null], args)
+              as Future<GenerateResult<dynamic>>);
+        }
+        final stream =
+            Function.apply(ep.stream, [null], args)
+                as ActionStream<
+                  GenerateResponseChunk<dynamic>,
+                  GenerateResult<dynamic>
+                >;
+        await stream.drain<void>();
+        return stream.onResult;
+      }
+
+      for (final via in ['call', 'stream']) {
+        test('$via forwards every option', () async {
+          // Not registered: it only reaches the model through `tools:`.
+          final tool = Tool<Map<String, dynamic>, String>(
+            name: 'lookup',
+            description: 'Looks things up',
+            fn: (input, ctx) async => .response('found'),
+          );
+          genkit.defineTool(
+            name: 'fromPrompt',
+            description: 'Registered, referenced by the prompt',
+            fn: (Map<String, dynamic> input, ctx) async => .response('x'),
+          );
+          genkit.defineTool(
+            name: 'byName',
+            description: 'Registered, referenced per call',
+            fn: (Map<String, dynamic> input, ctx) async => .response('x'),
+          );
+
+          final response = await invoke(via, {
+            #messages: [
+              Message(
+                role: .user,
+                content: [TextPart(text: 'Earlier')],
+              ),
+            ],
+            #model: modelRef('echo'),
+            #config: {'temperature': 0.1},
+            #tools: [tool],
+            #toolNames: ['byName'],
+            #toolChoice: ToolChoice.none,
+            #returnToolRequests: true,
+            #maxTurns: 7,
+            #output: GenerateActionOutputConfig(format: 'text'),
+            #context: {'user': 'u1'},
+            #use: [middlewareRef(name: 'capture')],
+          });
+
+          expect(response.text, equals('ok'));
+
+          // Seen by the generate action (via the `use:` middleware, which
+          // also proves `use` is forwarded).
+          final request = generateRequests.single;
+          expect(request.model, equals('echo'));
+          expect(request.config, equals({'temperature': 0.1, 'topK': 40}));
+          expect(
+            request.tools,
+            unorderedEquals(['fromPrompt', 'byName', 'lookup']),
+          );
+          expect(request.toolChoice, equals(ToolChoice.none));
+          expect(request.returnToolRequests, isTrue);
+          expect(request.maxTurns, equals(7));
+          expect(request.output?.format, equals('text'));
+          expect(request.use?.map((m) => m.name), equals(['capture']));
+
+          // Seen by the model.
+          final modelRequest = modelRequests.single;
+          expect(
+            modelRequest.messages.map((m) => m.text),
+            equals(['Earlier', 'Question']),
+          );
+          expect(modelContexts.single?['user'], equals('u1'));
+        });
+
+        test('$via forwards cancel', () async {
+          final controller = CancellationController()..cancel();
+
+          final response = await invoke(via, {
+            #model: modelRef('echo'),
+            #cancel: controller.token,
+          });
+
+          expect(response.finishReason, equals(FinishReason.aborted));
+          expect(modelRequests, isEmpty);
+        });
+      }
     });
 
     test('defineCustomPrompt works for programmatic prompt building', () async {
@@ -1508,9 +1623,7 @@ void main() {
 
       final response = await ep(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(constrained: false),
-        ),
+        output: GenerateActionOutputConfig(constrained: false),
       );
 
       // The override only set `constrained`; the prompt's output contract
@@ -1535,9 +1648,7 @@ void main() {
 
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(constrained: false),
-        ),
+        output: GenerateActionOutputConfig(constrained: false),
       );
 
       expect(options.output?.constrained, isFalse);
@@ -1562,9 +1673,7 @@ void main() {
       // (format + schema) carries over.
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(contentType: 'application/json'),
-        ),
+        output: GenerateActionOutputConfig(contentType: 'application/json'),
       );
 
       final output = options.output!.toJson();
@@ -1584,9 +1693,7 @@ void main() {
 
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(format: 'text'),
-        ),
+        output: GenerateActionOutputConfig(format: 'text'),
       );
 
       expect(options.output?.format, equals('text'));
@@ -1602,9 +1709,7 @@ void main() {
 
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(format: 'json'),
-        ),
+        output: GenerateActionOutputConfig(format: 'json'),
       );
 
       expect(options.output?.format, equals('json'));
@@ -1628,9 +1733,7 @@ void main() {
 
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(jsonSchema: override),
-        ),
+        output: GenerateActionOutputConfig(jsonSchema: override),
       );
 
       expect(options.output?.jsonSchema, equals(override));
@@ -1641,9 +1744,7 @@ void main() {
 
       final options = await ep.render(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(format: 'json'),
-        ),
+        output: GenerateActionOutputConfig(format: 'json'),
       );
 
       expect(options.output?.toJson(), equals({'format': 'json'}));
@@ -1691,9 +1792,7 @@ void main() {
 
         final response = await ep(
           null,
-          PromptGenerateOptions(
-            output: GenerateActionOutputConfig(format: 'text'),
-          ),
+          output: GenerateActionOutputConfig(format: 'text'),
         );
 
         expect(requests.single.output?.schema, isNull);
@@ -1719,9 +1818,7 @@ void main() {
         final ep = await genkit.prompt('joke');
         final response = await ep(
           null,
-          PromptGenerateOptions(
-            output: GenerateActionOutputConfig(format: 'text'),
-          ),
+          output: GenerateActionOutputConfig(format: 'text'),
         );
 
         expect(response.output, equals('Why? Because.'));
@@ -1740,9 +1837,7 @@ void main() {
 
       final stream = ep.stream(
         null,
-        PromptGenerateOptions(
-          output: GenerateActionOutputConfig(format: 'text'),
-        ),
+        output: GenerateActionOutputConfig(format: 'text'),
       );
       final chunkOutputs = [await for (final c in stream) c.output];
 
@@ -1785,10 +1880,7 @@ void main() {
       );
 
       final controller = CancellationController()..cancel();
-      final response = await ep(
-        null,
-        PromptGenerateOptions(cancel: controller.token),
-      );
+      final response = await ep(null, cancel: controller.token);
 
       // Nothing to parse, but the response itself still comes back.
       expect(response.finishReason, equals(FinishReason.aborted));
@@ -2257,6 +2349,53 @@ Hello {{name}}!
       );
     });
 
+    test(
+      'a call with its own output schema ignores an undefined name',
+      () async {
+        // The file's `Recipe` is never defined, but this call does not use it,
+        // neither for the request nor for parsing the reply.
+        File(p.join(tempDir.path, 'recipe.prompt')).writeAsStringSync('''
+---
+model: m
+output:
+  schema: Recipe
+  format: json
+---
+Generate a recipe.
+''');
+        genkit = Genkit(isDevEnv: false, promptDir: tempDir.path);
+        final requests = <ModelRequest>[];
+        genkit.defineModel(
+          name: 'm',
+          fn: (request, context) async {
+            requests.add(request);
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [TextPart(text: '{"name": "pasta"}')],
+              ),
+            );
+          },
+        );
+        final own = {
+          'type': 'object',
+          'properties': {
+            'name': {'type': 'string'},
+          },
+        };
+
+        final ep = await genkit.prompt('recipe');
+        final response = await ep(
+          null,
+          output: GenerateActionOutputConfig(jsonSchema: own),
+        );
+
+        expect(requests.single.output?.schema, own);
+        expect(response.output, {'name': 'pasta'});
+      },
+    );
+
     test('does not load prompts when promptDir is null', () async {
       genkit = Genkit(isDevEnv: false, promptDir: null);
 
@@ -2607,6 +2746,437 @@ Ship to {{address.city}}.
       expect(addressSchema['type'], equals('object'));
       expect(addressSchema['properties'], contains('street'));
       expect(addressSchema['properties'], contains('city'));
+    });
+
+    group('a schema defined after the prompt is loaded', () {
+      // `Genkit(promptDir:)` loads prompts in its constructor, so
+      // `ai.defineSchema` always runs after the load (#559).
+      final recipe = {
+        'type': 'object',
+        'properties': {
+          'title': {'type': 'string'},
+        },
+        'required': ['title'],
+      };
+
+      Future<PromptAction> load(String source) async {
+        File(p.join(tempDir.path, 'recipe.prompt')).writeAsStringSync(source);
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        return await registry.lookupAction(.executablePrompt, 'recipe')
+            as PromptAction;
+      }
+
+      test('resolves a bare output.schema name at render time', () async {
+        final action = await load('''
+---
+output:
+  schema: Recipe
+  format: json
+---
+Generate a recipe for {{food}}.
+''');
+        registry.registerValue('schema', 'Recipe', recipe);
+
+        final options = await action.prompt!.render({'food': 'pasta'});
+        expect(options.output!.jsonSchema, recipe);
+        expect(options.output!.format, 'json');
+      });
+
+      test('resolves nested names in input and output schemas', () async {
+        final action = await load('''
+---
+input:
+  schema:
+    favorite: Recipe
+output:
+  schema:
+    recipes(array): Recipe
+---
+More like {{favorite.title}}.
+''');
+        registry.registerValue('schema', 'Recipe', recipe);
+
+        final inputSchema = action.inputSchema!.jsonSchema();
+        expect((inputSchema['properties'] as Map)['favorite'], recipe);
+
+        final options = await action.prompt!.render(<String, dynamic>{});
+        final output = options.output!.jsonSchema!;
+        final recipes = (output['properties'] as Map)['recipes'] as Map;
+        expect(recipes['items'] ?? recipes, containsPair('type', 'object'));
+        expect(jsonEncode(output), isNot(contains(r'"$ref":"Recipe"')));
+      });
+
+      test('fails clearly when the name is never defined', () async {
+        final action = await load('''
+---
+output:
+  schema: Recipe
+---
+Generate a recipe.
+''');
+
+        await expectLater(
+          action.prompt!.render(<String, dynamic>{}),
+          throwsA(
+            isA<GenkitException>()
+                .having(
+                  (e) => e.status,
+                  'status',
+                  StatusCode.failedPrecondition,
+                )
+                .having(
+                  (e) => e.message,
+                  'message',
+                  allOf(contains("'Recipe'"), contains('defineSchema')),
+                ),
+          ),
+        );
+        // The input form metadata still builds, with the name unresolved.
+        expect(action.toJson, returnsNormally);
+
+        // Defining it later makes the same prompt work.
+        registry.registerValue('schema', 'Recipe', recipe);
+        final options = await action.prompt!.render(<String, dynamic>{});
+        expect(options.output!.jsonSchema, recipe);
+      });
+
+      group('a per-call output that does not need the undefined name', () {
+        const source = '''
+---
+output:
+  schema: Recipe
+  format: json
+---
+Generate a recipe.
+''';
+
+        test('brings its own jsonSchema', () async {
+          final action = await load(source);
+          final own = {
+            'type': 'object',
+            'properties': {
+              'name': {'type': 'string'},
+            },
+          };
+
+          final options = await action.prompt!.render(
+            <String, dynamic>{},
+            output: GenerateActionOutputConfig(jsonSchema: own),
+          );
+          expect(options.output!.jsonSchema, own);
+          expect(options.output!.format, 'json');
+        });
+
+        test('switches the format', () async {
+          final action = await load(source);
+
+          final options = await action.prompt!.render(
+            <String, dynamic>{},
+            output: GenerateActionOutputConfig(format: 'text'),
+          );
+          expect(options.output!.format, 'text');
+          expect(options.output!.jsonSchema, isNull);
+        });
+
+        test('still fails when it keeps the prompt schema', () async {
+          final action = await load(source);
+
+          await expectLater(
+            action.prompt!.render(
+              <String, dynamic>{},
+              output: GenerateActionOutputConfig(constrained: false),
+            ),
+            throwsA(isA<GenkitException>()),
+          );
+        });
+      });
+
+      test('lists every undefined name in one error', () async {
+        final action = await load('''
+---
+output:
+  schema:
+    first: Recipe
+    second: Menu
+---
+Plan a meal.
+''');
+
+        await expectLater(
+          action.prompt!.render(<String, dynamic>{}),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains("'Recipe'"), contains("'Menu'")),
+            ),
+          ),
+        );
+      });
+
+      test('the input form leaves an undefined name open', () async {
+        final action = await load('''
+---
+input:
+  schema:
+    favorite: Recipe
+---
+More like {{favorite.title}}.
+''');
+        // Not registered yet: the Dev UI form still builds, accepting anything.
+        final props =
+            action.inputSchema!.jsonSchema()['properties']
+                as Map<String, dynamic>;
+        expect(props['favorite'], isEmpty);
+        expect(action.toJson, returnsNormally);
+
+        // Registered later: the next read picks it up.
+        registry.registerValue('schema', 'Recipe', recipe);
+        final resolved =
+            action.inputSchema!.jsonSchema()['properties']
+                as Map<String, dynamic>;
+        expect(resolved['favorite'], recipe);
+      });
+    });
+
+    group('Picoschema (spec forms, #562)', () {
+      Future<GenerateActionOptions> render(String source) async {
+        File(p.join(tempDir.path, 'pico.prompt')).writeAsStringSync(source);
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        final action =
+            await registry.lookupAction(.executablePrompt, 'pico')
+                as PromptAction;
+        return action.prompt!.render(<String, dynamic>{});
+      }
+
+      test('parenthesized types produce arrays, objects, enums', () async {
+        final options = await render('''
+---
+output:
+  schema:
+    tags(array): string
+    steps(array, the steps):
+      number: integer
+      instruction: string
+    obj(object):
+      x: integer
+    status(enum): [A, B]
+    (*): string
+---
+hi
+''');
+        final schema = options.output!.jsonSchema!;
+        final props = schema['properties'] as Map<String, dynamic>;
+
+        expect(props['tags'], {
+          'type': 'array',
+          'items': {'type': 'string'},
+        });
+        final steps = props['steps'] as Map<String, dynamic>;
+        expect(steps['type'], 'array');
+        expect(steps['description'], 'the steps');
+        expect(
+          (steps['items'] as Map)['properties'],
+          allOf(contains('number'), contains('instruction')),
+        );
+        expect(props['obj'], containsPair('type', 'object'));
+        expect(props['status'], {
+          'enum': ['A', 'B'],
+        });
+        // The wildcard is additionalProperties, not a required property.
+        expect(props, isNot(contains('*')));
+        expect(schema['additionalProperties'], {'type': 'string'});
+        expect(schema['required'], ['tags', 'steps', 'obj', 'status']);
+      });
+
+      test('the same forms apply to input.schema', () async {
+        File(p.join(tempDir.path, 'in.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    tags(array): string
+---
+Tags: {{tags}}
+''');
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        final action =
+            await registry.lookupAction(.executablePrompt, 'in')
+                as PromptAction;
+        final props =
+            action.inputSchema!.jsonSchema()['properties']
+                as Map<String, dynamic>;
+        expect(props['tags'], {
+          'type': 'array',
+          'items': {'type': 'string'},
+        });
+      });
+
+      // Pre-2.0 Dart-only syntax is now rejected. It is logged at load and
+      // fails only that prompt at render, so the rest of the folder (and the
+      // `Genkit(promptDir:)` constructor) keeps working.
+      for (final (label, schemaKey, field) in [
+        ('a bad parenthetical type', 'output', 'tags(list): string'),
+        ('the old description syntax', 'output', 'email(the email): string'),
+        ('a duplicate optional field', 'output', 'a: string\n    a?: string'),
+        ('an input schema error', 'input', 'tags(list): string'),
+      ]) {
+        test('$label warns at load and fails at render', () async {
+          File(p.join(tempDir.path, 'bad.prompt')).writeAsStringSync('''
+---
+$schemaKey:
+  schema:
+    $field
+---
+hi
+''');
+          File(p.join(tempDir.path, 'good.prompt')).writeAsStringSync('Hello!');
+
+          final warnings = <String>[];
+          final sub = Logger.root.onRecord
+              .where((r) => r.level == Level.WARNING)
+              .listen((r) => warnings.add(r.message));
+          addTearDown(sub.cancel);
+
+          loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+          expect(warnings, [contains("Invalid schema in prompt 'bad'")]);
+
+          final bad =
+              await registry.lookupAction(.executablePrompt, 'bad')
+                  as PromptAction;
+          // Action listing (the Dev UI) must not throw.
+          expect(bad.toJson, returnsNormally);
+          await expectLater(
+            bad.prompt!.render(<String, dynamic>{}),
+            throwsA(
+              isA<GenkitException>()
+                  .having((e) => e.status, 'status', StatusCode.invalidArgument)
+                  .having(
+                    (e) => e.message,
+                    'message',
+                    allOf(
+                      contains("Invalid schema in prompt 'bad'"),
+                      isNot(contains('Picoschema:')),
+                    ),
+                  ),
+            ),
+          );
+
+          final good =
+              await registry.lookupAction(.executablePrompt, 'good')
+                  as PromptAction;
+          await expectLater(good.prompt!.render(null), completes);
+        });
+      }
+
+      test('the old description syntax hints at the new one', () async {
+        await expectLater(
+          render('''
+---
+output:
+  schema:
+    email(the email): string
+---
+hi
+'''),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              contains('`email: string, the email`'),
+            ),
+          ),
+        );
+      });
+
+      test('an undefined name in input.schema fails at render', () async {
+        File(p.join(tempDir.path, 'typo.prompt')).writeAsStringSync('''
+---
+input:
+  schema:
+    favorite: Recpie
+---
+More like {{favorite.title}}.
+''');
+        loadPromptFolder(registry, dpRegistry, dir: tempDir.path);
+        final action =
+            await registry.lookupAction(.executablePrompt, 'typo')
+                as PromptAction;
+
+        await expectLater(
+          action.prompt!.render(<String, dynamic>{}),
+          throwsA(
+            isA<GenkitException>()
+                .having(
+                  (e) => e.status,
+                  'status',
+                  StatusCode.failedPrecondition,
+                )
+                .having((e) => e.message, 'message', contains("'Recpie'")),
+          ),
+        );
+        // The Dev UI form still builds.
+        expect(action.toJson, returnsNormally);
+      });
+
+      test('a top-level items without type is Picoschema', () async {
+        // Matches JS/Python: only `type`/`properties` (and a few keywords)
+        // mark JSON Schema, so `items` here is an ordinary field. Before
+        // dotprompt 2.0, genkit passed this through as JSON Schema.
+        final options = await render('''
+---
+output:
+  schema:
+    items: string
+    total: number
+---
+hi
+''');
+        expect(options.output!.jsonSchema, {
+          'type': 'object',
+          'properties': {
+            'items': {'type': 'string'},
+            'total': {'type': 'number'},
+          },
+          'additionalProperties': false,
+          'required': ['items', 'total'],
+        });
+      });
+
+      test('an unknown scalar-like name is an undefined type', () async {
+        // `int` is not a Picoschema type, so it is looked up as a named
+        // schema, which fails at render with a hint about scalar types.
+        await expectLater(
+          render('''
+---
+output:
+  schema:
+    n: int
+---
+hi
+'''),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains("'int'"), contains('integer')),
+            ),
+          ),
+        );
+      });
+
+      test('top-level JSON Schema is passed through untouched', () async {
+        final options = await render('''
+---
+output:
+  schema:
+    type: [string, "null"]
+---
+hi
+''');
+        expect(options.output!.jsonSchema, {
+          'type': ['string', 'null'],
+        });
+      });
     });
 
     test('parses bare-string middleware from the `use` frontmatter', () async {

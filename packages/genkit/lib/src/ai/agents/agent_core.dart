@@ -33,6 +33,7 @@ import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../core/cancellation.dart';
+import '../../exception.dart';
 import '../../experimental_types.dart';
 import '../../schema_extensions.dart';
 import '../../types.dart';
@@ -78,6 +79,10 @@ abstract base class AgentTransport {
   /// agent derives its context server-side from the incoming HTTP request
   /// (headers, auth, etc.), so the remote transport rejects a non-empty
   /// [context] with an [UnsupportedError] rather than silently dropping it.
+  ///
+  /// [cancel] stops the turn while it is attached. A detached turn
+  /// (`AgentInput.detach`) stops listening to [cancel] once it detaches; use
+  /// [abort] to stop it after that.
   TurnStream runTurn(
     AgentInput input,
     AgentInit init, {
@@ -1045,12 +1050,13 @@ final class AgentChat<State> {
 
   AgentError<State> _toAgentError(Object e) {
     if (e is AgentError<State>) return e;
-    final message = e.toString();
-    final match = RegExp(r'^([A-Z_]+):').firstMatch(message);
-    final status = match != null ? match.group(1)! : 'UNKNOWN';
+    final (status, message, details) = switch (e) {
+      GenkitException() => (e.status.wireName, e.message, e.details),
+      _ => ('UNKNOWN', e.toString(), null),
+    };
     final raw = AgentOutput(
       finishReason: AgentFinishReason.failed,
-      error: AgentErrorInfo(status: status, message: message),
+      error: AgentErrorInfo(status: status, message: message, details: details),
     );
     final response = _response(raw);
     return AgentError<State>(

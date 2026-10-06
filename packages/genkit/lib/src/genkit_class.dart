@@ -190,6 +190,46 @@ final class Genkit extends GenkitAI {
     return tool;
   }
 
+  /// Defines and registers a generate middleware. Call the returned
+  /// definition to build the ref for `use:`.
+  ///
+  /// ```dart
+  /// final logging = ai.defineGenerateMiddleware<LoggingOptions>(
+  ///   name: 'logging',
+  ///   configSchema: LoggingOptions.$schema,
+  ///   create: (config, ctx) => LoggingMiddleware(config),
+  /// );
+  ///
+  /// await ai.generate(
+  ///   prompt: 'hi',
+  ///   use: [logging(LoggingOptions(level: 'debug')), retry(maxRetries: 2)],
+  /// );
+  /// ```
+  ///
+  /// [create] runs once per `generate` call that uses the middleware, so an
+  /// instance can keep per-call state. A middleware defined here replaces a
+  /// built-in or plugin middleware with the same [name].
+  ///
+  /// To ship middleware in a package, build it with [generateMiddleware] and
+  /// return it from a plugin's `middleware()` instead.
+  GenerateMiddlewareDef<CustomOptions> defineGenerateMiddleware<CustomOptions>({
+    required String name,
+    required GenerateMiddleware Function(
+      CustomOptions? config,
+      GenerateMiddlewareContext ctx,
+    )
+    create,
+    SchemanticType<CustomOptions>? configSchema,
+  }) {
+    final middleware = generateMiddleware<CustomOptions>(
+      name: name,
+      create: create,
+      configSchema: configSchema,
+    );
+    registry.registerValue('middleware', name, middleware);
+    return middleware;
+  }
+
   /// Defines and registers an interrupt.
   ///
   /// Interrupts are special tools that always halt the generation loop and

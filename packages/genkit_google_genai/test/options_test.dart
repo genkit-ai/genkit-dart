@@ -50,7 +50,7 @@ void main() {
 
     test('maps thinking config', () {
       final options = GeminiOptions(
-        thinkingConfig: ThinkingConfig(
+        thinkingConfig: GeminiThinkingConfig(
           includeThoughts: true,
           thinkingBudget: 2048,
           thinkingLevel: 'HIGH',
@@ -80,7 +80,7 @@ void main() {
     test('maps safety settings correctly', () {
       final options = GeminiOptions(
         safetySettings: [
-          SafetySettings(
+          GeminiSafetySettings(
             category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
             threshold: 'BLOCK_ONLY_HIGH',
           ),
@@ -104,8 +104,8 @@ void main() {
 
     test('drops an entry with unset category', () {
       final settings = toGeminiSafetySettings([
-        SafetySettings(threshold: 'BLOCK_ONLY_HIGH'),
-        SafetySettings(
+        GeminiSafetySettings(threshold: 'BLOCK_ONLY_HIGH'),
+        GeminiSafetySettings(
           category: 'HARM_CATEGORY_HARASSMENT',
           threshold: 'BLOCK_LOW_AND_ABOVE',
         ),
@@ -117,7 +117,7 @@ void main() {
 
     test('drops an entry with explicit HARM_CATEGORY_UNSPECIFIED', () {
       final settings = toGeminiSafetySettings([
-        SafetySettings(
+        GeminiSafetySettings(
           category: 'HARM_CATEGORY_UNSPECIFIED',
           threshold: 'BLOCK_ONLY_HIGH',
         ),
@@ -127,12 +127,12 @@ void main() {
     });
 
     test('drops an entry with neither category nor threshold', () {
-      expect(toGeminiSafetySettings([SafetySettings()]), isEmpty);
+      expect(toGeminiSafetySettings([GeminiSafetySettings()]), isEmpty);
     });
 
     test('omits threshold from the wire body when unset', () {
       final settings = toGeminiSafetySettings([
-        SafetySettings(category: 'HARM_CATEGORY_HATE_SPEECH'),
+        GeminiSafetySettings(category: 'HARM_CATEGORY_HATE_SPEECH'),
       ]);
 
       expect(settings, hasLength(1));
@@ -147,12 +147,12 @@ void main() {
       addTearDown(subscription.cancel);
 
       toGeminiSafetySettings([
-        SafetySettings(threshold: 'BLOCK_ONLY_HIGH'),
-        SafetySettings(
+        GeminiSafetySettings(threshold: 'BLOCK_ONLY_HIGH'),
+        GeminiSafetySettings(
           category: 'HARM_CATEGORY_UNSPECIFIED',
           threshold: 'BLOCK_ONLY_HIGH',
         ),
-        SafetySettings(
+        GeminiSafetySettings(
           category: 'HARM_CATEGORY_HARASSMENT',
           threshold: 'BLOCK_LOW_AND_ABOVE',
         ),
@@ -230,7 +230,7 @@ void main() {
     });
 
     test('maps google search retrieval', () {
-      final options = GeminiOptions(googleSearch: GoogleSearch());
+      final options = GeminiOptions(googleSearch: GeminiGoogleSearch());
       final tools = toGeminiTools(null, googleSearch: options.googleSearch);
 
       expect(tools, hasLength(1));
@@ -241,7 +241,7 @@ void main() {
   group('toGeminiToolConfig', () {
     test('maps function calling config', () {
       final options = GeminiOptions(
-        functionCallingConfig: FunctionCallingConfig(
+        functionCallingConfig: GeminiFunctionCallingConfig(
           mode: 'ANY',
           allowedFunctionNames: ['foo'],
         ),
@@ -272,7 +272,7 @@ void main() {
 
     test('functionCallingConfig takes precedence over toolChoice', () {
       final config = toGeminiToolConfig(
-        FunctionCallingConfig(mode: 'ANY', allowedFunctionNames: ['foo']),
+        GeminiFunctionCallingConfig(mode: 'ANY', allowedFunctionNames: ['foo']),
         toolChoice: .none,
         hasFunctionTools: true,
       );
@@ -282,7 +282,9 @@ void main() {
     });
 
     test('an explicit functionCallingConfig applies without tools', () {
-      final config = toGeminiToolConfig(FunctionCallingConfig(mode: 'NONE'));
+      final config = toGeminiToolConfig(
+        GeminiFunctionCallingConfig(mode: 'NONE'),
+      );
 
       expect(config?.functionCallingConfig?.mode, 'NONE');
     });
@@ -291,9 +293,9 @@ void main() {
   group('toGeminiTtsSettings', () {
     test('maps speech config correctly', () {
       final options = GeminiTtsOptions(
-        speechConfig: SpeechConfig(
-          voiceConfig: VoiceConfig(
-            prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
+        speechConfig: GeminiSpeechConfig(
+          voiceConfig: GeminiVoiceConfig(
+            prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(voiceName: 'Puck'),
           ),
         ),
       );

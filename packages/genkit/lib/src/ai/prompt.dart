@@ -33,6 +33,16 @@ import 'model.dart';
 import 'prompt_types.dart';
 import 'tool.dart';
 
+/// An input schema whose named types are resolved on use, set by the
+/// `.prompt` loader. [Prompt.render] calls [ensureResolved] so an undefined
+/// name fails the render instead of loosening the schema.
+@internal
+abstract interface class DeferredSchema {
+  /// Throws a [GenkitException] if the schema is invalid or names a type
+  /// that is still undefined.
+  void ensureResolved();
+}
+
 /// Configuration for defining a prompt.
 ///
 /// This holds all the metadata needed to define a prompt action.
@@ -108,6 +118,13 @@ final class PromptConfig<Input, Output, CustomOptions> {
   /// Middleware references.
   final List<GenerateMiddlewareRef>? use;
 
+  /// Supplies [output]'s JSON schema at render time instead of up front.
+  ///
+  /// Set by the `.prompt` loader for Picoschema output schemas, which may name
+  /// types registered with `defineSchema` after the prompt was loaded. Called
+  /// on every render until it succeeds; throws when a name is still undefined.
+  final Map<String, dynamic> Function()? deferredOutputJsonSchema;
+
   PromptConfig({
     required this.name,
     this.variant,
@@ -130,6 +147,7 @@ final class PromptConfig<Input, Output, CustomOptions> {
     this.toolNames,
     this.toolChoice,
     this.use,
+    this.deferredOutputJsonSchema,
   }) {
     if (outputSchema != null && output?.jsonSchema != null) {
       throw ArgumentError(
@@ -149,66 +167,77 @@ final class PromptConfig<Input, Output, CustomOptions> {
   /// Whether the model is asked for structured output, i.e. whether a
   /// formatter will parse the response into `output` at all.
   bool get _requestsStructuredOutput =>
-      resolvedOutput?.format != null || resolvedOutput?.jsonSchema != null;
+      output?.format != null || _definesWireSchema;
+
+  /// Whether the model is given an output schema. Known without resolving a
+  /// deferred schema, so definition-time checks don't depend on what has been
+  /// registered yet.
+  bool get _definesWireSchema =>
+      outputSchema != null ||
+      output?.jsonSchema != null ||
+      deferredOutputJsonSchema != null;
+
+  /// Whether the prompt configures any output, i.e. whether [resolvedOutput]
+  /// is non-null. Known without resolving a deferred schema.
+  bool get _hasOutput => output != null || _definesWireSchema;
+
+  /// The format [resolvedOutput] is parsed with (`_effectiveFormat` of it),
+  /// known without resolving a deferred schema.
+  String? get _outputFormat =>
+      output?.format ?? (_definesWireSchema ? 'json' : null);
 
   /// The full name including variant.
   String get fullName => variant != null ? '$name.$variant' : name;
 
-  /// The wire output config, with [outputSchema]'s JSON schema folded in.
+  /// The wire output config, with [outputSchema]'s (or the deferred) JSON
+  /// schema folded in.
   ///
   /// Null when the prompt configures no output at all, so the rendered
-  /// options stay free of an empty `output` block. Computed once: the config
-  /// is immutable and this is read on every render (and every agent turn).
-  late final GenerateActionOutputConfig? resolvedOutput = outputSchema == null
-      ? output
-      : GenerateActionOutputConfig.fromJson({
-          ...?output?.toJson(),
-          'jsonSchema': toJsonSchema(type: outputSchema),
-        });
+  /// options stay free of an empty `output` block. Cached once resolved: the
+  /// config is immutable and this is read on every render (and every agent
+  /// turn). A deferred schema that fails to resolve is retried next time.
+  GenerateActionOutputConfig? get resolvedOutput {
+    // A throwing `_resolveOutput` leaves the flag unset, so it is retried.
+    if (!_outputResolved) {
+      _resolvedOutput = _resolveOutput();
+      _outputResolved = true;
+    }
+    return _resolvedOutput;
+  }
+
+  GenerateActionOutputConfig? _resolvedOutput;
+  bool _outputResolved = false;
+
+  GenerateActionOutputConfig? _resolveOutput() {
+    final jsonSchema = outputSchema != null
+        ? toJsonSchema(type: outputSchema)
+        : deferredOutputJsonSchema?.call();
+    if (jsonSchema == null) return output;
+    return GenerateActionOutputConfig.fromJson({
+      ...?output?.toJson(),
+      'jsonSchema': jsonSchema,
+    });
+  }
 }
 
-/// Options for generating from a prompt (everything except prompt/system
-/// content, which is defined by the prompt itself).
-final class PromptGenerateOptions<CustomOptions> {
-  final ModelRef<CustomOptions>? model;
-  final CustomOptions? config;
+/// Per-call options passed to [Prompt.call], [Prompt.render] and
+/// [Prompt.stream] as named parameters, bundled to thread them through the
+/// rendering and generate steps. Not public: callers use the named parameters.
+final class _CallOptions {
+  final ModelRef<dynamic>? model;
+  final Object? config;
   final List<Tool>? tools;
   final List<String>? toolNames;
   final ToolChoice? toolChoice;
   final bool? returnToolRequests;
   final int? maxTurns;
-
-  /// Per-call output settings, replacing the prompt's own output config.
-  ///
-  /// The prompt's format and schema (its typed contract) carry over unless
-  /// this picks a different `format`; other fields (`constrained`,
-  /// `instructions`, ...) come from here only:
-  ///
-  /// ```dart
-  /// // joke defined with outputSchema: Joke.$schema
-  /// await joke(input, PromptGenerateOptions(
-  ///   output: GenerateActionOutputConfig(constrained: false),
-  /// )); // still the Joke schema, still parsed into a Joke
-  ///
-  /// await joke(input, PromptGenerateOptions(
-  ///   output: GenerateActionOutputConfig(format: 'text'),
-  /// )); // no schema sent; `output` is null, the reply is on `text`
-  /// ```
-  ///
-  /// This override does not change how the response is parsed into `Output`,
-  /// so a `jsonSchema` set here that does not match `Output` fails at parse
-  /// time.
   final GenerateActionOutputConfig? output;
   final Map<String, dynamic>? context;
   final List<GenerateMiddlewareRef>? use;
   final List<Message>? messages;
-
-  /// Cooperative cancellation token, observed by the model call, tools, and
-  /// middleware to abort generation. A cancelled call resolves with a response
-  /// whose `finishReason` is `FinishReason.aborted` (rather than throwing).
   final CancellationToken? cancel;
 
-  PromptGenerateOptions({
+  const _CallOptions({
     this.model,
     this.config,
     this.tools,
@@ -317,13 +346,48 @@ final class Prompt<Input, Output> {
 
   /// Renders the prompt template with the given input, producing
   /// [GenerateActionOptions] suitable for the `generate` action.
-  Future<GenerateActionOptions> render(
-    Input? input, [
-    PromptGenerateOptions? opts,
-  ]) async {
+  ///
+  /// The named parameters override (or, for lists, extend) what the prompt
+  /// defines, as in [call]. [messages] is the conversation history. It goes
+  /// at `{{history}}` in a messages template (a `.prompt` file body), and
+  /// otherwise after the system message. It is ignored when the prompt
+  /// defines static `messages`.
+  Future<GenerateActionOptions> render<CustomOptions>(
+    Input? input, {
+    List<Message>? messages,
+    ModelRef<CustomOptions>? model,
+    CustomOptions? config,
+    List<Tool>? tools,
+    List<String>? toolNames,
+    ToolChoice? toolChoice,
+    bool? returnToolRequests,
+    int? maxTurns,
+    GenerateActionOutputConfig? output,
+    List<GenerateMiddlewareRef>? use,
+  }) => _render(
+    input,
+    _CallOptions(
+      messages: messages,
+      model: model,
+      config: config,
+      tools: tools,
+      toolNames: toolNames,
+      toolChoice: toolChoice,
+      returnToolRequests: returnToolRequests,
+      maxTurns: maxTurns,
+      output: output,
+      use: use,
+    ),
+  );
+
+  Future<GenerateActionOptions> _render(Input? input, _CallOptions opts) async {
     return runInNewSpan(
       'render',
       (telemetryContext) async {
+        if (_config.inputSchema case final DeferredSchema schema) {
+          schema.ensureResolved();
+        }
+
         final messages = <Message>[];
 
         // 1. Render system prompt
@@ -336,11 +400,11 @@ final class Prompt<Input, Output> {
         await _renderUserPrompt(input, messages);
 
         // Resolve model
-        final resolvedModel = opts?.model ?? _config.model;
+        final resolvedModel = opts.model ?? _config.model;
 
         // Resolve config — merge config maps
         final configMap = _configToMap(_config.config);
-        final optsConfigMap = _configToMap(opts?.config);
+        final optsConfigMap = _configToMap(opts.config);
         final resolvedConfig = <String, dynamic>{
           ...?configMap,
           ...?optsConfigMap,
@@ -349,9 +413,9 @@ final class Prompt<Input, Output> {
         // Resolve tools
         final resolvedToolNames = <String>{
           ...?_config.toolNames,
-          ...?opts?.toolNames,
+          ...?opts.toolNames,
           ...?_config.tools?.map((t) => t.name),
-          ...?opts?.tools?.map((t) => t.name),
+          ...?opts.tools?.map((t) => t.name),
         }.toList();
 
         // Resolve middleware refs. These must be carried on the returned
@@ -362,7 +426,7 @@ final class Prompt<Input, Output> {
             (mw) =>
                 MiddlewareRef(name: mw.name, config: _configToMap(mw.config)),
           ),
-          ...?opts?.use?.map(
+          ...?opts.use?.map(
             (mw) =>
                 MiddlewareRef(name: mw.name, config: _configToMap(mw.config)),
           ),
@@ -373,11 +437,11 @@ final class Prompt<Input, Output> {
           messages: messages,
           config: resolvedConfig.isNotEmpty ? resolvedConfig : null,
           tools: resolvedToolNames.isNotEmpty ? resolvedToolNames : null,
-          toolChoice: opts?.toolChoice ?? _config.toolChoice,
+          toolChoice: opts.toolChoice ?? _config.toolChoice,
           returnToolRequests:
-              opts?.returnToolRequests ?? _config.returnToolRequests,
-          maxTurns: opts?.maxTurns ?? _config.maxTurns,
-          output: _applyOutputOverride(_config.resolvedOutput, opts?.output),
+              opts.returnToolRequests ?? _config.returnToolRequests,
+          maxTurns: opts.maxTurns ?? _config.maxTurns,
+          output: _applyOutputOverride(_config, opts.output),
           use: resolvedUse.isNotEmpty ? resolvedUse : null,
         );
       },
@@ -387,16 +451,94 @@ final class Prompt<Input, Output> {
   }
 
   /// Generates a response by rendering the prompt and calling the model.
-  Future<GenerateResult<Output>> call(
-    Input? input, [
-    PromptGenerateOptions? opts,
-  ]) => _generate(input, opts);
+  ///
+  /// The named parameters match `Genkit.generate`, except for the content the
+  /// prompt defines itself (system, prompt) and interrupt resumption
+  /// (`interruptRespond` / `interruptRestart`), which prompts do not support
+  /// yet. Scalars ([model], [toolChoice], [maxTurns], ...) replace the
+  /// prompt's value, [config] is merged key by key over the prompt's config,
+  /// and [tools], [toolNames] and [use] are appended to the prompt's.
+  /// [messages] is the conversation history; see [render] for where it goes.
+  ///
+  /// ```dart
+  /// final response = await joke(
+  ///   JokeInput(topic: 'cats'),
+  ///   config: {'temperature': 0.2},
+  ///   messages: history,
+  /// );
+  /// ```
+  ///
+  /// [output] replaces the prompt's output config, except that the prompt's
+  /// format and schema (its typed contract) carry over unless [output] picks a
+  /// different `format`:
+  ///
+  /// ```dart
+  /// // joke defined with outputSchema: Joke.$schema
+  /// await joke(input, output: GenerateActionOutputConfig(constrained: false));
+  /// // still the Joke schema, still parsed into a Joke
+  ///
+  /// await joke(input, output: GenerateActionOutputConfig(format: 'text'));
+  /// // no schema sent; `output` is null, the reply is on `text`
+  /// ```
+  ///
+  /// The override does not change how the response is parsed into `Output`,
+  /// so a `jsonSchema` set on [output] that does not match `Output` fails at
+  /// parse time.
+  ///
+  /// [cancel] is observed by the model call, tools, and middleware. A
+  /// cancelled call resolves with a response whose `finishReason` is
+  /// `FinishReason.aborted` (rather than throwing).
+  Future<GenerateResult<Output>> call<CustomOptions>(
+    Input? input, {
+    List<Message>? messages,
+    ModelRef<CustomOptions>? model,
+    CustomOptions? config,
+    List<Tool>? tools,
+    List<String>? toolNames,
+    ToolChoice? toolChoice,
+    bool? returnToolRequests,
+    int? maxTurns,
+    GenerateActionOutputConfig? output,
+    Map<String, dynamic>? context,
+    List<GenerateMiddlewareRef>? use,
+    CancellationToken? cancel,
+  }) => _generate(
+    input,
+    _CallOptions(
+      messages: messages,
+      model: model,
+      config: config,
+      tools: tools,
+      toolNames: toolNames,
+      toolChoice: toolChoice,
+      returnToolRequests: returnToolRequests,
+      maxTurns: maxTurns,
+      output: output,
+      context: context,
+      use: use,
+      cancel: cancel,
+    ),
+  );
 
   /// Streams a response by rendering the prompt and calling the model.
-  ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>> stream(
-    Input? input, [
-    PromptGenerateOptions? opts,
-  ]) {
+  ///
+  /// Takes the same named parameters as [call].
+  ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>
+  stream<CustomOptions>(
+    Input? input, {
+    List<Message>? messages,
+    ModelRef<CustomOptions>? model,
+    CustomOptions? config,
+    List<Tool>? tools,
+    List<String>? toolNames,
+    ToolChoice? toolChoice,
+    bool? returnToolRequests,
+    int? maxTurns,
+    GenerateActionOutputConfig? output,
+    Map<String, dynamic>? context,
+    List<GenerateMiddlewareRef>? use,
+    CancellationToken? cancel,
+  }) {
     final streamController = StreamController<GenerateResponseChunk<Output>>();
     final actionStream =
         ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>(
@@ -405,7 +547,20 @@ final class Prompt<Input, Output> {
 
     _generate(
       input,
-      opts,
+      _CallOptions(
+        messages: messages,
+        model: model,
+        config: config,
+        tools: tools,
+        toolNames: toolNames,
+        toolChoice: toolChoice,
+        returnToolRequests: returnToolRequests,
+        maxTurns: maxTurns,
+        output: output,
+        context: context,
+        use: use,
+        cancel: cancel,
+      ),
       onChunk: (chunk) {
         if (!streamController.isClosed) {
           streamController.add(chunk);
@@ -441,9 +596,10 @@ final class Prompt<Input, Output> {
     Object? raw, {
     bool partial = false,
   }) {
+    // Compared without resolving the prompt's schema, which may be deferred
+    // and undefined when the call brought its own.
     final switchedFormat =
-        _effectiveFormat(request.output) !=
-        _effectiveFormat(_config.resolvedOutput);
+        _effectiveFormat(request.output) != _config._outputFormat;
     if (switchedFormat) {
       return _isUnconstrained<Output>() ? raw as Output? : null;
     }
@@ -455,22 +611,22 @@ final class Prompt<Input, Output> {
   /// Internal generate implementation shared by [call] and [stream].
   Future<GenerateResult<Output>> _generate(
     Input? input,
-    PromptGenerateOptions? opts, {
+    _CallOptions opts, {
     StreamingCallback<GenerateResponseChunk<Output>>? onChunk,
   }) async {
     return runInNewSpan(
       ref.name,
       (telemetryContext) async {
-        final options = await render(input, opts);
+        final options = await _render(input, opts);
 
         // Resolve tools from both config and opts into a child registry
-        final allTools = <Tool>[...?_config.tools, ...?opts?.tools];
+        final allTools = <Tool>[...?_config.tools, ...?opts.tools];
 
         final middleware = <GenerateMiddlewareOneof>[
           ...?_config.use?.map(
             (mw) => (middlewareRef: mw, middlewareInstance: null),
           ),
-          ...?opts?.use?.map(
+          ...?opts.use?.map(
             (mw) => (middlewareRef: mw, middlewareInstance: null),
           ),
         ];
@@ -493,8 +649,8 @@ final class Prompt<Input, Output> {
           returnToolRequests: options.returnToolRequests,
           maxTurns: options.maxTurns,
           output: options.output,
-          context: opts?.context,
-          cancel: opts?.cancel,
+          context: opts.context,
+          cancel: opts.cancel,
           middleware: middleware.isNotEmpty ? middleware : null,
           onChunk: onChunk == null
               ? null
@@ -546,7 +702,7 @@ final class Prompt<Input, Output> {
   Future<void> _renderMessages(
     Input? input,
     List<Message> messages,
-    PromptGenerateOptions? opts,
+    _CallOptions opts,
   ) async {
     if (_config.messagesTemplate != null) {
       // Handlebars template for messages
@@ -557,7 +713,7 @@ final class Prompt<Input, Output> {
       final rendered = await compiled.render(
         dp.DataArgument(
           input: _inputToMap(input),
-          messages: opts?.messages?.map(genkitMessageToDpMessage).toList(),
+          messages: opts.messages?.map(genkitMessageToDpMessage).toList(),
         ),
       );
       messages.addAll(rendered.messages.map(dpMessageToGenkitMessage));
@@ -565,8 +721,8 @@ final class Prompt<Input, Output> {
       messages.addAll(_config.messages!);
     } else {
       // If no messages config, add history from opts
-      if (opts?.messages != null) {
-        messages.addAll(opts!.messages!);
+      if (opts.messages != null) {
+        messages.addAll(opts.messages!);
       }
     }
   }
@@ -848,7 +1004,7 @@ String? _outputTypeError<Output>({
   final lookup = site == _OutputCheckSite.lookup;
   // Covers every way a prompt defines its wire schema: `outputSchema`, a
   // `jsonSchema` on `output`, and a `.prompt` file's `output.schema`.
-  final hasWireSchema = config.resolvedOutput?.jsonSchema != null;
+  final hasWireSchema = config._definesWireSchema;
   final requestsJson = config._requestsStructuredOutput;
 
   if (hasParser || !_isJsonAssignable<Output>()) {
@@ -903,19 +1059,22 @@ String? _effectiveFormat(GenerateActionOutputConfig? output) =>
 /// json + schema, while `format: 'text'` drops both, and a typed prompt then
 /// yields a null `output` (see [Prompt._parseOutput]). A `jsonSchema` set on
 /// the override wins over the prompt's.
+///
+/// The prompt's schema is resolved only when the result carries it, so an
+/// override with its own schema or format still works while a deferred
+/// schema name is undefined.
 GenerateActionOutputConfig? _applyOutputOverride(
-  GenerateActionOutputConfig? base,
+  PromptConfig<dynamic, dynamic, dynamic> config,
   GenerateActionOutputConfig? override,
 ) {
-  if (override == null) return base;
-  final baseFormat = _effectiveFormat(base);
+  if (override == null) return config.resolvedOutput;
   final switchesFormat =
-      override.format != null && override.format != baseFormat;
-  if (base == null || switchesFormat) return override;
+      override.format != null && override.format != config._outputFormat;
+  if (!config._hasOutput || switchesFormat) return override;
   return GenerateActionOutputConfig.fromJson({
     ...override.toJson(),
-    'format': ?base.format,
-    'jsonSchema': ?(override.jsonSchema ?? base.jsonSchema),
+    'format': ?config.output?.format,
+    'jsonSchema': ?(override.jsonSchema ?? config.resolvedOutput?.jsonSchema),
   });
 }
 

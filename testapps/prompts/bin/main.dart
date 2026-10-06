@@ -23,9 +23,31 @@ import 'package:prompts_testapp/schemas.dart';
 /// - Prompt variants (.formal variant)
 /// - Partials (_signature.prompt)
 /// - defineCustomPrompt for programmatic prompt building
-/// - Flows that use prompts
+/// - Named schemas (defineSchema) referenced from .prompt files
+/// - Flows that use prompts, including per-call options (config, history)
 void main() {
   final ai = Genkit(plugins: [googleAI()], promptDir: './prompts');
+
+  // --- Named schema referenced by name from a .prompt file ---
+  //
+  // `prompts/recipe.prompt` declares `output.schema: Recipe`. The name is
+  // looked up when the prompt is rendered, so defining it after the
+  // constructor (which loads the prompt folder) is fine.
+  ai.defineSchema('Recipe', {
+    'type': 'object',
+    'properties': {
+      'title': {'type': 'string'},
+      'ingredients': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
+      'steps': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
+    },
+    'required': ['title', 'ingredients', 'steps'],
+  });
 
   // --- Inline definePrompt with typed input and output ---
   //
@@ -115,6 +137,37 @@ void main() {
     },
   );
 
+  // Flow: per-call options. `prompt.call` / `stream` / `render` take the same
+  // named parameters as `ai.generate` (minus the prompt's own content):
+  // scalars replace the prompt's value, `config` is merged over it, and
+  // `messages` is the conversation history.
+  ai.defineFlow(
+    name: 'followUpJoke',
+    outputSchema: Joke.schema,
+    fn: (Map<String, dynamic>? input, ctx) async {
+      final topic = input?['topic'] as String? ?? 'programming';
+      final response = await jokePrompt(
+        JokeInput(topic: topic, style: 'dry'),
+        config: {'temperature': 0.2},
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'My last joke was about printers.')],
+          ),
+          Message(
+            role: Role.model,
+            content: [TextPart(text: 'Noted. I will avoid printers.')],
+          ),
+        ],
+      );
+      final joke = response.output;
+      if (joke == null) {
+        throw StateError('Model returned no joke: ${response.finishReason}');
+      }
+      return joke;
+    },
+  );
+
   // Flow: stream a joke. A chunk's typed `output` stays null until the partial
   // JSON satisfies the Joke schema (here: both fields present), so stream the
   // raw text as it arrives and take the typed Joke from the final result.
@@ -183,6 +236,16 @@ void main() {
         throw StateError('Model returned no summary: ${response.finishReason}');
       }
       return summary;
+    },
+  );
+
+  // Flow: structured output whose schema is a `defineSchema` name.
+  ai.defineFlow(
+    name: 'recipe',
+    fn: (Map<String, dynamic>? input, ctx) async {
+      final recipePrompt = await ai.prompt('recipe');
+      final response = await recipePrompt({'food': input?['food'] ?? 'pasta'});
+      return response.output;
     },
   );
 

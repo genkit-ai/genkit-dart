@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -111,6 +112,94 @@ void main() {
 
     // The turn already completed, so abort reports the settled status.
     expect(await agent.abort(res.snapshotId!), SnapshotStatus.completed);
+  });
+
+  test('a rejected remote turn surfaces the server status', () async {
+    final greeter = _defineGreeter(
+      ai,
+      'greeter',
+      store: InMemorySessionStore(),
+    );
+    final base = await serve(
+      GenkitRouter()..addAgent(
+        greeter,
+        contextProvider: (_) => throw GenkitException(
+          'Sign in first',
+          status: StatusCode.unauthenticated,
+        ),
+      ),
+    );
+
+    await expectLater(
+      remoteAgent(url: '$base/greeter').chat().send(text: 'hi'),
+      throwsA(
+        isA<AgentError<dynamic>>()
+            .having((e) => e.status, 'status', 'UNAUTHENTICATED')
+            .having((e) => e.message, 'message', 'Sign in first')
+            .having(
+              (e) => e.response.error?.details,
+              'response.error.details',
+              contains('Sign in first'),
+            ),
+      ),
+    );
+  });
+
+  test('a malformed remote stream keeps the cause in the message', () async {
+    final fake = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => fake.close(force: true));
+    fake.listen((request) {
+      request.response
+        ..headers.contentType = ContentType('text', 'event-stream')
+        ..write('garbage\n\n')
+        ..close();
+    });
+
+    await expectLater(
+      remoteAgent(
+        url: 'http://127.0.0.1:${fake.port}/any',
+      ).chat().send(text: 'hi'),
+      throwsA(
+        isA<AgentError<dynamic>>().having(
+          (e) => e.message,
+          'message',
+          contains('Invalid SSE data chunk'),
+        ),
+      ),
+    );
+  });
+
+  test('a remote detach keeps running after the response closes', () async {
+    // Regression for #558: closing the streaming response used to cancel the
+    // request's token, which was still linked to the detached turn. End to
+    // end only: either fix alone makes this pass. The per-layer checks are in
+    // agent_test (unlink on detach) and action_handler_test (no cancel after
+    // the run settles).
+    final release = Completer<void>();
+    final agent = ai.defineCustomAgent(
+      name: 'slow',
+      store: InMemorySessionStore(),
+      fn: (sess, options) async {
+        await sess.run((input, ctx) async {
+          await Future.any([release.future, options.cancel!.whenCancelled]);
+          options.cancel!.throwIfCancelled();
+          return null;
+        });
+        return AgentResult(finishReason: sess.lastTurnFinishReason);
+      },
+    );
+    final base = await serve(GenkitRouter()..addAgent(agent));
+
+    final remote = remoteAgent(url: '$base/slow');
+    final task = await remote.chat().detach(text: 'go');
+    // Give a stray cancel time to reach the turn before it's released.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final midRun = await remote.getSnapshot(snapshotId: task.snapshotId);
+    expect(midRun!.status, SnapshotStatus.pending);
+
+    release.complete();
+    final done = await task.wait(interval: const Duration(milliseconds: 10));
+    expect(done.status, SnapshotStatus.completed);
   });
 
   test('serves at a custom path', () async {

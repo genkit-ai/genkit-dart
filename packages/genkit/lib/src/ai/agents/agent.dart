@@ -797,6 +797,8 @@ class AgentFnOptions {
   final void Function(AgentStreamChunk chunk) sendChunk;
 
   /// Cooperative cancellation token (the Dart stand-in for `AbortSignal`).
+  /// After a detach it fires only on abort, not when the request that started
+  /// the turn goes away.
   final CancellationToken? cancel;
 
   /// The ambient request context.
@@ -1100,8 +1102,9 @@ final class _InProcessTransport extends AgentTransport {
 
   // [cancel] is threaded into the agent action's `generate` call (via
   // `streamBidi`), so aborting an attached in-process turn cooperatively stops
-  // the in-flight model call. The detached path additionally observes the
-  // persisted `aborted` status via `SnapshotChangeNotifier`.
+  // the in-flight model call. Once a turn detaches it stops listening to
+  // [cancel] and is stopped only through the persisted `aborting` status
+  // (`SnapshotChangeNotifier`).
   @override
   TurnStream runTurn(
     AgentInput input,
@@ -1349,8 +1352,8 @@ Agent<State> defineCustomAgent<State>(
       final detachCompleter = Completer<void>();
       // Own a controller for this turn (cancelled on detach-abort or when
       // the persisted snapshot flips to `aborted`) and link the ambient
-      // transport token to it, so an attached `runTurn(cancel:)` also
-      // cooperatively stops this turn's `generate`.
+      // transport token to it while the turn is attached, so an attached
+      // `runTurn(cancel:)` also cooperatively stops this turn's `generate`.
       final cancelController = CancellationController();
       // Capture the disposer so a reused, long-lived `ctx.cancel` token
       // doesn't accumulate one stranded listener (pinning this turn's
@@ -1411,6 +1414,11 @@ Agent<State> defineCustomAgent<State>(
         cancel: cancelToken,
         onDetach: (snapshotId) {
           detachedSnapshotId = snapshotId;
+          // A detached turn outlives the request that started it: from here
+          // on it is stopped only via abort / the snapshot status (below).
+          // Without this, a transport that cancels its token once the
+          // response is sent (the streaming HTTP handler) aborts the turn.
+          unlinkCancel?.call();
           if (!detachCompleter.isCompleted) detachCompleter.complete();
 
           // Refresh the detached snapshot's heartbeat periodically. The
@@ -1849,7 +1857,7 @@ Agent<State> definePromptAgent<State>(
 
       var genOpts = await cachedPrompt!.render(
         promptInput ?? <String, dynamic>{},
-        PromptGenerateOptions(messages: history),
+        messages: history,
       );
 
       // Tag non-history messages as prompt-template, strip the history tag.

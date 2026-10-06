@@ -94,7 +94,9 @@ void main(List<String> args) {
         model: anthropic.model('claude-sonnet-4-5'),
         prompt: prompt,
         onChunk: (chunk) => ctx.sendChunk(chunk.modelChunk),
-        config: AnthropicOptions(thinking: ThinkingConfig(budgetTokens: 2048)),
+        config: AnthropicOptions(
+          thinking: AnthropicThinkingConfig(budgetTokens: 2048),
+        ),
       );
       // The reasoning reasoning is in response.message.content
       // Here we just return the text response

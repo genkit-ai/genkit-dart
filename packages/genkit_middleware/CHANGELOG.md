@@ -1,3 +1,14 @@
+## 1.0.0-rc.2
+
+### Breaking Changes
+
+ - add ai.defineGenerateMiddleware; rename top-level defineMiddleware to generateMiddleware (#571)
+
+### Fixes
+
+ - prevent filesystem sandbox escape through symlinks (#566)
+
+
 ## 1.0.0-rc.1
 
 ### Breaking Changes

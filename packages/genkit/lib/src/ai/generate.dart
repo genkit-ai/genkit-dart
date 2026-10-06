@@ -146,15 +146,10 @@ abstract class GenerateConfig {}
           );
         }
 
-        final config = mw.middlewareRef!.config;
-        final parsedConfig =
-            (config is Map<String, dynamic> && def.configSchema != null)
-            ? def.configSchema!.parse(config)
-            : config;
-
         resolvedMiddleware.add(
-          def.create(
-            parsedConfig,
+          createMiddlewareFromRef(
+            def,
+            mw.middlewareRef!.config,
             GenerateMiddlewareContext(ai: GenkitAI(registry)),
           ),
         );

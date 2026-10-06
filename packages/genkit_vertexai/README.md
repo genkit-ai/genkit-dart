@@ -83,9 +83,9 @@ shape is selected from the model name.
 
 #### Embedding options
 
-`TextEmbedderOptions` lets you tune a request. `outputDimensionality` reduces the
-vector size, while `taskType` and `title` tailor the embedding to its use case
-(supported by the Gemini and `text-embedding-*` models).
+`GoogleGenAiEmbedderOptions` lets you tune a request. `outputDimensionality`
+reduces the vector size, while `taskType` and `title` tailor the embedding to
+its use case (supported by the Gemini and `text-embedding-*` models).
 
 ```dart
 final embeddings = await ai.embed(
@@ -93,7 +93,7 @@ final embeddings = await ai.embed(
   documents: [
     DocumentData(content: [TextPart(text: 'Hello world')]),
   ],
-  options: TextEmbedderOptions(
+  options: GoogleGenAiEmbedderOptions(
     outputDimensionality: 256,
     taskType: 'RETRIEVAL_DOCUMENT',
   ),

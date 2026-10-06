@@ -1,3 +1,17 @@
+## 1.0.0-rc.2
+
+### Breaking Changes
+
+ - add ai.defineGenerateMiddleware; rename top-level defineMiddleware to generateMiddleware (#571)
+ - upgrade to dotprompt 2.0 for spec-compliant Picoschema (#573)
+
+### Fixes
+
+ - keep the server error status and message in the remote client (#568)
+ - resolve defineSchema names in .prompt files at render time (#570)
+ - keep detached agent turns running after a remote detach (#567)
+
+
 ## 1.0.0-rc.1
 
 ### Breaking Changes

@@ -45,6 +45,11 @@ jobs:
         working-directory: packages/genkit_firebase_ai
         run: flutter analyze
 
+      # Lives here, not in dart_ci, because genkit_firebase_ai needs Flutter
+      # to resolve.
+      - name: Check for conflicting package exports
+        run: dart run tools/check_plugin_exports.dart
+
       - name: "testapps/firebase_ai: build_runner"
         working-directory: testapps/firebase_ai
         run: dart run build_runner build --delete-conflicting-outputs

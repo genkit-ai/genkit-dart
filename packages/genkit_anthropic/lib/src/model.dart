@@ -83,7 +83,7 @@ abstract class $AnthropicOptions {
   String? get forceTool;
 
   /// Extended thinking configuration for supported Anthropic models (like Claude 3.7 Sonnet).
-  $ThinkingConfig? get thinking;
+  $AnthropicThinkingConfig? get thinking;
 
   /// Anthropic-specific output behavior configuration.
   $AnthropicOutputConfig? get outputConfig;
@@ -91,7 +91,7 @@ abstract class $AnthropicOptions {
 
 /// Configuration for Anthropic's extended thinking mode.
 @Schema()
-abstract class $ThinkingConfig {
+abstract class $AnthropicThinkingConfig {
   @StringField(
     enumValues: ['enabled', 'disabled', 'adaptive'],
     description:
