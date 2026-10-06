@@ -48,8 +48,7 @@ export 'src/ai/middleware/simulate_constrained_generation.dart'
 // BidiModel / bidiModelRef live in the experimental surface
 // (`package:genkit/experimental.dart`) alongside generateBidi.
 export 'src/ai/model.dart' show Model, ModelRef, modelMetadata, modelRef;
-export 'src/ai/prompt.dart'
-    show Prompt, PromptAction, PromptFn, PromptGenerateOptions, PromptRef;
+export 'src/ai/prompt.dart' show Prompt, PromptAction, PromptFn, PromptRef;
 export 'src/ai/resource.dart'
     show ResourceAction, ResourceFn, ResourceInput, ResourceOutput;
 export 'src/ai/template_helper.dart'
