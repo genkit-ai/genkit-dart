@@ -69,7 +69,7 @@ String _sseStream(String model) {
 
 Future<Map<String, dynamic>> requestOnTheWire({
   required String model,
-  ThinkingConfig? thinking,
+  AnthropicThinkingConfig? thinking,
   AnthropicOutputConfig? outputConfig,
   List<Message>? messages,
   String? apiVersion,

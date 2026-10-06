@@ -157,7 +157,7 @@ void main() {
     });
 
     test('should handle listValues for middleware', () async {
-      final def = defineMiddleware<dynamic>(
+      final def = generateMiddleware<dynamic>(
         name: 'retry',
         create: (config, ctx) => throw UnimplementedError(),
       );

@@ -30,7 +30,7 @@ export 'package:genkit/src/ai/generate_middleware.dart'
         GenerateMiddlewareDef,
         GenerateMiddlewareRef,
         GenerateTurnState,
-        defineMiddleware,
+        generateMiddleware,
         middlewareRef;
 export 'package:genkit/src/ai/generate_types.dart'
     show GenerateResponseChunk, GenerateResult, InterruptResponse;

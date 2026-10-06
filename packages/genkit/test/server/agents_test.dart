@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -166,6 +167,39 @@ void main() {
         ),
       ),
     );
+  });
+
+  test('a remote detach keeps running after the response closes', () async {
+    // Regression for #558: closing the streaming response used to cancel the
+    // request's token, which was still linked to the detached turn. End to
+    // end only: either fix alone makes this pass. The per-layer checks are in
+    // agent_test (unlink on detach) and action_handler_test (no cancel after
+    // the run settles).
+    final release = Completer<void>();
+    final agent = ai.defineCustomAgent(
+      name: 'slow',
+      store: InMemorySessionStore(),
+      fn: (sess, options) async {
+        await sess.run((input, ctx) async {
+          await Future.any([release.future, options.cancel!.whenCancelled]);
+          options.cancel!.throwIfCancelled();
+          return null;
+        });
+        return AgentResult(finishReason: sess.lastTurnFinishReason);
+      },
+    );
+    final base = await serve(GenkitRouter()..addAgent(agent));
+
+    final remote = remoteAgent(url: '$base/slow');
+    final task = await remote.chat().detach(text: 'go');
+    // Give a stray cancel time to reach the turn before it's released.
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    final midRun = await remote.getSnapshot(snapshotId: task.snapshotId);
+    expect(midRun!.status, SnapshotStatus.pending);
+
+    release.complete();
+    final done = await task.wait(interval: const Duration(milliseconds: 10));
+    expect(done.status, SnapshotStatus.completed);
   });
 
   test('serves at a custom path', () async {

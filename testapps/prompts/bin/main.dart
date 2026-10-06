@@ -23,9 +23,31 @@ import 'package:prompts_testapp/schemas.dart';
 /// - Prompt variants (.formal variant)
 /// - Partials (_signature.prompt)
 /// - defineCustomPrompt for programmatic prompt building
+/// - Named schemas (defineSchema) referenced from .prompt files
 /// - Flows that use prompts
 void main() {
   final ai = Genkit(plugins: [googleAI()], promptDir: './prompts');
+
+  // --- Named schema referenced by name from a .prompt file ---
+  //
+  // `prompts/recipe.prompt` declares `output.schema: Recipe`. The name is
+  // looked up when the prompt is rendered, so defining it after the
+  // constructor (which loads the prompt folder) is fine.
+  ai.defineSchema('Recipe', {
+    'type': 'object',
+    'properties': {
+      'title': {'type': 'string'},
+      'ingredients': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
+      'steps': {
+        'type': 'array',
+        'items': {'type': 'string'},
+      },
+    },
+    'required': ['title', 'ingredients', 'steps'],
+  });
 
   // --- Inline definePrompt with typed input and output ---
   //
@@ -183,6 +205,16 @@ void main() {
         throw StateError('Model returned no summary: ${response.finishReason}');
       }
       return summary;
+    },
+  );
+
+  // Flow: structured output whose schema is a `defineSchema` name.
+  ai.defineFlow(
+    name: 'recipe',
+    fn: (Map<String, dynamic>? input, ctx) async {
+      final recipePrompt = await ai.prompt('recipe');
+      final response = await recipePrompt({'food': input?['food'] ?? 'pasta'});
+      return response.output;
     },
   );
 

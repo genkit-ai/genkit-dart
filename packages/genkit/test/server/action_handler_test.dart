@@ -951,6 +951,35 @@ void main() {
     });
   });
 
+  test('a completed streaming run is not cancelled on close', () async {
+    // Work an action leaves running past its result (e.g. a detached agent
+    // turn) must not see the response closing as a client disconnect.
+    CancellationToken? token;
+    final quick = ai.defineFlow(
+      name: 'quick',
+      fn: (String _, ctx) async {
+        token = ctx.cancel;
+        return 'done';
+      },
+      inputSchema: .string(),
+      outputSchema: .string(),
+      streamSchema: .string(),
+    );
+
+    final response = await actionHandler(quick)(
+      GenkitHttpRequest(
+        method: 'POST',
+        path: '/quick',
+        queryParameters: {'stream': 'true'},
+        body: Stream.value(utf8.encode(jsonEncode({'data': 'go'}))),
+      ),
+    );
+    expect(await utf8.decodeStream(response.body), contains('"result"'));
+    await Future<void>.delayed(Duration.zero);
+
+    expect(token!.isCancelled, isFalse);
+  });
+
   test('a dropped dart:io connection cancels the streaming run', () async {
     final started = Completer<void>();
     final cancelled = Completer<void>();

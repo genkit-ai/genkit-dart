@@ -89,7 +89,7 @@ class _KitPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<void>(
+    generateMiddleware<void>(
       name: 'kit',
       create: (config, ctx) => _KitMiddleware(),
     ),

@@ -51,7 +51,7 @@ class _ThrowingHookPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<void>(
+    generateMiddleware<void>(
       name: 'throwingHook',
       create: (config, ctx) => _ThrowingHookMiddleware(),
     ),

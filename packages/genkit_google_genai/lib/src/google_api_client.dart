@@ -126,7 +126,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
         final service = await getApiClient();
         try {
           final options = req.options != null
-              ? TextEmbedderOptions.fromJson(req.options!)
+              ? GoogleGenAiEmbedderOptions.fromJson(req.options!)
               : null;
 
           final contents = [

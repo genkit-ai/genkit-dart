@@ -39,7 +39,7 @@ ActionMetadata<dynamic, dynamic, dynamic, dynamic> _vertexEmbedderMetadata(
 ) {
   final metadata = embedderMetadata(
     name,
-    customOptions: google.TextEmbedderOptions.$schema,
+    customOptions: google.GoogleGenAiEmbedderOptions.$schema,
   );
   return ActionMetadata(
     name: metadata.name,
@@ -67,7 +67,7 @@ Embedder createVertexEmbedder({
       final service = await getApiClient();
       try {
         final options = req.options != null
-            ? google.TextEmbedderOptions.fromJson(req.options!)
+            ? google.GoogleGenAiEmbedderOptions.fromJson(req.options!)
             : null;
 
         final embeddings = switch (_requestShapeFor(embedderName)) {
@@ -149,7 +149,7 @@ Future<List<Embedding>> _runMultimodalPredictRequests({
   required google.GenerativeLanguageBaseClient service,
   required String embedderName,
   required List<DocumentData> docs,
-  required google.TextEmbedderOptions? options,
+  required google.GoogleGenAiEmbedderOptions? options,
 }) async {
   final instances = [
     for (var i = 0; i < docs.length; i++)
@@ -185,7 +185,7 @@ Future<List<Embedding>> _runTextPredictRequests({
   required google.GenerativeLanguageBaseClient service,
   required String embedderName,
   required List<DocumentData> docs,
-  required google.TextEmbedderOptions? options,
+  required google.GoogleGenAiEmbedderOptions? options,
 }) async {
   // Older text embedders still use the predict payload shape.
   final title = options?.title;

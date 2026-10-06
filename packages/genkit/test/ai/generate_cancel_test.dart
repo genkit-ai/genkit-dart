@@ -121,7 +121,7 @@ void main() {
 
     test('middleware can observe the cancellation token', () async {
       final mwInstance = _CancelObservingMiddleware();
-      final mw = defineMiddleware(
+      final mw = generateMiddleware(
         name: 'cancel-observer',
         create: (c, ctx) => mwInstance,
       );

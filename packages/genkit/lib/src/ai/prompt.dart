@@ -33,6 +33,16 @@ import 'model.dart';
 import 'prompt_types.dart';
 import 'tool.dart';
 
+/// An input schema whose named types are resolved on use, set by the
+/// `.prompt` loader. [Prompt.render] calls [ensureResolved] so an undefined
+/// name fails the render instead of loosening the schema.
+@internal
+abstract interface class DeferredSchema {
+  /// Throws a [GenkitException] if the schema is invalid or names a type
+  /// that is still undefined.
+  void ensureResolved();
+}
+
 /// Configuration for defining a prompt.
 ///
 /// This holds all the metadata needed to define a prompt action.
@@ -108,6 +118,13 @@ final class PromptConfig<Input, Output, CustomOptions> {
   /// Middleware references.
   final List<GenerateMiddlewareRef>? use;
 
+  /// Supplies [output]'s JSON schema at render time instead of up front.
+  ///
+  /// Set by the `.prompt` loader for Picoschema output schemas, which may name
+  /// types registered with `defineSchema` after the prompt was loaded. Called
+  /// on every render until it succeeds; throws when a name is still undefined.
+  final Map<String, dynamic> Function()? deferredOutputJsonSchema;
+
   PromptConfig({
     required this.name,
     this.variant,
@@ -130,6 +147,7 @@ final class PromptConfig<Input, Output, CustomOptions> {
     this.toolNames,
     this.toolChoice,
     this.use,
+    this.deferredOutputJsonSchema,
   }) {
     if (outputSchema != null && output?.jsonSchema != null) {
       throw ArgumentError(
@@ -149,22 +167,57 @@ final class PromptConfig<Input, Output, CustomOptions> {
   /// Whether the model is asked for structured output, i.e. whether a
   /// formatter will parse the response into `output` at all.
   bool get _requestsStructuredOutput =>
-      resolvedOutput?.format != null || resolvedOutput?.jsonSchema != null;
+      output?.format != null || _definesWireSchema;
+
+  /// Whether the model is given an output schema. Known without resolving a
+  /// deferred schema, so definition-time checks don't depend on what has been
+  /// registered yet.
+  bool get _definesWireSchema =>
+      outputSchema != null ||
+      output?.jsonSchema != null ||
+      deferredOutputJsonSchema != null;
+
+  /// Whether the prompt configures any output, i.e. whether [resolvedOutput]
+  /// is non-null. Known without resolving a deferred schema.
+  bool get _hasOutput => output != null || _definesWireSchema;
+
+  /// The format [resolvedOutput] is parsed with (`_effectiveFormat` of it),
+  /// known without resolving a deferred schema.
+  String? get _outputFormat =>
+      output?.format ?? (_definesWireSchema ? 'json' : null);
 
   /// The full name including variant.
   String get fullName => variant != null ? '$name.$variant' : name;
 
-  /// The wire output config, with [outputSchema]'s JSON schema folded in.
+  /// The wire output config, with [outputSchema]'s (or the deferred) JSON
+  /// schema folded in.
   ///
   /// Null when the prompt configures no output at all, so the rendered
-  /// options stay free of an empty `output` block. Computed once: the config
-  /// is immutable and this is read on every render (and every agent turn).
-  late final GenerateActionOutputConfig? resolvedOutput = outputSchema == null
-      ? output
-      : GenerateActionOutputConfig.fromJson({
-          ...?output?.toJson(),
-          'jsonSchema': toJsonSchema(type: outputSchema),
-        });
+  /// options stay free of an empty `output` block. Cached once resolved: the
+  /// config is immutable and this is read on every render (and every agent
+  /// turn). A deferred schema that fails to resolve is retried next time.
+  GenerateActionOutputConfig? get resolvedOutput {
+    // A throwing `_resolveOutput` leaves the flag unset, so it is retried.
+    if (!_outputResolved) {
+      _resolvedOutput = _resolveOutput();
+      _outputResolved = true;
+    }
+    return _resolvedOutput;
+  }
+
+  GenerateActionOutputConfig? _resolvedOutput;
+  bool _outputResolved = false;
+
+  GenerateActionOutputConfig? _resolveOutput() {
+    final jsonSchema = outputSchema != null
+        ? toJsonSchema(type: outputSchema)
+        : deferredOutputJsonSchema?.call();
+    if (jsonSchema == null) return output;
+    return GenerateActionOutputConfig.fromJson({
+      ...?output?.toJson(),
+      'jsonSchema': jsonSchema,
+    });
+  }
 }
 
 /// Options for generating from a prompt (everything except prompt/system
@@ -324,6 +377,10 @@ final class Prompt<Input, Output> {
     return runInNewSpan(
       'render',
       (telemetryContext) async {
+        if (_config.inputSchema case final DeferredSchema schema) {
+          schema.ensureResolved();
+        }
+
         final messages = <Message>[];
 
         // 1. Render system prompt
@@ -377,7 +434,7 @@ final class Prompt<Input, Output> {
           returnToolRequests:
               opts?.returnToolRequests ?? _config.returnToolRequests,
           maxTurns: opts?.maxTurns ?? _config.maxTurns,
-          output: _applyOutputOverride(_config.resolvedOutput, opts?.output),
+          output: _applyOutputOverride(_config, opts?.output),
           use: resolvedUse.isNotEmpty ? resolvedUse : null,
         );
       },
@@ -441,9 +498,10 @@ final class Prompt<Input, Output> {
     Object? raw, {
     bool partial = false,
   }) {
+    // Compared without resolving the prompt's schema, which may be deferred
+    // and undefined when the call brought its own.
     final switchedFormat =
-        _effectiveFormat(request.output) !=
-        _effectiveFormat(_config.resolvedOutput);
+        _effectiveFormat(request.output) != _config._outputFormat;
     if (switchedFormat) {
       return _isUnconstrained<Output>() ? raw as Output? : null;
     }
@@ -848,7 +906,7 @@ String? _outputTypeError<Output>({
   final lookup = site == _OutputCheckSite.lookup;
   // Covers every way a prompt defines its wire schema: `outputSchema`, a
   // `jsonSchema` on `output`, and a `.prompt` file's `output.schema`.
-  final hasWireSchema = config.resolvedOutput?.jsonSchema != null;
+  final hasWireSchema = config._definesWireSchema;
   final requestsJson = config._requestsStructuredOutput;
 
   if (hasParser || !_isJsonAssignable<Output>()) {
@@ -903,19 +961,22 @@ String? _effectiveFormat(GenerateActionOutputConfig? output) =>
 /// json + schema, while `format: 'text'` drops both, and a typed prompt then
 /// yields a null `output` (see [Prompt._parseOutput]). A `jsonSchema` set on
 /// the override wins over the prompt's.
+///
+/// The prompt's schema is resolved only when the result carries it, so an
+/// override with its own schema or format still works while a deferred
+/// schema name is undefined.
 GenerateActionOutputConfig? _applyOutputOverride(
-  GenerateActionOutputConfig? base,
+  PromptConfig<dynamic, dynamic, dynamic> config,
   GenerateActionOutputConfig? override,
 ) {
-  if (override == null) return base;
-  final baseFormat = _effectiveFormat(base);
+  if (override == null) return config.resolvedOutput;
   final switchesFormat =
-      override.format != null && override.format != baseFormat;
-  if (base == null || switchesFormat) return override;
+      override.format != null && override.format != config._outputFormat;
+  if (!config._hasOutput || switchesFormat) return override;
   return GenerateActionOutputConfig.fromJson({
     ...override.toJson(),
-    'format': ?base.format,
-    'jsonSchema': ?(override.jsonSchema ?? base.jsonSchema),
+    'format': ?config.output?.format,
+    'jsonSchema': ?(override.jsonSchema ?? config.resolvedOutput?.jsonSchema),
   });
 }
 

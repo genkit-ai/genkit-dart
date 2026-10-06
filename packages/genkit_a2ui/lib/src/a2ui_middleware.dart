@@ -77,7 +77,7 @@ class A2uiPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<A2uiOptions>(
+    generateMiddleware<A2uiOptions>(
       name: 'a2ui',
       configSchema: A2uiOptions.$schema,
       create: (config, ctx) => A2uiMiddleware(ctx.ai.registry, config),

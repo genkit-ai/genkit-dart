@@ -72,7 +72,7 @@ void main() {
       final body = await requestOnTheWire(
         model: 'claude-sonnet-4-5',
         outputSchema: schema,
-        thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+        thinking: AnthropicThinkingConfig(type: 'enabled', budgetTokens: 1024),
       );
 
       expect(body['thinking'], {'type': 'enabled', 'budget_tokens': 1024});
