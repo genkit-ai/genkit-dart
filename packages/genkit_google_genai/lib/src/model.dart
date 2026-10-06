@@ -211,7 +211,7 @@ abstract class $GeminiGoogleSearch {
 }
 
 @Schema()
-abstract class $GeminiEmbedderOptions {
+abstract class $GoogleGenAiEmbedderOptions {
   @IntegerField(
     description:
         'Optional. reduced dimension for the output embedding. If set, excessive values in the output embedding are truncated from the end.',

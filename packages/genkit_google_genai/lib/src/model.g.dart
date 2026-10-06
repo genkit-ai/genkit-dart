@@ -1646,14 +1646,14 @@ base class _GeminiGoogleSearchTypeFactory
   );
 }
 
-base class GeminiEmbedderOptions {
-  /// Creates a [GeminiEmbedderOptions] from a JSON map.
-  factory GeminiEmbedderOptions.fromJson(Map<String, dynamic> json) =>
+base class GoogleGenAiEmbedderOptions {
+  /// Creates a [GoogleGenAiEmbedderOptions] from a JSON map.
+  factory GoogleGenAiEmbedderOptions.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  GeminiEmbedderOptions._(this._json);
+  GoogleGenAiEmbedderOptions._(this._json);
 
-  GeminiEmbedderOptions({
+  GoogleGenAiEmbedderOptions({
     int? outputDimensionality,
     String? taskType,
     String? title,
@@ -1667,9 +1667,9 @@ base class GeminiEmbedderOptions {
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [GeminiEmbedderOptions].
-  static const SchemanticType<GeminiEmbedderOptions> $schema =
-      _GeminiEmbedderOptionsTypeFactory();
+  /// The JSON schema and type descriptor for [GoogleGenAiEmbedderOptions].
+  static const SchemanticType<GoogleGenAiEmbedderOptions> $schema =
+      _GoogleGenAiEmbedderOptionsTypeFactory();
 
   int? get outputDimensionality {
     return (_json['outputDimensionality'] as num?)?.toInt();
@@ -1712,24 +1712,24 @@ base class GeminiEmbedderOptions {
     return _json.toString();
   }
 
-  /// Serializes this [GeminiEmbedderOptions] to a JSON map.
+  /// Serializes this [GoogleGenAiEmbedderOptions] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _GeminiEmbedderOptionsTypeFactory
-    extends SchemanticType<GeminiEmbedderOptions> {
-  const _GeminiEmbedderOptionsTypeFactory();
+base class _GoogleGenAiEmbedderOptionsTypeFactory
+    extends SchemanticType<GoogleGenAiEmbedderOptions> {
+  const _GoogleGenAiEmbedderOptionsTypeFactory();
 
   @override
-  GeminiEmbedderOptions parse(Object? json) {
-    return GeminiEmbedderOptions._(json as Map<String, dynamic>);
+  GoogleGenAiEmbedderOptions parse(Object? json) {
+    return GoogleGenAiEmbedderOptions._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'GeminiEmbedderOptions',
+    name: 'GoogleGenAiEmbedderOptions',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{

@@ -98,7 +98,7 @@ void main() {
         documents: [
           DocumentData(content: [TextPart(text: 'Hello')]),
         ],
-        options: GeminiEmbedderOptions(
+        options: GoogleGenAiEmbedderOptions(
           outputDimensionality: 256,
           taskType: 'RETRIEVAL_DOCUMENT',
         ),

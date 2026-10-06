@@ -407,7 +407,7 @@ void main(List<String> args) async {
         documents: [
           DocumentData(content: [TextPart(text: input)]),
         ],
-        options: GeminiEmbedderOptions(
+        options: GoogleGenAiEmbedderOptions(
           outputDimensionality: 256,
           taskType: 'RETRIEVAL_DOCUMENT',
         ),
