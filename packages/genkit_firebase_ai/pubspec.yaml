@@ -21,6 +21,10 @@ dependencies:
   schemantic: ^1.0.0-rc.1
 
 dev_dependencies:
+  # Temporary: analyzer 14.5.0 breaks build_runner 2.16.1
+  # (https://github.com/dart-lang/build/issues/5197). Remove once a fixed
+  # build_runner is published.
+  analyzer: '>=13.0.0 <14.5.0'
   build_runner: ^2.10.5
   dart_flutter_team_lints: ^3.0.0
   flutter_test:
