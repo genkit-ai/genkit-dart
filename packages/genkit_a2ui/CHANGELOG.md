@@ -1,3 +1,10 @@
+## 0.4.0-rc.2
+
+### Breaking Changes
+
+ - add ai.defineGenerateMiddleware; rename top-level defineMiddleware to generateMiddleware (#571)
+
+
 ## 0.4.0-rc.1
 
 ### Breaking Changes
