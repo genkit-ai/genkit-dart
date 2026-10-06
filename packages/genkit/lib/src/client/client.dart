@@ -27,10 +27,10 @@ const _flowStreamDelimiter = '\n\n';
 /// status and message.
 ///
 /// Accepts the bare shape (`{code, status, message}`, the non-200 body sent by
-/// GenkitRouter) and the wrapped one (`{error: {...}}`). [httpStatus] is only
-/// a fallback for bodies without a recognizable status (a proxy's HTML page,
-/// say): the HTTP mapping is lossy, e.g. both `FAILED_PRECONDITION` and
-/// `INVALID_ARGUMENT` are sent as 400.
+/// GenkitRouter) and the wrapped ones (`{error: {...}}`, `{error: "..."}`).
+/// [httpStatus] is only a fallback for bodies without a recognizable status
+/// (a proxy's HTML page, say): the HTTP mapping is lossy, e.g. both
+/// `FAILED_PRECONDITION` and `INVALID_ARGUMENT` are sent as 400.
 ///
 /// [details] defaults to [body] (encoded as JSON unless it is a string).
 GenkitException _wireError(
@@ -40,12 +40,19 @@ GenkitException _wireError(
   String? details,
 }) {
   var error = body;
-  if (error is Map && error['error'] is Map) {
-    error = error['error'];
+  String? message;
+  if (error is Map) {
+    switch (error['error']) {
+      case final Map inner:
+        error = inner;
+      // `{"error": "rate limited"}`: the same envelope with a plain message,
+      // sent by some proxies and hand-written servers.
+      case final String m when m.isNotEmpty:
+        message = m;
+    }
   }
 
   String? wireName;
-  String? message;
   if (error is Map) {
     if (error['status'] case final String s) wireName = s;
     if (error['message'] case final String m when m.isNotEmpty) message = m;

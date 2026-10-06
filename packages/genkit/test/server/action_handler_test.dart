@@ -502,6 +502,20 @@ void main() {
       );
     });
 
+    test('a string error in a non-200 body is the message', () async {
+      final body = jsonEncode({'error': 'rate limited'});
+      final action = await fakeServer(body, statusCode: 429);
+      await expectLater(
+        action(input: 'x'),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.resourceExhausted)
+              .having((e) => e.message, 'message', 'rate limited')
+              .having((e) => e.details, 'details', body),
+        ),
+      );
+    });
+
     test('keeps the raw non-200 body in details', () async {
       const body =
           '{ "status": "FAILED_PRECONDITION", "message": "Not ready yet" }';
