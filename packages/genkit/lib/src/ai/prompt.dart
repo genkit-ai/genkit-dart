@@ -348,8 +348,10 @@ final class Prompt<Input, Output> {
   /// [GenerateActionOptions] suitable for the `generate` action.
   ///
   /// The named parameters override (or, for lists, extend) what the prompt
-  /// defines, as in [call]. [messages] is the conversation history, inserted
-  /// where the prompt's template places it.
+  /// defines, as in [call]. [messages] is the conversation history. It goes
+  /// at `{{history}}` in a messages template (a `.prompt` file body), and
+  /// otherwise after the system message. It is ignored when the prompt
+  /// defines static `messages`.
   Future<GenerateActionOptions> render<CustomOptions>(
     Input? input, {
     List<Message>? messages,
@@ -450,11 +452,13 @@ final class Prompt<Input, Output> {
 
   /// Generates a response by rendering the prompt and calling the model.
   ///
-  /// The named parameters mirror `Genkit.generate`, minus the content the
-  /// prompt defines itself (system, prompt). Scalars ([model], [toolChoice],
-  /// [maxTurns], ...) replace the prompt's value, [config] is merged key by
-  /// key over the prompt's config, and [tools], [toolNames] and [use] are
-  /// appended to the prompt's.
+  /// The named parameters match `Genkit.generate`, except for the content the
+  /// prompt defines itself (system, prompt) and interrupt resumption
+  /// (`interruptRespond` / `interruptRestart`), which prompts do not support
+  /// yet. Scalars ([model], [toolChoice], [maxTurns], ...) replace the
+  /// prompt's value, [config] is merged key by key over the prompt's config,
+  /// and [tools], [toolNames] and [use] are appended to the prompt's.
+  /// [messages] is the conversation history; see [render] for where it goes.
   ///
   /// ```dart
   /// final response = await joke(

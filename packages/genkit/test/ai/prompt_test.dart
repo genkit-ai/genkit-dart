@@ -55,6 +55,28 @@ final _jokeSchema = SchemanticType.from<_Joke>(
   parse: (json) => _Joke.fromJson(json as Map<String, dynamic>),
 );
 
+/// Records each generate request, including fields the model request does
+/// not carry (`maxTurns`, `returnToolRequests`, `use`, ...).
+class _CaptureRequests extends GenerateMiddleware {
+  _CaptureRequests(this.requests);
+
+  final List<GenerateActionOptions> requests;
+
+  @override
+  Future<GenerateResult> generate(
+    GenerateTurnState state,
+    ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    Future<GenerateResult> Function(
+      GenerateTurnState state,
+      ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
+    )
+    next,
+  ) {
+    requests.add(state.request);
+    return next(state, ctx);
+  }
+}
+
 void main() {
   group('PromptConfig', () {
     test('creates with required name', () {
@@ -1078,66 +1100,143 @@ void main() {
       expect(options.toolChoice, equals('auto'));
     });
 
-    test('call and stream forward per-call named options', () async {
-      final requests = <ModelRequest>[];
-      final contexts = <Map<String, dynamic>?>[];
-      genkit.defineModel(
-        name: 'echo',
-        fn: (request, ctx) async {
-          requests.add(request);
-          contexts.add(ctx.context);
-          return ModelResponse(
-            finishReason: .stop,
-            message: Message(
-              role: .model,
-              content: [TextPart(text: 'ok')],
-            ),
+    // `call` and `stream` each build their own copy of the per-call options,
+    // so both run with the same arguments and the same assertions: a field
+    // dropped from either copy fails here.
+    group('per-call named options', () {
+      late Prompt<dynamic, dynamic> ep;
+      late List<GenerateActionOptions> generateRequests;
+      late List<ModelRequest> modelRequests;
+      late List<Map<String, dynamic>?> modelContexts;
+
+      setUp(() {
+        generateRequests = [];
+        modelRequests = [];
+        modelContexts = [];
+        genkit.defineGenerateMiddleware<void>(
+          name: 'capture',
+          create: (_, _) => _CaptureRequests(generateRequests),
+        );
+        genkit.defineModel(
+          name: 'echo',
+          fn: (request, ctx) async {
+            modelRequests.add(request);
+            modelContexts.add(ctx.context);
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+        ep = genkit.definePrompt(
+          name: 'ask',
+          model: modelRef('unused'),
+          config: {'temperature': 0.9, 'topK': 40},
+          toolNames: ['fromPrompt'],
+          prompt: 'Question',
+        );
+      });
+
+      // Runs [via] (`call` or `stream`) with [args]. `Function.apply` passes
+      // the exact same named arguments to both methods, which spelling the
+      // calls out twice would not guarantee.
+      Future<GenerateResult<dynamic>> invoke(
+        String via,
+        Map<Symbol, Object?> args,
+      ) async {
+        if (via == 'call') {
+          return await (Function.apply(ep.call, [null], args)
+              as Future<GenerateResult<dynamic>>);
+        }
+        final stream =
+            Function.apply(ep.stream, [null], args)
+                as ActionStream<
+                  GenerateResponseChunk<dynamic>,
+                  GenerateResult<dynamic>
+                >;
+        await stream.drain<void>();
+        return stream.onResult;
+      }
+
+      for (final via in ['call', 'stream']) {
+        test('$via forwards every option', () async {
+          // Not registered: it only reaches the model through `tools:`.
+          final tool = Tool<Map<String, dynamic>, String>(
+            name: 'lookup',
+            description: 'Looks things up',
+            fn: (input, ctx) async => .response('found'),
           );
-        },
-      );
-      // Not registered: it only reaches the model through `tools:`.
-      final tool = Tool<Map<String, dynamic>, String>(
-        name: 'lookup',
-        description: 'Looks things up',
-        fn: (input, ctx) async => .response('found'),
-      );
-      final ep = genkit.definePrompt(
-        name: 'ask',
-        model: modelRef('unused'),
-        config: {'temperature': 0.9, 'topK': 40},
-        prompt: 'Question',
-      );
-      final history = [
-        Message(
-          role: .user,
-          content: [TextPart(text: 'Earlier')],
-        ),
-      ];
+          genkit.defineTool(
+            name: 'fromPrompt',
+            description: 'Registered, referenced by the prompt',
+            fn: (Map<String, dynamic> input, ctx) async => .response('x'),
+          );
+          genkit.defineTool(
+            name: 'byName',
+            description: 'Registered, referenced per call',
+            fn: (Map<String, dynamic> input, ctx) async => .response('x'),
+          );
 
-      final response = await ep(
-        null,
-        model: modelRef('echo'),
-        config: {'temperature': 0.1},
-        tools: [tool],
-        messages: history,
-        context: {'user': 'u1'},
-      );
-      final stream = ep.stream(
-        null,
-        model: modelRef('echo'),
-        context: {'user': 'u2'},
-      );
-      await stream.drain<void>();
-      await stream.onResult;
+          final response = await invoke(via, {
+            #messages: [
+              Message(
+                role: .user,
+                content: [TextPart(text: 'Earlier')],
+              ),
+            ],
+            #model: modelRef('echo'),
+            #config: {'temperature': 0.1},
+            #tools: [tool],
+            #toolNames: ['byName'],
+            #toolChoice: ToolChoice.none,
+            #returnToolRequests: true,
+            #maxTurns: 7,
+            #output: GenerateActionOutputConfig(format: 'text'),
+            #context: {'user': 'u1'},
+            #use: [middlewareRef(name: 'capture')],
+          });
 
-      expect(response.text, equals('ok'));
-      expect(requests[0].config, equals({'temperature': 0.1, 'topK': 40}));
-      expect(requests[0].tools?.map((t) => t.name), equals(['lookup']));
-      expect(
-        requests[0].messages.map((m) => m.text),
-        equals(['Earlier', 'Question']),
-      );
-      expect(contexts.map((c) => c?['user']), equals(['u1', 'u2']));
+          expect(response.text, equals('ok'));
+
+          // Seen by the generate action (via the `use:` middleware, which
+          // also proves `use` is forwarded).
+          final request = generateRequests.single;
+          expect(request.model, equals('echo'));
+          expect(request.config, equals({'temperature': 0.1, 'topK': 40}));
+          expect(
+            request.tools,
+            unorderedEquals(['fromPrompt', 'byName', 'lookup']),
+          );
+          expect(request.toolChoice, equals(ToolChoice.none));
+          expect(request.returnToolRequests, isTrue);
+          expect(request.maxTurns, equals(7));
+          expect(request.output?.format, equals('text'));
+          expect(request.use?.map((m) => m.name), equals(['capture']));
+
+          // Seen by the model.
+          final modelRequest = modelRequests.single;
+          expect(
+            modelRequest.messages.map((m) => m.text),
+            equals(['Earlier', 'Question']),
+          );
+          expect(modelContexts.single?['user'], equals('u1'));
+        });
+
+        test('$via forwards cancel', () async {
+          final controller = CancellationController()..cancel();
+
+          final response = await invoke(via, {
+            #model: modelRef('echo'),
+            #cancel: controller.token,
+          });
+
+          expect(response.finishReason, equals(FinishReason.aborted));
+          expect(modelRequests, isEmpty);
+        });
+      }
     });
 
     test('defineCustomPrompt works for programmatic prompt building', () async {
