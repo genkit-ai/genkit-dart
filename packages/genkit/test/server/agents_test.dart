@@ -114,6 +114,61 @@ void main() {
     expect(await agent.abort(res.snapshotId!), SnapshotStatus.completed);
   });
 
+  test('a rejected remote turn surfaces the server status', () async {
+    final greeter = _defineGreeter(
+      ai,
+      'greeter',
+      store: InMemorySessionStore(),
+    );
+    final base = await serve(
+      GenkitRouter()..addAgent(
+        greeter,
+        contextProvider: (_) => throw GenkitException(
+          'Sign in first',
+          status: StatusCode.unauthenticated,
+        ),
+      ),
+    );
+
+    await expectLater(
+      remoteAgent(url: '$base/greeter').chat().send(text: 'hi'),
+      throwsA(
+        isA<AgentError<dynamic>>()
+            .having((e) => e.status, 'status', 'UNAUTHENTICATED')
+            .having((e) => e.message, 'message', 'Sign in first')
+            .having(
+              (e) => e.response.error?.details,
+              'response.error.details',
+              contains('Sign in first'),
+            ),
+      ),
+    );
+  });
+
+  test('a malformed remote stream keeps the cause in the message', () async {
+    final fake = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => fake.close(force: true));
+    fake.listen((request) {
+      request.response
+        ..headers.contentType = ContentType('text', 'event-stream')
+        ..write('garbage\n\n')
+        ..close();
+    });
+
+    await expectLater(
+      remoteAgent(
+        url: 'http://127.0.0.1:${fake.port}/any',
+      ).chat().send(text: 'hi'),
+      throwsA(
+        isA<AgentError<dynamic>>().having(
+          (e) => e.message,
+          'message',
+          contains('Invalid SSE data chunk'),
+        ),
+      ),
+    );
+  });
+
   test('a remote detach keeps running after the response closes', () async {
     // Regression for #558: closing the streaming response used to cancel the
     // request's token, which was still linked to the detached turn. End to

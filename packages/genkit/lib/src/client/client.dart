@@ -23,13 +23,95 @@ import '../exception.dart';
 
 const _flowStreamDelimiter = '\n\n';
 
-/// Maps the `error` payload of a streamed error frame to a [GenkitException].
-GenkitException _streamError(Object? error) {
-  final message = error is Map<String, dynamic>
-      ? (error['message'] as String?) ?? 'Unknown streaming error'
-      : 'Unknown streaming error';
-  return GenkitException(message, details: jsonEncode(error));
+/// Builds a [GenkitException] from a Genkit error body, keeping the server's
+/// status and message.
+///
+/// Accepts the bare shape (`{code, status, message}`, the non-200 body sent by
+/// GenkitRouter) and the wrapped ones (`{error: {...}}`, `{error: "..."}`).
+/// [httpStatus] is only a fallback for bodies without a recognizable status
+/// (a proxy's HTML page, say): the HTTP mapping is lossy, e.g. both
+/// `FAILED_PRECONDITION` and `INVALID_ARGUMENT` are sent as 400.
+///
+/// [details] defaults to [body] (encoded as JSON unless it is a string).
+GenkitException _wireError(
+  Object? body, {
+  int? httpStatus,
+  required String fallbackMessage,
+  String? details,
+}) {
+  var error = body;
+  String? message;
+  if (error is Map) {
+    switch (error['error']) {
+      case final Map inner:
+        error = inner;
+      // `{"error": "rate limited"}`: the same envelope with a plain message,
+      // sent by some proxies and hand-written servers.
+      case final String m when m.isNotEmpty:
+        message = m;
+    }
+  }
+
+  String? wireName;
+  if (error is Map) {
+    if (error['status'] case final String s) wireName = s;
+    if (error['message'] case final String m when m.isNotEmpty) message = m;
+  }
+
+  var status = wireName == null ? null : StatusCode.fromWireName(wireName);
+  // fromWireName maps unrecognized names (a newer server's, or JS express's
+  // 'INVALID ARGUMENT') to UNKNOWN. Prefer the HTTP-derived status when there
+  // is one, unless the server really sent UNKNOWN.
+  final recognized =
+      status != null && (status != StatusCode.unknown || wireName == 'UNKNOWN');
+  if (!recognized && httpStatus != null) {
+    status = StatusCode.fromHttpStatus(httpStatus);
+  }
+
+  return GenkitException(
+    message ?? fallbackMessage,
+    // Null (no status at all) falls back to GenkitException's default
+    // (`internal`).
+    status: status,
+    details:
+        details ??
+        (body == null ? null : (body is String ? body : jsonEncode(body))),
+  );
 }
+
+/// Like [_wireError], for a raw non-200 response body.
+///
+/// Only a JSON body is read for status and message. Anything else (a proxy's
+/// HTML page, the Go server's plain-text errors) gets the HTTP-derived status
+/// and a generic message; the raw body is always kept in `details`.
+GenkitException _httpError(int statusCode, String body) {
+  Object? decoded;
+  try {
+    decoded = jsonDecode(body);
+  } on FormatException {
+    // Not JSON; leave `decoded` null so only the HTTP status is used.
+  }
+  return _wireError(
+    decoded,
+    httpStatus: statusCode,
+    fallbackMessage: 'Server returned error: $statusCode',
+    details: body.isEmpty ? null : body,
+  );
+}
+
+/// Maps the `error` payload of a response or stream frame to a
+/// [GenkitException]. A plain string payload is used as the message.
+GenkitException _errorPayload(Object? error, String fallbackMessage) =>
+    _wireError(
+      error,
+      fallbackMessage: error is String && error.isNotEmpty
+          ? error
+          : fallbackMessage,
+    );
+
+/// Maps the `error` payload of a streamed error frame to a [GenkitException].
+GenkitException _streamError(Object? error) =>
+    _errorPayload(error, 'Unknown streaming error');
 
 Future<Output?> streamFlow<Output, Chunk>({
   required String url,
@@ -62,12 +144,7 @@ Future<Output?> streamFlow<Output, Chunk>({
 
   if (streamedResponse.statusCode != 200) {
     final body = await streamedResponse.stream.bytesToString();
-
-    throw GenkitException(
-      'Server returned error: ${streamedResponse.statusCode}',
-      status: StatusCode.fromHttpStatus(streamedResponse.statusCode),
-      details: body,
-    );
+    throw _httpError(streamedResponse.statusCode, body);
   }
 
   var errorOccurred = false;
@@ -79,7 +156,9 @@ Future<Output?> streamFlow<Output, Chunk>({
     final finalError = error is GenkitException
         ? error
         : GenkitException(
-            'Error in stream',
+            // The cause text goes in the message too: callers such as the
+            // agent client surface only `message`.
+            'Error in stream: $error',
             cause: error,
             stackTrace: stackTrace,
           );
@@ -104,22 +183,20 @@ Future<Output?> streamFlow<Output, Chunk>({
 
             // Stream errors arrive as `data: {"error": ...}` (handled below,
             // as Go, Python and current Dart servers send). The legacy
-            // `error: {"error": ...}` frame comes from JS servers and Dart
-            // servers with `sendLegacyErrorFrame` set.
+            // `error: ...` frame comes from JS servers and Dart servers with
+            // `sendLegacyErrorFrame` set. JS express wraps the payload
+            // (`{"error": {...}}`); the JS Next.js plugin doesn't
+            // (`{status, message}`).
             if (chunkString.startsWith('error: ')) {
               final jsonString = chunkString.substring('error: '.length);
               final errorData = jsonDecode(jsonString);
-              if (errorData is Map<String, dynamic> &&
-                  errorData.containsKey('error')) {
-                return handleError(_streamError(errorData['error']));
-              } else {
-                return handleError(
-                  GenkitException(
-                    errorData.toString(),
-                    details: jsonEncode(errorData),
-                  ),
-                );
-              }
+              return handleError(
+                _streamError(
+                  errorData is Map && errorData.containsKey('error')
+                      ? errorData['error']
+                      : errorData,
+                ),
+              );
             }
 
             if (!chunkString.startsWith('data: ')) {
@@ -294,11 +371,7 @@ interface class RemoteAction<Input, Output, Chunk, Init> {
     }
 
     if (response.statusCode != 200) {
-      throw GenkitException(
-        'Server returned error: ${response.statusCode}',
-        status: StatusCode.fromHttpStatus(response.statusCode),
-        details: response.body,
-      );
+      throw _httpError(response.statusCode, response.body);
     }
 
     dynamic decodedBody;
@@ -316,12 +389,7 @@ interface class RemoteAction<Input, Output, Chunk, Init> {
     if (decodedBody is Map<String, dynamic>) {
       if (decodedBody.containsKey('error')) {
         final errorData = decodedBody['error'];
-        final message =
-            (errorData is Map<String, dynamic> &&
-                errorData.containsKey('message'))
-            ? errorData['message'] as String
-            : errorData.toString();
-        throw GenkitException(message, details: jsonEncode(errorData));
+        throw _errorPayload(errorData, 'Unknown server error');
       }
       if (decodedBody.containsKey('result')) {
         return _fromResponse(decodedBody['result']);
