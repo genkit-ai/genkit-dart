@@ -44,8 +44,6 @@ base class GeminiOptions {
     int? candidateCount,
     bool? codeExecution,
     FunctionCallingConfig? functionCallingConfig,
-    bool? responseLogprobs,
-    int? logprobs,
   }) {
     _json = {
       'stopSequences': ?stopSequences,
@@ -63,8 +61,6 @@ base class GeminiOptions {
       'candidateCount': ?candidateCount,
       'codeExecution': ?codeExecution,
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
-      'responseLogprobs': ?responseLogprobs,
-      'logprobs': ?logprobs,
     };
   }
 
@@ -262,30 +258,6 @@ base class GeminiOptions {
     }
   }
 
-  bool? get responseLogprobs {
-    return _json['responseLogprobs'] as bool?;
-  }
-
-  set responseLogprobs(bool? value) {
-    if (value == null) {
-      _json.remove('responseLogprobs');
-    } else {
-      _json['responseLogprobs'] = value;
-    }
-  }
-
-  int? get logprobs {
-    return (_json['logprobs'] as num?)?.toInt();
-  }
-
-  set logprobs(int? value) {
-    if (value == null) {
-      _json.remove('logprobs');
-    } else {
-      _json['logprobs'] = value;
-    }
-  }
-
   @override
   String toString() {
     return _json.toString();
@@ -340,8 +312,6 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'functionCallingConfig': <String, Object?>{
           r'$ref': r'#/$defs/FunctionCallingConfig',
         },
-        'responseLogprobs': <String, Object?>{'type': 'boolean'},
-        'logprobs': <String, Object?>{'type': 'integer'},
       },
     },
     dependencies: [ThinkingConfig.$schema, FunctionCallingConfig.$schema],
