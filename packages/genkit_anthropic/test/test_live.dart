@@ -167,7 +167,10 @@ void main() {
           prompt: 'Generate a person named John Doe, age 30',
           outputSchema: Person.$schema,
           config: AnthropicOptions(
-            thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+            thinking: AnthropicThinkingConfig(
+              type: 'enabled',
+              budgetTokens: 1024,
+            ),
           ),
         );
 
@@ -279,7 +282,10 @@ void main() {
           model: anthropic.model('claude-sonnet-4-5'),
           prompt: 'Solve this 24 game: 2, 3, 10, 10',
           config: AnthropicOptions(
-            thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+            thinking: AnthropicThinkingConfig(
+              type: 'enabled',
+              budgetTokens: 1024,
+            ),
           ),
         );
         expect(
@@ -306,7 +312,10 @@ void main() {
           prompt: 'What is 123 * 456? Use the calculator tool.',
           tools: [tool],
           config: AnthropicOptions(
-            thinking: ThinkingConfig(type: 'enabled', budgetTokens: 1024),
+            thinking: AnthropicThinkingConfig(
+              type: 'enabled',
+              budgetTokens: 1024,
+            ),
           ),
         );
 
@@ -335,7 +344,7 @@ void main() {
           prompt: 'What is 17 * 19? Answer briefly.',
           config: AnthropicOptions(
             maxTokens: 512,
-            thinking: ThinkingConfig(),
+            thinking: AnthropicThinkingConfig(),
             outputConfig: AnthropicOutputConfig(effort: 'low'),
           ),
         );

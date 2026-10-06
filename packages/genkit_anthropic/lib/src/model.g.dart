@@ -39,7 +39,7 @@ base class AnthropicOptions {
     int? topK,
     List<String>? stopSequences,
     String? forceTool,
-    ThinkingConfig? thinking,
+    AnthropicThinkingConfig? thinking,
     AnthropicOutputConfig? outputConfig,
   }) {
     _json = {
@@ -196,14 +196,16 @@ base class AnthropicOptions {
   }
 
   /// Extended thinking configuration for supported Anthropic models (like Claude 3.7 Sonnet).
-  ThinkingConfig? get thinking {
+  AnthropicThinkingConfig? get thinking {
     return _json['thinking'] == null
         ? null
-        : ThinkingConfig.fromJson(_json['thinking'] as Map<String, dynamic>);
+        : AnthropicThinkingConfig.fromJson(
+            _json['thinking'] as Map<String, dynamic>,
+          );
   }
 
   /// Extended thinking configuration for supported Anthropic models (like Claude 3.7 Sonnet).
-  set thinking(ThinkingConfig? value) {
+  set thinking(AnthropicThinkingConfig? value) {
     if (value == null) {
       _json.remove('thinking');
     } else {
@@ -297,33 +299,38 @@ base class _AnthropicOptionsTypeFactory
           'items': <String, Object?>{'type': 'string'},
         },
         'forceTool': <String, Object?>{'type': 'string'},
-        'thinking': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
+        'thinking': <String, Object?>{
+          r'$ref': r'#/$defs/AnthropicThinkingConfig',
+        },
         'outputConfig': <String, Object?>{
           r'$ref': r'#/$defs/AnthropicOutputConfig',
         },
       },
     },
-    dependencies: [ThinkingConfig.$schema, AnthropicOutputConfig.$schema],
+    dependencies: [
+      AnthropicThinkingConfig.$schema,
+      AnthropicOutputConfig.$schema,
+    ],
   );
 }
 
 /// Configuration for Anthropic's extended thinking mode.
-base class ThinkingConfig {
-  /// Creates a [ThinkingConfig] from a JSON map.
-  factory ThinkingConfig.fromJson(Map<String, dynamic> json) =>
+base class AnthropicThinkingConfig {
+  /// Creates a [AnthropicThinkingConfig] from a JSON map.
+  factory AnthropicThinkingConfig.fromJson(Map<String, dynamic> json) =>
       $schema.parse(json);
 
-  ThinkingConfig._(this._json);
+  AnthropicThinkingConfig._(this._json);
 
-  ThinkingConfig({String? type, int? budgetTokens}) {
+  AnthropicThinkingConfig({String? type, int? budgetTokens}) {
     _json = {'type': ?type, 'budgetTokens': ?budgetTokens};
   }
 
   late final Map<String, dynamic> _json;
 
-  /// The JSON schema and type descriptor for [ThinkingConfig].
-  static const SchemanticType<ThinkingConfig> $schema =
-      _ThinkingConfigTypeFactory();
+  /// The JSON schema and type descriptor for [AnthropicThinkingConfig].
+  static const SchemanticType<AnthropicThinkingConfig> $schema =
+      _AnthropicThinkingConfigTypeFactory();
 
   String? get type {
     return _json['type'] as String?;
@@ -354,23 +361,24 @@ base class ThinkingConfig {
     return _json.toString();
   }
 
-  /// Serializes this [ThinkingConfig] to a JSON map.
+  /// Serializes this [AnthropicThinkingConfig] to a JSON map.
   Map<String, dynamic> toJson() {
     return _json;
   }
 }
 
-base class _ThinkingConfigTypeFactory extends SchemanticType<ThinkingConfig> {
-  const _ThinkingConfigTypeFactory();
+base class _AnthropicThinkingConfigTypeFactory
+    extends SchemanticType<AnthropicThinkingConfig> {
+  const _AnthropicThinkingConfigTypeFactory();
 
   @override
-  ThinkingConfig parse(Object? json) {
-    return ThinkingConfig._(json as Map<String, dynamic>);
+  AnthropicThinkingConfig parse(Object? json) {
+    return AnthropicThinkingConfig._(json as Map<String, dynamic>);
   }
 
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ThinkingConfig',
+    name: 'AnthropicThinkingConfig',
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{

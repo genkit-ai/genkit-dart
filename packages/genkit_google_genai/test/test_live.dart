@@ -98,7 +98,7 @@ void main() {
         documents: [
           DocumentData(content: [TextPart(text: 'Hello')]),
         ],
-        options: TextEmbedderOptions(
+        options: GoogleGenAiEmbedderOptions(
           outputDimensionality: 256,
           taskType: 'RETRIEVAL_DOCUMENT',
         ),
@@ -283,7 +283,7 @@ void main() {
           prompt: 'My favourite colour is heliotrope. Acknowledge that.',
           config: GeminiOptions(
             temperature: 0,
-            thinkingConfig: ThinkingConfig(includeThoughts: true),
+            thinkingConfig: GeminiThinkingConfig(includeThoughts: true),
           ),
         );
 
@@ -301,7 +301,7 @@ void main() {
           prompt: 'What is my favourite colour? Answer with one word.',
           config: GeminiOptions(
             temperature: 0,
-            thinkingConfig: ThinkingConfig(includeThoughts: true),
+            thinkingConfig: GeminiThinkingConfig(includeThoughts: true),
           ),
         );
 
