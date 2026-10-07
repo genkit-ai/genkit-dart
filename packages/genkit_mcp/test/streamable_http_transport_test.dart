@@ -106,6 +106,36 @@ Future<HttpClientResponse> _getSse(
   return request.close();
 }
 
+/// Opens a standalone GET SSE stream and waits for its response headers.
+///
+/// The server only flushes headers along with the first event on the stream,
+/// and drops notifications sent before the GET is registered. A single
+/// notification after a fixed delay races with request handling and flakes on
+/// loaded CI runners, so keep nudging until the response arrives. Extra
+/// notifications are harmless: they go to the newest registered stream.
+Future<HttpClientResponse> _openStandaloneSse(
+  HttpClient client,
+  _TestServer testServer, {
+  required String sessionId,
+}) async {
+  final pending = _getSse(
+    client,
+    testServer.url,
+    headers: {'mcp-session-id': sessionId},
+  );
+  var done = false;
+  // Errors still surface via Future.any / return below.
+  pending.whenComplete(() => done = true).ignore();
+  while (!done) {
+    await testServer.server.notifyToolsChanged();
+    await Future.any<void>([
+      pending,
+      Future<void>.delayed(const Duration(milliseconds: 50)),
+    ]);
+  }
+  return pending;
+}
+
 Future<HttpClientResponse> _delete(
   HttpClient client,
   Uri url, {
@@ -283,24 +313,18 @@ void main() {
       expect(sessionId, 'session-1');
       await initResponse.drain();
 
-      final firstPending = _getSse(
+      final first = await _openStandaloneSse(
         client,
-        testServer.url,
-        headers: {'mcp-session-id': sessionId!},
+        testServer,
+        sessionId: sessionId!,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      await testServer.server.notifyToolsChanged();
-      final first = await firstPending.timeout(const Duration(seconds: 2));
       expect(first.statusCode, HttpStatus.ok);
 
-      final secondPending = _getSse(
+      final second = await _openStandaloneSse(
         client,
-        testServer.url,
-        headers: {'mcp-session-id': sessionId},
+        testServer,
+        sessionId: sessionId,
       );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
-      await testServer.server.notifyToolsChanged();
-      final second = await secondPending.timeout(const Duration(seconds: 2));
       expect(second.statusCode, HttpStatus.ok);
 
       await _closeSse(second);
