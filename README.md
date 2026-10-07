@@ -59,9 +59,9 @@ See the [Genkit package documentation](https://pub.dev/packages/genkit) for gett
 ## Versioning
 
 Packages at version 1.0 or later follow [semantic versioning](https://semver.org):
-breaking changes only ship in a new major version. Packages still on 0.x, and
-APIs marked experimental (such as `package:genkit/experimental.dart`), may
-change in minor releases.
+
+- **1.0+ packages**: Breaking changes only ship in a new major version.
+- **0.x packages and experimental APIs** (such as `package:genkit/experimental.dart`): May change in minor releases.
 
 Each package has its own `CHANGELOG.md`, also shown on its pub.dev page.
 
