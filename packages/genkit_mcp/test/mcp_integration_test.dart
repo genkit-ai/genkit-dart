@@ -84,7 +84,53 @@ String _resolvePackageConfig() {
   }
 }
 
+/// Precompiles a stdio test server to a kernel snapshot.
+///
+/// Spawning `dart <script>.dart` recompiles the server and all of its
+/// dependencies on every launch, which can take many seconds on a loaded CI
+/// runner and eats into the client's connect timeout. A `.dill` starts almost
+/// immediately.
+Future<String> _compileTestServer(String scriptName, Directory outDir) async {
+  final output =
+      '${outDir.path}${Platform.pathSeparator}'
+      '${scriptName.replaceAll('.dart', '.dill')}';
+  final result = await Process.run(Platform.resolvedExecutable, [
+    'compile',
+    'kernel',
+    '--packages=${_resolvePackageConfig()}',
+    '-o',
+    output,
+    _resolveTestScript(scriptName),
+  ]);
+  if (result.exitCode != 0) {
+    throw StateError(
+      'Failed to compile $scriptName:\n${result.stdout}\n${result.stderr}',
+    );
+  }
+  return output;
+}
+
 void main() {
+  late Directory stdioServersDir;
+  late String genkitStdioServer;
+  late String mcpDartStdioServer;
+
+  setUpAll(() async {
+    stdioServersDir = await Directory.systemTemp.createTemp(
+      'genkit_mcp_stdio_servers',
+    );
+    final compiled = await Future.wait([
+      _compileTestServer('stdio_test_server.dart', stdioServersDir),
+      _compileTestServer('mcp_dart_stdio_test_server.dart', stdioServersDir),
+    ]);
+    genkitStdioServer = compiled[0];
+    mcpDartStdioServer = compiled[1];
+  });
+
+  tearDownAll(() async {
+    await stdioServersDir.delete(recursive: true);
+  });
+
   test('HTTP/SSE end-to-end server and client', () async {
     final toolsChanged = Completer<void>();
     final resourceUpdated = Completer<void>();
@@ -206,15 +252,13 @@ void main() {
   });
 
   test('stdio end-to-end server and client', () async {
-    final serverScript = _resolveTestScript('stdio_test_server.dart');
-    final packageConfig = _resolvePackageConfig();
     final client = GenkitMcpClient(
       McpClientOptions(
         name: 'test-client',
         mcpServer: McpServerConfig(
           command: Platform.resolvedExecutable,
-          args: ['--packages=$packageConfig', serverScript],
-          timeout: const Duration(seconds: 15),
+          args: [genkitStdioServer],
+          timeout: const Duration(seconds: 30),
         ),
       ),
     );
@@ -346,17 +390,13 @@ void main() {
   test(
     'Genkit client interoperates with native mcp_dart stdio server',
     () async {
-      final serverScript = _resolveTestScript(
-        'mcp_dart_stdio_test_server.dart',
-      );
-      final packageConfig = _resolvePackageConfig();
       final client = GenkitMcpClient(
         McpClientOptions(
           name: 'genkit-test-client',
           mcpServer: McpServerConfig(
             command: Platform.resolvedExecutable,
-            args: ['--packages=$packageConfig', serverScript],
-            timeout: const Duration(seconds: 15),
+            args: [mcpDartStdioServer],
+            timeout: const Duration(seconds: 30),
           ),
         ),
       );
