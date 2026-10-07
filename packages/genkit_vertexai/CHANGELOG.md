@@ -1,18 +1,8 @@
-## 1.0.0-rc.3
-
- - updated internal dependencies.
-
-## 1.0.0-rc.2
+## 1.0.0
 
 ### Breaking Changes
 
  - prefix exported option types with provider (#572)
-
-
-## 1.0.0-rc.1
-
-### Breaking Changes
-
  - type usage counts and indexes as int (#546)
  - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
  - remove GoogleAiModels, stop exporting catalog enums, refresh the catalog (#524)

@@ -1,18 +1,8 @@
-## 1.0.0-rc.3
-
- - updated internal dependencies.
-
-## 1.0.0-rc.2
+## 1.0.0
 
 ### Breaking Changes
 
  - prefix exported option types with provider (#572)
-
-
-## 1.0.0-rc.1
-
-### Breaking Changes
-
  - rename GenkitException.underlyingException to cause; drop statusCode (#548)
  - use Duration for retry delays; rename retryModel to noRetryModel (#549)
  - type usage counts and indexes as int (#546)

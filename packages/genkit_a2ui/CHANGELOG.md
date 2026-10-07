@@ -1,18 +1,8 @@
-## 0.4.0-rc.3
-
- - updated internal dependencies.
-
-## 0.4.0-rc.2
+## 0.4.0
 
 ### Breaking Changes
 
  - add ai.defineGenerateMiddleware; rename top-level defineMiddleware to generateMiddleware (#571)
-
-
-## 0.4.0-rc.1
-
-### Breaking Changes
-
  - make GenerateResult and GenerateResponseChunk read-only views (#547)
  - generate plain JSON schema maps instead of json_schema_builder calls (#522)
  - export every type that appears in a public signature (#490)
