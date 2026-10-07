@@ -4,7 +4,7 @@
     <img alt="Genkit logo" src="./docs/resources/genkit-logo.png" width="400">
   </picture>
   <br>
-  <strong>Genkit Dart (Preview)</strong>
+  <strong>Genkit Dart</strong>
   <br>
   <em>AI SDK for Dart &bull; LLM Framework &bull; AI Agent Toolkit</em>
 </p>
@@ -55,6 +55,15 @@ See the [Genkit package documentation](https://pub.dev/packages/genkit) for gett
 | [`genkit_google_cloud`](packages/genkit_google_cloud) | Google Cloud integration for Genkit Dart (Firestore session store, experimental). | [![Pub](https://img.shields.io/pub/v/genkit_google_cloud.svg)](https://pub.dev/packages/genkit_google_cloud) |
 | [`schemantic`](packages/schemantic) | Type-safe data classes and runtime JSON Schemas, with serialization and validation. | [![Pub](https://img.shields.io/pub/v/schemantic.svg)](https://pub.dev/packages/schemantic) |
 | [`schemantic_builder`](packages/schemantic_builder) | The code generator for `schemantic`. | [![Pub](https://img.shields.io/pub/v/schemantic_builder.svg)](https://pub.dev/packages/schemantic_builder) |
+
+## Versioning
+
+Packages at version 1.0 or later follow [semantic versioning](https://semver.org):
+
+- **1.0+ packages**: Breaking changes only ship in a new major version.
+- **0.x packages and experimental APIs** (such as `package:genkit/experimental.dart`): May change in minor releases.
+
+Each package has its own `CHANGELOG.md`, also shown on its pub.dev page.
 
 ---
 
