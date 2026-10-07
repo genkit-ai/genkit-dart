@@ -622,7 +622,7 @@ class GenkitMcpServer {
         status: StatusCode.notFound,
       ),
     );
-    final input = params['arguments'];
+    final input = tool.inputFromModel(params['arguments']);
     try {
       final result = await tool.runRaw(input);
       // Tool functions return a ToolResult; unwrap it to build the MCP reply.

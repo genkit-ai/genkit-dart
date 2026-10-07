@@ -1991,7 +1991,10 @@ package:genkit/genkit.dart:
   Tool (class<Input, Output> extends Action<Input, ToolResult<Output>, void, void>, base):
     new (constructor: Tool<Input, Output> Function({required String description, required FutureOr<ToolResult<Output>> Function(Input, ToolFnArg<Input>) fn, SchemanticType<Input>? inputSchema, Map<String, dynamic>? metadata, required String name, SchemanticType<Output>? outputSchema}))
     manifestOutputSchema (getter: SchemanticType<dynamic>?, internal)
+    modelInputSchema (getter: Map<String, dynamic>?)
     toolOutputSchema (getter: SchemanticType<Output>?)
+    wrapsInput (getter: bool)
+    inputFromModel (method: Object? Function(Object?))
   ToolChoice (see above)
   ToolDefinition (see above)
   ToolFnArg (class<Input> extends Object, final):

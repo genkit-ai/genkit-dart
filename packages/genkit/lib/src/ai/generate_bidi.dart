@@ -211,7 +211,7 @@ Future<GenerateBidiSession> runGenerateBidi(
             final ToolResult result;
             try {
               result = (await tool.runRaw(
-                toolRequest.toolRequest.input,
+                tool.inputFromModel(toolRequest.toolRequest.input),
                 cancel: cancel,
               )).result;
             } on CancelledException {
