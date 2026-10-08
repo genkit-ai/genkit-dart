@@ -401,7 +401,7 @@ class A2uiStreamParser {
     if (components is! List) {
       return 'updateComponents.components must be an array.';
     }
-    final known = catalog.components.map((c) => c.name).toSet();
+    final known = catalog.components.keys.toSet();
     for (final c in components) {
       if (c is! Map || c['component'] is! String || c['id'] is! String) {
         return 'every component needs a "component" type name and a string '
