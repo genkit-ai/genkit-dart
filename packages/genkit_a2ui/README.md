@@ -214,6 +214,7 @@ validation:
 | `instructions` | `'system'` | Where to inject catalog capabilities. `'none'` injects nothing.                                                                                                 |
 | `validate`     | `'warn'`   | What to do with a block that fails to compile or validate. `'warn'` logs and drops it; `'strict'` throws; `'off'` checks only that the block compiles, not the component tree (references, `root`). |
 | `version`      | `'v0.9'`   | A2UI protocol version. Only `'v0.9'` is supported.                                                                                                              |
+| `repair`       | `true`     | Ask the model once to fix a block that failed to compile. Costs an extra call on the failure path only; see [Self-repair](#self-repair).                        |
 
 ### Surfaces
 
@@ -229,6 +230,31 @@ each other.
 
 In a chat UI, key each rendered surface by its id. A replaced surface then
 re-renders where it first appeared.
+
+### Self-repair
+
+Models occasionally emit a block that does not compile, most often by putting a
+label where a component id belongs:
+
+```text
+refresh = Button("Refresh", "primary", Event("refresh"))
+```
+
+`Button.child` is a component id, so that would render nothing useful. When a
+block fails to compile the middleware sends one small follow-up call containing
+the error, the Express contract, and the failed block, then compiles the reply.
+If it works the surface renders (and the repaired block is what gets replayed
+as history); if not, the block is dropped as before.
+
+This costs an extra model call **on the failure path only**. Disable it with:
+
+```dart
+use: [a2ui(repair: false)]
+```
+
+Repair runs after the response completes rather than mid-stream, because the
+streaming callback is synchronous and cannot await. A repaired surface therefore
+arrives in the final message instead of incrementally.
 
 ## Handling user actions
 

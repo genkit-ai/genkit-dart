@@ -37,12 +37,16 @@ import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'catalog.dart';
+import 'express.dart';
 import 'loader.dart';
 import 'parser.dart';
 import 'part.dart';
+import 'repair.dart';
 import 'types.dart';
 
 part 'a2ui_middleware.g.dart';
+
+final _logger = Logger('genkit_a2ui.middleware');
 
 /// Configuration for the [a2ui] middleware.
 @Schema()
@@ -67,6 +71,16 @@ abstract class $A2uiOptions {
   /// The A2UI protocol version to emit. Only `'v0.9'` (the default) is
   /// supported.
   String? get version;
+
+  /// Whether to ask the model to fix a block that failed to compile. Defaults
+  /// to `true`.
+  ///
+  /// On a failure the middleware sends one small follow-up call containing the
+  /// error, the Express contract, and the failed block, then compiles the
+  /// reply. This costs an extra model call on the failure path only, and never
+  /// runs for errors a rewrite cannot fix. Set `false` to drop bad blocks
+  /// outright.
+  bool? get repair;
 }
 
 /// The Genkit plugin that registers the [a2ui] middleware. Add it to
@@ -93,6 +107,7 @@ GenerateMiddlewareRef<A2uiOptions> a2ui({
   String? instructions,
   String? validate,
   String? version,
+  bool? repair,
 }) {
   return middlewareRef(
     name: 'a2ui',
@@ -101,6 +116,7 @@ GenerateMiddlewareRef<A2uiOptions> a2ui({
       instructions: instructions,
       validate: validate,
       version: version,
+      repair: repair,
     ),
   );
 }
@@ -157,6 +173,7 @@ class A2uiMiddleware extends GenerateMiddleware {
   final String _catalogId;
   final String _instructions;
   final A2uiValidateMode _validate;
+  final bool _repair;
 
   // Memoizes the rendered catalog instructions. `renderCatalogInstructions`
   // (including the 58-name icon list) is a pure function of the catalog, but the
@@ -169,7 +186,8 @@ class A2uiMiddleware extends GenerateMiddleware {
   A2uiMiddleware(this._registry, [A2uiOptions? config])
     : _catalogId = config?.catalog ?? defaultCatalogId,
       _instructions = _parseInstructions(config?.instructions),
-      _validate = _parseValidateMode(config?.validate) {
+      _validate = _parseValidateMode(config?.validate),
+      _repair = config?.repair ?? true {
     _checkVersion(config?.version);
   }
 
@@ -217,8 +235,8 @@ class A2uiMiddleware extends GenerateMiddleware {
         catalog: catalog,
         // Never throw from here: this runs inside the provider's chunk
         // callback, where a throw fails (and retries) the whole model call.
-        // A bad block is just left off the stream; the final message applies
-        // the configured mode.
+        // A bad block is just left off the stream; the final message, after
+        // any repair, applies the configured mode.
         validate: _validate == A2uiValidateMode.off
             ? A2uiValidateMode.off
             : A2uiValidateMode.warn,
@@ -249,7 +267,106 @@ class A2uiMiddleware extends GenerateMiddleware {
 
     // 4) Transform the final message. Surface ids are the model's own, so the
     //    final parse produces the same envelopes the stream did.
-    return _transformResponse(response, catalog);
+    final message = response.message;
+    if (message == null) return response;
+    final repairs = _repair
+        ? await _repairFailedBlocks(
+            message,
+            catalog,
+            // Repair reuses the model this hook already wraps, by calling
+            // `next` with a one-shot request. That needs no extra
+            // configuration and does not recurse through the middleware chain,
+            // which would re-inject the instructions and re-parse the reply.
+            // Streaming is suppressed: a repair is an internal detail.
+            (prompt) async {
+              final reply = await next(
+                ModelRequest(
+                  messages: [
+                    Message(
+                      role: Role.user,
+                      content: [TextPart(text: prompt)],
+                    ),
+                  ],
+                ),
+                ctx.copyWith(streamingRequested: false, sendChunk: (_) {}),
+              );
+              return reply.message?.content
+                      .where((p) => p.isText)
+                      .map((p) => p.text ?? '')
+                      .join() ??
+                  '';
+            },
+          )
+        : const <String, String>{};
+    return _transformResponse(response, message, catalog, repairs);
+  }
+
+  /// Finds the blocks in [message] that fail to compile and asks the model to
+  /// fix each one, returning original source to repaired source for the ones
+  /// that now compile.
+  ///
+  /// Repair runs on the final message rather than during streaming because
+  /// `sendChunk` is synchronous and cannot await a model call, so a repaired
+  /// surface lands at the end of the turn instead of mid-stream. One attempt
+  /// per distinct block; a repair that still fails is dropped, so it is never
+  /// worse than no repair.
+  Future<Map<String, String>> _repairFailedBlocks(
+    Message message,
+    A2uiCatalog catalog,
+    Future<String> Function(String prompt) ask,
+  ) async {
+    // Probe with rejection suppressed, so a failing block is recorded rather
+    // than thrown. Validation still runs, so a block that would be rejected
+    // under the configured mode is caught here.
+    final probe = A2uiStreamParser(
+      catalog: catalog,
+      validate: _validate == A2uiValidateMode.off
+          ? A2uiValidateMode.off
+          : A2uiValidateMode.warn,
+    );
+    for (final part in message.content) {
+      final text = part.text;
+      if (part.isText && text != null && text.isNotEmpty) probe.push(text);
+    }
+    probe.flush();
+
+    final repairs = <String, String>{};
+    // Repaired sources are keyed by block text, so one attempt covers every
+    // copy of a block repeated in the same response.
+    final attempted = <String>{};
+    for (final block in probe.failedBlocks) {
+      if (!attempted.add(block.source)) continue;
+      if (!block.isModelFixable) {
+        _logger.info(
+          'skipping repair, not fixable by rewriting: ${block.error}',
+        );
+        continue;
+      }
+      try {
+        final repaired = extractRepairedBlock(
+          await ask(
+            buildRepairPrompt(
+              source: block.source,
+              error: block.error,
+              catalog: catalog,
+            ),
+          ),
+        );
+        if (repaired == null) {
+          _logger.warning('repair returned nothing for: ${block.error}');
+          continue;
+        }
+        // Only accept a repair that compiles under the configured mode.
+        ExpressEngine.of(
+          catalog,
+        ).compile(repaired, validate: _validate != A2uiValidateMode.off);
+        repairs[block.source] = repaired;
+        _logger.info('repaired an A2UI block after: ${block.error}');
+      } catch (e) {
+        _logger.warning('repair failed for "${block.error}": $e');
+      }
+    }
+    return repairs;
   }
 
   /// Appends A2UI instructions to (or creates) the system message.
@@ -312,15 +429,19 @@ class A2uiMiddleware extends GenerateMiddleware {
     );
   }
 
-  /// Transforms the final response message: prose text + a2ui parts.
+  /// Transforms the final response message: prose text + a2ui parts, with
+  /// [repairs] substituted for the blocks that failed.
   ModelResponse _transformResponse(
     ModelResponse response,
+    Message message,
     A2uiCatalog catalog,
+    Map<String, String> repairs,
   ) {
-    final message = response.message;
-    if (message == null) return response;
-
-    final parser = A2uiStreamParser(catalog: catalog, validate: _validate);
+    final parser = A2uiStreamParser(
+      catalog: catalog,
+      validate: _validate,
+      repairs: repairs,
+    );
     final newContent = <Part>[];
 
     // Drains whatever the parser is still holding (a withheld prose tail, or an

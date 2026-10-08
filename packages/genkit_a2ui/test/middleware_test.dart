@@ -1003,7 +1003,7 @@ root = Text("again")
       final res = await genkit.generate(
         model: modelRef('m_stream_strict'),
         prompt: 'hi',
-        use: [a2ui(validate: 'strict')],
+        use: [a2ui(validate: 'strict', repair: false)],
         onChunk: (chunk) => streamed += chunk.text,
       );
 
