@@ -22,8 +22,8 @@
 /// This sample also demonstrates a **custom catalog**: [weatherCatalog] extends
 /// the bundled basic catalog with a bespoke `Gauge` component. The catalog
 /// tells the model what it may render; the Flutter client registers a matching
-/// `Gauge` widget under the same id (see `lib/main.dart`) so the surface renders
-/// to a real widget.
+/// `Gauge` widget under the same id (see `../client/lib/main.dart`) so the
+/// surface renders to a real widget.
 library;
 
 import 'package:genkit/experimental.dart';
@@ -60,7 +60,7 @@ final Genkit ai = Genkit(plugins: [googleAI(), A2uiPlugin()]);
 /// the bundled [basicCatalog] (Text, Card, Column, Button, ...) and add one
 /// bespoke component, `Gauge`, that has no basic-catalog equivalent. The
 /// matching `Gauge` *widget* is registered on the client under the same
-/// [weatherCatalogId] (see `lib/main.dart`).
+/// [weatherCatalogId] (see `../client/lib/main.dart`).
 ///
 /// Because the middleware validates emitted surfaces against this catalog (see
 /// `a2ui(validate: 'strict')` below), the model can only reference components

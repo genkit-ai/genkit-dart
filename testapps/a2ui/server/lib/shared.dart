@@ -12,20 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Values shared by the server (`lib/agent.dart`, `bin/server.dart`) and the
-/// Flutter client (`lib/main.dart`).
-///
-/// This file has no server-only or Flutter-only imports so it is safe to
-/// include from either side. It exists mainly so the custom catalog id is
-/// defined in exactly one place: the server catalog and the client renderer
-/// MUST agree on it, otherwise a surface created by the agent won't resolve to
-/// the client's widgets.
+/// Values the server and the Flutter client (`../client`) must agree on.
 library;
 
 /// The id of the app's custom A2UI catalog.
 ///
 /// The server registers a catalog under this id (see `weatherCatalog` in
-/// `lib/agent.dart`) and the client registers a matching set of widgets under
-/// the same id (see `_catalog` in `lib/main.dart`). Reverse-domain notation is
-/// recommended to avoid clashes with other catalogs.
+/// `lib/agent.dart`) and the client registers matching widgets under the same
+/// id (`../client/lib/shared.dart`). The client and server are separate
+/// packages so the client never depends on `genkit_a2ui`; the cost is that this
+/// one string is duplicated, so keep both copies in sync. Reverse-domain
+/// notation is recommended to avoid clashes with other catalogs.
 const String weatherCatalogId = 'com.example.a2ui.weather';

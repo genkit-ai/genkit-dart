@@ -14,14 +14,14 @@
 
 /// A2UI sample Flutter client.
 ///
-/// Talks to the Genkit A2UI agent (served by `bin/server.dart`) with
-/// `remoteAgent`, renders prose in a simple chat log, and renders each A2UI
-/// surface with the `genui` renderer.
+/// Talks to the Genkit A2UI agent (served by `../server`) with `remoteAgent`,
+/// renders prose in a simple chat log, and renders each A2UI surface with the
+/// `genui` renderer.
 ///
-/// A2UI travels as spec-shaped `data` parts on the agent stream. The client
-/// code does not use `genkit_a2ui`: the two helpers in `a2ui_helpers.dart`
-/// (copied from the genkit_a2ui README) read messages off each chunk and turn
-/// surface actions into the next turn's input.
+/// A2UI travels as spec-shaped `data` parts on the agent stream. This app does
+/// not depend on `genkit_a2ui`: the two helpers in `a2ui_helpers.dart` (copied
+/// from the genkit_a2ui README) read messages off each chunk and turn surface
+/// actions into the next turn's input.
 library;
 
 import 'package:a2ui_core/a2ui_core.dart' as core;

@@ -25,6 +25,7 @@ workspace:
   - packages/genkit_middleware
   - packages/genkit_a2ui
   - testapps/agents
+  - testapps/a2ui/server
   - testapps/agentic_patterns
   - testapps/ai_features
   - testapps/basic
@@ -112,7 +113,7 @@ melos:
     build-gen-testapps:
       run: melos exec -- "dart run build_runner build"
       packageFilters:
-        scope: "{agentic_patterns,ai_features,anthropic_sample,basic_sample,gemini_testapp,mcp_sample,openai_sample,schemantic_sample}"
+        scope: "{a2ui_server,agentic_patterns,ai_features,anthropic_sample,basic_sample,gemini_testapp,mcp_sample,openai_sample,schemantic_sample}"
       description: Run build_runner for testapps (except Flutter ones).
 
     dartdoc-check:

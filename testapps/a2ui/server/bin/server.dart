@@ -17,17 +17,15 @@
 ///
 /// The agent is mounted at `/api/uiAgent` (the turn action), plus
 /// `/api/uiAgent/getSnapshot` and `/api/uiAgent/abort`. The Flutter client
-/// (`lib/main.dart`) talks to it with `remoteAgent` from
-/// `package:genkit/client.dart`.
+/// (`../client`) talks to it with `remoteAgent` from
+/// `package:genkit/experimental_client.dart`.
 ///
 /// Run with: `GEMINI_API_KEY=... dart run bin/server.dart`
 library;
 
-// ignore_for_file: avoid_print
-
 import 'dart:io';
 
-import 'package:a2ui_sample/agent.dart';
+import 'package:a2ui_server/agent.dart';
 import 'package:genkit/experimental_io.dart';
 import 'package:genkit/io.dart';
 
@@ -49,5 +47,5 @@ void main() async {
   );
   print('\nA2UI sample API server on http://localhost:${server.port}');
   print('   uiAgent mounted at /api/uiAgent');
-  print('   Run the Flutter client: flutter run -d chrome\n');
+  print('   Run the Flutter client: cd ../client && flutter run -d chrome\n');
 }
