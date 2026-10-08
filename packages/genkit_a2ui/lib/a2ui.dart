@@ -37,8 +37,7 @@ export 'src/catalog.dart'
         basicCatalog,
         basicIconNames,
         defaultCatalogId,
-        renderCatalogInstructions,
-        surfaceIdPlaceholder;
+        renderCatalogInstructions;
 export 'src/loader.dart' show loadCatalog, resolveCatalog;
 export 'src/parser.dart'
     show
@@ -47,7 +46,13 @@ export 'src/parser.dart'
         EnvelopeSegment,
         ParseResult,
         ParseSegment,
-        ProseSegment;
+        ProseSegment,
+        liveSurfaceIds;
 export 'src/part.dart' show a2uiEnvelopesFromParts, a2uiPart, isA2uiPart;
 export 'src/types.dart'
-    show A2uiEnvelope, a2uiMimeType, a2uiVersion, basicCatalogId;
+    show
+        A2uiEnvelope,
+        a2uiExpressMetadataKey,
+        a2uiMimeType,
+        a2uiVersion,
+        basicCatalogId;

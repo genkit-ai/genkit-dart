@@ -27,6 +27,7 @@ library;
 
 import 'basic_functions.dart';
 import 'catalog_types.dart';
+import 'express.dart';
 import 'types.dart';
 
 // The catalog types live in `catalog_types.dart` (they mirror the spec's
@@ -47,9 +48,6 @@ const String a2uiCatalogValueType = 'a2ui-catalog';
 /// The default catalog id used by the `a2ui()` middleware when none is given.
 /// Resolves to the bundled [basicCatalog].
 const String defaultCatalogId = 'basic';
-
-/// The literal placeholder the model is told to use for surface ids.
-const String surfaceIdPlaceholder = 'SURFACE_ID';
 
 /// The set of icon names the basic catalog's `Icon` component supports. Names
 /// outside this list render as literal text (the renderer degrades gracefully),
@@ -399,7 +397,7 @@ final A2uiCatalog basicCatalog = A2uiCatalog(
 
 /// Builds the "make it look good" styling tips, scoped to the components the
 /// catalog actually provides so a custom catalog is never told to emit
-/// components it lacks (which would then fail `validate: 'strict'`).
+/// components it lacks (which would then fail validation).
 String _renderStyleTips(Set<String> has) {
   final tips = <String>[];
   final containers = ['Card', 'Column', 'Row'].where(has.contains).toList();
@@ -411,9 +409,9 @@ String _renderStyleTips(Set<String> has) {
   }
   if (has.contains('Text')) {
     tips.add(
-      '- Give titles a heading `variant` (e.g. h2/h3) and secondary text the '
-      '`caption` variant instead of embedding "#"/"##" heading markers in '
-      'the text.',
+      '- Give titles a heading variant (e.g. h2/h3) and secondary text the '
+      'caption variant instead of embedding "#"/"##" heading markers in the '
+      'text.',
     );
   }
   final accents = ['Icon', 'Divider', 'Image'].where(has.contains).toList();
@@ -424,107 +422,57 @@ String _renderStyleTips(Set<String> has) {
     );
   }
   if (has.contains('Button')) {
-    tips.add('- Give primary buttons `variant: "primary"`.');
+    tips.add('- Give primary buttons the "primary" variant.');
   }
   return tips.isNotEmpty
-      ? '\n\nMake it look good, not bland:\n${tips.join('\n')}'
+      ? '\n\n## Style\n\nMake it look good, not bland:\n${tips.join('\n')}'
       : '';
 }
 
-/// Builds a worked example. Uses a rich Card/Column/Text layout when the catalog
-/// supports it (the common case, e.g. the basic catalog); otherwise falls back
-/// to a minimal example built only from components the catalog provides, so the
-/// example never references unknown components.
+/// Builds a worked example. Uses a weather card when the catalog has the
+/// components for it (the common case, e.g. the basic catalog); otherwise
+/// falls back to a minimal example built only from components the catalog
+/// provides, so the example never references unknown components.
 String _renderExample(A2uiCatalog catalog, Set<String> has) {
-  if (has.contains('Card') && has.contains('Column') && has.contains('Text')) {
-    return '''
+  if (has.containsAll(['Card', 'Column', 'Text', 'Button'])) {
+    // The Button shows the label as its own component: `child` is a component
+    // id slot, the easiest thing to get wrong.
+    return r'''
 
 
-Example (a small weather card):
-```a2ui
-[
-  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${catalog.id}" } },
-  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-    { "id": "root", "component": "Card", "child": "body" },
-    { "id": "body", "component": "Column", "children": ["title", "temp"] },
-    { "id": "title", "component": "Text", "text": "Weather in Tokyo", "variant": "h3" },
-    { "id": "temp", "component": "Text", "text": { "path": "/temp" } }
-  ] } },
-  { "updateDataModel": { "surfaceId": "SURFACE_ID", "path": "/temp", "value": "18\u00b0C" } }
-]
-```''';
+## Example
+
+A weather card:
+<a2ui>
+surface("tokyo-weather")
+$/temp = "18°C"
+root = Card(Column([title, temp, refresh]))
+title = Text("Weather in Tokyo", "h3")
+temp = Text($/temp)
+refresh = Button(Text("Refresh"), "primary", Event("refresh", {city: "Tokyo"}))
+</a2ui>''';
   }
-  // Minimal fallback: root uses whatever the catalog's first component is.
   final rootComponent = catalog.components.isNotEmpty
-      ? catalog.components.values.first.name
+      ? catalog.components.keys.first
       : 'Text';
   return '''
 
 
-Example (a minimal surface):
-```a2ui
-[
-  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${catalog.id}" } },
-  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-    { "id": "root", "component": "$rootComponent" }
-  ] } }
-]
-```''';
+## Example
+
+A minimal surface:
+<a2ui>
+surface("example")
+root = $rootComponent()
+</a2ui>''';
 }
 
-/// The component's schema `description`, as a trailing prompt fragment.
-String _describe(A2uiCatalogComponent c) {
-  final description = [c.schema, ...?(c.schema['allOf'] as List?)]
-      .whereType<Map>()
-      .map((s) => s['description'])
-      .whereType<String>()
-      .firstOrNull;
-  return description is String && description.isNotEmpty ? ' $description' : '';
-}
-
-/// The component's own property schemas, in declaration order. Published
-/// catalogs nest them in an `allOf` entry next to shared fragments.
-Map<String, dynamic> _ownProperties(A2uiCatalogComponent c) {
-  final own = <String, dynamic>{};
-  for (final sub in [c.schema, ...?(c.schema['allOf'] as List?)]) {
-    if (sub is Map && sub['properties'] is Map) {
-      own.addAll((sub['properties'] as Map).cast<String, dynamic>());
-    }
-  }
-  return own..remove('component');
-}
-
-/// Renders the props as `name, other?` (optional ones suffixed with `?`), plus
-/// the allowed values of any enum-constrained prop, so the model is told which
-/// literals are valid (notably the long `Icon.name` allow-list).
-String _propDocs(A2uiCatalogComponent c) {
-  final props = _ownProperties(c);
-  final required = <Object?>{
-    for (final sub in [c.schema, ...?(c.schema['allOf'] as List?)])
-      if (sub is Map) ...?(sub['required'] as List?),
-  };
-  final names = props.keys.map((n) => required.contains(n) ? n : '$n?');
-  final enums = <String>[];
-  props.forEach((name, schema) {
-    final values = schema is Map ? schema['enum'] : null;
-    if (values is List && values.isNotEmpty) {
-      enums.add('\n    $name: one of ${values.join(', ')}.');
-    }
-  });
-  return '(${names.join(', ')})${enums.join()}';
-}
-
-/// Renders a catalog into model-facing instructions describing the A2UI protocol
-/// and the available components. Injected into the system prompt by the
-/// middleware when `instructions != 'none'`.
+/// Renders a catalog into model-facing instructions: when and how to render
+/// UI, then the A2UI Express contract and the catalog's signatures (from
+/// `a2ui_agent`). Injected into the system prompt by the middleware when
+/// `instructions != 'none'`.
 String renderCatalogInstructions(A2uiCatalog catalog) {
-  final componentDocs = catalog.components.values
-      .map((c) => '- ${c.name}${_propDocs(c)}${_describe(c)}')
-      .join('\n');
-
   final has = catalog.components.keys.toSet();
-  final styleSection = _renderStyleTips(has);
-  final exampleSection = _renderExample(catalog, has);
 
   // Forms guidance only applies if the catalog has input components.
   final inputs = [
@@ -532,56 +480,41 @@ String renderCatalogInstructions(A2uiCatalog catalog) {
     'CheckBox',
     'Slider',
   ].where(has.contains).toList();
-  final inputList = inputs.join(', ');
   final formsSection = inputs.isNotEmpty
       ? '''
 
-- Forms: input components ($inputList) do NOT send their values automatically.
-  To capture what the user entered you MUST do BOTH of these:
-  1. Bind each input's `value` to a data-model path, e.g.
-     `{ "component": "TextField", "label": "Email", "value": { "path": "/email" } }`.
-     Typing updates the data model at that path.
-  2. On the submit `Button`, echo those same paths in
-     `action.event.context` so their current values are sent back to you, e.g.
-     `"context": { "email": { "path": "/email" }, "name": { "path": "/name" } }`.
-  Without the `{ path }` bindings and the button `context`, the action arrives
-  with an empty `context` and the entered values are lost.'''
+
+## Forms
+
+Input components (${inputs.join(', ')}) do NOT send their values
+automatically. To capture what the user entered you MUST do BOTH:
+1. Bind each input's value to a data-model path, e.g.
+   `email = TextField("Email", \$/email)`. Typing updates the data model.
+2. On the submit Button, echo those same paths in the Event context, e.g.
+   `Event("submit", {email: \$/email})`.
+Without both, the action arrives with an empty context and the entered values
+are lost.'''
       : '';
 
   return '''# Rendering UI with A2UI
 
-You can render rich, interactive UI (not just text) by emitting an A2UI surface.
-When a result is better *shown* than *told* (weather, lists, forms, comparisons,
-confirmations, anything visual or interactive), render a UI surface.
+You can render rich, interactive UI (not just text) by emitting an A2UI
+surface. When a result is better *shown* than *told* (weather, lists, forms,
+comparisons, confirmations, anything visual or interactive), render a surface.
+You may still write normal prose before or after it.
 
-To render UI, output a single fenced code block tagged `a2ui` containing a JSON
-array of A2UI envelope messages. You may still write normal prose before it.
+## Surfaces
 
-Rules:
-- The UI is an ADJACENCY LIST: a flat array of components. Build the tree using
-  string `id` references, NOT nested objects. Exactly one component MUST have
-  `id: "root"`.
-- Every component has a `component` (type name) and an `id`. Container
-  components reference their children by id via a `children` array; single-child
-  wrappers reference one `child` id.
-- Values can be literals, or a data-model binding `{ "path": "/somePath" }`.
-- Use `createSurface` first (with `catalogId`), then `updateComponents` to add
-  the component list, then optionally `updateDataModel` to set data. You may
-  combine them in one array, in order.
-- Interactive components fire an `action` with an event `name`; that name is
-  sent back to you when the user interacts, so choose meaningful names.$formsSection
-- When a user interacts with a surface (e.g. presses a button) and you respond
-  with updated UI, RE-RENDER THE WHOLE SURFACE: start again with
-  `createSurface` followed by `updateComponents`. Do not emit a bare
-  `updateDataModel`/`updateComponents` expecting a previous surface to still
-  exist.$styleSection
+- Start every <a2ui> block with surface("<id>"). For a new surface, choose a
+  new, short, descriptive id (e.g. "tokyo-weather").
+- To change a surface you already rendered (e.g. after the user presses one of
+  its buttons), reuse its id and render it again in full, with a `root`. It
+  replaces the old one. Never emit a fragment expecting the old surface's
+  components to still exist.
+- User actions arrive as lines like
+  `[UI action "refresh" on surface tokyo-weather context={"city":"Tokyo"}]`.$formsSection${_renderStyleTips(has)}${_renderExample(catalog, has)}
 
-The catalogId to use is:
-"${catalog.id}"
+${ExpressEngine.of(catalog).promptSnippet}
 
-Available components:
-$componentDocs$exampleSection
-
-Do not explain the JSON; just render the block. Use "SURFACE_ID" literally as a
-placeholder for the surface id - the system replaces it with a real id.''';
+Do not explain the Express code; just emit the block.''';
 }

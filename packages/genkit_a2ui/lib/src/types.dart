@@ -26,6 +26,14 @@ library;
 /// matching the A2A binding of the A2UI spec exactly.
 const String a2uiMimeType = 'application/a2ui+json';
 
+/// The a2ui part `metadata` key holding the A2UI Express source a part's
+/// messages were compiled from.
+///
+/// The middleware replays this source verbatim when the part comes back as
+/// history, so the model sees exactly what it wrote. Clients that manage
+/// history themselves must send parts back with their metadata intact.
+const String a2uiExpressMetadataKey = 'a2uiExpress';
+
 /// The default A2UI protocol version stamped on emitted envelopes.
 const String a2uiVersion = 'v0.9';
 
