@@ -12,14 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// Helpers for working with the canonical "a2ui part" - a Genkit `data` part
-/// whose `data` is an object `{ envelopes }` wrapping an array of A2UI
-/// envelopes, tagged with [a2uiMimeType].
+/// Helpers for working with the canonical "a2ui part": a Genkit `data` part
+/// tagged with [a2uiMimeType] whose `data` is `{"messages": [...]}`.
 ///
-/// These helpers operate on plain Genkit [Part]s, so they are safe to use on
-/// both the server and the client (including Flutter). To pull envelopes off an
-/// agent stream, pass the chunk's parts:
-/// `a2uiEnvelopesFromParts(chunk.raw.modelChunk?.content)`.
+/// The A2UI extension spec puts the message list directly in `data`, but a
+/// Genkit `DataPart.data` must be an object, so the list is wrapped in the
+/// spec's `{messages: [...]}` payload wrapper (which a2ui_core's
+/// `AgentToRendererMessagePayload.fromJson` reads as-is).
 library;
 
 import 'package:genkit/plugin.dart';
@@ -29,15 +28,17 @@ import 'types.dart';
 /// Builds an a2ui data part wrapping the given [envelopes].
 DataPart a2uiPart(List<A2uiEnvelope> envelopes) {
   return DataPart(
-    data: {'envelopes': envelopes},
+    data: {'messages': envelopes},
     metadata: {'mimeType': a2uiMimeType},
   );
 }
 
-/// Reads the `envelopes` array out of an a2ui data part's `data`, or `null` if
-/// the value is not a well-formed a2ui data part.
+/// Reads the message list out of an a2ui data part's `data`, or `null` if the
+/// value is not a well-formed a2ui data part.
 List<A2uiEnvelope>? _envelopesOf(Map<String, dynamic>? data) {
-  final envelopes = data?['envelopes'];
+  // `envelopes` is the pre-spec key. Still read so persisted sessions written
+  // before the rename replay instead of silently losing their surfaces.
+  final envelopes = data?['messages'] ?? data?['envelopes'];
   if (envelopes is! List) return null;
   return envelopes
       .whereType<Map>()
@@ -54,13 +55,11 @@ bool isA2uiPart(Part part) {
 
 /// Extracts all A2UI envelopes carried by the given [parts].
 ///
-/// This is the single entry point for reading envelopes off any part-carrying
-/// value: pass a message's, chunk's, or response's `content`. For example, to
-/// consume an agent stream:
+/// Pass a message's, chunk's, or response's `content`:
 ///
 /// ```dart
-/// await for (final chunk in turn.stream) {
-///   final envelopes = a2uiEnvelopesFromParts(chunk.raw.modelChunk?.content);
+/// await for (final chunk in ai.generateStream(..., use: [a2ui()])) {
+///   final envelopes = a2uiEnvelopesFromParts(chunk.content);
 /// }
 /// ```
 ///

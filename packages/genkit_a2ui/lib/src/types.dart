@@ -14,10 +14,7 @@
 
 /// Shared A2UI protocol types and constants.
 ///
-/// This module is intentionally free of any server-only dependencies so it can
-/// be imported both on the server (the `a2ui()` middleware) and on the client
-/// (the transport helpers, including Flutter). It mirrors the wire shapes of the
-/// A2UI v0.9 specification.
+/// Mirrors the wire shapes of the A2UI v0.9 specification.
 ///
 /// Envelopes are represented as plain `Map<String, dynamic>` values (their raw
 /// JSON shape), since they are open-ended and pass straight through to the
@@ -59,51 +56,3 @@ typedef A2uiEnvelope = Map<String, dynamic>;
 /// (e.g. `text`, `children`, `child`, `action`), so this is intentionally
 /// open-ended.
 typedef A2uiComponent = Map<String, dynamic>;
-
-/// A client -> server user action reported by a rendered surface (e.g. a button
-/// press). Sent back to the agent as the next turn's input.
-class A2uiClientAction {
-  /// The event name declared by the interactive component's `action`.
-  final String name;
-
-  /// The id of the surface the action originated from.
-  final String surfaceId;
-
-  /// The id of the component that fired the action.
-  final String sourceComponentId;
-
-  /// An ISO-8601 timestamp of when the action fired.
-  final String timestamp;
-
-  /// The action's context payload (e.g. resolved data-model bindings).
-  final Map<String, dynamic> context;
-
-  /// Creates an [A2uiClientAction].
-  const A2uiClientAction({
-    required this.name,
-    required this.surfaceId,
-    required this.sourceComponentId,
-    required this.timestamp,
-    this.context = const {},
-  });
-
-  /// Builds an [A2uiClientAction] from its raw JSON shape.
-  factory A2uiClientAction.fromJson(Map<String, dynamic> json) {
-    return A2uiClientAction(
-      name: (json['name'] as String?) ?? '',
-      surfaceId: (json['surfaceId'] as String?) ?? '',
-      sourceComponentId: (json['sourceComponentId'] as String?) ?? '',
-      timestamp: (json['timestamp'] as String?) ?? '',
-      context: (json['context'] as Map?)?.cast<String, dynamic>() ?? const {},
-    );
-  }
-
-  /// Serializes this action to its raw JSON shape.
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'surfaceId': surfaceId,
-    'sourceComponentId': sourceComponentId,
-    'timestamp': timestamp,
-    'context': context,
-  };
-}
