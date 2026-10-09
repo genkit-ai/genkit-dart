@@ -513,7 +513,14 @@ List<gcl.Tool> toGeminiTools(
   GeminiGoogleSearch? googleSearch,
 }) {
   return [
-    ...(tools?.map(_toGeminiTool) ?? []),
+    // All function declarations go into a single Tool. Vertex AI rejects
+    // multiple function-declaration Tools on Gemini 2.5 ("Multiple tools are
+    // supported only when they are all search tools"); the merged shape is
+    // accepted everywhere.
+    if (tools != null && tools.isNotEmpty)
+      gcl.Tool(
+        functionDeclarations: tools.map(_toGeminiFunctionDeclaration).toList(),
+      ),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
     if (googleSearch != null) gcl.Tool(googleSearch: gcl.GoogleSearch()),
   ];
@@ -757,15 +764,11 @@ String _toGeminiToolName(String name) => name.replaceAll('/', '__');
 
 String _fromGeminiToolName(String name) => name.replaceAll('__', '/');
 
-gcl.Tool _toGeminiTool(ToolDefinition tool) {
-  return gcl.Tool(
-    functionDeclarations: [
-      gcl.FunctionDeclaration(
-        name: _toGeminiToolName(tool.name),
-        description: tool.description,
-        parametersJsonSchema: tool.inputSchema,
-      ),
-    ],
+gcl.FunctionDeclaration _toGeminiFunctionDeclaration(ToolDefinition tool) {
+  return gcl.FunctionDeclaration(
+    name: _toGeminiToolName(tool.name),
+    description: tool.description,
+    parametersJsonSchema: tool.inputSchema,
   );
 }
 
