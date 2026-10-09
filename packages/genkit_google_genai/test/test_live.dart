@@ -256,6 +256,33 @@ void main() {
         expect(response.text.replaceAll(',', ''), contains('56088'));
       });
 
+      // All function declarations are sent in a single Tool entry (#637).
+      test('should use multiple tools', () async {
+        final multiply = ai.defineTool(
+          name: 'multiply',
+          description: 'Multiplies two numbers',
+          inputSchema: CalculatorInput.$schema,
+          outputSchema: .integer(),
+          fn: (CalculatorInput input, _) async => .response(input.a * input.b),
+        );
+        final add = ai.defineTool(
+          name: 'add',
+          description: 'Adds two numbers',
+          inputSchema: CalculatorInput.$schema,
+          outputSchema: .integer(),
+          fn: (CalculatorInput input, _) async => .response(input.a + input.b),
+        );
+
+        final response = await ai.generate(
+          model: config.model(config.modelName),
+          prompt: 'What is 123 * 456? Use the tools.',
+          tools: [multiply, add],
+        );
+
+        expect(response.finishReason, FinishReason.stop);
+        expect(response.text.replaceAll(',', ''), contains('56088'));
+      });
+
       test('should honour a system message', () async {
         final response = await ai.generate(
           model: config.model(config.modelName),
