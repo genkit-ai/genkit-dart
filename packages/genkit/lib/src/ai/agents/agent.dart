@@ -980,12 +980,7 @@ _resolveSession<State>(
     return (
       snapshot: null,
       session: Session(
-        SessionState(
-          custom: <String, dynamic>{},
-          artifacts: [],
-          messages: [],
-          sessionId: init.sessionId,
-        ),
+        SessionState(artifacts: [], messages: [], sessionId: init.sessionId),
         stateSchema: stateSchema,
       ),
     );
@@ -1002,7 +997,7 @@ _resolveSession<State>(
   return (
     snapshot: null,
     session: Session(
-      SessionState(custom: <String, dynamic>{}, artifacts: [], messages: []),
+      SessionState(artifacts: [], messages: []),
       stateSchema: stateSchema,
     ),
   );

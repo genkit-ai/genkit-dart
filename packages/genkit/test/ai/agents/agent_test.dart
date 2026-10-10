@@ -17,6 +17,7 @@ import 'dart:convert';
 
 import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 /// Registers a simple echo model that replies with a fixed/templated message.
@@ -1288,6 +1289,54 @@ void main() {
       expect(ai.currentSession(), isNull);
       await agent.chat().send(text: 'hi');
       expect(seen, isNotNull);
+    });
+  });
+
+  group('fresh session custom state', () {
+    late Genkit ai;
+
+    setUp(() => ai = Genkit(isDevEnv: false));
+    tearDown(() => ai.shutdown());
+
+    test('updateCustom mutator receives null, not a parsed {}', () async {
+      final counterSchema = SchemanticType.from<Map<String, int>>(
+        jsonSchema: {
+          'type': 'object',
+          'properties': {
+            'count': {'type': 'integer'},
+          },
+          'required': ['count'],
+        },
+        // Throws on `{}` like generated parsers do for missing required keys.
+        parse: (j) => {'count': (j as Map)['count'] as int},
+        serialize: (c) => c,
+      );
+      Object? seen = 'unset';
+      final agent = ai.defineCustomAgent<Map<String, int>>(
+        name: 'counter',
+        stateSchema: counterSchema,
+        store: InMemorySessionStore(),
+        fn: (sess, options) async {
+          await sess.run((input, ctx) async {
+            sess.updateCustom((state) {
+              seen = state;
+              return {
+                'count': (state ?? {'count': 0})['count']! + 1,
+              };
+            });
+            return TurnResult(finishReason: AgentFinishReason.stop);
+          });
+          return AgentResult(
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'ok')],
+            ),
+          );
+        },
+      );
+
+      await agent.chat().send(text: 'hi');
+      expect(seen, isNull);
     });
   });
 }
