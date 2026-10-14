@@ -41,18 +41,25 @@ Check and Auth are read from the `FirebaseApp`.
 ```dart
 final firebasePlugin = firebaseAI(
   app: Firebase.app('my-app'),
-  provider: FirebaseAiProvider.geminiEnterprise(location: 'us-central1'),
+  provider: FirebaseAiProvider.agentPlatform(location: 'us-central1'),
   useLimitedUseAppCheckTokens: true,
 );
 
 final ai = Genkit(plugins: [firebasePlugin]);
 ```
 
-Migrating from earlier versions: `FirebaseAiProvider.vertexAI` is now
-`FirebaseAiProvider.geminiEnterprise`. The `appCheck` and `auth` parameters of
-`firebaseAI` are removed; configure App Check and Auth on the `FirebaseApp`
-instead. `FirebaseAiProvider.geminiEnterprise` defaults `location` to `global`,
-not `us-central1`.
+Migrating from earlier versions:
+
+- `FirebaseAiProvider.vertexAI` is now `FirebaseAiProvider.agentPlatform`. It
+  defaults `location` to `global`, not `us-central1`.
+- The `appCheck` and `auth` parameters of `firebaseAI` are removed. The
+  Firebase AI SDK reads App Check and Auth from the `FirebaseApp` only when it
+  first builds its `FirebaseAI` instance, and it caches that instance per app
+  (and per location for `agentPlatform`). It only finds services registered
+  with `FirebaseAppCheck.instanceFor(app:)` and `FirebaseAuth.instanceFor(app:)`
+  (or `.instance` for the default app). So set up App Check and Auth for that
+  app before the first model call. Instances created for a different app than
+  `app:` are no longer used.
 
 To route requests through your own `http.Client` (a proxy, logging, retries,
 or a mock in tests), pass `httpClient`. Live models connect over a WebSocket

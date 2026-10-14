@@ -121,21 +121,18 @@ sealed class FirebaseAiProvider {
   /// The Agent Platform Gemini API (formerly Vertex AI) in [location].
   ///
   /// When [location] is omitted the Firebase AI SDK default, `global`, is used.
-  ///
-  /// This currently calls the SDK's `FirebaseAI.agentPlatform` and will follow
-  /// the SDK rename to `FirebaseAI.geminiEnterprise` when it ships.
-  const factory FirebaseAiProvider.geminiEnterprise({String? location}) =
-      _GeminiEnterpriseProvider;
+  const factory FirebaseAiProvider.agentPlatform({String? location}) =
+      _AgentPlatformProvider;
 }
 
 class _GoogleAIProvider extends FirebaseAiProvider {
   const _GoogleAIProvider();
 }
 
-class _GeminiEnterpriseProvider extends FirebaseAiProvider {
+class _AgentPlatformProvider extends FirebaseAiProvider {
   final String? location;
 
-  const _GeminiEnterpriseProvider({this.location});
+  const _AgentPlatformProvider({this.location});
 }
 
 const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
@@ -192,12 +189,11 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
   fai.FirebaseAI get _firebaseAI {
     return switch (provider) {
-      _GeminiEnterpriseProvider(:final location) =>
-        fai.FirebaseAI.agentPlatform(
-          app: app,
-          location: location,
-          useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
-        ),
+      _AgentPlatformProvider(:final location) => fai.FirebaseAI.agentPlatform(
+        app: app,
+        location: location,
+        useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
+      ),
       _GoogleAIProvider() => fai.FirebaseAI.googleAI(
         app: app,
         useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
