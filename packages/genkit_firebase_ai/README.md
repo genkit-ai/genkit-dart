@@ -41,17 +41,22 @@ Check and Auth are read from the `FirebaseApp`.
 ```dart
 final firebasePlugin = firebaseAI(
   app: Firebase.app('my-app'),
-  provider: FirebaseAiProvider.agentPlatform(location: 'us-central1'),
+  provider: FirebaseAiProvider.agentPlatform(),
   useLimitedUseAppCheckTokens: true,
 );
 
 final ai = Genkit(plugins: [firebasePlugin]);
 ```
 
+Set `location` (for example `'us-central1'`) for Live 2.5 models, which are
+not available on the default `global` location, or for data residency.
+
 Migrating from earlier versions:
 
 - `FirebaseAiProvider.vertexAI` is now `FirebaseAiProvider.agentPlatform`. It
-  defaults `location` to `global`, not `us-central1`.
+  defaults `location` to `global`, not `us-central1`. If your app relies on the
+  old `us-central1` default (for Live 2.5 models, which are not available on
+  `global`, or for data residency), pass `location: 'us-central1'` explicitly.
 - The `appCheck` and `auth` parameters of `firebaseAI` are removed. The
   Firebase AI SDK reads App Check and Auth from the `FirebaseApp` only when it
   first builds its `FirebaseAI` instance, and it caches that instance per app
