@@ -29,6 +29,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
 // TODO(#366): consolidate with the shared wire harness once it lands.
 
@@ -39,7 +40,7 @@ class CapturedRequest {
   /// The full request URL, including any `alt=sse` query parameter.
   final Uri url;
 
-  /// The request headers as sent.
+  /// The request headers as sent, with case-insensitive keys.
   final Map<String, String> headers;
 
   /// The decoded JSON request body.
@@ -49,8 +50,8 @@ class CapturedRequest {
   bool get isStreaming => url.path.endsWith(':streamGenerateContent');
 }
 
-/// A fake `http.Client` that records every request and serves canned
-/// `GenerateContentResponse` JSON.
+/// An `http.Client`, backed by [MockClient.streaming], that records every
+/// request and serves canned `GenerateContentResponse` JSON.
 ///
 /// Non-streaming requests get [response]. Streaming requests get each entry
 /// of [streamChunks] as one SSE `data:` line, unless [statusCode] is not 200,
@@ -75,13 +76,28 @@ class WireClient extends http.BaseClient {
   /// Requests seen so far, oldest first.
   final List<CapturedRequest> requests = [];
 
+  /// Whether [close] has been called.
+  bool get closed => _closed;
+  bool _closed = false;
+
+  late final _mock = MockClient.streaming(_serve);
+
   @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    final bytes = await request.finalize().toBytes();
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _mock.send(request);
+
+  @override
+  void close() => _closed = true;
+
+  Future<http.StreamedResponse> _serve(
+    http.BaseRequest request,
+    http.ByteStream bodyStream,
+  ) async {
     final captured = CapturedRequest(
       request.url,
-      Map.of(request.headers),
-      (jsonDecode(utf8.decode(bytes)) as Map).cast<String, dynamic>(),
+      request.headers,
+      (jsonDecode(await bodyStream.bytesToString()) as Map)
+          .cast<String, dynamic>(),
     );
     requests.add(captured);
 
