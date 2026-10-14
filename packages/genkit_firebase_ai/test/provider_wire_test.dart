@@ -24,12 +24,12 @@ void main() {
   String projectPath() =>
       '/v1beta/projects/${Firebase.app().options.projectId}';
 
-  test('geminiEnterprise targets the Agent Platform endpoint in the given '
+  test('agentPlatform targets the Agent Platform endpoint in the given '
       'location', () async {
     final client = WireClient();
     final model = wireModel(
       client,
-      provider: const FirebaseAiProvider.geminiEnterprise(
+      provider: const FirebaseAiProvider.agentPlatform(
         location: 'europe-west1',
       ),
     );
@@ -44,11 +44,11 @@ void main() {
     );
   });
 
-  test('geminiEnterprise without a location uses global', () async {
+  test('agentPlatform without a location uses global', () async {
     final client = WireClient();
     final model = wireModel(
       client,
-      provider: const FirebaseAiProvider.geminiEnterprise(),
+      provider: const FirebaseAiProvider.agentPlatform(),
     );
 
     await model(userRequest('hello'));
