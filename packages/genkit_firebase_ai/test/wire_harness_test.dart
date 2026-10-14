@@ -63,5 +63,16 @@ void main() {
     expect(request.url.queryParameters['alt'], 'sse');
     expect(chunks.map((c) => c.text), ['Hello, ', 'world']);
     expect(response.message?.text, 'Hello, world');
+    expect(response.finishReason, FinishReason.stop);
+  });
+
+  test('captured headers are looked up case-insensitively', () async {
+    final client = WireClient();
+
+    await wireModel(client)(userRequest('hello'));
+
+    final headers = client.requests.single.headers;
+    expect(headers['content-type'], 'application/json');
+    expect(headers['Content-Type'], 'application/json');
   });
 }
