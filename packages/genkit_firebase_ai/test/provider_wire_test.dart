@@ -24,53 +24,64 @@ void main() {
   String projectPath() =>
       '/v1beta/projects/${Firebase.app().options.projectId}';
 
-  test('agentPlatform targets the Agent Platform endpoint in the given '
-      'location', () async {
-    final client = WireClient();
-    final model = wireModel(
-      client,
-      provider: const FirebaseAiProvider.agentPlatform(
-        location: 'europe-west1',
-      ),
-    );
+  group('provider endpoint', () {
+    test('agentPlatform targets the Agent Platform endpoint in the given '
+        'location', () async {
+      final client = WireClient();
+      final model = wireModel(
+        client,
+        provider: const FirebaseAiProvider.agentPlatform(
+          location: 'europe-west1',
+        ),
+      );
 
-    await model(userRequest('hello'));
+      await model(userRequest('hello'));
 
-    expect(client.requests.single.url.host, 'firebasevertexai.googleapis.com');
-    expect(
-      client.requests.single.url.path,
-      '${projectPath()}/locations/europe-west1/publishers/google'
-      '/models/gemini-2.5-flash:generateContent',
-    );
-  });
+      expect(
+        client.requests.single.url.host,
+        'firebasevertexai.googleapis.com',
+      );
+      expect(
+        client.requests.single.url.path,
+        '${projectPath()}/locations/europe-west1/publishers/google'
+        '/models/gemini-2.5-flash:generateContent',
+      );
+    });
 
-  test('agentPlatform without a location uses global', () async {
-    final client = WireClient();
-    final model = wireModel(
-      client,
-      provider: const FirebaseAiProvider.agentPlatform(),
-    );
+    test('agentPlatform without a location uses global', () async {
+      final client = WireClient();
+      final model = wireModel(
+        client,
+        provider: const FirebaseAiProvider.agentPlatform(),
+      );
 
-    await model(userRequest('hello'));
+      await model(userRequest('hello'));
 
-    expect(client.requests.single.url.host, 'firebasevertexai.googleapis.com');
-    expect(
-      client.requests.single.url.path,
-      '${projectPath()}/locations/global/publishers/google'
-      '/models/gemini-2.5-flash:generateContent',
-    );
-  });
+      expect(
+        client.requests.single.url.host,
+        'firebasevertexai.googleapis.com',
+      );
+      expect(
+        client.requests.single.url.path,
+        '${projectPath()}/locations/global/publishers/google'
+        '/models/gemini-2.5-flash:generateContent',
+      );
+    });
 
-  test('googleAI targets the Gemini Developer API endpoint', () async {
-    final client = WireClient();
-    final model = wireModel(client);
+    test('googleAI targets the Gemini Developer API endpoint', () async {
+      final client = WireClient();
+      final model = wireModel(client);
 
-    await model(userRequest('hello'));
+      await model(userRequest('hello'));
 
-    expect(client.requests.single.url.host, 'firebasevertexai.googleapis.com');
-    expect(
-      client.requests.single.url.path,
-      '${projectPath()}/models/gemini-2.5-flash:generateContent',
-    );
+      expect(
+        client.requests.single.url.host,
+        'firebasevertexai.googleapis.com',
+      );
+      expect(
+        client.requests.single.url.path,
+        '${projectPath()}/models/gemini-2.5-flash:generateContent',
+      );
+    });
   });
 }
