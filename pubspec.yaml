@@ -43,6 +43,8 @@ workspace:
 dev_dependencies:
   analyzer: ^13.0.0
   args: ^2.7.0
+  # Temporary: build 4.1.0 needs build_runner 2.17, which Dart 3.12 cannot resolve.
+  build: '>=4.0.4 <4.1.0'
   dart_flutter_team_lints: ^3.0.0
   glob: ^2.1.3
   melos: ^8.7.0

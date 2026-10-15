@@ -1,15 +1,4 @@
-## 0.3.0-rc.3
-
-### Other Changes
-
- - temporarily pin analyzer below 14.5.0 (#625)
-
-
-## 0.3.0-rc.2
-
- - updated internal dependencies.
-
-## 0.3.0-rc.1
+## 0.3.0
 
 ### Breaking Changes
 
@@ -26,6 +15,7 @@
 
 ### Other Changes
 
+ - temporarily pin analyzer below 14.5.0 (#625)
  - add Genkit Dart agent skill install instructions to READMEs (#521)
  - add example/ programs to genkit_chrome, genkit_firebase_ai, genkit_google_cloud (#505)
 

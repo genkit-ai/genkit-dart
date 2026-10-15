@@ -1,28 +1,10 @@
-## 1.0.0-rc.3
+## 1.0.0
 
 ### Breaking Changes
 
  - take prompt call options as named parameters (#622)
-
-
-## 1.0.0-rc.2
-
-### Breaking Changes
-
  - add ai.defineGenerateMiddleware; rename top-level defineMiddleware to generateMiddleware (#571)
  - upgrade to dotprompt 2.0 for spec-compliant Picoschema (#573)
-
-### Fixes
-
- - keep the server error status and message in the remote client (#568)
- - resolve defineSchema names in .prompt files at render time (#570)
- - keep detached agent turns running after a remote detach (#567)
-
-
-## 1.0.0-rc.1
-
-### Breaking Changes
-
  - introduce GenkitRouter and update shelf adapter (#533)
  - rename GenkitException.underlyingException to cause; drop statusCode (#548)
  - add an Output type parameter to prompts; rename ExecutablePrompt to Prompt (#527)
@@ -69,6 +51,9 @@
 
 ### Fixes
 
+ - keep the server error status and message in the remote client (#568)
+ - resolve defineSchema names in .prompt files at render time (#570)
+ - keep detached agent turns running after a remote detach (#567)
  - report the real package version from the v1 reflection server (#506)
  - don't fail a generation when a partial chunk misses the output schema (#500)
  - reject reflection health checks for a different runtime id (#477)
