@@ -912,10 +912,12 @@ class OpenAIPlugin extends GenkitPlugin {
               options.responseFormat ?? speech.defaultSpeechResponseFormat;
           final resolvedModel = options.version ?? modelName;
 
-          final body = _SpeechRequestBody(
+          final body = sdk.SpeechRequest(
             model: resolvedModel,
             input: input,
-            voiceName: options.voice ?? speech.defaultSpeechVoice,
+            voice: sdk.AudioVoice.named(
+              options.voice ?? speech.defaultSpeechVoice,
+            ),
             instructions: options.instructions,
             responseFormat: options.responseFormat == null
                 ? null
@@ -1296,37 +1298,6 @@ final class _ResolvedClientConfig {
     required this.baseUrl,
     required this.headers,
   });
-}
-
-/// Request body for `/audio/speech`.
-///
-/// The SDK's [sdk.SpeechRequest] caps `voice` at six legacy values and has no
-/// `instructions` field, which is the whole point of `gpt-4o-mini-tts`.
-/// The SDK's speech resource only ever calls `toJson()` on the request, so
-/// overriding it here buys full API fidelity while keeping every call on the
-/// SDK's transport (auth, retries, error mapping).
-final class _SpeechRequestBody extends sdk.SpeechRequest {
-  _SpeechRequestBody({
-    required super.model,
-    required super.input,
-    required this.voiceName,
-    this.instructions,
-    super.responseFormat,
-    super.speed,
-  }) : super(voice: sdk.SpeechVoice.alloy); // Placeholder; replaced in toJson.
-
-  /// Free-form voice name, unconstrained by [sdk.SpeechVoice].
-  final String voiceName;
-
-  /// Tone and delivery guidance for `gpt-4o-mini-tts`.
-  final String? instructions;
-
-  @override
-  Map<String, dynamic> toJson() => {
-    ...super.toJson(),
-    'voice': voiceName,
-    if (instructions != null) 'instructions': instructions,
-  };
 }
 
 /// Maps the portable Genkit tool choice onto OpenAI's `tool_choice`. The
