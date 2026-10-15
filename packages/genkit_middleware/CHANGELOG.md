@@ -1,22 +1,8 @@
-## 1.0.0-rc.3
-
- - updated internal dependencies.
-
-## 1.0.0-rc.2
+## 1.0.0
 
 ### Breaking Changes
 
  - add ai.defineGenerateMiddleware; rename top-level defineMiddleware to generateMiddleware (#571)
-
-### Fixes
-
- - prevent filesystem sandbox escape through symlinks (#566)
-
-
-## 1.0.0-rc.1
-
-### Breaking Changes
-
  - type usage counts and indexes as int (#546)
  - rename GenerateResponseHelper to GenerateResult and drop redundant members (#534)
  - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
@@ -31,6 +17,7 @@
 
 ### Fixes
 
+ - prevent filesystem sandbox escape through symlinks (#566)
  - honor ToolApprovalPlugin(approvedTools:) when toolApproval() has no list (#538)
 
 ### Other Changes

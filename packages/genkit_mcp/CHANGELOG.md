@@ -1,12 +1,4 @@
-## 1.0.0-rc.3
-
- - updated internal dependencies.
-
-## 1.0.0-rc.2
-
- - updated internal dependencies.
-
-## 1.0.0-rc.1
+## 1.0.0
 
 ### Breaking Changes
 
