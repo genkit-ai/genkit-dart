@@ -156,7 +156,7 @@ Model wireModel(
   FirebaseAiProvider provider = const FirebaseAiProvider.googleAI(),
 }) {
   final plugin = firebaseAI(httpClient: client, provider: provider);
-  return plugin.resolve(.model, modelName)! as Model;
+  return plugin.resolve(.model, modelName) as Model;
 }
 
 /// A single user-turn [ModelRequest] with [text].
