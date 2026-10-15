@@ -113,19 +113,20 @@ abstract class $LiveGenerationConfig {
   double? get frequencyPenalty;
 }
 
+/// The Gemini API backend that the Firebase AI plugin calls.
 sealed class FirebaseAiProvider {
   const FirebaseAiProvider();
 
+  /// The Gemini Developer API.
   const factory FirebaseAiProvider.googleAI() = _GoogleAIProvider;
 
-  /// The Agent Platform Gemini API (formerly Vertex AI) in [location].
+  /// The Agent Platform Gemini API in [location].
   ///
   /// When [location] is omitted the Firebase AI SDK default, `global`, is used.
   /// Preview models are only available on `global`. Agent Platform Live models
   /// such as `gemini-live-2.5-flash-native-audio` are not available on
-  /// `global`, so apps that use them, or that relied on the old `us-central1`
-  /// default for data residency, must pass `location: 'us-central1'`
-  /// explicitly.
+  /// `global`, so apps that use them, or that need data residency, must pass a
+  /// regional location such as `'us-central1'`.
   const factory FirebaseAiProvider.agentPlatform({String? location}) =
       _AgentPlatformProvider;
 }
