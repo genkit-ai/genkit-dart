@@ -48,23 +48,27 @@ final firebasePlugin = firebaseAI(
 final ai = Genkit(plugins: [firebasePlugin]);
 ```
 
-Set `location` (for example `'us-central1'`) for Live 2.5 models, which are
-not available on the default `global` location, or for data residency.
+Set `location` (for example `'us-central1'`) for Agent Platform Live models
+such as `gemini-live-2.5-flash-native-audio`, which are not available on the
+default `global` location, or for data residency.
 
 Migrating from earlier versions:
 
 - `FirebaseAiProvider.vertexAI` is now `FirebaseAiProvider.agentPlatform`. It
   defaults `location` to `global`, not `us-central1`. If your app relies on the
-  old `us-central1` default (for Live 2.5 models, which are not available on
-  `global`, or for data residency), pass `location: 'us-central1'` explicitly.
+  old `us-central1` default (for Agent Platform Live models such as
+  `gemini-live-2.5-flash-native-audio`, which are not available on `global`,
+  or for data residency), pass `location: 'us-central1'` explicitly.
 - The `appCheck` and `auth` parameters of `firebaseAI` are removed. The
   Firebase AI SDK reads App Check and Auth from the `FirebaseApp` only when it
   first builds its `FirebaseAI` instance, and it caches that instance per app
   (and per location for `agentPlatform`). It only finds services registered
   with `FirebaseAppCheck.instanceFor(app:)` and `FirebaseAuth.instanceFor(app:)`
   (or `.instance` for the default app). So set up App Check and Auth for that
-  app before the first model call. Instances created for a different app than
-  `app:` are no longer used.
+  app before the first model call. For the same reason,
+  `useLimitedUseAppCheckTokens` has no effect if the app already created a
+  `FirebaseAI` instance for the same Firebase app and location. Instances
+  created for a different app than `app:` are no longer used.
 
 To route requests through your own `http.Client` (a proxy, logging, retries,
 or a mock in tests), pass `httpClient`. Live models connect over a WebSocket
