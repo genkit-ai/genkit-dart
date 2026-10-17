@@ -598,5 +598,42 @@ void main() {
         'resumed': {'approved': true, 'secret': 'abc'},
       });
     });
+
+    test(
+      'resume fails when last message is not a model tool request',
+      () async {
+        genkit.defineModel(
+          name: 'plainModel',
+          fn: (req, ctx) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'hi')],
+            ),
+          ),
+        );
+
+        final res = await genkit.generate(
+          model: modelRef('plainModel'),
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
+          interruptRespond: [
+            InterruptResponse(
+              ToolRequestPart(
+                toolRequest: ToolRequest(name: 'someTool', input: {}),
+              ),
+              'ok',
+            ),
+          ],
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error!.status, StatusCode.failedPrecondition.wireName);
+      },
+    );
   });
 }

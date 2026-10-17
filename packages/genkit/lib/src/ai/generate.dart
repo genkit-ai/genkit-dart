@@ -1233,7 +1233,11 @@ _resolveResume(
   final lastMessage = request.messages.lastOrNull;
   if (lastMessage?.role != Role.model ||
       !(lastMessage?.content.any((p) => p.isToolRequest) ?? false)) {
-    return (request: request, interruptedResponse: null);
+    throw GenkitException(
+      'Cannot resume generation: the last message must be a model message '
+      'with at least one tool request.',
+      status: StatusCode.failedPrecondition,
+    );
   }
 
   final resumeRespond = resume.respond ?? [];
