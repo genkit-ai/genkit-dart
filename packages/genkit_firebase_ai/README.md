@@ -55,10 +55,8 @@ default `global` location, or for data residency.
 Migrating from earlier versions:
 
 - `FirebaseAiProvider.vertexAI` is now `FirebaseAiProvider.agentPlatform`. It
-  defaults `location` to `global`, not `us-central1`. If your app relies on the
-  old `us-central1` default (for Agent Platform Live models such as
-  `gemini-live-2.5-flash-native-audio`, which are not available on `global`,
-  or for data residency), pass `location: 'us-central1'` explicitly.
+  defaults `location` to `global`, not `us-central1`. Pass
+  `location: 'us-central1'` to keep the old behavior.
 - The `appCheck` and `auth` parameters of `firebaseAI` are removed. The
   Firebase AI SDK reads App Check and Auth from the `FirebaseApp` only when it
   first builds its `FirebaseAI` instance, and it caches that instance per app
