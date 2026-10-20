@@ -81,17 +81,27 @@ class _CandidateState {
     for (final part in newParts) {
       if (parts.isNotEmpty) {
         final lastPart = parts.last;
-        if (lastPart is m.TextPart && part is m.TextPart) {
-          // Merge text
-          final newText = lastPart.text + part.text;
-          parts.removeLast();
-          parts.add(m.TextPart(newText)); // Ignore thought stuff for now
+        if (lastPart is m.TextPart &&
+            part is m.TextPart &&
+            _canAppendText(lastPart, part)) {
+          // The public TextPart constructor drops the signature, and Gemini
+          // rejects the next turn if a signature it sent is not echoed back.
+          // ignore: invalid_use_of_visible_for_testing_member
+          final merged = m.TextPart.forTest(
+            lastPart.text + part.text,
+            isThought: part.isThought,
+            thoughtSignature: _thoughtSignature(part),
+          );
+          parts
+            ..removeLast()
+            ..add(merged);
           continue;
         } else if (lastPart is m.FunctionCall && part is m.FunctionCall) {
-          // Firebase AI currently returns completed tool calls, no need to merge partials manually.
-          // Will replace the last if it's identical ID or name as an edge case,
-          // but generally streaming function calls don't chunk in Firebase AI natively
-          if (part.id == lastPart.id || part.name == lastPart.name) {
+          // Firebase AI returns completed function calls, so only a resend of
+          // the same call replaces the previous one. Parallel calls, including
+          // several to the same function, are all kept: the first one carries
+          // the thought signature.
+          if (part.id != null && part.id == lastPart.id) {
             parts.removeLast();
           }
         }
@@ -99,6 +109,18 @@ class _CandidateState {
       parts.add(part);
     }
   }
+
+  /// Whether [next] continues the text of [last].
+  ///
+  /// Thoughts and answer text stay separate parts, and a part that already
+  /// carries a thought signature is complete.
+  static bool _canAppendText(m.TextPart last, m.TextPart next) =>
+      (last.isThought ?? false) == (next.isThought ?? false) &&
+      _thoughtSignature(last) == null;
+
+  /// The signature is only readable through `toJson`.
+  static String? _thoughtSignature(m.Part part) =>
+      (part.toJson() as Map<String, Object?>)['thoughtSignature'] as String?;
 
   m.Candidate toCandidate() {
     return m.Candidate(
