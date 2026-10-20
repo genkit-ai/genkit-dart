@@ -145,8 +145,8 @@ class FirebaseGenAiPluginHandle {
   /// mock transport in tests.
   /// Live (bidi) models connect over a WebSocket and do not use it. The caller
   /// owns it: the plugin never closes a client it was given, so close it
-  /// yourself once you are done with the plugin. When omitted, the Firebase AI
-  /// SDK's default client is used.
+  /// yourself once you are done with the plugin. When omitted, the plugin
+  /// creates a client for each request and closes it when the request ends.
   GenkitPlugin call({
     fcore.FirebaseApp? app,
     fac.FirebaseAppCheck? appCheck,
@@ -235,101 +235,112 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
       name: 'firebaseai/$modelName',
       metadata: {'model': firebaseAiModelInfo.toJson()},
       fn: (req, ctx) async {
-        final isJsonMode =
-            req.output?.format == 'json' ||
-            req.output?.contentType == 'application/json';
+        // firebase_ai 4.x builds an http.Client per GenerativeModel and never
+        // closes it, so the plugin owns one per request unless the caller
+        // passed their own.
+        final client = httpClient ?? http.Client();
+        try {
+          final isJsonMode =
+              req.output?.format == 'json' ||
+              req.output?.contentType == 'application/json';
 
-        final options = req.config == null
-            ? GeminiOptions()
-            : GeminiOptions.$schema.parse(req.config!);
+          final options = req.config == null
+              ? GeminiOptions()
+              : GeminiOptions.$schema.parse(req.config!);
 
-        final model = _firebaseAI.generativeModel(
-          model: modelName,
-          generationConfig: toGeminiSettings(
-            options,
-            req.output?.schema,
-            isJsonMode,
-            constrained: req.output?.constrained ?? false,
-          ),
-          tools: toGeminiTools(req.tools, codeExecution: options.codeExecution),
-          toolConfig: toGeminiToolConfig(
-            options.functionCallingConfig,
-            toolChoice: req.toolChoice,
-            hasFunctionTools: req.tools?.isNotEmpty ?? false,
-          ),
-          httpClient: httpClient,
-        );
-
-        if (ctx.streamingRequested) {
-          final stream = model.generateContentStream(
-            toGeminiContent(req.messages),
+          final model = _firebaseAI.generativeModel(
+            model: modelName,
+            generationConfig: toGeminiSettings(
+              options,
+              req.output?.schema,
+              isJsonMode,
+              constrained: req.output?.constrained ?? false,
+            ),
+            tools: toGeminiTools(
+              req.tools,
+              codeExecution: options.codeExecution,
+            ),
+            toolConfig: toGeminiToolConfig(
+              options.functionCallingConfig,
+              toolChoice: req.toolChoice,
+              hasFunctionTools: req.tools?.isNotEmpty ?? false,
+            ),
+            httpClient: client,
           );
-          final chunks = <fai.GenerateContentResponse>[];
-          await for (final chunk in stream) {
-            chunks.add(chunk);
-            if (chunk.candidates.isNotEmpty) {
-              final (message, finishReason) = fromGeminiCandidate(
-                chunk.candidates.first,
-              );
-              ctx.sendChunk(
-                ModelResponseChunk(index: 0, content: message.content),
-              );
+
+          if (ctx.streamingRequested) {
+            final stream = model.generateContentStream(
+              toGeminiContent(req.messages),
+            );
+            final chunks = <fai.GenerateContentResponse>[];
+            await for (final chunk in stream) {
+              chunks.add(chunk);
+              if (chunk.candidates.isNotEmpty) {
+                final (message, finishReason) = fromGeminiCandidate(
+                  chunk.candidates.first,
+                );
+                ctx.sendChunk(
+                  ModelResponseChunk(index: 0, content: message.content),
+                );
+              }
             }
-          }
-          final aggregated = aggregateResponses(chunks);
-          final (message, finishReason) = fromGeminiCandidate(
-            aggregated.candidates.first,
-          );
-          return ModelResponse(
-            finishReason: finishReason,
-            message: message,
-            raw: {
-              'candidates': aggregated.candidates
+            final aggregated = aggregateResponses(chunks);
+            final (message, finishReason) = fromGeminiCandidate(
+              aggregated.candidates.first,
+            );
+            return ModelResponse(
+              finishReason: finishReason,
+              message: message,
+              raw: {
+                'candidates': aggregated.candidates
+                    .map(
+                      (c) => {
+                        'content': c.content.parts.length,
+                        'finishReason': c.finishReason?.name,
+                      },
+                    )
+                    .toList(),
+              },
+              usage: extractUsage(aggregated.usageMetadata),
+            );
+          } else {
+            final response = await model.generateContent(
+              toGeminiContent(req.messages),
+            );
+
+            if (response.candidates.isEmpty) {
+              // TODO: Consider inspecting response.promptFeedback for the block reason.
+              throw GenkitException('Model returned no candidates.');
+            }
+
+            final (message, finishReason) = fromGeminiCandidate(
+              response.candidates.first,
+            );
+
+            final raw = <String, dynamic>{
+              // Recreate structure
+              'candidates': response.candidates
                   .map(
                     (c) => {
-                      'content': c.content.parts.length,
+                      'content': c
+                          .content
+                          .parts
+                          .length, // content.toJson() might not exist or be simple
                       'finishReason': c.finishReason?.name,
                     },
                   )
                   .toList(),
-            },
-            usage: extractUsage(aggregated.usageMetadata),
-          );
-        } else {
-          final response = await model.generateContent(
-            toGeminiContent(req.messages),
-          );
+            };
 
-          if (response.candidates.isEmpty) {
-            // TODO: Consider inspecting response.promptFeedback for the block reason.
-            throw GenkitException('Model returned no candidates.');
+            return ModelResponse(
+              finishReason: finishReason,
+              message: message,
+              raw: raw,
+              usage: extractUsage(response.usageMetadata),
+            );
           }
-
-          final (message, finishReason) = fromGeminiCandidate(
-            response.candidates.first,
-          );
-
-          final raw = <String, dynamic>{
-            // Recreate structure
-            'candidates': response.candidates
-                .map(
-                  (c) => {
-                    'content': c
-                        .content
-                        .parts
-                        .length, // content.toJson() might not exist or be simple
-                    'finishReason': c.finishReason?.name,
-                  },
-                )
-                .toList(),
-          };
-
-          return ModelResponse(
-            finishReason: finishReason,
-            message: message,
-            raw: raw,
-            usage: extractUsage(response.usageMetadata),
-          );
+        } finally {
+          if (httpClient == null) client.close();
         }
       },
     );
