@@ -193,7 +193,7 @@ void main() {
       expect(parts.map((p) => p.isThought ?? false), [true, false]);
     });
 
-    test('does not append text to a part that carries a signature', () {
+    test('does not merge text parts that each carry a signature', () {
       final result = aggregateResponses([
         _chunk([m.TextPart.forTest('First', thoughtSignature: 'sig-1')]),
         _chunk([m.TextPart.forTest('Second', thoughtSignature: 'sig-2')]),
@@ -202,6 +202,39 @@ void main() {
       final parts = result.candidates.single.content.parts;
       expect(parts.map((p) => (p as m.TextPart).text), ['First', 'Second']);
       expect(parts.map(_signature), ['sig-1', 'sig-2']);
+    });
+
+    test('keeps appending text after a signature on the first chunk', () {
+      final result = aggregateResponses([
+        _chunk([m.TextPart.forTest('The', thoughtSignature: 'sig')]),
+        _chunk([m.TextPart(' answer')]),
+      ]);
+
+      final part = result.candidates.single.content.parts.single as m.TextPart;
+      expect(part.text, 'The answer');
+      expect(_signature(part), 'sig');
+    });
+
+    test('keeps the signature when a FunctionCall is resent without it', () {
+      final result = aggregateResponses([
+        _chunk([
+          m.FunctionCall.forTest(
+            'getWeather',
+            {'location': 'Paris'},
+            id: 'call_1',
+            thoughtSignature: 'sig',
+          ),
+        ]),
+        _chunk([
+          m.FunctionCall.forTest('getWeather', {
+            'location': 'Paris',
+          }, id: 'call_1'),
+        ]),
+      ]);
+
+      final part = result.candidates.single.content.parts.single;
+      expect((part as m.FunctionCall).id, 'call_1');
+      expect(_signature(part), 'sig');
     });
 
     test('streamed signatures reach the Genkit message metadata', () {

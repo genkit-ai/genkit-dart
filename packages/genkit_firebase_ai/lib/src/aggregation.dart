@@ -78,7 +78,7 @@ class _CandidateState {
   }
 
   void _mergeParts(List<m.Part> newParts) {
-    for (final part in newParts) {
+    for (var part in newParts) {
       if (parts.isNotEmpty) {
         final lastPart = parts.last;
         if (lastPart is m.TextPart &&
@@ -90,7 +90,8 @@ class _CandidateState {
           final merged = m.TextPart.forTest(
             lastPart.text + part.text,
             isThought: part.isThought,
-            thoughtSignature: _thoughtSignature(part),
+            thoughtSignature:
+                _thoughtSignature(part) ?? _thoughtSignature(lastPart),
           );
           parts
             ..removeLast()
@@ -103,6 +104,17 @@ class _CandidateState {
           // the thought signature.
           if (part.id != null && part.id == lastPart.id) {
             parts.removeLast();
+            final signature = _thoughtSignature(lastPart);
+            if (signature != null && _thoughtSignature(part) == null) {
+              // ignore: invalid_use_of_visible_for_testing_member
+              part = m.FunctionCall.forTest(
+                part.name,
+                part.args,
+                id: part.id,
+                isThought: part.isThought,
+                thoughtSignature: signature,
+              );
+            }
           }
         }
       }
@@ -112,11 +124,11 @@ class _CandidateState {
 
   /// Whether [next] continues the text of [last].
   ///
-  /// Thoughts and answer text stay separate parts, and a part that already
-  /// carries a thought signature is complete.
+  /// Thoughts and answer text stay separate parts, and two parts that each
+  /// carry their own thought signature are never merged.
   static bool _canAppendText(m.TextPart last, m.TextPart next) =>
       (last.isThought ?? false) == (next.isThought ?? false) &&
-      _thoughtSignature(last) == null;
+      (_thoughtSignature(last) == null || _thoughtSignature(next) == null);
 
   /// The signature is only readable through `toJson`.
   static String? _thoughtSignature(m.Part part) =>
