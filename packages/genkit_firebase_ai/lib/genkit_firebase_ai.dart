@@ -453,16 +453,18 @@ fai.LiveGenerationConfig toLiveGenerationConfig(Map<String, dynamic>? config) {
   );
 }
 
-/// Sends each part of [msg] to a Live [session].
+/// Sends [msg] to a Live [session].
 ///
 /// Audio goes out as realtime audio, and images or video as realtime video
-/// frames. Tool responses go out as tool responses, and everything else as a
-/// complete client turn.
+/// frames. Tool responses go out as tool responses. Everything else is sent
+/// together as one complete client turn, so the model does not start
+/// answering before the whole message is in.
 @visibleForTesting
 Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
   _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
 
   final contentParts = msg.content.map(toGeminiPart).toList();
+  final turnParts = <fai.Part>[];
 
   for (final part in contentParts) {
     try {
@@ -475,15 +477,23 @@ Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
       } else if (part is fai.FunctionResponse) {
         await session.sendToolResponse([part]);
       } else {
-        await session.send(
-          input: fai.Content(toGeminiRole(msg.role), [part]),
-          turnComplete: true,
-        );
+        turnParts.add(part);
       }
     } catch (e) {
       _logger.severe('Error sending part: $part', e);
       rethrow;
     }
+  }
+
+  if (turnParts.isEmpty) return;
+  try {
+    await session.send(
+      input: fai.Content(toGeminiRole(msg.role), turnParts),
+      turnComplete: true,
+    );
+  } catch (e) {
+    _logger.severe('Error sending turn: $turnParts', e);
+    rethrow;
   }
 }
 

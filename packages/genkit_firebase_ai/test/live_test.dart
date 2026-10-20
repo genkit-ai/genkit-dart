@@ -92,11 +92,21 @@ void main() {
       ]);
     });
 
-    test('sends other inline data and text as a client turn', () async {
+    test('sends other inline data and text as one complete turn', () async {
       expect(await send([media('application/pdf'), TextPart(text: 'hi')]), [
-        'send',
-        'send',
+        'turn(parts: 2, turnComplete: true)',
       ]);
+    });
+
+    test('completes the turn even when realtime parts come last', () async {
+      expect(
+        await send([TextPart(text: 'what is this?'), media('image/jpeg')]),
+        ['video', 'turn(parts: 1, turnComplete: true)'],
+      );
+    });
+
+    test('sends no turn when every part is realtime', () async {
+      expect(await send([media('audio/pcm')]), ['audio']);
     });
 
     test('sends tool responses as tool responses', () async {
@@ -153,7 +163,9 @@ class _FakeLiveSession implements fai.LiveSession {
 
   @override
   Future<void> send({fai.Content? input, bool turnComplete = false}) async =>
-      calls.add('send');
+      calls.add(
+        'turn(parts: ${input?.parts.length}, turnComplete: $turnComplete)',
+      );
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
