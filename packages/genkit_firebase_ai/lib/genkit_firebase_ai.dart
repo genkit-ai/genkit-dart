@@ -794,7 +794,7 @@ fai.GenerationConfig toGeminiSettings(
     topK: options.topK,
     responseMimeType: isJsonMode
         ? 'application/json'
-        : (options.responseMimeType ?? ''),
+        : options.responseMimeType,
     responseSchema: constrained && isJsonMode && outputSchema != null
         ? toGeminiSchema(outputSchema)
         : (options.responseSchema != null
