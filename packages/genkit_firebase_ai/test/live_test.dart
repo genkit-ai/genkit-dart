@@ -62,6 +62,28 @@ void main() {
       expect(config.presencePenalty, 0.1);
       expect(config.frequencyPenalty, 0.2);
     });
+
+    test('reports a field of the wrong type as an invalid argument', () {
+      expect(
+        () => toLiveGenerationConfig({'temperature': '0.7'}),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+    });
+
+    test('reports an unknown response modality as an invalid argument', () {
+      expect(
+        () => toLiveGenerationConfig({
+          'responseModalities': ['SMELL'],
+        }),
+        throwsA(isA<GenkitException>()),
+      );
+    });
   });
 
   group('sendToLiveSession', () {
@@ -72,18 +94,29 @@ void main() {
       ),
     );
 
-    Future<List<String>> send(List<Part> content) async {
+    Future<List<String>> send(
+      List<Part> content, {
+      Role role = Role.user,
+    }) async {
       final session = _FakeLiveSession();
-      await sendToLiveSession(
-        session,
-        Message(role: Role.user, content: content),
-      );
+      await sendToLiveSession(session, Message(role: role, content: content));
       return session.calls;
     }
 
     test('sends audio as realtime audio', () async {
       expect(await send([media('audio/pcm;rate=16000')]), ['audio']);
     });
+
+    test(
+      'reads the media type from the data URL without a content type',
+      () async {
+        final part = MediaPart(
+          media: Media(url: 'data:audio/pcm;rate=16000;base64,AAAA'),
+        );
+
+        expect(await send([part]), ['audio']);
+      },
+    );
 
     test('sends images and video as realtime video', () async {
       expect(await send([media('image/jpeg'), media('video/mp4')]), [
@@ -98,10 +131,24 @@ void main() {
       ]);
     });
 
-    test('completes the turn even when realtime parts come last', () async {
+    test('sends an image that comes with text inside the turn', () async {
       expect(
         await send([TextPart(text: 'what is this?'), media('image/jpeg')]),
-        ['video', 'turn(parts: 1, turnComplete: true)'],
+        ['turn(parts: 2, turnComplete: true)'],
+      );
+    });
+
+    test('keeps audio realtime next to text', () async {
+      expect(await send([media('audio/pcm'), TextPart(text: 'hi')]), [
+        'audio',
+        'turn(parts: 1, turnComplete: true)',
+      ]);
+    });
+
+    test('sends media in model messages inside the turn', () async {
+      expect(
+        await send([media('audio/pcm'), media('image/jpeg')], role: Role.model),
+        ['turn(parts: 2, turnComplete: true)'],
       );
     });
 
@@ -116,7 +163,20 @@ void main() {
         ),
       ]);
 
-      expect(calls, ['toolResponse']);
+      expect(calls, ['toolResponses(1)']);
+    });
+
+    test('sends parallel tool responses together', () async {
+      final calls = await send([
+        ToolResponsePart(
+          toolResponse: ToolResponse(name: 'getWeather', output: 'sunny'),
+        ),
+        ToolResponsePart(
+          toolResponse: ToolResponse(name: 'getTime', output: 'noon'),
+        ),
+      ]);
+
+      expect(calls, ['toolResponses(2)']);
     });
   });
 
@@ -159,7 +219,7 @@ class _FakeLiveSession implements fai.LiveSession {
   @override
   Future<void> sendToolResponse(
     List<fai.FunctionResponse>? functionResponses,
-  ) async => calls.add('toolResponse');
+  ) async => calls.add('toolResponses(${functionResponses?.length})');
 
   @override
   Future<void> send({fai.Content? input, bool turnComplete = false}) async =>
