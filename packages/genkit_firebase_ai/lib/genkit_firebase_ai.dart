@@ -340,8 +340,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   BidiModel _createBidiModel(String modelName) {
     return BidiModel(
       name: 'firebaseai/$modelName',
+      customOptions: LiveGenerationConfig.$schema,
       fn: (stream, ctx) async {
-        final configMap = ctx.init?.config;
         final tools = toGeminiTools(ctx.init?.tools);
         final systemMessage = ctx.init?.messages
             .where((m) => m.role == Role.system)
@@ -353,31 +353,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               )
             : null;
 
-        final liveConfig = fai.LiveGenerationConfig(
-          responseModalities: (configMap?['responseModalities'] as List?)?.map((
-            e,
-          ) {
-            return fai.ResponseModalities.values.byName(
-              (e as String).toLowerCase(),
-            );
-          }).toList(),
-          speechConfig: configMap?['speechConfig'] != null
-              ? fai.SpeechConfig(
-                  voiceName:
-                      (((configMap!['speechConfig'] as Map)['voiceConfig']
-                                  as Map)['prebuiltVoiceConfig']
-                              as Map)['voiceName']
-                          as String,
-                )
-              : null,
-          maxOutputTokens: configMap?['maxOutputTokens'] as int?,
-          temperature: (configMap?['temperature'] as num?)?.toDouble(),
-          topP: (configMap?['topP'] as num?)?.toDouble(),
-          topK: configMap?['topK'] as int?,
-          presencePenalty: (configMap?['presencePenalty'] as num?)?.toDouble(),
-          frequencyPenalty: (configMap?['frequencyPenalty'] as num?)
-              ?.toDouble(),
-        );
+        final liveConfig = toLiveGenerationConfig(ctx.init?.config);
 
         final model = _firebaseAI.liveGenerativeModel(
           model: modelName,
@@ -402,13 +378,13 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ctx.init?.messages.where((m) => m.role != Role.system).toList() ??
             [];
         for (final msg in initialMessages) {
-          await _sendToSession(session, msg);
+          await sendToLiveSession(session, msg);
         }
 
         final sub = stream.listen(
           (chunk) async {
             for (final msg in chunk.messages) {
-              await _sendToSession(session, msg);
+              await sendToLiveSession(session, msg);
             }
           },
           onError: (e) {
@@ -446,30 +422,67 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
       },
     );
   }
+}
 
-  Future<void> _sendToSession(fai.LiveSession session, Message msg) async {
-    _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
+/// Builds the Firebase AI Live config from a request's `config`, parsed
+/// through [LiveGenerationConfig] so missing fields fall back to the SDK
+/// defaults.
+@visibleForTesting
+fai.LiveGenerationConfig toLiveGenerationConfig(Map<String, dynamic>? config) {
+  // The JSON round trip types nested maps written as Dart literals (e.g. an
+  // empty `{}`) the way the generated getters expect.
+  final options = config == null
+      ? LiveGenerationConfig()
+      : LiveGenerationConfig.$schema.parse(jsonDecode(jsonEncode(config)));
+  final speechConfig = options.speechConfig;
+  return fai.LiveGenerationConfig(
+    responseModalities: options.responseModalities
+        ?.map((e) => fai.ResponseModalities.values.byName(e.toLowerCase()))
+        .toList(),
+    speechConfig: speechConfig == null
+        ? null
+        : fai.SpeechConfig(
+            voiceName: speechConfig.voiceConfig?.prebuiltVoiceConfig?.voiceName,
+          ),
+    maxOutputTokens: options.maxOutputTokens,
+    temperature: options.temperature,
+    topP: options.topP,
+    topK: options.topK,
+    presencePenalty: options.presencePenalty,
+    frequencyPenalty: options.frequencyPenalty,
+  );
+}
 
-    final contentParts = msg.content.map(toGeminiPart).toList();
+/// Sends each part of [msg] to a Live [session].
+///
+/// Audio goes out as realtime audio, and images or video as realtime video
+/// frames. Tool responses go out as tool responses, and everything else as a
+/// complete client turn.
+@visibleForTesting
+Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
+  _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
 
-    for (final part in contentParts) {
-      try {
-        if (part is fai.InlineDataPart) {
-          // TODO: Check mimeType for video vs audio
-          await session.sendAudioRealtime(part);
-        } else if (part is fai.FunctionResponse) {
-          await session.sendToolResponse([part]);
-        } else {
-          // Fallback for others
-          await session.send(
-            input: fai.Content(toGeminiRole(msg.role), [part]),
-            turnComplete: true,
-          );
-        }
-      } catch (e) {
-        _logger.severe('Error sending part: $part', e);
-        rethrow;
+  final contentParts = msg.content.map(toGeminiPart).toList();
+
+  for (final part in contentParts) {
+    try {
+      if (part is fai.InlineDataPart && part.mimeType.startsWith('audio/')) {
+        await session.sendAudioRealtime(part);
+      } else if (part is fai.InlineDataPart &&
+          (part.mimeType.startsWith('image/') ||
+              part.mimeType.startsWith('video/'))) {
+        await session.sendVideoRealtime(part);
+      } else if (part is fai.FunctionResponse) {
+        await session.sendToolResponse([part]);
+      } else {
+        await session.send(
+          input: fai.Content(toGeminiRole(msg.role), [part]),
+          turnComplete: true,
+        );
       }
+    } catch (e) {
+      _logger.severe('Error sending part: $part', e);
+      rethrow;
     }
   }
 }
