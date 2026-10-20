@@ -34,10 +34,7 @@ void main() {
       final config = toLiveGenerationConfig({'speechConfig': {}});
 
       expect(config.speechConfig, isNotNull);
-      expect(
-        jsonEncode(config.speechConfig!.toJson()),
-        isNot(contains('voice')),
-      );
+      expect(_speechJson(config), isNot(contains('voice')));
     });
 
     test('maps every field', () {
@@ -57,7 +54,7 @@ void main() {
       });
 
       expect(config.responseModalities, [fai.ResponseModalities.audio]);
-      expect(jsonEncode(config.speechConfig!.toJson()), contains('"Kore"'));
+      expect(_speechJson(config), contains('"Kore"'));
       expect(config.maxOutputTokens, 256);
       expect(config.temperature, 1.0);
       expect(config.topP, 0.9);
@@ -128,6 +125,14 @@ void main() {
     );
   });
 }
+
+/// The encoded speech config of [config].
+///
+/// firebase_ai 3.8 only exposes the voice through `toJson`, which 3.13+ marks
+/// `@internal` while adding a `voiceName` getter that 3.8 lacks.
+String _speechJson(fai.LiveGenerationConfig config) =>
+    // ignore: invalid_use_of_internal_member
+    jsonEncode(config.speechConfig!.toJson());
 
 /// Records which [fai.LiveSession] method each part was sent through.
 class _FakeLiveSession implements fai.LiveSession {
