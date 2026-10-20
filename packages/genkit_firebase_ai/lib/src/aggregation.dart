@@ -120,7 +120,7 @@ class _CandidateState {
 
   /// The signature is only readable through `toJson`.
   static String? _thoughtSignature(m.Part part) =>
-      (part.toJson() as Map<String, Object?>)['thoughtSignature'] as String?;
+      (part.toJson() as Map<String, dynamic>)['thoughtSignature'] as String?;
 
   m.Candidate toCandidate() {
     return m.Candidate(

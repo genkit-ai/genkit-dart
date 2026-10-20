@@ -230,4 +230,4 @@ m.GenerateContentResponse _chunk(List<m.Part> parts) =>
     ], null);
 
 String? _signature(m.Part part) =>
-    (part.toJson() as Map<String, Object?>)['thoughtSignature'] as String?;
+    (part.toJson() as Map<String, dynamic>)['thoughtSignature'] as String?;
