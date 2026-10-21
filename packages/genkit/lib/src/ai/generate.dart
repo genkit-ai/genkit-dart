@@ -98,28 +98,57 @@ ToolDefinition toToolDefinition(Tool tool) {
   );
 }
 
-/// The wrapper property that carries a primitive tool input to the model.
+/// The wrapper property that carries a non-object tool input to the model.
 const _wrappedInputKey = 'input';
+
+/// The model-facing input schema of a tool, computed once per tool.
+final _toolInputSchemas =
+    Expando<({Map<String, dynamic> schema, bool wrapped})>();
+
+({Map<String, dynamic> schema, bool wrapped}) _resolveToolInput(Tool tool) {
+  return _toolInputSchemas[tool] ??= () {
+    final schema = toJsonSchema(type: tool.inputSchema);
+    if (!_needsWrapping(schema)) return (schema: schema, wrapped: false);
+    // No provider accepts a non-object function parameter schema, so
+    // primitives (e.g. `.string()`) are presented as `{input: <schema>}`. The
+    // wrapper is removed again by [unwrapToolInput] before the tool runs.
+    // Definitions stay on the root so the nested `#/$defs/...` refs resolve.
+    final inner = Map<String, dynamic>.of(schema);
+    final wrapper = <String, dynamic>{
+      'type': 'object',
+      'properties': {_wrappedInputKey: inner},
+      'required': [_wrappedInputKey],
+    };
+    for (final key in const [r'$schema', r'$defs', 'definitions']) {
+      final value = inner.remove(key);
+      if (value != null) wrapper[key] = value;
+    }
+    return (schema: wrapper, wrapped: true);
+  }();
+}
 
 Map<String, dynamic>? _toolInputJsonSchema(Tool tool) {
   if (tool.inputSchema?.jsonSchema == null) return null;
-  final schema = toJsonSchema(type: tool.inputSchema);
-  if (!_isWrappedToolInput(schema)) return schema;
-  // No provider accepts a non-object function parameter schema, so primitives
-  // (e.g. `.string()`) are presented as `{input: <schema>}`. The wrapper is
-  // removed again by [unwrapToolInput] before the tool runs.
-  final inner = Map<String, dynamic>.of(schema)..remove(r'$schema');
-  return {
-    'type': 'object',
-    'properties': {_wrappedInputKey: inner},
-    'required': [_wrappedInputKey],
-    r'$schema': schema[r'$schema'],
-  };
+  return _resolveToolInput(tool).schema;
 }
 
-bool _isWrappedToolInput(Map<String, dynamic> schema) {
+/// Whether [schema] describes something other than an object (a primitive,
+/// array, nullable or union), which providers reject as function parameters.
+bool _needsWrapping(Map<String, dynamic> schema) {
+  if (schema.isEmpty || schema.containsKey('properties')) return false;
   final type = schema['type'];
-  return type != null && type != 'object';
+  if (type == 'object') return false;
+  if (type is List && type.contains('object')) return false;
+  final ref = schema[r'$ref'];
+  if (ref is String) {
+    // A root `$ref` is object-like when its definition is.
+    final name = ref.split('/').last;
+    final defs = schema[r'$defs'] ?? schema['definitions'];
+    final target = defs is Map ? defs[name] : null;
+    if (target is Map<String, dynamic>) return _needsWrapping(target);
+    return false;
+  }
+  return true;
 }
 
 /// Undoes the wrapping applied to non-object tool input schemas by
@@ -130,10 +159,8 @@ bool _isWrappedToolInput(Map<String, dynamic> schema) {
 @internal
 Object? unwrapToolInput(Tool tool, Object? input) {
   if (tool.inputSchema?.jsonSchema == null) return input;
-  if (!_isWrappedToolInput(toJsonSchema(type: tool.inputSchema))) return input;
-  if (input is Map &&
-      input.length == 1 &&
-      input.containsKey(_wrappedInputKey)) {
+  if (!_resolveToolInput(tool).wrapped) return input;
+  if (input is Map && input.containsKey(_wrappedInputKey)) {
     return input[_wrappedInputKey];
   }
   return input;
