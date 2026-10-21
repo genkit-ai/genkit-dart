@@ -87,24 +87,35 @@ void main(List<String> args) async {
   ai.defineTool(
     name: 'getWeather',
     description: 'Get the weather for a location',
-    inputSchema: .string(),
+    inputSchema: WeatherToolInput.$schema,
     fn: (input, context) async {
-      if (input.toLowerCase().contains('boston')) {
+      if (input.location.toLowerCase().contains('boston')) {
         return .response('The weather in Boston is 72 and sunny.');
       }
-      return .response('The weather in $input is 75 and cloudy.');
+      return .response('The weather in ${input.location} is 75 and cloudy.');
     },
+  );
+
+  // A primitive input schema works too; the description tells the model what
+  // the value means.
+  ai.defineTool(
+    name: 'getTime',
+    description: 'Get the current time in a city',
+    inputSchema: .string(description: 'City name, e.g. "Boston"'),
+    fn: (city, _) async => .response('It is 3pm in $city.'),
   );
 
   ai.defineFlow(
     name: 'weatherFlow',
-    inputSchema: .string(defaultValue: 'What is the weather like in Boston?'),
+    inputSchema: .string(
+      defaultValue: 'What is the weather and local time in Boston?',
+    ),
     outputSchema: .string(),
     fn: (prompt, context) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3-flash-preview'),
+        model: googleAI.gemini('gemini-flash-latest'),
         prompt: prompt,
-        toolNames: ['getWeather'],
+        toolNames: ['getWeather', 'getTime'],
       );
       return response.text;
     },
