@@ -34,21 +34,39 @@ void main() async {
 
 ### Configuration
 
-You can optionally pass in `FirebaseApp`, `FirebaseAppCheck`, `FirebaseAuth`,
-`FirebaseAiProvider` instances, and `useLimitedUseAppCheckTokens` flag when
-initializing the plugin.
+You can optionally pass in `FirebaseApp` and `FirebaseAiProvider` instances,
+and the `useLimitedUseAppCheckTokens` flag when initializing the plugin. App
+Check and Auth are read from the `FirebaseApp`.
 
 ```dart
 final firebasePlugin = firebaseAI(
   app: Firebase.app('my-app'),
-  appCheck: FirebaseAppCheck.instanceFor(app: Firebase.app('my-app')),
-  auth: FirebaseAuth.instanceFor(app: Firebase.app('my-app')),
-  provider: FirebaseAiProvider.vertexAI(location: 'us-central1'),
+  provider: FirebaseAiProvider.agentPlatform(),
   useLimitedUseAppCheckTokens: true,
 );
 
 final ai = Genkit(plugins: [firebasePlugin]);
 ```
+
+Set `location` (for example `'us-central1'`) for Agent Platform Live models
+such as `gemini-live-2.5-flash-native-audio`, which are not available on the
+default `global` location, or for data residency.
+
+Migrating from earlier versions:
+
+- `FirebaseAiProvider.vertexAI` is now `FirebaseAiProvider.agentPlatform`. It
+  defaults `location` to `global`, not `us-central1`. Pass
+  `location: 'us-central1'` to keep the old behavior.
+- The `appCheck` and `auth` parameters of `firebaseAI` are removed. The
+  Firebase AI SDK reads App Check and Auth from the `FirebaseApp` only when it
+  first builds its `FirebaseAI` instance, and it caches that instance per app
+  (and per location for `agentPlatform`). It only finds services registered
+  with `FirebaseAppCheck.instanceFor(app:)` and `FirebaseAuth.instanceFor(app:)`
+  (or `.instance` for the default app). So set up App Check and Auth for that
+  app before the first model call. For the same reason,
+  `useLimitedUseAppCheckTokens` has no effect if the app already created a
+  `FirebaseAI` instance for the same Firebase app and location. Instances
+  created for a different app than `app:` are no longer used.
 
 To route requests through your own `http.Client` (a proxy, logging, retries,
 or a mock in tests), pass `httpClient`. Live models connect over a WebSocket
