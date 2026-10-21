@@ -13,8 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/src/ai/generate.dart'
-    show toToolDefinition, unwrapToolInput;
 import 'package:genkit/src/ai/tool_resolution.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -166,57 +164,6 @@ void main() {
         containsPair('type', 'string'),
       );
       expect(toolInput, 'hello');
-    });
-
-    group('toToolDefinition input schema wrapping', () {
-      Map<String, dynamic> schemaOf(SchemanticType input) => toToolDefinition(
-        Tool<dynamic, String>(
-          name: 't',
-          description: 'd',
-          inputSchema: input,
-          fn: (input, context) async => .response('ok'),
-        ),
-      ).inputSchema!;
-
-      test('wraps integers and arrays', () {
-        expect(schemaOf(.integer())['type'], 'object');
-        expect(schemaOf(.list(.string()))['type'], 'object');
-      });
-
-      test('wraps nullable primitives', () {
-        final schema = schemaOf(.nullable(.string()));
-        expect(schema['type'], 'object');
-        expect(schema['required'], ['input']);
-      });
-
-      test('keeps definitions on the wrapper root', () {
-        final schema = schemaOf(.list(Message.$schema));
-        expect(schema['type'], 'object');
-        expect(schema, contains(r'$defs'));
-        final inner = (schema['properties'] as Map)['input'] as Map;
-        expect(inner, isNot(contains(r'$defs')));
-      });
-
-      test('leaves object schemas untouched', () {
-        final schema = schemaOf(TestToolInput.$schema);
-        expect(schema['properties'], isNot(contains('input')));
-        expect(schema['required'], isNot(['input']));
-      });
-
-      test('unwraps when the model adds stray keys', () async {
-        Object? received;
-        final tool = Tool<String, String>(
-          name: 't',
-          description: 'd',
-          inputSchema: .string(),
-          fn: (input, context) async {
-            received = input;
-            return .response('ok');
-          },
-        );
-        await tool.runRaw(unwrapToolInput(tool, {'input': 'x', 'extra': 1}));
-        expect(received, 'x');
-      });
     });
 
     test('should allow passing Tool objects directly', () async {

@@ -19,6 +19,11 @@ import '../../client.dart';
 import '../../genkit.dart';
 
 /// Defines a remote Genkit model.
+///
+/// Requests are forwarded as is, so the serving model must accept tools with
+/// non-object input schemas (e.g. `.string()`). Genkit models do this
+/// automatically; when adopting such tools, update the server before the
+/// client.
 Model remoteModel({
   required String name,
   required String url,
@@ -36,7 +41,7 @@ Model remoteModel({
         streamSchema: ModelResponseChunk.$schema,
       );
 
-  return Model(
+  return Model.proxy(
       name: name,
       fn: (request, context) async {
         final resolvedHeaders = await headers?.call(context.context ?? {});

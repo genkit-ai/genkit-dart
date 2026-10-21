@@ -87,12 +87,12 @@ void main(List<String> args) async {
   ai.defineTool(
     name: 'getWeather',
     description: 'Get the weather for a location',
-    inputSchema: WeatherToolInput.$schema,
+    inputSchema: .string(),
     fn: (input, context) async {
-      if (input.location.toLowerCase().contains('boston')) {
+      if (input.toLowerCase().contains('boston')) {
         return .response('The weather in Boston is 72 and sunny.');
       }
-      return .response('The weather in ${input.location} is 75 and cloudy.');
+      return .response('The weather in $input is 75 and cloudy.');
     },
   );
 

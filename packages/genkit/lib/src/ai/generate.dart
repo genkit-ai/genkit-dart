@@ -90,80 +90,16 @@ ToolDefinition toToolDefinition(Tool tool) {
     name: name,
     key: tool.key,
     description: tool.description!,
-    inputSchema: _toolInputJsonSchema(tool),
+    // Non-object schemas are wrapped later, at the model boundary (see
+    // `ToolInputWrapping`), so the request trace shows the declared schema.
+    inputSchema: tool.inputSchema?.jsonSchema != null
+        ? toJsonSchema(type: tool.inputSchema)
+        : null,
     outputSchema: tool.toolOutputSchema?.jsonSchema != null
         ? toJsonSchema(type: tool.toolOutputSchema)
         : null,
     metadata: originalName != name ? {'originalName': originalName} : null,
   );
-}
-
-/// The wrapper property that carries a non-object tool input to the model.
-const _wrappedInputKey = 'input';
-
-/// The model-facing input schema of a tool, computed once per tool.
-final _toolInputSchemas =
-    Expando<({Map<String, dynamic> schema, bool wrapped})>();
-
-({Map<String, dynamic> schema, bool wrapped}) _resolveToolInput(Tool tool) {
-  return _toolInputSchemas[tool] ??= () {
-    final schema = toJsonSchema(type: tool.inputSchema);
-    if (!_needsWrapping(schema)) return (schema: schema, wrapped: false);
-    // No provider accepts a non-object function parameter schema, so
-    // primitives (e.g. `.string()`) are presented as `{input: <schema>}`. The
-    // wrapper is removed again by [unwrapToolInput] before the tool runs.
-    // Definitions stay on the root so the nested `#/$defs/...` refs resolve.
-    final inner = Map<String, dynamic>.of(schema);
-    final wrapper = <String, dynamic>{
-      'type': 'object',
-      'properties': {_wrappedInputKey: inner},
-      'required': [_wrappedInputKey],
-    };
-    for (final key in const [r'$schema', r'$defs', 'definitions']) {
-      final value = inner.remove(key);
-      if (value != null) wrapper[key] = value;
-    }
-    return (schema: wrapper, wrapped: true);
-  }();
-}
-
-Map<String, dynamic>? _toolInputJsonSchema(Tool tool) {
-  if (tool.inputSchema?.jsonSchema == null) return null;
-  return _resolveToolInput(tool).schema;
-}
-
-/// Whether [schema] describes something other than an object (a primitive,
-/// array, nullable or union), which providers reject as function parameters.
-bool _needsWrapping(Map<String, dynamic> schema) {
-  if (schema.isEmpty || schema.containsKey('properties')) return false;
-  final type = schema['type'];
-  if (type == 'object') return false;
-  if (type is List && type.contains('object')) return false;
-  final ref = schema[r'$ref'];
-  if (ref is String) {
-    // A root `$ref` is object-like when its definition is.
-    final name = ref.split('/').last;
-    final defs = schema[r'$defs'] ?? schema['definitions'];
-    final target = defs is Map ? defs[name] : null;
-    if (target is Map<String, dynamic>) return _needsWrapping(target);
-    return false;
-  }
-  return true;
-}
-
-/// Undoes the wrapping applied to non-object tool input schemas by
-/// [toToolDefinition], returning the value the tool function expects.
-///
-/// Inputs that are not in the wrapped shape (e.g. a tool called directly, or
-/// a resumed request recorded before wrapping) are returned unchanged.
-@internal
-Object? unwrapToolInput(Tool tool, Object? input) {
-  if (tool.inputSchema?.jsonSchema == null) return input;
-  if (!_resolveToolInput(tool).wrapped) return input;
-  if (input is Map && input.containsKey(_wrappedInputKey)) {
-    return input[_wrappedInputKey];
-  }
-  return input;
 }
 
 /// Raises [GenkitException] when two tools resolve to the same wire (short)
@@ -1516,7 +1452,7 @@ _executeTools(
       _recordResumedMetadata(c.context);
       c.cancel?.throwIfCancelled();
       return (await tool.runRaw(
-        unwrapToolInput(tool, req.toolRequest.input),
+        req.toolRequest.input,
         context: c.context,
         cancel: c.cancel,
       )).result;
