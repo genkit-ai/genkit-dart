@@ -204,7 +204,10 @@ void main() {
       expect(ctxToolRequestInput, 'hi');
       expect(chunkInputs, ['hi']);
       // The request trace (and `ToolDefinition`) keep the declared schema.
-      expect(response.modelRequest!.tools!.single.inputSchema!['type'], 'string');
+      expect(
+        response.modelRequest!.tools!.single.inputSchema!['type'],
+        'string',
+      );
       final historyCall = response.messages
           .expand((m) => m.content)
           .firstWhere((p) => p.isToolRequest);
