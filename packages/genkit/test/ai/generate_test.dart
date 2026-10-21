@@ -105,6 +105,67 @@ void main() {
       expect(received, ToolChoice.required);
     });
 
+    test('wraps a primitive tool inputSchema in an object for the model and '
+        'unwraps it before calling the tool', () async {
+      const modelName = 'primitiveToolModel';
+      Map<String, dynamic>? sentSchema;
+      Object? toolInput;
+
+      genkit.defineModel(
+        name: modelName,
+        fn: (request, context) async {
+          if (request.messages.last.role == .tool) {
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [TextPart(text: 'Done')],
+              ),
+            );
+          }
+          sentSchema = request.tools!.single.inputSchema;
+          return ModelResponse(
+            finishReason: .stop,
+            message: Message(
+              role: .model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'echo',
+                    input: {'input': 'hello'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      final echo = genkit.defineTool(
+        name: 'echo',
+        description: 'Echo a string back.',
+        inputSchema: .string(),
+        fn: (input, context) async {
+          toolInput = input;
+          return .response('echo: $input');
+        },
+      );
+
+      await genkit.generate(
+        model: modelRef(modelName),
+        prompt: 'Use echo',
+        tools: [echo],
+      );
+
+      expect(sentSchema!['type'], 'object');
+      expect(sentSchema!['required'], ['input']);
+      expect(
+        (sentSchema!['properties'] as Map)['input'],
+        containsPair('type', 'string'),
+      );
+      expect(toolInput, 'hello');
+    });
+
     test('should allow passing Tool objects directly', () async {
       const modelName = 'toolObjectModel';
       var directToolCalled = false;

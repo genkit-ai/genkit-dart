@@ -808,6 +808,7 @@ package:genkit/genkit.dart:
     toString (method: String Function())
   Model (class<CustomOptions> extends Action<ModelRequest, ModelResponse, ModelResponseChunk, void> implements ModelRef<CustomOptions>, base):
     new (constructor: Model<CustomOptions> Function({SchemanticType<CustomOptions>? customOptions, required Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) fn, Map<String, dynamic>? metadata, required String name}))
+    proxy (constructor: Model<CustomOptions> Function({SchemanticType<CustomOptions>? customOptions, required Future<ModelResponse> Function(ModelRequest, ActionFnArg<ModelResponseChunk, ModelRequest, void>) fn, Map<String, dynamic>? metadata, required String name}), internal)
     config (getter: CustomOptions?)
     customOptions (getter: SchemanticType<CustomOptions>?)
   ModelInfo (class extends Object, base):

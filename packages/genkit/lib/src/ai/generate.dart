@@ -90,6 +90,8 @@ ToolDefinition toToolDefinition(Tool tool) {
     name: name,
     key: tool.key,
     description: tool.description!,
+    // Non-object schemas are wrapped later, at the model boundary (see
+    // `ToolInputWrapping`), so the request trace shows the declared schema.
     inputSchema: tool.inputSchema?.jsonSchema != null
         ? toJsonSchema(type: tool.inputSchema)
         : null,

@@ -144,7 +144,7 @@ void main() {
     });
 
     test(
-      'tool with a primitive input schema fails before any request',
+      'tool with a primitive input schema is wrapped in an object',
       () async {
         final captured = <Map<String, dynamic>>[];
         final ai = Genkit(
@@ -160,20 +160,23 @@ void main() {
           fn: (input, ctx) async => .response(input),
         );
 
-        // The primitive tool schema throws while building the request, before
-        // any HTTP call. `generate` no longer rethrows: it resolves to a
-        // `failed` response carrying the error, so assert on that (and that
-        // nothing hit the wire).
-        final res = await ai.generate(
+        await ai.generate(
           model: openAI.model('gpt-4o'),
           prompt: 'Echo hello.',
           toolNames: ['echo'],
         );
-        expect(res.finishReason, FinishReason.failed);
-        expect(res.error, isNotNull);
-        expect(res.error!.status, StatusCode.invalidArgument.wireName);
-        expect(res.error!.message, allOf(contains('echo'), contains('object')));
-        expect(captured, isEmpty);
+
+        final tools = (captured.single['tools'] as List)
+            .cast<Map<String, dynamic>>();
+        final function = (tools.single['function'] as Map)
+            .cast<String, dynamic>();
+        final parameters = (function['parameters'] as Map)
+            .cast<String, dynamic>();
+        expect(parameters['type'], 'object');
+        expect(parameters['required'], ['input']);
+        expect(parameters['properties'], {
+          'input': {'type': 'string'},
+        });
 
         await ai.shutdown();
       },

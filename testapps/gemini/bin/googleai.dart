@@ -96,15 +96,26 @@ void main(List<String> args) async {
     },
   );
 
+  // A primitive input schema works too; the description tells the model what
+  // the value means.
+  ai.defineTool(
+    name: 'getTime',
+    description: 'Get the current time in a city',
+    inputSchema: .string(description: 'City name, e.g. "Boston"'),
+    fn: (city, _) async => .response('It is 3pm in $city.'),
+  );
+
   ai.defineFlow(
     name: 'weatherFlow',
-    inputSchema: .string(defaultValue: 'What is the weather like in Boston?'),
+    inputSchema: .string(
+      defaultValue: 'What is the weather and local time in Boston?',
+    ),
     outputSchema: .string(),
     fn: (prompt, context) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3-flash-preview'),
+        model: googleAI.gemini('gemini-flash-latest'),
         prompt: prompt,
-        toolNames: ['getWeather'],
+        toolNames: ['getWeather', 'getTime'],
       );
       return response.text;
     },
