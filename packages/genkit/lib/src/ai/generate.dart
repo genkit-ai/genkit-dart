@@ -90,14 +90,53 @@ ToolDefinition toToolDefinition(Tool tool) {
     name: name,
     key: tool.key,
     description: tool.description!,
-    inputSchema: tool.inputSchema?.jsonSchema != null
-        ? toJsonSchema(type: tool.inputSchema)
-        : null,
+    inputSchema: _toolInputJsonSchema(tool),
     outputSchema: tool.toolOutputSchema?.jsonSchema != null
         ? toJsonSchema(type: tool.toolOutputSchema)
         : null,
     metadata: originalName != name ? {'originalName': originalName} : null,
   );
+}
+
+/// The wrapper property that carries a primitive tool input to the model.
+const _wrappedInputKey = 'input';
+
+Map<String, dynamic>? _toolInputJsonSchema(Tool tool) {
+  if (tool.inputSchema?.jsonSchema == null) return null;
+  final schema = toJsonSchema(type: tool.inputSchema);
+  if (!_isWrappedToolInput(schema)) return schema;
+  // No provider accepts a non-object function parameter schema, so primitives
+  // (e.g. `.string()`) are presented as `{input: <schema>}`. The wrapper is
+  // removed again by [unwrapToolInput] before the tool runs.
+  final inner = Map<String, dynamic>.of(schema)..remove(r'$schema');
+  return {
+    'type': 'object',
+    'properties': {_wrappedInputKey: inner},
+    'required': [_wrappedInputKey],
+    r'$schema': schema[r'$schema'],
+  };
+}
+
+bool _isWrappedToolInput(Map<String, dynamic> schema) {
+  final type = schema['type'];
+  return type != null && type != 'object';
+}
+
+/// Undoes the wrapping applied to non-object tool input schemas by
+/// [toToolDefinition], returning the value the tool function expects.
+///
+/// Inputs that are not in the wrapped shape (e.g. a tool called directly, or
+/// a resumed request recorded before wrapping) are returned unchanged.
+@internal
+Object? unwrapToolInput(Tool tool, Object? input) {
+  if (tool.inputSchema?.jsonSchema == null) return input;
+  if (!_isWrappedToolInput(toJsonSchema(type: tool.inputSchema))) return input;
+  if (input is Map &&
+      input.length == 1 &&
+      input.containsKey(_wrappedInputKey)) {
+    return input[_wrappedInputKey];
+  }
+  return input;
 }
 
 /// Raises [GenkitException] when two tools resolve to the same wire (short)
@@ -1450,7 +1489,7 @@ _executeTools(
       _recordResumedMetadata(c.context);
       c.cancel?.throwIfCancelled();
       return (await tool.runRaw(
-        req.toolRequest.input,
+        unwrapToolInput(tool, req.toolRequest.input),
         context: c.context,
         cancel: c.cancel,
       )).result;
