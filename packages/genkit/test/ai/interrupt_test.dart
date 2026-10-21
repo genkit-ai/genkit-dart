@@ -635,5 +635,56 @@ void main() {
         expect(res.error!.status, StatusCode.failedPrecondition.wireName);
       },
     );
+
+    test('restart fails without running the tool when last message is not a '
+        'model tool request', () async {
+      var modelCalls = 0;
+      var toolCalls = 0;
+
+      genkit.defineModel(
+        name: 'plainModel',
+        fn: (req, ctx) async {
+          modelCalls++;
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'hi')],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool(
+        name: 'sideEffectTool',
+        description: 'Counts its calls',
+        inputSchema: .map(.string(), .dynamicSchema()),
+        fn: (input, context) async {
+          toolCalls++;
+          return .response('done');
+        },
+      );
+
+      final res = await genkit.generate(
+        model: modelRef('plainModel'),
+        toolNames: ['sideEffectTool'],
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+        ],
+        interruptRestart: [
+          ToolRequestPart(
+            toolRequest: ToolRequest(name: 'sideEffectTool', input: {}),
+          ),
+        ],
+      );
+
+      expect(res.finishReason, FinishReason.failed);
+      expect(res.error!.status, StatusCode.failedPrecondition.wireName);
+      expect(toolCalls, 0);
+      expect(modelCalls, 0);
+    });
   });
 }
