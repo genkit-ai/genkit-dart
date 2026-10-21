@@ -164,13 +164,10 @@ _withBidiToolInputWrapping(
     final wrappedInput = inputStream.map(wrapping.wrapRequest);
     final response = await fn(
       wrappedInput,
-      ActionFnArg(
-        streamingRequested: ctx.streamingRequested,
+      ctx.copyWith(
         sendChunk: (chunk) => ctx.sendChunk(wrapping.unwrapChunk(chunk)),
-        context: ctx.context,
         inputStream: wrappedInput,
         init: wrapping.wrapRequest(init!),
-        cancel: ctx.cancel,
       ),
     );
     return wrapping.unwrapResponse(response);

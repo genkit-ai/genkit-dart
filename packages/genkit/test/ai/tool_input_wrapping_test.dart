@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -74,6 +74,30 @@ void main() {
       expect(needsWrapping(schema(Message.$schema)), isFalse);
       expect(needsWrapping(schema(.map(.string(), .dynamicSchema()))), isFalse);
       expect(needsWrapping(schema(.dynamicSchema())), isFalse);
+      expect(needsWrapping(schema(.dynamicSchema(description: 'x'))), isFalse);
+    });
+
+    test('annotations on a typed primitive still wrap', () {
+      expect(needsWrapping(schema(.string(description: 'x'))), isTrue);
+    });
+
+    test('chunks without wrapped tool calls pass through untouched', () {
+      final wrapping = ToolInputWrapping.forTools([
+        ToolDefinition(
+          name: 'echo',
+          description: 'd',
+          inputSchema: {'type': 'string'},
+        ),
+      ])!;
+      final text = ModelResponseChunk(content: [TextPart(text: 'hi')]);
+      expect(identical(wrapping.unwrapChunk(text), text), isTrue);
+      final call = ModelResponseChunk(
+        content: [
+          _echoCall({'input': 'hi'}),
+        ],
+      );
+      final unwrapped = wrapping.unwrapChunk(call);
+      expect(unwrapped.content.single.toolRequestPart!.toolRequest.input, 'hi');
     });
 
     test('keeps definitions on the wrapper root', () {

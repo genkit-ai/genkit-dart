@@ -1,4 +1,4 @@
-// Copyright 2025 Google LLC
+// Copyright 2026 Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -70,29 +70,49 @@ final class ToolInputWrapping {
               : tool.toJson(),
       ];
     }
-    json['messages'] = [
-      for (final message in request.messages)
-        _mapMessage(
-          message.toJson(),
-          (input) => <String, dynamic>{_wrappedInputKey: input},
-        ),
-    ];
+    final messages = json['messages'] as List;
+    if (messages.any((m) => _hasWrappedCall((m as Map)['content'] as List))) {
+      json['messages'] = [
+        for (final message in messages.cast<Map<String, dynamic>>())
+          _mapMessage(
+            message,
+            (input) => <String, dynamic>{_wrappedInputKey: input},
+          ),
+      ];
+    }
     return ModelRequest.fromJson(json);
   }
 
   ModelResponse unwrapResponse(ModelResponse response) {
-    final message = response.message;
-    if (message == null) return response;
-    final json = Map<String, dynamic>.of(response.toJson());
-    json['message'] = _mapMessage(message.toJson(), _unwrap);
-    return ModelResponse.fromJson(json);
+    final json = response.toJson();
+    final message = json['message'] as Map<String, dynamic>?;
+    if (message == null || !_hasWrappedCall(message['content'] as List)) {
+      return response;
+    }
+    return ModelResponse.fromJson({
+      ...json,
+      'message': _mapMessage(message, _unwrap),
+    });
   }
 
   ModelResponseChunk unwrapChunk(ModelResponseChunk chunk) {
-    final json = Map<String, dynamic>.of(chunk.toJson());
-    json['content'] = _mapContent(json['content'] as List, _unwrap);
-    return ModelResponseChunk.fromJson(json);
+    final json = chunk.toJson();
+    final content = json['content'] as List;
+    // Most chunks are text; pass them through untouched.
+    if (!_hasWrappedCall(content)) return chunk;
+    return ModelResponseChunk.fromJson({
+      ...json,
+      'content': _mapContent(content, _unwrap),
+    });
   }
+
+  // Works on the raw JSON: `Message.content` would build a `Part` per entry.
+  bool _hasWrappedCall(List<Object?> content) => content.any(
+    (part) =>
+        part is Map &&
+        part['toolRequest'] is Map &&
+        _wrappedNames.contains((part['toolRequest'] as Map)['name']),
+  );
 
   // A model that ignores the wrapper (no `input` key) gets its arguments
   // passed through as is; the tool's own schema validation reports the error.
@@ -128,14 +148,25 @@ final class ToolInputWrapping {
   ];
 }
 
+/// JSON Schema keys that annotate but don't constrain. A schema made only of
+/// these accepts any value (e.g. `.dynamicSchema(description: ...)`).
+const _annotationKeys = {
+  r'$schema',
+  r'$comment',
+  'title',
+  'description',
+  'default',
+  'examples',
+};
+
 /// Whether [schema] describes something other than an object (a primitive,
 /// array, nullable or union), which providers reject as function parameters.
 ///
-/// An empty schema (`.dynamicSchema()`, any value) is left alone: wrapping it
-/// would change what existing untyped tools receive.
+/// An untyped schema (`.dynamicSchema()`, any value) is left alone: wrapping
+/// it would change what existing untyped tools receive.
 @visibleForTesting
 bool needsWrapping(Map<String, dynamic> schema) {
-  if (schema.keys.every((k) => k == r'$schema')) return false;
+  if (schema.keys.every(_annotationKeys.contains)) return false;
   if (schema.containsKey('properties')) return false;
   final type = schema['type'];
   if (type == 'object') return false;
