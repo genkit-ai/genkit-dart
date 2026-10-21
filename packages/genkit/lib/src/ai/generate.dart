@@ -863,6 +863,10 @@ Future<GenerateResult> _runGenerateAction(
       })
       execution;
       try {
+        // Validate before running any restarted tool so a bad resume doesn't
+        // trigger tool side effects. `_resolveResume` re-checks on the next
+        // pass, which also covers respond-only resumes.
+        _assertResumable(opts.messages);
         execution = await _executeTools(
           generateRegistry,
           resumeRestart.cast<ToolRequestPart>().toList(),
@@ -1222,6 +1226,21 @@ Output? parseChunkOutput<Output>(
   return null;
 }
 
+/// Throws FAILED_PRECONDITION unless [messages] ends with a model message that
+/// has at least one tool request, the only state a resume can apply to.
+/// Matches JS and Go.
+void _assertResumable(List<Message> messages) {
+  final last = messages.lastOrNull;
+  if (last?.role != Role.model ||
+      !(last?.content.any((p) => p.isToolRequest) ?? false)) {
+    throw GenkitException(
+      'Cannot resume generation: the last message must be a model message '
+      'with at least one tool request.',
+      status: StatusCode.failedPrecondition,
+    );
+  }
+}
+
 Future<({ModelRequest? request, ModelResponse? interruptedResponse})>
 _resolveResume(
   Registry registry,
@@ -1230,17 +1249,14 @@ _resolveResume(
   Map<String, dynamic>? context,
   List<GenerateMiddleware>? middleware,
 ) async {
-  final lastMessage = request.messages.lastOrNull;
-  if (lastMessage?.role != Role.model ||
-      !(lastMessage?.content.any((p) => p.isToolRequest) ?? false)) {
-    return (request: request, interruptedResponse: null);
-  }
+  _assertResumable(request.messages);
+  final lastMessage = request.messages.last;
 
   final resumeRespond = resume.respond ?? [];
   final toolResponses = <Part>[];
   final newContent = <Part>[];
 
-  for (final part in lastMessage!.content) {
+  for (final part in lastMessage.content) {
     if (!part.isToolRequest) {
       newContent.add(part);
       continue;
