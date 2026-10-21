@@ -1,3 +1,22 @@
+## 0.4.0
+
+### Breaking Changes
+
+ - replace vertexAI with agentPlatform; drop appCheck and auth params (#609)
+
+### Features
+
+ - add httpClient parameter and wire-test harness (#602)
+
+### Fixes
+
+ - allow firebase_ai 4.x (#601)
+
+### Other Changes
+
+ - remove temporary analyzer pin (#634)
+
+
 ## 0.3.0
 
 ### Breaking Changes

@@ -1,3 +1,10 @@
+## 1.0.1
+
+### Fixes
+
+ - support primitive tool input schemas (#653)
+
+
 ## 1.0.0
 
 ### Breaking Changes

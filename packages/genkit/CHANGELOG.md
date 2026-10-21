@@ -1,3 +1,16 @@
+## 1.0.1
+
+### Fixes
+
+ - support primitive tool input schemas (#653)
+ - reject resume when the last message is not a model tool request (#641)
+ - start fresh agent sessions with unset custom state (#642)
+
+### Other Changes
+
+ - bump api_summary to ^1.2.0 and regenerate api.txt (#639)
+
+
 ## 1.0.0
 
 ### Breaking Changes
