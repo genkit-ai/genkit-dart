@@ -12,9 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:logging/logging.dart';
+
 import '../core/action.dart';
 import '../core/dynamic_action_provider.dart';
 import '../core/registry.dart';
+import '../exception.dart';
+import 'tool.dart';
+
+final _logger = Logger('genkit.tools');
 
 /// A tool/action reference addressed through a dynamic action provider.
 ///
@@ -104,4 +110,58 @@ Future<List<Action>> resolveDapActions(
     if (action != null) resolved.add(action);
   }
   return resolved;
+}
+
+/// Resolves one requested tool reference to the tools it names, for the
+/// generate and bidi tool slots.
+///
+/// A plain name must resolve to a registered tool. A DAP reference resolves
+/// through its provider, and every action it yields is registered on
+/// [registry] (pass a child registry) so prompts and resources stay resolvable
+/// by key; only the tools are returned. A reference that names one tool and
+/// resolves to nothing throws a [GenkitException] with [StatusCode.notFound],
+/// as an unknown middleware does: sending the request without the tool would
+/// let the model answer without it. A `*`/`prefix*` wildcard that matches
+/// nothing is logged as a warning instead, since a provider may legitimately
+/// expose no actions yet.
+Future<List<Tool>> resolveToolReference(
+  Registry registry,
+  String toolName,
+) async {
+  // A DAP reference is either the full Dev UI registry key
+  // (`/dynamic-action-provider/<host>:<type>/<name>`) or the shorthand
+  // (`<host>:tool/<name>`, `<host>:*`, etc.). See parseDapToolRef.
+  final dapRef = parseDapToolRef(toolName);
+  if (dapRef != null) {
+    final dap =
+        await registry.lookupAction(.dynamicActionProvider, dapRef.host)
+            as DynamicActionProvider?;
+    if (dap != null) {
+      final actions = await resolveDapActions(dap, dapRef);
+      final tools = <Tool>[];
+      for (final action in actions) {
+        registry.register(action);
+        if (action is Tool) tools.add(action);
+      }
+      if (actions.isEmpty) {
+        if (!dapRef.matcher.endsWith('*')) {
+          throw GenkitException(
+            'Tool $toolName not found',
+            status: StatusCode.notFound,
+          );
+        }
+        _logger.warning('Tool reference $toolName matched no actions.');
+      }
+      return tools;
+    }
+  }
+
+  final tool = await registry.lookupAction(.tool, toolName) as Tool?;
+  if (tool == null) {
+    throw GenkitException(
+      'Tool $toolName not found',
+      status: StatusCode.notFound,
+    );
+  }
+  return [tool];
 }
