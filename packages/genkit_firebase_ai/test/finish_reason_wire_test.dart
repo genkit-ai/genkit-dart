@@ -103,6 +103,16 @@ void main() {
     );
   }
 
+  for (final wire in [null, 'UNKNOWN']) {
+    test('$wire maps to unknown', () {
+      expect(finishReasonFromWire(wire), FinishReason.unknown);
+    });
+  }
+
+  test('a member firebase_ai adds later maps to other', () {
+    expect(finishReasonFromWire('SOMETHING_NEW'), FinishReason.other);
+  });
+
   for (final wire in ['MODEL_ARMOR', 'ESCALATION', 'PUP_LIMITED_DISABLED']) {
     test('$wire maps to blocked once firebase_ai recognizes it', () {
       expect(finishReasonFromWire(wire), FinishReason.blocked);

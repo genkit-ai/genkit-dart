@@ -17,10 +17,14 @@ import 'package:genkit/plugin.dart';
 /// Maps a Gemini finish reason wire value onto Genkit's vocabulary.
 ///
 /// Switches on the wire value, not the enum, because `firebase_ai` adds
-/// members in minor releases. `firebase_ai` parses unrecognized wire values
-/// as `FinishReason.unknown`, so those surface as [FinishReason.unknown].
+/// members in minor releases. A missing reason or `UNKNOWN` maps to
+/// [FinishReason.unknown]; any other unlisted value maps to
+/// [FinishReason.other].
 FinishReason finishReasonFromWire(String? wire) {
   switch (wire) {
+    case null:
+    case 'UNKNOWN':
+      return FinishReason.unknown;
     case 'STOP':
       return FinishReason.stop;
     case 'MAX_TOKENS':
@@ -48,6 +52,6 @@ FinishReason finishReasonFromWire(String? wire) {
     case 'OTHER':
       return FinishReason.other;
     default:
-      return FinishReason.unknown;
+      return FinishReason.other;
   }
 }
