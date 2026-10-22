@@ -852,10 +852,8 @@ fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
 /// native or textual, unless the caller supplied their own. Gemini only
 /// honours a response schema alongside an `application/json` response mime
 /// type, so the JSON-mode half of the condition is the provider's rule, not a
-/// preference.
-/// In that case both `options.responseJsonSchema` and `options.responseSchema`
-/// are dropped. Otherwise `options.responseJsonSchema` or, failing that,
-/// `options.responseSchema` is sent; `firebase_ai` forbids sending both.
+/// preference. `firebase_ai` forbids sending both `responseJsonSchema` and
+/// `responseSchema`.
 @visibleForTesting
 fai.GenerationConfig toGeminiSettings(
   GeminiOptions options,
