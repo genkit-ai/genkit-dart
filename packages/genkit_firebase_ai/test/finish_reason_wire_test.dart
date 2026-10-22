@@ -15,6 +15,7 @@
 import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
+import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 
 import 'wire_harness.dart';
 
@@ -61,7 +62,10 @@ void main() {
 
       expect(response.finishReason, expected);
       expect(response.finishMessage, isNull);
-      expect(response.custom?['finishReason'], wire);
+      expect(
+        response.custom?['finishReason'],
+        expected == FinishReason.unknown ? isNull : wire,
+      );
       expect(response.message?.text, 'partial');
     });
   }
@@ -78,17 +82,32 @@ void main() {
     expect(response.custom, isNull);
   });
 
-  test('an unrecognized wire value maps to unknown', () async {
-    final client = WireClient(
-      response: textResponse('partial', finishReason: 'SOMETHING_NEW'),
+  for (final wire in [
+    'FINISH_REASON_UNSPECIFIED',
+    'MODEL_ARMOR',
+    'SOMETHING_NEW',
+  ]) {
+    test(
+      'unrecognized wire value $wire maps to unknown without custom',
+      () async {
+        final client = WireClient(
+          response: textResponse('partial', finishReason: wire),
+        );
+
+        final response = await wireModel(client)(userRequest('hello'));
+
+        expect(response.finishReason, FinishReason.unknown);
+        expect(response.finishMessage, isNull);
+        expect(response.custom, isNull);
+      },
     );
+  }
 
-    final response = await wireModel(client)(userRequest('hello'));
-
-    expect(response.finishReason, FinishReason.unknown);
-    expect(response.finishMessage, isNull);
-    expect(response.custom?['finishReason'], 'UNKNOWN');
-  });
+  for (final wire in ['MODEL_ARMOR', 'ESCALATION', 'PUP_LIMITED_DISABLED']) {
+    test('$wire maps to blocked once firebase_ai recognizes it', () {
+      expect(finishReasonFromWire(wire), FinishReason.blocked);
+    });
+  }
 
   test('finishMessage carries the candidate finishMessage', () async {
     final client = WireClient(
@@ -135,4 +154,26 @@ void main() {
     expect(response.finishMessage, isNull);
     expect(response.custom?['finishReason'], 'MAX_TOKENS');
   });
+
+  test(
+    'streaming with an unrecognized final reason matches non-streaming',
+    () async {
+      final client = WireClient(
+        streamChunks: [
+          textResponse('Hello, ', finishReason: null),
+          textResponse('wor', finishReason: 'MODEL_ARMOR'),
+        ],
+      );
+
+      final response = await wireModel(client)(
+        userRequest('hello'),
+        onChunk: (_) {},
+      );
+
+      expect(response.message?.text, 'Hello, wor');
+      expect(response.finishReason, FinishReason.unknown);
+      expect(response.finishMessage, isNull);
+      expect(response.custom, isNull);
+    },
+  );
 }

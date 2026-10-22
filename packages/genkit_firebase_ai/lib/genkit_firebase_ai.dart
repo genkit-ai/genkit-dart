@@ -683,16 +683,17 @@ fai.Part toGeminiPart(Part p) {
     role: Role(candidate.content.role ?? 'model'),
     content: candidate.content.parts.map(fromGeminiPart).toList(),
   );
-  return (message, _toFinishReason(candidate.finishReason));
+  return (message, finishReasonFromWire(candidate.finishReason?.toJson()));
 }
 
-/// Maps a Gemini finish reason onto Genkit's vocabulary.
+/// Maps a Gemini finish reason wire value onto Genkit's vocabulary.
 ///
 /// Switches on the wire value, not the enum, because `firebase_ai` adds
 /// members in minor releases. `firebase_ai` parses unrecognized wire values
 /// as [fai.FinishReason.unknown], so those surface as [FinishReason.unknown].
-FinishReason _toFinishReason(fai.FinishReason? reason) {
-  switch (reason?.toJson()) {
+@visibleForTesting
+FinishReason finishReasonFromWire(String? wire) {
+  switch (wire) {
     case 'STOP':
       return FinishReason.stop;
     case 'MAX_TOKENS':
@@ -706,6 +707,9 @@ FinishReason _toFinishReason(fai.FinishReason? reason) {
     case 'IMAGE_SAFETY':
     case 'IMAGE_PROHIBITED_CONTENT':
     case 'IMAGE_RECITATION':
+    case 'MODEL_ARMOR':
+    case 'ESCALATION':
+    case 'PUP_LIMITED_DISABLED':
       return FinishReason.blocked;
     case 'MALFORMED_FUNCTION_CALL':
     case 'UNEXPECTED_TOOL_CALL':
@@ -721,9 +725,12 @@ FinishReason _toFinishReason(fai.FinishReason? reason) {
   }
 }
 
+/// Returns the finish reason as `firebase_ai` parsed it, or null when it
+/// parsed none or [fai.FinishReason.unknown], whose original wire value is lost.
 Map<String, dynamic>? _finishCustom(fai.Candidate candidate) {
-  final raw = candidate.finishReason?.toJson();
-  return raw == null ? null : {'finishReason': raw};
+  final reason = candidate.finishReason;
+  if (reason == null || reason == fai.FinishReason.unknown) return null;
+  return {'finishReason': reason.toJson()};
 }
 
 @visibleForTesting
