@@ -83,4 +83,79 @@ void main() {
 
     expect(response.raw, _expectedRaw);
   });
+  test('streaming raw keeps one safety rating per category', () async {
+    const harassment = {
+      'category': 'HARM_CATEGORY_HARASSMENT',
+      'probability': 'LOW',
+    };
+    const hate = {
+      'category': 'HARM_CATEGORY_HATE_SPEECH',
+      'probability': 'NEGLIGIBLE',
+    };
+    Map<String, dynamic> chunk(String text, List<Object> ratings) => {
+      'candidates': [
+        {
+          'content': {
+            'role': 'model',
+            'parts': [
+              {'text': text},
+            ],
+          },
+          'safetyRatings': ratings,
+        },
+      ],
+    };
+    final client = WireClient(
+      streamChunks: [
+        chunk('a', _safetyRatings),
+        chunk('b', [..._safetyRatings, hate]),
+        chunk('c', [harassment]),
+      ],
+    );
+
+    final response = await wireModel(client)(
+      userRequest('hello'),
+      onChunk: (_) {},
+    );
+
+    final candidates = response.raw!['candidates'] as List;
+    expect((candidates.single as Map)['safetyRatings'], [harassment, hate]);
+  });
+
+  test('streaming raw keeps candidates separate', () async {
+    Map<String, dynamic> candidate(String text) => {
+      'content': {
+        'role': 'model',
+        'parts': [
+          {'text': text},
+        ],
+      },
+    };
+    final client = WireClient(
+      streamChunks: [
+        {
+          'candidates': [candidate('one '), candidate('two ')],
+        },
+        {
+          'candidates': [candidate('a'), candidate('b')],
+        },
+      ],
+    );
+
+    final response = await wireModel(client)(
+      userRequest('hello'),
+      onChunk: (_) {},
+    );
+
+    expect(response.raw!['candidates'], [
+      containsPair('content', {
+        'role': 'model',
+        'parts': [containsPair('text', 'one a')],
+      }),
+      containsPair('content', {
+        'role': 'model',
+        'parts': [containsPair('text', 'two b')],
+      }),
+    ]);
+  });
 }
