@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:firebase_ai/firebase_ai.dart' show FirebaseAISdkException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
 
@@ -34,6 +35,16 @@ final _isBlockedException = isA<GenkitException>()
       contains('The prompt was blocked for safety.'),
     );
 
+final _blockedWithoutRatings = {
+  'promptFeedback': {'blockReason': 'PROHIBITED_CONTENT'},
+};
+
+final _isUnparsedFeedbackException = isA<FirebaseAISdkException>().having(
+  (e) => e.message,
+  'message',
+  contains('Unhandled format for PromptFeedback'),
+);
+
 void main() {
   setUpAll(setUpFirebaseApp);
 
@@ -53,6 +64,26 @@ void main() {
     await expectLater(
       model(userRequest('hello'), onChunk: (_) {}),
       throwsA(_isBlockedException),
+    );
+  });
+
+  test('generate fails inside firebase_ai when promptFeedback has no '
+      'safetyRatings', () async {
+    final model = wireModel(WireClient(response: _blockedWithoutRatings));
+
+    await expectLater(
+      model(userRequest('hello')),
+      throwsA(_isUnparsedFeedbackException),
+    );
+  });
+
+  test('streaming generate fails inside firebase_ai when promptFeedback '
+      'has no safetyRatings', () async {
+    final model = wireModel(WireClient(streamChunks: [_blockedWithoutRatings]));
+
+    await expectLater(
+      model(userRequest('hello'), onChunk: (_) {}),
+      throwsA(_isUnparsedFeedbackException),
     );
   });
 
