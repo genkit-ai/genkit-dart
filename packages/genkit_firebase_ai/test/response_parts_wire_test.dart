@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:firebase_ai/firebase_ai.dart' show FirebaseAISdkException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
 
@@ -122,6 +123,30 @@ void main() {
     expect(part.custom, {
       'fileData': {'fileUri': 'gs://b/f.png', 'mimeType': 'image/png'},
     });
+  });
+
+  test('codeExecutionResult without output fails in firebase_ai parsing '
+      '(pins upstream firebase_ai limitation: output is required)', () async {
+    final model = wireModel(
+      WireClient(
+        response: partsResponse([
+          {
+            'codeExecutionResult': {'outcome': 'OUTCOME_OK'},
+          },
+        ]),
+      ),
+    );
+
+    await expectLater(
+      model(userRequest('run it', config: {'codeExecution': true})),
+      throwsA(
+        isA<FirebaseAISdkException>().having(
+          (e) => e.message,
+          'message',
+          contains('Unhandled format for codeExecutionResult'),
+        ),
+      ),
+    );
   });
 
   test('code execution parts survive streaming aggregation', () async {
