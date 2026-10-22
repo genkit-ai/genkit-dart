@@ -14,6 +14,7 @@
 
 // ignore_for_file: invalid_use_of_visible_for_testing_member
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_ai/firebase_ai.dart' as fai;
@@ -282,7 +283,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           httpClient: transport,
         );
         GenkitException mapError(Object e, StackTrace stack) =>
-            _toGenkitException(e, stack, httpStatus: transport.lastStatusCode);
+            _toGenkitException(
+              e,
+              stack,
+              httpStatus: transport.lastStatusCode,
+              errorStatus: transport.lastErrorStatus,
+            );
 
         if (ctx.streamingRequested) {
           final stream = model
@@ -1038,8 +1044,8 @@ GenkitException _noCandidatesException(fai.PromptFeedback? feedback) {
   return GenkitException('Model returned no candidates.');
 }
 
-/// Records the HTTP status of the last response, which `firebase_ai` drops
-/// from most of the exceptions it throws.
+/// Records the HTTP status and the error body's gRPC status of the last
+/// response, which `firebase_ai` drops from the exceptions it throws.
 class _StatusRecordingClient extends http.BaseClient {
   _StatusRecordingClient(this._inner);
 
@@ -1047,30 +1053,117 @@ class _StatusRecordingClient extends http.BaseClient {
 
   int? lastStatusCode;
 
+  /// The `error.status` of a non-200 body or of an error chunk in an SSE
+  /// stream, such as `UNAVAILABLE`.
+  String? lastErrorStatus;
+
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final response = await _inner.send(request);
     lastStatusCode = response.statusCode;
-    return response;
+    lastErrorStatus = null;
+    if (response.statusCode != 200) {
+      final body = await response.stream.toBytes();
+      lastErrorStatus = _errorStatusOf(utf8.decode(body, allowMalformed: true));
+      return _withBody(response, Stream.value(body), body.length);
+    }
+    if (request.url.queryParameters['alt'] != 'sse') return response;
+
+    final lines = const LineSplitter().startChunkedConversion(
+      _CallbackSink((line) {
+        if (lastErrorStatus == null &&
+            line.startsWith('data: ') &&
+            line.contains('"error"')) {
+          lastErrorStatus = _errorStatusOf(line.substring('data: '.length));
+        }
+      }),
+    );
+    final sniffer = const Utf8Decoder(
+      allowMalformed: true,
+    ).startChunkedConversion(lines);
+    // The sniffer sees each chunk before firebase_ai does, so the status is
+    // recorded by the time firebase_ai throws on the error chunk.
+    final stream = response.stream.transform(
+      StreamTransformer<List<int>, List<int>>.fromHandlers(
+        handleData: (bytes, sink) {
+          sniffer.add(bytes);
+          sink.add(bytes);
+        },
+        handleDone: (sink) {
+          sniffer.close();
+          sink.close();
+        },
+      ),
+    );
+    return _withBody(response, stream, response.contentLength);
   }
 }
 
+http.StreamedResponse _withBody(
+  http.StreamedResponse response,
+  Stream<List<int>> body,
+  int? contentLength,
+) => http.StreamedResponse(
+  body,
+  response.statusCode,
+  contentLength: contentLength,
+  request: response.request,
+  headers: response.headers,
+  isRedirect: response.isRedirect,
+  persistentConnection: response.persistentConnection,
+  reasonPhrase: response.reasonPhrase,
+);
+
+class _CallbackSink implements Sink<String> {
+  _CallbackSink(this._onData);
+
+  final void Function(String) _onData;
+
+  @override
+  void add(String data) => _onData(data);
+
+  @override
+  void close() {}
+}
+
+String? _errorStatusOf(String json) {
+  try {
+    if (jsonDecode(json) case {'error': {'status': final String status}}) {
+      return status;
+    }
+  } on FormatException {
+    return null;
+  }
+  return null;
+}
+
+/// Maps an error from `firebase_ai` or the transport to a [GenkitException].
+///
+/// The gRPC status in the error body wins, since several gRPC codes share an
+/// HTTP status and `firebase_ai` picks its exception class from the message
+/// text alone. The HTTP status comes next, then the exception class.
 GenkitException _toGenkitException(
   Object e,
   StackTrace stack, {
   int? httpStatus,
+  String? errorStatus,
 }) {
   if (e is GenkitException) return e;
+  bool usable(StatusCode? s) =>
+      s != null && s != StatusCode.ok && s != StatusCode.unknown;
+  final fromBody = errorStatus == null
+      ? null
+      : StatusCode.fromWireName(errorStatus);
+  final fromHttp = httpStatus == null
+      ? null
+      : StatusCode.fromHttpStatus(httpStatus);
   final status = switch (e) {
+    _ when usable(fromBody) => fromBody!,
+    _ when usable(fromHttp) => fromHttp!,
     fai.QuotaExceeded() => StatusCode.resourceExhausted,
-    fai.InvalidApiKey() => StatusCode.unauthenticated,
+    fai.InvalidApiKey() => StatusCode.invalidArgument,
     fai.ServiceApiNotEnabled() => StatusCode.permissionDenied,
     fai.UnsupportedUserLocation() => StatusCode.failedPrecondition,
-    _ when httpStatus != null && httpStatus != 200 =>
-      switch (StatusCode.fromHttpStatus(httpStatus)) {
-        StatusCode.unknown => StatusCode.internal,
-        final code => code,
-      },
     http.ClientException() => StatusCode.unavailable,
     _ => StatusCode.internal,
   };
