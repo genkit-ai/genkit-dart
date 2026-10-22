@@ -108,4 +108,22 @@ void main() {
     expect(config['responseJsonSchema'], _outputSchema);
     expect(config, isNot(contains('responseSchema')));
   });
+
+  test('a constrained output schema replaces options.responseJsonSchema and '
+      'options.responseSchema', () async {
+    final config = await _generationConfigOnTheWire(
+      output: OutputConfig(
+        format: 'json',
+        schema: _outputSchema,
+        constrained: true,
+      ),
+      config: {
+        'responseSchema': {'type': 'string'},
+        'responseJsonSchema': {'type': 'integer'},
+      },
+    );
+
+    expect(config['responseJsonSchema'], _outputSchema);
+    expect(config, isNot(contains('responseSchema')));
+  });
 }

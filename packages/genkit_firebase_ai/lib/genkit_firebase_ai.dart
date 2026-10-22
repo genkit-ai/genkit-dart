@@ -62,12 +62,19 @@ abstract class $GeminiOptions {
   double? get frequencyPenalty;
   List<String>? get responseModalities;
   String? get responseMimeType;
+  @Field(
+    description:
+        'OpenAPI-subset schema the response must conform to. Ignored when '
+        'responseJsonSchema is set or the request has a constrained JSON '
+        'output schema.',
+  )
   Map<String, dynamic>? get responseSchema;
   @Field(
     description:
         'JSON Schema the response must conform to, sent to Gemini unchanged. '
         'Requires responseMimeType "application/json". Takes precedence over '
-        'responseSchema when both are set.',
+        'responseSchema when both are set. Ignored when the request has a '
+        'constrained JSON output schema, which is sent instead.',
   )
   Map<String, dynamic>? get responseJsonSchema;
   $ThinkingConfig? get thinkingConfig;
@@ -846,7 +853,8 @@ fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
 /// honours a response schema alongside an `application/json` response mime
 /// type, so the JSON-mode half of the condition is the provider's rule, not a
 /// preference.
-/// Otherwise `options.responseJsonSchema` or, failing that,
+/// In that case both `options.responseJsonSchema` and `options.responseSchema`
+/// are dropped. Otherwise `options.responseJsonSchema` or, failing that,
 /// `options.responseSchema` is sent; `firebase_ai` forbids sending both.
 @visibleForTesting
 fai.GenerationConfig toGeminiSettings(
