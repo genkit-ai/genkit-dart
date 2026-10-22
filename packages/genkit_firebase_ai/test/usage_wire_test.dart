@@ -44,11 +44,21 @@ void main() {
     expect(usage.custom, {'toolUsePromptTokenCount': 17});
   });
 
-  test('streaming generate keeps usage from a middle chunk when later '
-      'chunks have none', () async {
+  test('streaming generate keeps the last usage when later chunks have '
+      'none', () async {
     final client = WireClient(
       streamChunks: [
-        textResponse('Hello, ', finishReason: null),
+        {
+          ...textResponse('Hello, ', finishReason: null),
+          'usageMetadata': {
+            'promptTokenCount': 11,
+            'candidatesTokenCount': 4,
+            'totalTokenCount': 20,
+            'thoughtsTokenCount': 5,
+            'cachedContentTokenCount': 7,
+            'toolUsePromptTokenCount': 9,
+          },
+        },
         {
           ...textResponse('wor', finishReason: null),
           'usageMetadata': _usageMetadata,
