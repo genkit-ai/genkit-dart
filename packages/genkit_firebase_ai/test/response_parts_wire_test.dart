@@ -153,4 +153,79 @@ void main() {
       ['codeExecutionResult'],
     ]);
   });
+
+  test('code execution parts round-trip when the response is sent back '
+      'as history', () async {
+    final firstTurnParts = [
+      {
+        'executableCode': {'language': 'PYTHON', 'code': 'print(1 + 1)'},
+        'thoughtSignature': 'sig-code',
+      },
+      {
+        'codeExecutionResult': {'outcome': 'OUTCOME_OK', 'output': '2\n'},
+      },
+    ];
+    final client = WireClient(response: partsResponse(firstTurnParts));
+    final model = wireModel(client);
+    final config = {'codeExecution': true};
+
+    final first = await model(userRequest('what is 1 + 1?', config: config));
+    await model(
+      ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'what is 1 + 1?')],
+          ),
+          first.message!,
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'and 2 + 2?')],
+          ),
+        ],
+        config: config,
+      ),
+    );
+
+    final history = client.requests.last.body['contents'] as List;
+    expect(history[1], {
+      'role': 'model',
+      'parts': [
+        {
+          'thought': false,
+          'executableCode': {'language': 'PYTHON', 'code': 'print(1 + 1)'},
+          'thoughtSignature': 'sig-code',
+        },
+        {
+          'thought': false,
+          'codeExecutionResult': {'outcome': 'OUTCOME_OK', 'output': '2\n'},
+        },
+      ],
+    });
+  });
+
+  test('unrecognised thought part carries thought and thoughtSignature in '
+      'metadata, not in the custom payload', () async {
+    final client = WireClient(
+      response: partsResponse([
+        {
+          'futurePart': {'value': 42},
+          'thought': true,
+          'thoughtSignature': 'sig-future',
+        },
+      ]),
+    );
+    final model = wireModel(client);
+
+    final response = await model(userRequest('hello'));
+
+    final part = response.message!.content.single;
+    expect(part.custom, {
+      'futurePart': {'value': 42},
+    });
+    expect(part.metadata, {
+      'isThought': true,
+      'thoughtSignature': 'sig-future',
+    });
+  });
 }

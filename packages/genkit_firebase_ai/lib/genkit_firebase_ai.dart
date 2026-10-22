@@ -670,6 +670,19 @@ fai.Part toGeminiPart(Part p) {
       );
     }
   }
+  if (p.isCustom) {
+    final custom = p.custom!;
+    for (final key in const ['executableCode', 'codeExecutionResult']) {
+      if (custom[key] != null) {
+        // The typed parts' public constructors drop thoughtSignature.
+        return fai.UnknownPart({
+          key: custom[key],
+          if (isThought) 'thought': true,
+          'thoughtSignature': ?thoughtSignature,
+        });
+      }
+    }
+  }
   throw UnimplementedError('Part type $p not supported yet');
 }
 
@@ -734,7 +747,16 @@ Part fromGeminiPart(fai.Part p) {
     );
   }
   if (p is fai.UnknownPart) {
-    return CustomPart(custom: p.data, metadata: metadata);
+    final custom = {...p.data}
+      ..remove('thought')
+      ..remove('thoughtSignature');
+    return CustomPart(
+      custom: custom,
+      metadata: {
+        if (p.data['thought'] == true) 'isThought': true,
+        'thoughtSignature': ?thoughtSignature,
+      },
+    );
   }
   return CustomPart(custom: pJson, metadata: metadata);
 }
