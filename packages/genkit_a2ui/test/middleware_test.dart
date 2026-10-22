@@ -12,23 +12,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
-final sampleText =
-    '''Here is the weather:
-```a2ui
-[
-  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${basicCatalog.id}" } },
-  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-    { "id": "root", "component": "Text", "text": "hi" }
-  ] } }
-]
-```
+final sampleText = '''Here is the weather:
+<a2ui>
+root = Text("hi")
+</a2ui>
 ''';
 
 void main() {
@@ -189,8 +181,8 @@ void main() {
 
     test('stitches a block split across many final-message text parts', () async {
       // The aggregated final message is not guaranteed to coalesce adjacent
-      // text: the Gemini plugin splits a turn into many text parts (fence, JSON
-      // body split many ways, close fence, then a trailing empty-text part
+      // text: the Gemini plugin splits a turn into many text parts (open tag,
+      // body split many ways, close tag, then a trailing empty-text part
       // carrying the thought signature). _transformResponse must stitch a block
       // spanning several parts into a single a2ui data part rather than flushing
       // per part and leaking the whole surface back out as raw prose. The
@@ -203,19 +195,13 @@ void main() {
             message: Message(
               role: Role.model,
               content: [
-                TextPart(text: 'Here is the weather:\n\n``'),
-                TextPart(
-                  text: '`a2ui\n[{"createSurface":{"surfaceId":"SURFACE_ID",',
-                ),
-                TextPart(text: '"catalogId":"${basicCatalog.id}"}},'),
-                TextPart(
-                  text: '{"updateComponents":{"surfaceId":"SURFACE_ID",',
-                ),
-                TextPart(
-                  text: '"components":[{"id":"root","component":"Text",',
-                ),
-                TextPart(text: '"text":"hi"}]}}]\n``'),
-                TextPart(text: '`'),
+                TextPart(text: 'Here is the weather:\n\n<a'),
+                TextPart(text: '2ui>\nroot = Colu'),
+                TextPart(text: 'mn([title, temp])\n'),
+                TextPart(text: 'title = Text("Weather", '),
+                TextPart(text: '"h3")\ntemp = Text('),
+                TextPart(text: '"hi")\n</a2'),
+                TextPart(text: 'ui>'),
                 // A trailing empty-text part that only carries metadata (e.g. a
                 // thought signature).
                 TextPart(text: '', metadata: {'signature': 'thought-sig-xyz'}),
@@ -341,11 +327,9 @@ void main() {
       // A hallucinated component would throw under strict, killing the turn.
       // With the warn default the block is dropped and prose survives.
       final bad = '''oops:
-```a2ui
-[{ "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-  { "id": "root", "component": "NotAThing" }
-] } }]
-```
+<a2ui>
+root = NotAThing()
+</a2ui>
 ''';
       defineReplyModel('m_warn', bad);
 
@@ -497,28 +481,20 @@ void main() {
       // NOT the old `[rendered UI surface]` sentinel that poisoned the model.
       expect(joined, isNot(contains('[rendered UI surface]')));
       expect(joined, isNot(contains('[UI surface')));
-      expect(joined, contains('```a2ui'));
-      expect(joined, contains('createSurface'));
-      expect(joined, contains('updateComponents'));
       expect(joined, contains('Here you go:'));
 
-      // The reconstructed block round-trips: parsing it yields the envelopes.
-      final block = joined.substring(
-        joined.indexOf('```a2ui') + '```a2ui'.length,
-        joined.lastIndexOf('```'),
-      );
-      final decoded = jsonDecode(block.trim()) as List;
-      expect(decoded.length, 2);
-      expect((decoded[0] as Map)['createSurface'], isNotNull);
+      // History is replayed as Express - the same format the model is asked to
+      // produce - so it reinforces the contract rather than teaching JSON.
+      expect(joined, contains('<a2ui>'));
+      expect(joined, contains('</a2ui>'));
+      expect(joined, contains('root = Text('));
+      expect(joined, isNot(contains('updateComponents')));
 
       // The real surface id is kept verbatim (NOT scrubbed to a placeholder),
       // so a replayed action `[UI action ... on surface s1]` can still be
       // correlated with this surface. Reuse is prevented at the parser instead:
-      // `createSurface` always mints a fresh id (see the distinct-id test).
-      final create = (decoded[0] as Map)['createSurface'] as Map;
-      final update = (decoded[1] as Map)['updateComponents'] as Map;
-      expect(create['surfaceId'], 's1');
-      expect(update['surfaceId'], 's1');
+      // a fresh render always mints a new id (see the distinct-id test).
+      expect(joined, contains('surface("s1")'));
     });
 
     test('a new render never reuses a surface id copied from history', () async {
@@ -541,16 +517,10 @@ void main() {
               role: Role.model,
               content: [
                 TextPart(
-                  text:
-                      '''Here you go:
-```a2ui
-[
-  { "createSurface": { "surfaceId": "s1", "catalogId": "${basicCatalog.id}" } },
-  { "updateComponents": { "surfaceId": "s1", "components": [
-    { "id": "root", "component": "Text", "text": "new" }
-  ] } }
-]
-```
+                  text: '''Here you go:
+<a2ui>
+root = Text("new")
+</a2ui>
 ''',
                 ),
               ],
@@ -613,7 +583,7 @@ void main() {
       // the reconstructed surface block and the action line (correlation).
       final modelMsg = seen!.messages.firstWhere((m) => m.role == Role.model);
       final modelText = modelMsg.content.map((p) => p.text ?? '').join('\n');
-      expect(modelText, contains('"surfaceId":"s1"'));
+      expect(modelText, contains('surface("s1")'));
       final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
       final userText = userMsg.content.map((p) => p.text ?? '').join('\n');
       expect(userText, contains('on surface s1'));
@@ -655,11 +625,11 @@ void main() {
       final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
       final joined = userMsg.content.map((p) => p.text ?? '').join('\n');
       // Exactly one fenced block (the two surface envelopes grouped together)...
-      expect('```a2ui'.allMatches(joined).length, 1);
+      expect('<a2ui>'.allMatches(joined).length, 1);
       // ...plus the action rendered as a text summary after it.
       expect(joined, contains('UI action "refresh"'));
       // The block precedes the action line (source order preserved).
-      expect(joined.indexOf('```a2ui'), lessThan(joined.indexOf('UI action')));
+      expect(joined.indexOf('<a2ui>'), lessThan(joined.indexOf('UI action')));
     });
 
     test('transforms streamed chunks and mints a matching final id', () async {
@@ -775,15 +745,9 @@ void main() {
         'turn', () async {
       // A block whose closing fence never arrives on the stream should still be
       // recovered on flush and reach the streaming consumer.
-      final unterminated =
-          '''
-```a2ui
-[
-  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${basicCatalog.id}" } },
-  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-    { "id": "root", "component": "Text", "text": "hi" }
-  ] } }
-]''';
+      final unterminated = '''
+<a2ui>
+root = Text("hi")''';
       genkit.defineModel(
         name: 'm_flush_block',
         fn: (req, ctx) async {
