@@ -29,6 +29,7 @@ import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'src/aggregation.dart';
+import 'src/finish_reason.dart';
 
 part 'genkit_firebase_ai.g.dart';
 
@@ -684,45 +685,6 @@ fai.Part toGeminiPart(Part p) {
     content: candidate.content.parts.map(fromGeminiPart).toList(),
   );
   return (message, finishReasonFromWire(candidate.finishReason?.toJson()));
-}
-
-/// Maps a Gemini finish reason wire value onto Genkit's vocabulary.
-///
-/// Switches on the wire value, not the enum, because `firebase_ai` adds
-/// members in minor releases. `firebase_ai` parses unrecognized wire values
-/// as [fai.FinishReason.unknown], so those surface as [FinishReason.unknown].
-@visibleForTesting
-FinishReason finishReasonFromWire(String? wire) {
-  switch (wire) {
-    case 'STOP':
-      return FinishReason.stop;
-    case 'MAX_TOKENS':
-      return FinishReason.length;
-    case 'SAFETY':
-    case 'RECITATION':
-    case 'LANGUAGE':
-    case 'BLOCKLIST':
-    case 'PROHIBITED_CONTENT':
-    case 'SPII':
-    case 'IMAGE_SAFETY':
-    case 'IMAGE_PROHIBITED_CONTENT':
-    case 'IMAGE_RECITATION':
-    case 'MODEL_ARMOR':
-    case 'ESCALATION':
-    case 'PUP_LIMITED_DISABLED':
-      return FinishReason.blocked;
-    case 'MALFORMED_FUNCTION_CALL':
-    case 'UNEXPECTED_TOOL_CALL':
-    case 'TOO_MANY_TOOL_CALLS':
-    case 'NO_IMAGE':
-    case 'IMAGE_OTHER':
-    case 'MALFORMED_RESPONSE':
-    case 'MISSING_THOUGHT_SIGNATURE':
-    case 'OTHER':
-      return FinishReason.other;
-    default:
-      return FinishReason.unknown;
-  }
 }
 
 /// Returns the finish reason as `firebase_ai` parsed it, or null when it
