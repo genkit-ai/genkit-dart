@@ -30,6 +30,7 @@ import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'src/aggregation.dart';
+import 'src/error_mapping.dart';
 
 part 'genkit_firebase_ai.g.dart';
 
@@ -283,7 +284,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           httpClient: transport,
         );
         GenkitException mapError(Object e, StackTrace stack) =>
-            _toGenkitException(
+            toGenkitException(
               e,
               stack,
               httpStatus: transport.lastStatusCode,
@@ -409,7 +410,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         try {
           session = await model.connect();
         } catch (e, stack) {
-          throw _toGenkitException(e, stack);
+          throw toGenkitException(e, stack);
         }
         _logger.info('Connected to model: $modelName');
 
@@ -1135,46 +1136,4 @@ String? _errorStatusOf(String json) {
     return null;
   }
   return null;
-}
-
-/// Maps an error from `firebase_ai` or the transport to a [GenkitException].
-///
-/// The gRPC status in the error body wins, since several gRPC codes share an
-/// HTTP status and `firebase_ai` picks its exception class from the message
-/// text alone. The HTTP status comes next, then the exception class.
-GenkitException _toGenkitException(
-  Object e,
-  StackTrace stack, {
-  int? httpStatus,
-  String? errorStatus,
-}) {
-  if (e is GenkitException) return e;
-  bool usable(StatusCode? s) =>
-      s != null && s != StatusCode.ok && s != StatusCode.unknown;
-  final fromBody = errorStatus == null
-      ? null
-      : StatusCode.fromWireName(errorStatus);
-  final fromHttp = httpStatus == null
-      ? null
-      : StatusCode.fromHttpStatus(httpStatus);
-  final status = switch (e) {
-    _ when usable(fromBody) => fromBody!,
-    _ when usable(fromHttp) => fromHttp!,
-    fai.QuotaExceeded() => StatusCode.resourceExhausted,
-    fai.InvalidApiKey() => StatusCode.invalidArgument,
-    fai.ServiceApiNotEnabled() => StatusCode.permissionDenied,
-    fai.UnsupportedUserLocation() => StatusCode.failedPrecondition,
-    http.ClientException() => StatusCode.unavailable,
-    _ => StatusCode.internal,
-  };
-  return GenkitException(
-    switch (e) {
-      fai.FirebaseAIException(:final message) => message,
-      fai.FirebaseAISdkException(:final message) => message,
-      _ => e.toString(),
-    },
-    status: status,
-    cause: e,
-    stackTrace: stack,
-  );
 }
