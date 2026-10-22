@@ -682,6 +682,13 @@ fai.Part toGeminiPart(Part p) {
         });
       }
     }
+    if (p.metadata?[_rawGeminiPartKey] == true) {
+      return fai.UnknownPart({
+        ...custom,
+        if (isThought) 'thought': true,
+        'thoughtSignature': ?thoughtSignature,
+      });
+    }
   }
   throw UnimplementedError('Part type $p not supported yet');
 }
@@ -695,6 +702,9 @@ fai.Part toGeminiPart(Part p) {
   );
   return (message, finishReason);
 }
+
+/// Marks a [CustomPart] built from an unparsed API part, so it can go back.
+const _rawGeminiPartKey = 'rawGeminiPart';
 
 @visibleForTesting
 Part fromGeminiPart(fai.Part p) {
@@ -753,6 +763,7 @@ Part fromGeminiPart(fai.Part p) {
     return CustomPart(
       custom: custom,
       metadata: {
+        _rawGeminiPartKey: true,
         if (p.data['thought'] == true) 'isThought': true,
         'thoughtSignature': ?thoughtSignature,
       },

@@ -224,8 +224,76 @@ void main() {
       'futurePart': {'value': 42},
     });
     expect(part.metadata, {
+      'rawGeminiPart': true,
       'isThought': true,
       'thoughtSignature': 'sig-future',
     });
+  });
+
+  test('unrecognised part round-trips with its raw payload when the '
+      'response is sent back as history', () async {
+    final client = WireClient(
+      response: partsResponse([
+        {
+          'futurePart': {'value': 42},
+          'thought': true,
+          'thoughtSignature': 'sig-future',
+        },
+      ]),
+    );
+    final model = wireModel(client);
+
+    final first = await model(userRequest('hello'));
+    await model(
+      ModelRequest(
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+          first.message!,
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'again')],
+          ),
+        ],
+      ),
+    );
+
+    final history = client.requests.last.body['contents'] as List;
+    expect(history[1], {
+      'role': 'model',
+      'parts': [
+        {
+          'thought': true,
+          'futurePart': {'value': 42},
+          'thoughtSignature': 'sig-future',
+        },
+      ],
+    });
+  });
+
+  test('user-authored custom part is not sent to the API', () async {
+    final model = wireModel(WireClient(response: partsResponse([])));
+
+    await expectLater(
+      model(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [
+                CustomPart(
+                  custom: {
+                    'futurePart': {'value': 42},
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+      throwsA(isA<UnimplementedError>()),
+    );
   });
 }
