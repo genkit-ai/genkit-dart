@@ -116,4 +116,28 @@ void main() {
     );
     expect(client.requests, isEmpty);
   });
+  test('a lowercase thinkingLevel throws invalidArgument and sends '
+      'nothing', () async {
+    final client = WireClient();
+    final model = wireModel(client, modelName: 'gemini-3-flash-preview');
+
+    await expectLater(
+      model(
+        userRequest(
+          'hello',
+          config: {
+            'thinkingConfig': {'thinkingLevel': 'high'},
+          },
+        ),
+      ),
+      throwsA(
+        isA<GenkitException>().having(
+          (e) => e.status,
+          'status',
+          StatusCode.invalidArgument,
+        ),
+      ),
+    );
+    expect(client.requests, isEmpty);
+  });
 }

@@ -915,7 +915,8 @@ fai.ThinkingConfig _toGeminiThinkingConfig(ThinkingConfig config) {
     );
   }
   final thinkingLevel = fai.ThinkingLevel.values
-      .asNameMap()[level.toLowerCase()];
+      .where((l) => l.toJson() == level)
+      .firstOrNull;
   if (thinkingLevel == null) {
     throw GenkitException(
       'Unknown thinkingConfig.thinkingLevel "$level"; expected one of '
