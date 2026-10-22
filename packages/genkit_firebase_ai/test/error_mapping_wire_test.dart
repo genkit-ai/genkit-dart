@@ -12,6 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
@@ -45,6 +48,14 @@ class _UnreachableClient extends WireClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async =>
       throw http.ClientException('Connection refused', request.url);
+}
+
+class _OpenStreamClient extends WireClient {
+  final body = StreamController<List<int>>();
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
+      http.StreamedResponse(body.stream, 200);
 }
 
 void main() {
@@ -105,7 +116,7 @@ void main() {
     );
   });
 
-  test('an invalid API key maps to UNAUTHENTICATED', () async {
+  test('an invalid API key maps to INVALID_ARGUMENT', () async {
     final client = WireClient(
       statusCode: 400,
       response: _error(
@@ -124,7 +135,7 @@ void main() {
     await expectLater(
       generate(client),
       _throwsGenkit(
-        StatusCode.unauthenticated,
+        StatusCode.invalidArgument,
         'API key not valid.',
         isA<fai.InvalidApiKey>(),
       ),
@@ -257,6 +268,90 @@ void main() {
         isA<fai.ServerException>(),
       ),
     );
+  });
+
+  test('a 400 FAILED_PRECONDITION maps to FAILED_PRECONDITION', () async {
+    final client = WireClient(
+      statusCode: 400,
+      response: _error(
+        400,
+        'FAILED_PRECONDITION',
+        'Precondition check failed.',
+      ),
+    );
+
+    await expectLater(
+      generate(client),
+      _throwsGenkit(
+        StatusCode.failedPrecondition,
+        'Precondition check failed.',
+        isA<fai.ServerException>(),
+      ),
+    );
+  });
+
+  test(
+    'a 403 whose message mentions quota maps to PERMISSION_DENIED',
+    () async {
+      final client = WireClient(
+        statusCode: 403,
+        response: _error(
+          403,
+          'PERMISSION_DENIED',
+          'Your application is authenticating by using local Application '
+              'Default Credentials. The API requires a quota project, which is '
+              'not set by default.',
+        ),
+      );
+
+      await expectLater(
+        generate(client),
+        _throwsGenkit(
+          StatusCode.permissionDenied,
+          'requires a quota project',
+          isA<fai.QuotaExceeded>(),
+        ),
+      );
+    },
+  );
+
+  test('an error chunk in a 200 stream maps to its status', () async {
+    final client = WireClient(
+      streamChunks: [
+        textResponse('partial', finishReason: null),
+        _error(503, 'UNAVAILABLE', 'The model is overloaded.'),
+      ],
+    );
+
+    await expectLater(
+      generate(client, stream: true),
+      _throwsGenkit(
+        StatusCode.unavailable,
+        'The model is overloaded.',
+        isA<fai.ServerException>(),
+      ),
+    );
+  });
+
+  test('stream chunks reach onChunk before the response ends', () async {
+    final client = _OpenStreamClient();
+    final firstChunk = Completer<ModelResponseChunk>();
+
+    final response = wireModel(client)(
+      userRequest('hello'),
+      onChunk: (c) {
+        if (!firstChunk.isCompleted) firstChunk.complete(c);
+      },
+    );
+    client.body.add(
+      utf8.encode(
+        'data: ${jsonEncode(textResponse('one', finishReason: null))}\r\n\r\n',
+      ),
+    );
+
+    expect((await firstChunk.future).text, 'one');
+    await client.body.close();
+    await response;
   });
 
   test('a network failure maps to UNAVAILABLE', () async {
