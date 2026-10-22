@@ -988,7 +988,12 @@ Map<String, dynamic> _rawSafetyRating(fai.SafetyRating rating) => {
   'probability': rating.probability.toJson(),
   'probabilityScore': ?rating.probabilityScore,
   'blocked': ?rating.isBlocked,
-  'severity': ?rating.severity?.toJson(),
+  // HarmSeverity.toJson drops the HARM_SEVERITY_ prefix the wire uses.
+  'severity': ?switch (rating.severity?.toJson()) {
+    'UNKNOWN' => 'UNKNOWN',
+    final String severity => 'HARM_SEVERITY_$severity',
+    null => null,
+  },
   'severityScore': ?rating.severityScore,
 };
 

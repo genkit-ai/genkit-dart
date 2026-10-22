@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 
 import 'wire_harness.dart';
 
@@ -26,8 +27,8 @@ const _usage = {
   'totalTokenCount': 8,
 };
 
-// firebase_ai serializes a parsed part with `thought: false` but a text part
-// rebuilt by stream aggregation without it, so only the text is pinned.
+// Only the text is pinned because whether a part carries `thought` depends on
+// how firebase_ai and stream aggregation build it.
 final _expectedRaw = {
   'candidates': [
     {
@@ -83,6 +84,87 @@ void main() {
 
     expect(response.raw, _expectedRaw);
   });
+  test('agentPlatform raw carries safety ratings in wire form', () async {
+    const rating = {
+      'category': 'HARM_CATEGORY_HARASSMENT',
+      'probability': 'LOW',
+      'probabilityScore': 0.25,
+      'blocked': false,
+      'severity': 'HARM_SEVERITY_NEGLIGIBLE',
+      'severityScore': 0.125,
+    };
+    final client = WireClient(
+      response: {
+        'candidates': [
+          {
+            'content': {
+              'role': 'model',
+              'parts': [
+                {'text': 'hi'},
+              ],
+            },
+            'finishReason': 'STOP',
+            'safetyRatings': [rating],
+          },
+        ],
+        'promptFeedback': {
+          'safetyRatings': [rating],
+        },
+      },
+    );
+
+    final response = await wireModel(
+      client,
+      provider: const FirebaseAiProvider.agentPlatform(),
+    )(userRequest('hello'));
+
+    expect(
+      (response.raw!['candidates'] as List).single,
+      containsPair('safetyRatings', [rating]),
+    );
+    expect(response.raw!['promptFeedback'], {
+      'safetyRatings': [rating],
+    });
+  });
+
+  test('agentPlatform streaming raw carries severity in wire form', () async {
+    const rating = {
+      'category': 'HARM_CATEGORY_HATE_SPEECH',
+      'probability': 'MEDIUM',
+      'probabilityScore': 0.5,
+      'severity': 'HARM_SEVERITY_HIGH',
+      'severityScore': 0.75,
+    };
+    final client = WireClient(
+      streamChunks: [
+        _chunk('hi '),
+        {
+          'candidates': [
+            {
+              'content': {
+                'role': 'model',
+                'parts': [
+                  {'text': 'there'},
+                ],
+              },
+              'safetyRatings': [rating],
+            },
+          ],
+        },
+      ],
+    );
+
+    final response = await wireModel(
+      client,
+      provider: const FirebaseAiProvider.agentPlatform(),
+    )(userRequest('hello'), onChunk: (_) {});
+
+    expect(
+      (response.raw!['candidates'] as List).single,
+      containsPair('safetyRatings', [rating]),
+    );
+  });
+
   test('streaming raw keeps one safety rating per category', () async {
     const harassment = {
       'category': 'HARM_CATEGORY_HARASSMENT',
