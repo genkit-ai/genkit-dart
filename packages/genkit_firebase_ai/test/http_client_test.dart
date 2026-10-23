@@ -43,37 +43,33 @@ void main() {
   });
 
   group('default httpClient', () {
-    // Routes the plugin's own `http.Client()` to the given WireClient.
+    // Runs [model] with `http.Client()` returning [client], so whichever
+    // client the plugin creates on first use is the one that gets requests.
     Future<ModelResponse> generate(
+      Model model,
       WireClient client, {
       StreamingCallback<ModelResponseChunk>? onChunk,
-    }) {
+    }) => http.runWithClient(
+      () => model(userRequest('hello'), onChunk: onChunk),
+      () => client,
+    );
+
+    test('is created once and reused across requests', () async {
       final model = firebaseAI().resolve(.model, 'gemini-2.5-flash') as Model;
-      return http.runWithClient(
-        () => model(userRequest('hello'), onChunk: onChunk),
-        () => client,
-      );
-    }
+      final first = WireClient();
+      final second = WireClient();
 
-    test('is closed after generate', () async {
-      final client = WireClient();
+      await generate(model, first);
+      await generate(model, second, onChunk: (_) {});
+      await generate(model, second);
 
-      await generate(client);
-
-      expect(client.requests.single.isStreaming, isFalse);
-      expect(client.closed, isTrue);
+      expect(first.requests.map((r) => r.isStreaming), [false, true, false]);
+      expect(second.requests, isEmpty);
+      expect(first.closed, isFalse);
     });
 
-    test('is closed after a streamed generate', () async {
-      final client = WireClient();
-
-      await generate(client, onChunk: (_) {});
-
-      expect(client.requests.single.isStreaming, isTrue);
-      expect(client.closed, isTrue);
-    });
-
-    test('is closed when the request fails', () async {
+    test('is not closed when a streamed request fails', () async {
+      final model = firebaseAI().resolve(.model, 'gemini-2.5-flash') as Model;
       final client = WireClient(
         statusCode: 500,
         response: {
@@ -81,22 +77,14 @@ void main() {
         },
       );
 
-      await expectLater(generate(client), throwsA(anything));
+      await expectLater(
+        generate(model, client, onChunk: (_) {}),
+        throwsA(anything),
+      );
+      await expectLater(generate(model, client), throwsA(anything));
 
-      expect(client.requests, hasLength(1));
-      expect(client.closed, isTrue);
-    });
-
-    test('is a new client per request', () async {
-      final first = WireClient();
-      final second = WireClient();
-
-      await generate(first);
-      await generate(second);
-
-      expect(first.requests, hasLength(1));
-      expect(second.requests, hasLength(1));
-      expect(first.closed && second.closed, isTrue);
+      expect(client.requests.map((r) => r.isStreaming), [true, false]);
+      expect(client.closed, isFalse);
     });
   });
 }
