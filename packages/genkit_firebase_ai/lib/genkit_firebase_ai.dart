@@ -340,8 +340,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   BidiModel _createBidiModel(String modelName) {
     return BidiModel(
       name: 'firebaseai/$modelName',
+      customOptions: LiveGenerationConfig.$schema,
       fn: (stream, ctx) async {
-        final configMap = ctx.init?.config;
         final tools = toGeminiTools(ctx.init?.tools);
         final systemMessage = ctx.init?.messages
             .where((m) => m.role == Role.system)
@@ -353,31 +353,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               )
             : null;
 
-        final liveConfig = fai.LiveGenerationConfig(
-          responseModalities: (configMap?['responseModalities'] as List?)?.map((
-            e,
-          ) {
-            return fai.ResponseModalities.values.byName(
-              (e as String).toLowerCase(),
-            );
-          }).toList(),
-          speechConfig: configMap?['speechConfig'] != null
-              ? fai.SpeechConfig(
-                  voiceName:
-                      (((configMap!['speechConfig'] as Map)['voiceConfig']
-                                  as Map)['prebuiltVoiceConfig']
-                              as Map)['voiceName']
-                          as String,
-                )
-              : null,
-          maxOutputTokens: configMap?['maxOutputTokens'] as int?,
-          temperature: (configMap?['temperature'] as num?)?.toDouble(),
-          topP: (configMap?['topP'] as num?)?.toDouble(),
-          topK: configMap?['topK'] as int?,
-          presencePenalty: (configMap?['presencePenalty'] as num?)?.toDouble(),
-          frequencyPenalty: (configMap?['frequencyPenalty'] as num?)
-              ?.toDouble(),
-        );
+        final liveConfig = toLiveGenerationConfig(ctx.init?.config);
 
         final model = _firebaseAI.liveGenerativeModel(
           model: modelName,
@@ -402,13 +378,13 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ctx.init?.messages.where((m) => m.role != Role.system).toList() ??
             [];
         for (final msg in initialMessages) {
-          await _sendToSession(session, msg);
+          await sendToLiveSession(session, msg);
         }
 
         final sub = stream.listen(
           (chunk) async {
             for (final msg in chunk.messages) {
-              await _sendToSession(session, msg);
+              await sendToLiveSession(session, msg);
             }
           },
           onError: (e) {
@@ -446,33 +422,111 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
       },
     );
   }
+}
 
-  Future<void> _sendToSession(fai.LiveSession session, Message msg) async {
-    _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
-
-    final contentParts = msg.content.map(toGeminiPart).toList();
-
-    for (final part in contentParts) {
-      try {
-        if (part is fai.InlineDataPart) {
-          // TODO: Check mimeType for video vs audio
-          await session.sendAudioRealtime(part);
-        } else if (part is fai.FunctionResponse) {
-          await session.sendToolResponse([part]);
-        } else {
-          // Fallback for others
-          await session.send(
-            input: fai.Content(toGeminiRole(msg.role), [part]),
-            turnComplete: true,
-          );
-        }
-      } catch (e) {
-        _logger.severe('Error sending part: $part', e);
-        rethrow;
-      }
-    }
+/// Builds the Firebase AI Live config from a request's `config`, read through
+/// [LiveGenerationConfig] so missing fields fall back to the SDK defaults.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] when a field
+/// has the wrong type or an unknown value.
+@visibleForTesting
+fai.LiveGenerationConfig toLiveGenerationConfig(Map<String, dynamic>? config) {
+  try {
+    return _toLiveGenerationConfig(config);
+  } catch (e) {
+    throw GenkitException(
+      'Invalid Live model config: $e',
+      status: StatusCode.invalidArgument,
+    );
   }
 }
+
+fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
+  // The JSON round trip types nested maps written as Dart literals (e.g. an
+  // empty `{}`) the way the generated getters expect.
+  final options = config == null
+      ? LiveGenerationConfig()
+      : LiveGenerationConfig.$schema.parse(jsonDecode(jsonEncode(config)));
+  if (options.stopSequences?.isNotEmpty ?? false) {
+    _logger.warning(
+      'stopSequences is not supported by Firebase AI Live models and is '
+      'ignored.',
+    );
+  }
+  final speechConfig = options.speechConfig;
+  return fai.LiveGenerationConfig(
+    responseModalities: options.responseModalities
+        ?.map((e) => fai.ResponseModalities.values.byName(e.toLowerCase()))
+        .toList(),
+    speechConfig: speechConfig == null
+        ? null
+        : fai.SpeechConfig(
+            voiceName: speechConfig.voiceConfig?.prebuiltVoiceConfig?.voiceName,
+          ),
+    maxOutputTokens: options.maxOutputTokens,
+    temperature: options.temperature,
+    topP: options.topP,
+    topK: options.topK,
+    presencePenalty: options.presencePenalty,
+    frequencyPenalty: options.frequencyPenalty,
+  );
+}
+
+/// Sends [msg] to a Live [session].
+///
+/// Only a user's media can be realtime input: audio always goes out as
+/// realtime audio, and images or video as realtime video frames when the
+/// message has nothing else to say. That is how the Live API takes camera
+/// input, so a message with only an image is a frame and does not start a turn
+/// on its own; send text with it to ask about it. Media sent alongside text,
+/// and media in model messages (history), go inside the turn instead. All tool responses go
+/// out together, and the remaining parts as one complete client turn, so the
+/// model does not answer before the whole message is in.
+@visibleForTesting
+Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
+  _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
+
+  final parts = msg.content.map(toGeminiPart).toList();
+  final toolResponses = parts.whereType<fai.FunctionResponse>().toList();
+  final otherParts = parts.where((p) => p is! fai.FunctionResponse).toList();
+  final isUser = msg.role == Role.user;
+  final framesOnly = otherParts.every(_isRealtimeMedia);
+  final turnParts = <fai.Part>[];
+
+  try {
+    for (final part in otherParts) {
+      switch (part) {
+        case fai.InlineDataPart(:final mimeType)
+            when isUser && mimeType.startsWith('audio/'):
+          await session.sendAudioRealtime(part);
+        case fai.InlineDataPart() when isUser && framesOnly:
+          await session.sendVideoRealtime(part);
+        default:
+          turnParts.add(part);
+      }
+    }
+    if (toolResponses.isNotEmpty) {
+      await session.sendToolResponse(toolResponses);
+    }
+    if (turnParts.isNotEmpty) {
+      await session.send(
+        input: fai.Content(toGeminiRole(msg.role), turnParts),
+        turnComplete: true,
+      );
+    }
+  } catch (e) {
+    _logger.severe('Error sending ${msg.role} message to the Live session', e);
+    rethrow;
+  }
+}
+
+/// Whether [part] is audio, image or video data that can go out as realtime
+/// input.
+bool _isRealtimeMedia(fai.Part part) =>
+    part is fai.InlineDataPart &&
+    (part.mimeType.startsWith('audio/') ||
+        part.mimeType.startsWith('image/') ||
+        part.mimeType.startsWith('video/'));
 
 /// Maps a Genkit [Role] to the role string expected by the Gemini API.
 ///
@@ -495,6 +549,13 @@ Iterable<fai.Content> toGeminiContent(List<Message> messages) {
     ),
   );
 }
+
+/// The full media type of a data URL, keeping parameters such as the
+/// `rate` in `audio/pcm;rate=24000` that [UriData.mimeType] drops.
+String _dataUriMimeType(UriData data) => [
+  data.mimeType,
+  for (final MapEntry(:key, :value) in data.parameters.entries) '$key=$value',
+].join(';');
 
 @visibleForTesting
 fai.Part toGeminiPart(Part p) {
@@ -532,16 +593,17 @@ fai.Part toGeminiPart(Part p) {
     if (media.url.startsWith('data:')) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
+        final mimeType = media.contentType ?? _dataUriMimeType(uri.data!);
         try {
           return fai.InlineDataPart.forTest(
-            media.contentType ?? 'application/octet-stream',
+            mimeType,
             uri.data!.contentAsBytes(),
             isThought: isThought,
             thoughtSignature: thoughtSignature,
           );
         } catch (_) {
           return fai.InlineDataPart(
-            media.contentType ?? 'application/octet-stream',
+            mimeType,
             uri.data!.contentAsBytes(),
             isThought: isThought,
           );
