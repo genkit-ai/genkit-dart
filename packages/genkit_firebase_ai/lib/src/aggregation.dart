@@ -78,27 +78,58 @@ class _CandidateState {
   }
 
   void _mergeParts(List<m.Part> newParts) {
-    for (final part in newParts) {
+    for (var part in newParts) {
       if (parts.isNotEmpty) {
         final lastPart = parts.last;
-        if (lastPart is m.TextPart && part is m.TextPart) {
-          // Merge text
-          final newText = lastPart.text + part.text;
-          parts.removeLast();
-          parts.add(m.TextPart(newText)); // Ignore thought stuff for now
+        if (lastPart is m.TextPart &&
+            part is m.TextPart &&
+            _canAppendText(lastPart, part)) {
+          final merged = m.TextPart(
+            lastPart.text + part.text,
+            isThought: part.isThought,
+          );
+          parts
+            ..removeLast()
+            ..add(merged);
           continue;
         } else if (lastPart is m.FunctionCall && part is m.FunctionCall) {
-          // Firebase AI currently returns completed tool calls, no need to merge partials manually.
-          // Will replace the last if it's identical ID or name as an edge case,
-          // but generally streaming function calls don't chunk in Firebase AI natively
-          if (part.id == lastPart.id || part.name == lastPart.name) {
+          // Firebase AI returns completed function calls, so only a resend of
+          // the same call replaces the previous one. Parallel calls, including
+          // several to the same function, are all kept: the first one carries
+          // the thought signature.
+          if (part.id != null && part.id == lastPart.id) {
             parts.removeLast();
+            final signature = _thoughtSignature(lastPart);
+            if (signature != null && _thoughtSignature(part) == null) {
+              // ignore: invalid_use_of_visible_for_testing_member
+              part = m.FunctionCall.forTest(
+                part.name,
+                part.args,
+                id: part.id,
+                isThought: part.isThought,
+                thoughtSignature: signature,
+              );
+            }
           }
         }
       }
       parts.add(part);
     }
   }
+
+  /// Whether [next] continues the text of [last].
+  ///
+  /// Thoughts and answer text stay separate parts, and a part that carries a
+  /// thought signature is never merged with another part: Gemini needs each
+  /// signature back in its original part.
+  static bool _canAppendText(m.TextPart last, m.TextPart next) =>
+      (last.isThought ?? false) == (next.isThought ?? false) &&
+      _thoughtSignature(last) == null &&
+      _thoughtSignature(next) == null;
+
+  /// The signature is only readable through `toJson`.
+  static String? _thoughtSignature(m.Part part) =>
+      (part.toJson() as Map<String, dynamic>)['thoughtSignature'] as String?;
 
   m.Candidate toCandidate() {
     return m.Candidate(
