@@ -77,6 +77,18 @@ void main() {
       expect(generationConfig, isNot(contains('responseMimeType')));
     });
 
+    test('omits responseMimeType when it is empty', () async {
+      final client = WireClient();
+
+      await wireModel(client)(
+        userRequest('hello', config: {'responseMimeType': ''}),
+      );
+
+      final generationConfig =
+          client.requests.single.body['generationConfig'] as Map? ?? {};
+      expect(generationConfig, isNot(contains('responseMimeType')));
+    });
+
     test('sends the configured responseMimeType', () async {
       final client = WireClient();
 
