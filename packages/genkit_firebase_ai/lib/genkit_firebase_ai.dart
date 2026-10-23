@@ -670,6 +670,26 @@ fai.Part toGeminiPart(Part p) {
       );
     }
   }
+  if (p.isCustom) {
+    final custom = p.custom!;
+    for (final key in const ['executableCode', 'codeExecutionResult']) {
+      if (custom[key] != null) {
+        // The typed parts' public constructors drop thoughtSignature.
+        return fai.UnknownPart({
+          key: custom[key],
+          if (isThought) 'thought': true,
+          'thoughtSignature': ?thoughtSignature,
+        });
+      }
+    }
+    if (p.metadata?[_rawGeminiPartKey] == true) {
+      return fai.UnknownPart({
+        ...custom,
+        if (isThought) 'thought': true,
+        'thoughtSignature': ?thoughtSignature,
+      });
+    }
+  }
   throw UnimplementedError('Part type $p not supported yet');
 }
 
@@ -682,6 +702,9 @@ fai.Part toGeminiPart(Part p) {
   );
   return (message, finishReason);
 }
+
+/// Marks a [CustomPart] built from an unparsed API part, so it can go back.
+const _rawGeminiPartKey = 'rawGeminiPart';
 
 @visibleForTesting
 Part fromGeminiPart(fai.Part p) {
@@ -715,7 +738,38 @@ Part fromGeminiPart(fai.Part p) {
       metadata: metadata,
     );
   }
-  throw UnimplementedError('Part type $p not supported yet in response');
+  if (p is fai.FileData) {
+    return MediaPart(
+      media: Media(url: p.fileUri, contentType: p.mimeType),
+      metadata: metadata,
+    );
+  }
+  if (p is fai.ExecutableCodePart) {
+    return CustomPart(
+      custom: {'executableCode': pJson['executableCode']},
+      metadata: metadata,
+    );
+  }
+  if (p is fai.CodeExecutionResultPart) {
+    return CustomPart(
+      custom: {'codeExecutionResult': pJson['codeExecutionResult']},
+      metadata: metadata,
+    );
+  }
+  if (p is fai.UnknownPart) {
+    final custom = {...p.data}
+      ..remove('thought')
+      ..remove('thoughtSignature');
+    return CustomPart(
+      custom: custom,
+      metadata: {
+        _rawGeminiPartKey: true,
+        if (p.data['thought'] == true) 'isThought': true,
+        'thoughtSignature': ?thoughtSignature,
+      },
+    );
+  }
+  return CustomPart(custom: pJson, metadata: metadata);
 }
 
 ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
