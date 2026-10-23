@@ -932,14 +932,15 @@ GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
 }
 
 GenkitException _noCandidatesException(fai.PromptFeedback? feedback) {
-  final blockReason = feedback?.blockReason;
-  if (blockReason == null) {
-    return GenkitException('Model returned no candidates.');
+  if (feedback case fai.PromptFeedback(
+    :final blockReason?,
+    blockReasonMessage: final detail,
+  )) {
+    return GenkitException(
+      'Prompt was blocked (${blockReason.toJson()})'
+      '${detail == null ? '.' : ': $detail'}',
+      status: StatusCode.invalidArgument,
+    );
   }
-  final detail = feedback!.blockReasonMessage;
-  return GenkitException(
-    'Prompt was blocked (${blockReason.toJson()})'
-    '${detail == null ? '.' : ': $detail'}',
-    status: StatusCode.invalidArgument,
-  );
+  return GenkitException('Model returned no candidates.');
 }
