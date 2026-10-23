@@ -28,3 +28,4 @@ ui-debug.log
 *.local.*
 # Agents sample: file-backed session store output
 testapps/agents/.sessions/
+config.bat
