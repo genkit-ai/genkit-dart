@@ -687,8 +687,9 @@ fai.Part toGeminiPart(Part p) {
   return (message, finishReasonFromWire(candidate.finishReason?.toJson()));
 }
 
-/// Returns the finish reason as `firebase_ai` parsed it, or null when it
-/// parsed none or [fai.FinishReason.unknown], whose original wire value is lost.
+/// The `custom` map for a response, holding the finish reason as `firebase_ai`
+/// parsed it, or null when it parsed none or [fai.FinishReason.unknown], whose
+/// original wire value is lost.
 Map<String, dynamic>? _finishCustom(fai.Candidate candidate) {
   final reason = candidate.finishReason;
   if (reason == null || reason == fai.FinishReason.unknown) return null;
