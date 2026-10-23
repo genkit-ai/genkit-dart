@@ -245,6 +245,16 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
+        final contents = toGeminiContent(
+          req.messages.where((m) => m.role != Role.system).toList(),
+        );
+        if (contents.isEmpty) {
+          throw GenkitException(
+            'Request must contain at least one non-system message.',
+            status: StatusCode.invalidArgument,
+          );
+        }
+
         final model = _firebaseAI.generativeModel(
           model: modelName,
           generationConfig: toGeminiSettings(
@@ -259,13 +269,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           ),
+          systemInstruction: toGeminiSystemInstruction(req.messages),
           httpClient: _httpClient,
         );
 
         if (ctx.streamingRequested) {
-          final stream = model.generateContentStream(
-            toGeminiContent(req.messages),
-          );
+          final stream = model.generateContentStream(contents);
           final chunks = <fai.GenerateContentResponse>[];
           await for (final chunk in stream) {
             chunks.add(chunk);
@@ -298,9 +307,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             usage: extractUsage(aggregated.usageMetadata),
           );
         } else {
-          final response = await model.generateContent(
-            toGeminiContent(req.messages),
-          );
+          final response = await model.generateContent(contents);
 
           if (response.candidates.isEmpty) {
             // TODO: Consider inspecting response.promptFeedback for the block reason.
@@ -484,6 +491,17 @@ String toGeminiRole(Role role) {
   if (role == Role.model) return 'model';
   // user, tool and anything else map to 'user'.
   return 'user';
+}
+
+/// The parts of every system message in [messages], in order, as one
+/// `systemInstruction`, or null when there are none.
+@visibleForTesting
+fai.Content? toGeminiSystemInstruction(List<Message> messages) {
+  final parts = [
+    for (final m in messages)
+      if (m.role == Role.system) ...m.content.map(toGeminiPart),
+  ];
+  return parts.isEmpty ? null : fai.Content('system', parts);
 }
 
 @visibleForTesting
