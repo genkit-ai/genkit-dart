@@ -13,6 +13,9 @@
 // limitations under the License.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genkit/genkit.dart';
+import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
+import 'package:http/http.dart' as http;
 
 import 'wire_harness.dart';
 
@@ -35,6 +38,52 @@ void main() {
       await wireModel(client)(userRequest('hello'), onChunk: (_) {});
 
       expect(client.requests.single.isStreaming, isTrue);
+      expect(client.closed, isFalse);
+    });
+  });
+
+  group('default httpClient', () {
+    // Runs [model] with `http.Client()` returning [client], so whichever
+    // client the plugin creates on first use is the one that gets requests.
+    Future<ModelResponse> generate(
+      Model model,
+      WireClient client, {
+      StreamingCallback<ModelResponseChunk>? onChunk,
+    }) => http.runWithClient(
+      () => model(userRequest('hello'), onChunk: onChunk),
+      () => client,
+    );
+
+    test('is created once and reused across requests', () async {
+      final model = firebaseAI().resolve(.model, 'gemini-2.5-flash') as Model;
+      final first = WireClient();
+      final second = WireClient();
+
+      await generate(model, first);
+      await generate(model, second, onChunk: (_) {});
+      await generate(model, second);
+
+      expect(first.requests.map((r) => r.isStreaming), [false, true, false]);
+      expect(second.requests, isEmpty);
+      expect(first.closed, isFalse);
+    });
+
+    test('is not closed when a streamed request fails', () async {
+      final model = firebaseAI().resolve(.model, 'gemini-2.5-flash') as Model;
+      final client = WireClient(
+        statusCode: 500,
+        response: {
+          'error': {'code': 500, 'message': 'boom', 'status': 'INTERNAL'},
+        },
+      );
+
+      await expectLater(
+        generate(model, client, onChunk: (_) {}),
+        throwsA(anything),
+      );
+      await expectLater(generate(model, client), throwsA(anything));
+
+      expect(client.requests.map((r) => r.isStreaming), [true, false]);
       expect(client.closed, isFalse);
     });
   });

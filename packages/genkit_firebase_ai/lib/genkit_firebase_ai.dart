@@ -153,8 +153,8 @@ class FirebaseGenAiPluginHandle {
   /// mock transport in tests.
   /// Live (bidi) models connect over a WebSocket and do not use it. The caller
   /// owns it: the plugin never closes a client it was given, so close it
-  /// yourself once you are done with the plugin. When omitted, the Firebase AI
-  /// SDK's default client is used.
+  /// yourself once you are done with the plugin. When omitted, the plugin
+  /// creates one client on first use and shares it across requests.
   GenkitPlugin call({
     fcore.FirebaseApp? app,
     bool? useLimitedUseAppCheckTokens,
@@ -182,6 +182,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   final bool? useLimitedUseAppCheckTokens;
   final FirebaseAiProvider provider;
   final http.Client? httpClient;
+
+  // firebase_ai 4.x builds an http.Client per GenerativeModel and never closes
+  // it, and the plugin builds a model per request, so one client is shared to
+  // keep connections reused. It is never closed: plugins have no dispose hook,
+  // and Flutter apps can exit with an open connection pool.
+  late final http.Client _httpClient = httpClient ?? http.Client();
 
   @override
   String get name => 'firebaseai';
@@ -253,7 +259,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           ),
-          httpClient: httpClient,
+          httpClient: _httpClient,
         );
 
         if (ctx.streamingRequested) {
