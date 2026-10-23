@@ -245,10 +245,6 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
-        final systemParts = [
-          for (final m in req.messages)
-            if (m.role == Role.system) ...m.content.map(toGeminiPart),
-        ];
         final contents = toGeminiContent(
           req.messages.where((m) => m.role != Role.system).toList(),
         );
@@ -273,9 +269,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           ),
-          systemInstruction: systemParts.isEmpty
-              ? null
-              : fai.Content('system', systemParts),
+          systemInstruction: toGeminiSystemInstruction(req.messages),
           httpClient: _httpClient,
         );
 
@@ -497,6 +491,17 @@ String toGeminiRole(Role role) {
   if (role == Role.model) return 'model';
   // user, tool and anything else map to 'user'.
   return 'user';
+}
+
+/// The parts of every system message in [messages], in order, as one
+/// `systemInstruction`, or null when there are none.
+@visibleForTesting
+fai.Content? toGeminiSystemInstruction(List<Message> messages) {
+  final parts = [
+    for (final m in messages)
+      if (m.role == Role.system) ...m.content.map(toGeminiPart),
+  ];
+  return parts.isEmpty ? null : fai.Content('system', parts);
 }
 
 @visibleForTesting
