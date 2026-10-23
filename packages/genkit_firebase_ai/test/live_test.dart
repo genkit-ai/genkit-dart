@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'dart:convert';
-
 import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/experimental.dart' show BidiModel;
@@ -34,7 +32,7 @@ void main() {
       final config = toLiveGenerationConfig({'speechConfig': {}});
 
       expect(config.speechConfig, isNotNull);
-      expect(_speechJson(config), isNot(contains('voice')));
+      expect(config.speechConfig!.voiceName, isNull);
     });
 
     test('maps every field', () {
@@ -54,7 +52,7 @@ void main() {
       });
 
       expect(config.responseModalities, [fai.ResponseModalities.audio]);
-      expect(_speechJson(config), contains('"Kore"'));
+      expect(config.speechConfig!.voiceName, 'Kore');
       expect(config.maxOutputTokens, 256);
       expect(config.temperature, 1.0);
       expect(config.topP, 0.9);
@@ -110,11 +108,18 @@ void main() {
     test(
       'reads the media type from the data URL without a content type',
       () async {
+        final session = _FakeLiveSession();
         final part = MediaPart(
           media: Media(url: 'data:audio/pcm;rate=16000;base64,AAAA'),
         );
 
-        expect(await send([part]), ['audio']);
+        await sendToLiveSession(
+          session,
+          Message(role: Role.user, content: [part]),
+        );
+
+        expect(session.calls, ['audio']);
+        expect(session.lastAudio!.mimeType, 'audio/pcm;rate=16000');
       },
     );
 
@@ -196,21 +201,16 @@ void main() {
   });
 }
 
-/// The encoded speech config of [config].
-///
-/// firebase_ai 3.8 only exposes the voice through `toJson`, which 3.13+ marks
-/// `@internal` while adding a `voiceName` getter that 3.8 lacks.
-String _speechJson(fai.LiveGenerationConfig config) =>
-    // ignore: invalid_use_of_internal_member
-    jsonEncode(config.speechConfig!.toJson());
-
 /// Records which [fai.LiveSession] method each part was sent through.
 class _FakeLiveSession implements fai.LiveSession {
   final calls = <String>[];
+  fai.InlineDataPart? lastAudio;
 
   @override
-  Future<void> sendAudioRealtime(fai.InlineDataPart audio) async =>
-      calls.add('audio');
+  Future<void> sendAudioRealtime(fai.InlineDataPart audio) async {
+    lastAudio = audio;
+    calls.add('audio');
+  }
 
   @override
   Future<void> sendVideoRealtime(fai.InlineDataPart video) async =>

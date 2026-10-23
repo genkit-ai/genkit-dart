@@ -476,8 +476,10 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
 ///
 /// Only a user's media can be realtime input: audio always goes out as
 /// realtime audio, and images or video as realtime video frames when the
-/// message has nothing else to say. Media sent alongside text, and media in
-/// model messages (history), go inside the turn instead. All tool responses go
+/// message has nothing else to say. That is how the Live API takes camera
+/// input, so a message with only an image is a frame and does not start a turn
+/// on its own; send text with it to ask about it. Media sent alongside text,
+/// and media in model messages (history), go inside the turn instead. All tool responses go
 /// out together, and the remaining parts as one complete client turn, so the
 /// model does not answer before the whole message is in.
 @visibleForTesting
@@ -548,6 +550,13 @@ Iterable<fai.Content> toGeminiContent(List<Message> messages) {
   );
 }
 
+/// The full media type of a data URL, keeping parameters such as the
+/// `rate` in `audio/pcm;rate=24000` that [UriData.mimeType] drops.
+String _dataUriMimeType(UriData data) => [
+  data.mimeType,
+  for (final MapEntry(:key, :value) in data.parameters.entries) '$key=$value',
+].join(';');
+
 @visibleForTesting
 fai.Part toGeminiPart(Part p) {
   final isThought = p.metadata?['isThought'] == true;
@@ -584,16 +593,17 @@ fai.Part toGeminiPart(Part p) {
     if (media.url.startsWith('data:')) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
+        final mimeType = media.contentType ?? _dataUriMimeType(uri.data!);
         try {
           return fai.InlineDataPart.forTest(
-            media.contentType ?? uri.data!.mimeType,
+            mimeType,
             uri.data!.contentAsBytes(),
             isThought: isThought,
             thoughtSignature: thoughtSignature,
           );
         } catch (_) {
           return fai.InlineDataPart(
-            media.contentType ?? uri.data!.mimeType,
+            mimeType,
             uri.data!.contentAsBytes(),
             isThought: isThought,
           );
