@@ -14,6 +14,7 @@
 
 // ignore_for_file: invalid_use_of_visible_for_testing_member
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_ai/firebase_ai.dart' as fai;
@@ -29,6 +30,7 @@ import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'src/aggregation.dart';
+import 'src/error_mapping.dart';
 
 part 'genkit_firebase_ai.g.dart';
 
@@ -245,6 +247,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
+        final transport = _StatusRecordingClient(_httpClient);
         final model = _firebaseAI.generativeModel(
           model: modelName,
           generationConfig: toGeminiSettings(
@@ -259,13 +262,20 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           ),
-          httpClient: _httpClient,
+          httpClient: transport,
         );
+        GenkitException mapError(Object e, StackTrace stack) =>
+            toGenkitException(
+              e,
+              stack,
+              httpStatus: transport.lastStatusCode,
+              errorStatus: transport.lastErrorStatus,
+            );
 
         if (ctx.streamingRequested) {
-          final stream = model.generateContentStream(
-            toGeminiContent(req.messages),
-          );
+          final stream = model
+              .generateContentStream(toGeminiContent(req.messages))
+              .handleError((Object e, StackTrace s) => throw mapError(e, s));
           final chunks = <fai.GenerateContentResponse>[];
           await for (final chunk in stream) {
             chunks.add(chunk);
@@ -301,9 +311,14 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             usage: extractUsage(aggregated.usageMetadata),
           );
         } else {
-          final response = await model.generateContent(
-            toGeminiContent(req.messages),
-          );
+          final fai.GenerateContentResponse response;
+          try {
+            response = await model.generateContent(
+              toGeminiContent(req.messages),
+            );
+          } catch (e, stack) {
+            throw mapError(e, stack);
+          }
 
           if (response.candidates.isEmpty) {
             throw _noCandidatesException(response.promptFeedback);
@@ -372,7 +387,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             'Modalities: ${liveConfig.responseModalities!.map((e) => e.name).toList()}',
           );
         }
-        var session = await model.connect();
+        final fai.LiveSession session;
+        try {
+          session = await model.connect();
+        } catch (e, stack) {
+          throw toGenkitException(e, stack);
+        }
         _logger.info('Connected to model: $modelName');
 
         // Send initial history
@@ -943,4 +963,97 @@ GenkitException _noCandidatesException(fai.PromptFeedback? feedback) {
     );
   }
   return GenkitException('Model returned no candidates.');
+}
+
+/// Records the HTTP status and the error body's gRPC status of the last
+/// response, which `firebase_ai` drops from the exceptions it throws.
+class _StatusRecordingClient extends http.BaseClient {
+  _StatusRecordingClient(this._inner);
+
+  final http.Client _inner;
+
+  int? lastStatusCode;
+
+  /// The `error.status` of a non-200 body or of an error chunk in an SSE
+  /// stream, such as `UNAVAILABLE`.
+  String? lastErrorStatus;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final response = await _inner.send(request);
+    lastStatusCode = response.statusCode;
+    lastErrorStatus = null;
+    if (response.statusCode != 200) {
+      final body = await response.stream.toBytes();
+      lastErrorStatus = _errorStatusOf(utf8.decode(body, allowMalformed: true));
+      return _withBody(response, Stream.value(body), body.length);
+    }
+    if (request.url.queryParameters['alt'] != 'sse') return response;
+
+    final lines = const LineSplitter().startChunkedConversion(
+      _CallbackSink((line) {
+        if (lastErrorStatus == null &&
+            line.startsWith('data: ') &&
+            line.contains('"error"')) {
+          lastErrorStatus = _errorStatusOf(line.substring('data: '.length));
+        }
+      }),
+    );
+    final sniffer = const Utf8Decoder(
+      allowMalformed: true,
+    ).startChunkedConversion(lines);
+    // The sniffer sees each chunk before firebase_ai does, so the status is
+    // recorded by the time firebase_ai throws on the error chunk.
+    final stream = response.stream.transform(
+      StreamTransformer<List<int>, List<int>>.fromHandlers(
+        handleData: (bytes, sink) {
+          sniffer.add(bytes);
+          sink.add(bytes);
+        },
+        handleDone: (sink) {
+          sniffer.close();
+          sink.close();
+        },
+      ),
+    );
+    return _withBody(response, stream, response.contentLength);
+  }
+}
+
+http.StreamedResponse _withBody(
+  http.StreamedResponse response,
+  Stream<List<int>> body,
+  int? contentLength,
+) => http.StreamedResponse(
+  body,
+  response.statusCode,
+  contentLength: contentLength,
+  request: response.request,
+  headers: response.headers,
+  isRedirect: response.isRedirect,
+  persistentConnection: response.persistentConnection,
+  reasonPhrase: response.reasonPhrase,
+);
+
+class _CallbackSink implements Sink<String> {
+  _CallbackSink(this._onData);
+
+  final void Function(String) _onData;
+
+  @override
+  void add(String data) => _onData(data);
+
+  @override
+  void close() {}
+}
+
+String? _errorStatusOf(String json) {
+  try {
+    if (jsonDecode(json) case {'error': {'status': final String status}}) {
+      return status;
+    }
+  } on FormatException {
+    return null;
+  }
+  return null;
 }
