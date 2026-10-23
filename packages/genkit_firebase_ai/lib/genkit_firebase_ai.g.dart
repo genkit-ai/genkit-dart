@@ -328,10 +328,14 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'responseMimeType': <String, Object?>{'type': 'string'},
         'responseSchema': <String, Object?>{
           'type': 'object',
+          'description':
+              'OpenAPI-subset schema the response must conform to. Ignored when responseJsonSchema is set or the request has a constrained JSON output schema.',
           'additionalProperties': <String, Object?>{},
         },
         'responseJsonSchema': <String, Object?>{
           'type': 'object',
+          'description':
+              'JSON Schema the response must conform to, sent to Gemini unchanged. Requires responseMimeType "application/json". Takes precedence over responseSchema when both are set. Ignored when the request has a constrained JSON output schema, which is sent instead.',
           'additionalProperties': <String, Object?>{},
         },
         'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
