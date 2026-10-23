@@ -84,14 +84,9 @@ class _CandidateState {
         if (lastPart is m.TextPart &&
             part is m.TextPart &&
             _canAppendText(lastPart, part)) {
-          // The public TextPart constructor drops the signature, and Gemini
-          // rejects the next turn if a signature it sent is not echoed back.
-          // ignore: invalid_use_of_visible_for_testing_member
-          final merged = m.TextPart.forTest(
+          final merged = m.TextPart(
             lastPart.text + part.text,
             isThought: part.isThought,
-            thoughtSignature:
-                _thoughtSignature(part) ?? _thoughtSignature(lastPart),
           );
           parts
             ..removeLast()
@@ -124,11 +119,13 @@ class _CandidateState {
 
   /// Whether [next] continues the text of [last].
   ///
-  /// Thoughts and answer text stay separate parts, and two parts that each
-  /// carry their own thought signature are never merged.
+  /// Thoughts and answer text stay separate parts, and a part that carries a
+  /// thought signature is never merged with another part: Gemini needs each
+  /// signature back in its original part.
   static bool _canAppendText(m.TextPart last, m.TextPart next) =>
       (last.isThought ?? false) == (next.isThought ?? false) &&
-      (_thoughtSignature(last) == null || _thoughtSignature(next) == null);
+      _thoughtSignature(last) == null &&
+      _thoughtSignature(next) == null;
 
   /// The signature is only readable through `toJson`.
   static String? _thoughtSignature(m.Part part) =>

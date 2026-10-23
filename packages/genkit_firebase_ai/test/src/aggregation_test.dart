@@ -167,7 +167,7 @@ void main() {
       expect(call2.id, 'call_456');
     });
 
-    test('keeps the thought signature when merging text', () {
+    test('keeps a signed empty text part separate from the text', () {
       final result = aggregateResponses([
         _chunk([m.TextPart('Hello')]),
         _chunk([m.TextPart(' World')]),
@@ -175,9 +175,9 @@ void main() {
         _chunk([m.TextPart.forTest('', thoughtSignature: 'sig')]),
       ]);
 
-      final part = result.candidates.single.content.parts.single as m.TextPart;
-      expect(part.text, 'Hello World');
-      expect(_signature(part), 'sig');
+      final parts = result.candidates.single.content.parts;
+      expect(parts.map((p) => (p as m.TextPart).text), ['Hello World', '']);
+      expect(parts.map(_signature), [null, 'sig']);
     });
 
     test('keeps thoughts and answer text in separate parts', () {
@@ -204,15 +204,15 @@ void main() {
       expect(parts.map(_signature), ['sig-1', 'sig-2']);
     });
 
-    test('keeps appending text after a signature on the first chunk', () {
+    test('does not append text onto a signed part', () {
       final result = aggregateResponses([
         _chunk([m.TextPart.forTest('The', thoughtSignature: 'sig')]),
         _chunk([m.TextPart(' answer')]),
       ]);
 
-      final part = result.candidates.single.content.parts.single as m.TextPart;
-      expect(part.text, 'The answer');
-      expect(_signature(part), 'sig');
+      final parts = result.candidates.single.content.parts;
+      expect(parts.map((p) => (p as m.TextPart).text), ['The', ' answer']);
+      expect(parts.map(_signature), ['sig', null]);
     });
 
     test('keeps the signature when a FunctionCall is resent without it', () {
@@ -240,19 +240,27 @@ void main() {
     test('streamed signatures reach the Genkit message metadata', () {
       final result = aggregateResponses([
         _chunk([m.TextPart('Checking the weather.', isThought: true)]),
+        // Parallel calls without ids; only the first carries the signature.
         _chunk([
           m.FunctionCall.forTest('getWeather', {
             'location': 'Paris',
           }, thoughtSignature: 'sig'),
         ]),
+        _chunk([
+          m.FunctionCall('getWeather', {'location': 'London'}),
+        ]),
       ]);
 
       final (message, _) = fromGeminiCandidate(result.candidates.single);
 
-      expect(message.content, hasLength(2));
+      expect(message.content, hasLength(3));
       expect(message.content[0].isReasoning, isTrue);
-      expect(message.content[1].isToolRequest, isTrue);
+      expect(message.content.skip(1).map((p) => p.toolRequest?.input), [
+        {'location': 'Paris'},
+        {'location': 'London'},
+      ]);
       expect(message.content[1].metadata?['thoughtSignature'], 'sig');
+      expect(message.content[2].metadata?['thoughtSignature'], isNull);
     });
   });
 }
