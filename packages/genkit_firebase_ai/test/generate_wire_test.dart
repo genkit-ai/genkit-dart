@@ -66,5 +66,40 @@ void main() {
       expect(response.message?.text, 'Hello, world');
       expect(response.finishReason, FinishReason.stop);
     });
+
+    test('omits responseMimeType when it is not set', () async {
+      final client = WireClient();
+
+      await wireModel(client)(userRequest('hello'));
+
+      final generationConfig =
+          client.requests.single.body['generationConfig'] as Map? ?? {};
+      expect(generationConfig, isNot(contains('responseMimeType')));
+    });
+
+    test('omits responseMimeType when it is empty', () async {
+      final client = WireClient();
+
+      await wireModel(client)(
+        userRequest('hello', config: {'responseMimeType': ''}),
+      );
+
+      final generationConfig =
+          client.requests.single.body['generationConfig'] as Map? ?? {};
+      expect(generationConfig, isNot(contains('responseMimeType')));
+    });
+
+    test('sends the configured responseMimeType', () async {
+      final client = WireClient();
+
+      await wireModel(client)(
+        userRequest('hello', config: {'responseMimeType': 'text/x.enum'}),
+      );
+
+      expect(
+        client.requests.single.body['generationConfig'],
+        containsPair('responseMimeType', 'text/x.enum'),
+      );
+    });
   });
 }
