@@ -29,6 +29,7 @@ import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'src/aggregation.dart';
+import 'src/finish_reason.dart';
 
 part 'genkit_firebase_ai.g.dart';
 
@@ -284,6 +285,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           );
           return ModelResponse(
             finishReason: finishReason,
+            finishMessage: aggregated.candidates.first.finishMessage,
+            custom: _finishCustom(aggregated.candidates.first),
             message: message,
             raw: {
               'candidates': aggregated.candidates
@@ -328,6 +331,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
           return ModelResponse(
             finishReason: finishReason,
+            finishMessage: response.candidates.first.finishMessage,
+            custom: _finishCustom(response.candidates.first),
             message: message,
             raw: raw,
             usage: extractUsage(response.usageMetadata),
@@ -675,12 +680,20 @@ fai.Part toGeminiPart(Part p) {
 
 @visibleForTesting
 (Message, FinishReason) fromGeminiCandidate(fai.Candidate candidate) {
-  final finishReason = FinishReason(candidate.finishReason?.name ?? 'unknown');
   final message = Message(
     role: Role(candidate.content.role ?? 'model'),
     content: candidate.content.parts.map(fromGeminiPart).toList(),
   );
-  return (message, finishReason);
+  return (message, finishReasonFromWire(candidate.finishReason?.toJson()));
+}
+
+/// The `custom` map for a response, holding the finish reason as `firebase_ai`
+/// parsed it, or null when it parsed none or [fai.FinishReason.unknown], whose
+/// original wire value is lost.
+Map<String, dynamic>? _finishCustom(fai.Candidate candidate) {
+  final reason = candidate.finishReason;
+  if (reason == null || reason == fai.FinishReason.unknown) return null;
+  return {'finishReason': reason.toJson()};
 }
 
 @visibleForTesting
