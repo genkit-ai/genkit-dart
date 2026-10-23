@@ -27,14 +27,16 @@ const _usage = {
   'totalTokenCount': 8,
 };
 
-// Only the text is pinned because whether a part carries `thought` depends on
-// how firebase_ai and stream aggregation build it.
+// firebase_ai parses every part with `thought: false`, so it shows up in raw
+// although the wire had no such key.
 final _expectedRaw = {
   'candidates': [
     {
       'content': {
         'role': 'model',
-        'parts': [containsPair('text', 'hi there')],
+        'parts': [
+          {'text': 'hi there', 'thought': false},
+        ],
       },
       'finishReason': 'MAX_TOKENS',
       'safetyRatings': _safetyRatings,
