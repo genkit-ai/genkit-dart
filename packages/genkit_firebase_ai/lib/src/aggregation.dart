@@ -56,9 +56,10 @@ class _CandidateState {
   _CandidateState();
 
   void merge(m.Candidate chunk) {
-    if (chunk.finishReason != null &&
-        chunk.finishReason != m.FinishReason.unknown) {
-      finalFinishReason = chunk.finishReason;
+    // An unknown reason is kept until a known one arrives.
+    if (chunk.finishReason case final reason?
+        when reason != m.FinishReason.unknown || finalFinishReason == null) {
+      finalFinishReason = reason;
     }
     if (chunk.finishMessage != null) {
       finalFinishMessage = chunk.finishMessage;

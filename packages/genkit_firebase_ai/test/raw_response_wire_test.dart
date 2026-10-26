@@ -242,4 +242,57 @@ void main() {
       }),
     ]);
   });
+
+  test('streaming raw keeps an unknown finish reason', () async {
+    const wire = {
+      'candidates': [
+        {
+          'content': {
+            'role': 'model',
+            'parts': [
+              {'text': 'hi'},
+            ],
+          },
+          'finishReason': 'SOMETHING_NEW',
+        },
+      ],
+    };
+
+    final generated = await wireModel(WireClient(response: wire))(
+      userRequest('hello'),
+    );
+    final streamed = await wireModel(WireClient(streamChunks: [wire]))(
+      userRequest('hello'),
+      onChunk: (_) {},
+    );
+
+    expect(
+      (generated.raw!['candidates'] as List).single,
+      containsPair('finishReason', 'UNKNOWN'),
+    );
+    expect(streamed.raw, generated.raw);
+  });
+
+  test('raw leaves out content the wire did not send', () async {
+    const wire = {
+      'candidates': [
+        {'finishReason': 'SAFETY'},
+      ],
+    };
+
+    final generated = await wireModel(WireClient(response: wire))(
+      userRequest('hello'),
+    );
+    final streamed = await wireModel(WireClient(streamChunks: [wire]))(
+      userRequest('hello'),
+      onChunk: (_) {},
+    );
+
+    expect(generated.raw, {
+      'candidates': [
+        {'finishReason': 'SAFETY'},
+      ],
+    });
+    expect(streamed.raw, generated.raw);
+  });
 }

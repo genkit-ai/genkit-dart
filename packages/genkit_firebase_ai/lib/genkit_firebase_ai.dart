@@ -950,7 +950,7 @@ Map<String, dynamic> _rawResponse(fai.GenerateContentResponse response) => {
   'candidates': [
     for (final c in response.candidates)
       {
-        'content': c.content.toJson(),
+        if (c.content.parts.isNotEmpty) 'content': c.content.toJson(),
         'finishReason': ?c.finishReason?.toJson(),
         'finishMessage': ?c.finishMessage,
         'safetyRatings': ?c.safetyRatings?.map(_rawSafetyRating).toList(),
