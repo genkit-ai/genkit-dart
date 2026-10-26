@@ -938,8 +938,8 @@ GenkitException _noCandidatesException(fai.PromptFeedback? feedback) {
   )) {
     return GenkitException(
       'Prompt was blocked (${blockReason.toJson()})'
-      '${detail == null ? '.' : ': $detail'}',
-      status: StatusCode.invalidArgument,
+      '${detail == null || detail.isEmpty ? '.' : ': $detail'}',
+      status: StatusCode.failedPrecondition,
     );
   }
   return GenkitException('Model returned no candidates.');

@@ -15,6 +15,7 @@
 import 'package:firebase_ai/firebase_ai.dart' show FirebaseAISdkException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
+import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 
 import 'wire_harness.dart';
 
@@ -27,7 +28,7 @@ final _blocked = {
 };
 
 final _isBlockedException = isA<GenkitException>()
-    .having((e) => e.status, 'status', StatusCode.invalidArgument)
+    .having((e) => e.status, 'status', StatusCode.failedPrecondition)
     .having((e) => e.message, 'message', contains('SAFETY'))
     .having(
       (e) => e.message,
@@ -48,22 +49,70 @@ final _isUnparsedFeedbackException = isA<FirebaseAISdkException>().having(
 void main() {
   setUpAll(setUpFirebaseApp);
 
-  test('generate throws the block reason when the prompt is blocked', () async {
-    final model = wireModel(WireClient(response: _blocked));
+  test(
+    'generate fails with the block reason when the prompt is blocked',
+    () async {
+      final model = wireModel(WireClient(response: _blocked));
 
-    await expectLater(
-      model(userRequest('hello')),
-      throwsA(_isBlockedException),
-    );
-  });
+      await expectLater(
+        model(userRequest('hello')),
+        throwsA(_isBlockedException),
+      );
+    },
+  );
 
-  test('streaming generate throws the block reason when the prompt is '
+  test('streaming generate fails with the block reason when the prompt is '
       'blocked', () async {
     final model = wireModel(WireClient(streamChunks: [_blocked]));
 
     await expectLater(
       model(userRequest('hello'), onChunk: (_) {}),
       throwsA(_isBlockedException),
+    );
+  });
+
+  test('ai.generate fails with the block reason when the prompt is '
+      'blocked', () async {
+    final client = WireClient(streamChunks: [_blocked]);
+    final ai = Genkit(
+      isDevEnv: false,
+      plugins: [firebaseAI(httpClient: client)],
+    );
+    addTearDown(ai.shutdown);
+
+    final response = await ai.generate(
+      model: firebaseAI.gemini('gemini-2.5-flash'),
+      prompt: 'hello',
+      onChunk: (_) {},
+    );
+
+    expect(response.finishReason, FinishReason.failed);
+    expect(response.error?.status, StatusCode.failedPrecondition.wireName);
+    expect(response.error?.message, contains('SAFETY'));
+  });
+
+  test('an empty blockReasonMessage leaves no trailing separator', () async {
+    final model = wireModel(
+      WireClient(
+        response: {
+          'promptFeedback': {
+            'blockReason': 'SAFETY',
+            'blockReasonMessage': '',
+            'safetyRatings': <Object>[],
+          },
+        },
+      ),
+    );
+
+    await expectLater(
+      model(userRequest('hello')),
+      throwsA(
+        isA<GenkitException>().having(
+          (e) => e.message,
+          'message',
+          'Prompt was blocked (SAFETY).',
+        ),
+      ),
     );
   });
 
@@ -93,7 +142,8 @@ void main() {
 
     final response = await wireModel(client)(userRequest('hello'));
 
+    // The finish reason is left unpinned: #578 asks for `blocked` here, which
+    // is a follow-up.
     expect(response.message?.text, 'hi');
-    expect(response.finishReason, FinishReason.stop);
   });
 }
