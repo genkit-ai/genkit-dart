@@ -864,8 +864,34 @@ fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
 /// type, so the JSON-mode half of the condition is the provider's rule, not a
 /// preference. `firebase_ai` forbids sending both `responseJsonSchema` and
 /// `responseSchema`.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] when a field
+/// has the wrong type or an unknown value.
 @visibleForTesting
 fai.GenerationConfig toGeminiSettings(
+  GeminiOptions options,
+  Map<String, dynamic>? outputSchema,
+  bool isJsonMode, {
+  bool constrained = false,
+}) {
+  try {
+    return _toGeminiSettings(
+      options,
+      outputSchema,
+      isJsonMode,
+      constrained: constrained,
+    );
+  } on GenkitException {
+    rethrow;
+  } catch (e) {
+    throw GenkitException(
+      'Invalid model config: $e',
+      status: StatusCode.invalidArgument,
+    );
+  }
+}
+
+fai.GenerationConfig _toGeminiSettings(
   GeminiOptions options,
   Map<String, dynamic>? outputSchema,
   bool isJsonMode, {
