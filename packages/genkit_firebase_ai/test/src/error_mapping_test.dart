@@ -17,7 +17,26 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/src/error_mapping.dart';
+import 'package:web_socket_channel/io.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+
+/// Connects to a local server that rejects the handshake with a 403 and
+/// returns the error, with an API key in the URI as firebase_ai sends it.
+Future<Object> rejectedHandshake() async {
+  final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+  addTearDown(server.close);
+  server.listen((request) {
+    request.response.statusCode = 403;
+    request.response.close();
+  });
+  final channel = IOWebSocketChannel.connect(
+    Uri.parse('ws://127.0.0.1:${server.port}/ws?key=AIzaSECRET'),
+  );
+  return channel.ready.then<Object>(
+    (_) => 'connected',
+    onError: (Object e) => e,
+  );
+}
 
 void main() {
   test('a failed live WebSocket connect maps to UNAVAILABLE', () {
@@ -30,5 +49,19 @@ void main() {
     expect(e.status, StatusCode.unavailable);
     expect(e.cause, same(cause));
     expect(e.message, contains('Failed host lookup'));
+  });
+
+  test('a live connect error does not leak the API key', () async {
+    final e = toGenkitException(await rejectedHandshake(), StackTrace.current);
+
+    expect(e.message, contains('HTTP status code: 403'));
+    expect(e.message, contains('key=<redacted>'));
+    expect(e.toString(), isNot(contains('AIzaSECRET')));
+  });
+
+  test('a rejected live handshake maps its HTTP status', () async {
+    final e = toGenkitException(await rejectedHandshake(), StackTrace.current);
+
+    expect(e.status, StatusCode.permissionDenied);
   });
 }

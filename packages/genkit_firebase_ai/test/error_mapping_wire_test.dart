@@ -222,7 +222,8 @@ void main() {
     );
   });
 
-  test('a 500 maps to INTERNAL', () async {
+  test('a 500 maps to INTERNAL with the error message, not the raw '
+      'body', () async {
     final client = WireClient(
       statusCode: 500,
       response: _error(500, 'INTERNAL', 'Internal error encountered.'),
@@ -230,10 +231,16 @@ void main() {
 
     await expectLater(
       generate(client),
-      _throwsGenkit(
-        StatusCode.internal,
-        'Internal error encountered.',
-        isA<fai.FirebaseAIException>(),
+      throwsA(
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.internal)
+            .having((e) => e.message, 'message', 'Internal error encountered.')
+            .having(
+              (e) => e.details,
+              'details',
+              startsWith('Server Error [500]'),
+            )
+            .having((e) => e.cause, 'cause', isA<fai.FirebaseAIException>()),
       ),
     );
   });
@@ -377,7 +384,7 @@ void main() {
 
     await expectLater(
       generate(client),
-      _throwsGenkit(StatusCode.invalidArgument, 'SAFETY', isNull),
+      _throwsGenkit(StatusCode.failedPrecondition, 'SAFETY', isNull),
     );
   });
 }

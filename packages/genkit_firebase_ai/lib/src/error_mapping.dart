@@ -22,11 +22,16 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 /// The gRPC status in the error body wins, since several gRPC codes share an
 /// HTTP status and `firebase_ai` picks its exception class from the message
 /// text alone. The HTTP status comes next, then the exception class.
+///
+/// [errorMessage] is the `error.message` of the response body. It replaces
+/// the raw body that `firebase_ai` puts in the message of a non-streaming
+/// server error, and the raw body moves to [GenkitException.details].
 GenkitException toGenkitException(
   Object e,
   StackTrace stack, {
   int? httpStatus,
   String? errorStatus,
+  String? errorMessage,
 }) {
   if (e is GenkitException) return e;
   bool usable(StatusCode? s) =>
@@ -34,9 +39,10 @@ GenkitException toGenkitException(
   final fromBody = errorStatus == null
       ? null
       : StatusCode.fromWireName(errorStatus);
-  final fromHttp = httpStatus == null
-      ? null
-      : StatusCode.fromHttpStatus(httpStatus);
+  final fromHttp = switch (httpStatus ?? _handshakeStatus(e)) {
+    final int code => StatusCode.fromHttpStatus(code),
+    null => null,
+  };
   final status = switch (e) {
     _ when usable(fromBody) => fromBody!,
     _ when usable(fromHttp) => fromHttp!,
@@ -46,16 +52,47 @@ GenkitException toGenkitException(
     fai.UnsupportedUserLocation() => StatusCode.failedPrecondition,
     http.ClientException() => StatusCode.unavailable,
     WebSocketChannelException() => StatusCode.unavailable,
+    // firebase_ai could not parse the response, so a retry would fail too.
+    fai.FirebaseAISdkException() => StatusCode.unknown,
     _ => StatusCode.internal,
+  };
+  final cause = switch (e) {
+    WebSocketChannelException(:final message?)
+        when _apiKeyParam.hasMatch(message) =>
+      WebSocketChannelException(
+        message.replaceAllMapped(_apiKeyParam, (m) => '${m[1]}<redacted>'),
+      ),
+    _ => e,
+  };
+  final rawServerError = switch (e) {
+    fai.FirebaseAIException(:final message)
+        when errorMessage != null && message.startsWith('Server Error [') =>
+      message,
+    _ => null,
   };
   return GenkitException(
     switch (e) {
+      _ when rawServerError != null => errorMessage!,
       fai.FirebaseAIException(:final message) => message,
       fai.FirebaseAISdkException(:final message) => message,
-      _ => e.toString(),
+      _ => cause.toString(),
     },
     status: status,
-    cause: e,
+    details: rawServerError,
+    cause: cause,
     stackTrace: stack,
   );
 }
+
+/// The HTTP status of a rejected live WebSocket handshake, if [e] is one.
+int? _handshakeStatus(Object e) => switch (e) {
+  WebSocketChannelException(:final message?) => int.tryParse(
+    _handshakeHttpStatus.firstMatch(message)?[1] ?? '',
+  ),
+  _ => null,
+};
+
+final _handshakeHttpStatus = RegExp(r'HTTP status code: (\d+)');
+
+/// The live URI carries the API key as a query parameter.
+final _apiKeyParam = RegExp(r'([?&]key=)[\w-]+');
