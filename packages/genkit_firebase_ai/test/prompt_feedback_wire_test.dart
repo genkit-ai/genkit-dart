@@ -40,7 +40,7 @@ final _blockedWithoutRatings = {
 };
 
 final _isUnparsedFeedbackException = isA<GenkitException>()
-    .having((e) => e.status, 'status', StatusCode.internal)
+    .having((e) => e.status, 'status', StatusCode.unknown)
     .having(
       (e) => e.message,
       'message',
@@ -135,6 +135,26 @@ void main() {
       model(userRequest('hello'), onChunk: (_) {}),
       throwsA(_isUnparsedFeedbackException),
     );
+  });
+
+  test('a response firebase_ai cannot parse is not retried', () async {
+    final client = WireClient(response: _blockedWithoutRatings);
+    final ai = Genkit(
+      isDevEnv: false,
+      plugins: [firebaseAI(httpClient: client)],
+    );
+    addTearDown(ai.shutdown);
+
+    final result = await ai.generate(
+      model: firebaseAI.gemini('gemini-2.5-flash'),
+      prompt: 'hello',
+      use: [
+        retry(maxRetries: 2, initialDelay: const Duration(milliseconds: 1)),
+      ],
+    );
+
+    expect(result.finishReason, FinishReason.failed);
+    expect(client.requests, hasLength(1));
   });
 
   test('a response with candidates is returned even when promptFeedback '

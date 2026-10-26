@@ -269,7 +269,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               e,
               stack,
               httpStatus: transport.lastStatusCode,
-              errorStatus: transport.lastErrorStatus,
+              errorStatus: transport.lastError?.status,
+              errorMessage: transport.lastError?.message,
             );
 
         if (ctx.streamingRequested) {
@@ -974,28 +975,27 @@ class _StatusRecordingClient extends http.BaseClient {
 
   int? lastStatusCode;
 
-  /// The `error.status` of a non-200 body or of an error chunk in an SSE
-  /// stream, such as `UNAVAILABLE`.
-  String? lastErrorStatus;
+  /// The `error` of a non-200 body or of an error chunk in an SSE stream.
+  ({String? status, String? message})? lastError;
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final response = await _inner.send(request);
     lastStatusCode = response.statusCode;
-    lastErrorStatus = null;
+    lastError = null;
     if (response.statusCode != 200) {
       final body = await response.stream.toBytes();
-      lastErrorStatus = _errorStatusOf(utf8.decode(body, allowMalformed: true));
+      lastError = _errorOf(utf8.decode(body, allowMalformed: true));
       return _withBody(response, Stream.value(body), body.length);
     }
     if (request.url.queryParameters['alt'] != 'sse') return response;
 
     final lines = const LineSplitter().startChunkedConversion(
       _CallbackSink((line) {
-        if (lastErrorStatus == null &&
+        if (lastError == null &&
             line.startsWith('data: ') &&
             line.contains('"error"')) {
-          lastErrorStatus = _errorStatusOf(line.substring('data: '.length));
+          lastError = _errorOf(line.substring('data: '.length));
         }
       }),
     );
@@ -1047,10 +1047,13 @@ class _CallbackSink implements Sink<String> {
   void close() {}
 }
 
-String? _errorStatusOf(String json) {
+({String? status, String? message})? _errorOf(String json) {
   try {
-    if (jsonDecode(json) case {'error': {'status': final String status}}) {
-      return status;
+    if (jsonDecode(json) case {'error': final Map<String, dynamic> error}) {
+      return (
+        status: error['status'] as String?,
+        message: error['message'] as String?,
+      );
     }
   } on FormatException {
     return null;
