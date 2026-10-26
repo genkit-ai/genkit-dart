@@ -14,6 +14,7 @@
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
+import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 
 import 'wire_harness.dart';
 
@@ -124,6 +125,30 @@ void main() {
     );
 
     expect(config['responseJsonSchema'], _outputSchema);
+    expect(config, isNot(contains('responseSchema')));
+  });
+
+  test('ai.generate with a generated output type keeps its refs', () async {
+    final client = WireClient(response: textResponse('{}'));
+    final ai = Genkit(
+      isDevEnv: false,
+      plugins: [firebaseAI(httpClient: client)],
+    );
+    addTearDown(ai.shutdown);
+
+    await ai.generate(
+      model: firebaseAI.gemini('gemini-2.5-flash'),
+      prompt: 'pick some options',
+      outputSchema: GeminiOptions.$schema,
+    );
+
+    final config = client.requests.single.body['generationConfig'] as Map;
+    final schema = config['responseJsonSchema'] as Map;
+    expect(schema[r'$ref'], r'#/$defs/GeminiOptions');
+    expect(
+      schema[r'$defs'],
+      containsPair('ThinkingConfig', isA<Map<String, dynamic>>()),
+    );
     expect(config, isNot(contains('responseSchema')));
   });
 }
