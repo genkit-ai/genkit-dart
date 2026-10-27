@@ -96,6 +96,14 @@ abstract class $FunctionCallingConfig {
 abstract class $ThinkingConfig {
   int? get thinkingBudget;
   bool? get includeThoughts;
+
+  @StringField(
+    enumValues: ['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'],
+    description:
+        'Thinking level for Gemini 3 and newer models, which use it in place '
+        'of thinkingBudget. Cannot be set together with thinkingBudget.',
+  )
+  String? get thinkingLevel;
 }
 
 @Schema()
@@ -856,8 +864,34 @@ fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
 /// type, so the JSON-mode half of the condition is the provider's rule, not a
 /// preference. `firebase_ai` forbids sending both `responseJsonSchema` and
 /// `responseSchema`.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] when a field
+/// has the wrong type or an unknown value.
 @visibleForTesting
 fai.GenerationConfig toGeminiSettings(
+  GeminiOptions options,
+  Map<String, dynamic>? outputSchema,
+  bool isJsonMode, {
+  bool constrained = false,
+}) {
+  try {
+    return _toGeminiSettings(
+      options,
+      outputSchema,
+      isJsonMode,
+      constrained: constrained,
+    );
+  } on GenkitException {
+    rethrow;
+  } catch (e) {
+    throw GenkitException(
+      'Invalid model config: $e',
+      status: StatusCode.invalidArgument,
+    );
+  }
+}
+
+fai.GenerationConfig _toGeminiSettings(
   GeminiOptions options,
   Map<String, dynamic>? outputSchema,
   bool isJsonMode, {
@@ -889,11 +923,38 @@ fai.GenerationConfig toGeminiSettings(
         .toList(),
     thinkingConfig: options.thinkingConfig == null
         ? null
-        // ignore: deprecated_member_use
-        : fai.ThinkingConfig(
-            includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
-            thinkingBudget: options.thinkingConfig!.thinkingBudget,
-          ),
+        : _toGeminiThinkingConfig(options.thinkingConfig!),
+  );
+}
+
+fai.ThinkingConfig _toGeminiThinkingConfig(ThinkingConfig config) {
+  final includeThoughts = config.includeThoughts ?? false;
+  final level = config.thinkingLevel;
+  if (level == null) {
+    return fai.ThinkingConfig.withThinkingBudget(
+      config.thinkingBudget,
+      includeThoughts: includeThoughts,
+    );
+  }
+  if (config.thinkingBudget != null) {
+    throw GenkitException(
+      'thinkingConfig cannot set both thinkingBudget and thinkingLevel.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  final thinkingLevel = fai.ThinkingLevel.values
+      .where((l) => l.toJson() == level)
+      .firstOrNull;
+  if (thinkingLevel == null) {
+    throw GenkitException(
+      'Unknown thinkingConfig.thinkingLevel "$level"; expected one of '
+      '${fai.ThinkingLevel.values.map((l) => l.toJson()).join(', ')}.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  return fai.ThinkingConfig.withThinkingLevel(
+    thinkingLevel,
+    includeThoughts: includeThoughts,
   );
 }
 
