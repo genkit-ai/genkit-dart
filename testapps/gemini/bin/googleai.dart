@@ -13,6 +13,7 @@
 // limitations under the License.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/lite.dart' as lite;
@@ -136,8 +137,12 @@ void main(List<String> args) async {
       );
 
       await for (final chunk in stream) {
-        if (ctx.streamingRequested) {
-          ctx.sendChunk(chunk.output!);
+        // `output` is null while the JSON streamed so far can't be parsed
+        // yet, or for chunks without JSON text (e.g. thoughts or tool
+        // calls), so skip those.
+        final output = chunk.output;
+        if (ctx.streamingRequested && output != null) {
+          ctx.sendChunk(output);
         }
       }
 
@@ -161,7 +166,9 @@ void main(List<String> args) async {
         prompt: prompt,
         onChunk: ctx.streamingRequested
             ? (GenerateResponseChunk<CharacterProfile?> chunk) {
-                ctx.sendChunk(chunk.output!);
+                // Null until enough JSON has arrived to parse.
+                final output = chunk.output;
+                if (output != null) ctx.sendChunk(output);
               }
             : null,
       );
@@ -255,11 +262,14 @@ void main(List<String> args) async {
     name: 'safetySettings',
     // Example of configuring safety settings.
     // Note: The model might not block the default content if it's not harmful enough.
+    // Blocking thresholds need a model called through generateContent: models
+    // called through the Interactions API (e.g. gemini-flash-latest) only
+    // accept BLOCK_NONE and throw INVALID_ARGUMENT for stricter thresholds.
     inputSchema: .string(defaultValue: 'Some potentially harmful content'),
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-flash-latest'),
+        model: googleAI.gemini('gemini-3.1-flash-lite'),
         prompt: prompt,
         config: GeminiOptions(
           safetySettings: [
@@ -307,6 +317,8 @@ void main(List<String> args) async {
   );
 
   // --- TTS Flow ---
+  // The 3.8 TTS models are called through the Interactions API and return a
+  // complete WAV file (audio/wav), ready to play or save.
   ai.defineFlow(
     name: 'textToSpeech',
     inputSchema: .string(
@@ -345,9 +357,9 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
-        // 3.8 TTS wants a speech_metadata.speaker on every text part for
-        // multi-speaker requests, which GeminiTtsOptions cannot express yet;
-        // 3.1 still takes speakers from the transcript.
+        // 3.1 TTS (called through generateContent) takes the speakers from
+        // the transcript. For the 3.8 TTS models (Interactions API), see
+        // ttsInteractionsMultiSpeaker: each turn names its speaker.
         model: googleAI.geminiTts('gemini-3.1-flash-tts-preview'),
         prompt: prompt,
         config: GeminiTtsOptions(
@@ -383,6 +395,146 @@ void main(List<String> args) async {
     },
   );
 
+  // --- Interactions API flows ---
+  // Newer models (and the -latest aliases) are called through the
+  // Interactions API; the flows below use features only that API has.
+
+  // Server-side conversation state: with store: true the interaction is kept
+  // on the server, and the next request continues it (the plugin finds its
+  // ID in the message metadata and sends only the new messages).
+  ai.defineFlow(
+    name: 'multiTurnPreviousInteraction',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (_, _) async {
+      final turn1 = await ai.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        prompt: 'My secret code is BLUE-BANANA-42. Remember this secret code.',
+        config: GeminiOptions(store: true),
+      );
+      final turn2 = await ai.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        messages: turn1.messages,
+        prompt: 'What was my secret code?',
+        config: GeminiOptions(store: true),
+      );
+      return {
+        'turn1Answer': turn1.text,
+        'turn2Answer': turn2.text,
+        'turn1InteractionId': turn1.message?.metadata?['interactionId'],
+        'turn2InteractionId': turn2.message?.metadata?['interactionId'],
+      };
+    },
+  );
+
+  // Flex tier: lower cost, variable latency.
+  ai.defineFlow(
+    name: 'flexTier',
+    inputSchema: .string(
+      defaultValue: 'You are a helpful AI assistant named Walt, say hello',
+    ),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-flash-lite-latest'),
+        prompt: prompt,
+        config: GeminiOptions(serviceTier: 'flex'), // or standard, priority
+      );
+      return response.text;
+    },
+  );
+
+  // Thinking levels (Interactions models have no thinking budget).
+  ai.defineFlow(
+    name: 'thinkingLevel',
+    inputSchema: .string(defaultValue: 'LOW'),
+    outputSchema: Message.$schema,
+    fn: (level, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-3.8-flash'),
+        prompt:
+            'Alice, Bob, and Carol each live in a different house on the '
+            'same street: red, green, and blue. The person who lives in the '
+            'red house owns a cat. Bob does not live in the green house. '
+            'Carol owns a dog. The green house is to the left of the red '
+            'house. Alice does not own a cat. The person in the blue house '
+            'owns a fish. Who lives in each house, and what pet do they own?',
+        config: GeminiOptions(
+          thinkingConfig: GeminiThinkingConfig(
+            thinkingLevel: level,
+            includeThoughts: true,
+          ),
+        ),
+      );
+      return response.message!;
+    },
+  );
+
+  // Turn-level speech style, set in the part metadata; requires a voice.
+  ai.defineFlow(
+    name: 'ttsInteractionsVoiceAndStyle',
+    inputSchema: .string(defaultValue: 'Have a wonderful day!'),
+    outputSchema: Media.$schema,
+    fn: (text, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiTts('gemini-3.8-flash-lite-tts'),
+        promptParts: [
+          TextPart(
+            text: text,
+            metadata: {
+              'speechMetadata': {'style': 'cheerful and friendly'},
+            },
+          ),
+        ],
+        config: GeminiTtsOptions(speechConfig: _voice('Puck')),
+      );
+      return response.media ?? (throw Exception('No audio generated'));
+    },
+  );
+
+  // Multi-speaker TTS through the Interactions API: each turn is a separate
+  // text part that names one of the configured speakers.
+  ai.defineFlow(
+    name: 'ttsInteractionsMultiSpeaker',
+    outputSchema: Media.$schema,
+    fn: (_, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiTts('gemini-3.8-flash-lite-tts'),
+        promptParts: _joeAndJane(janeStyle: 'calm'),
+        config: GeminiTtsOptions(speechConfig: _joeAndJaneVoices),
+      );
+      return response.media ?? (throw Exception('No audio generated'));
+    },
+  );
+
+  // Streamed TTS: raw PCM (audio/l16) chunks arrive while the speech is
+  // generated, so a client can start playing right away; the final response
+  // joins them into one audio/l16 part, wrapped in a WAV header here so it
+  // can be played.
+  ai.defineFlow(
+    name: 'ttsStreaming',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    streamSchema: .string(),
+    fn: (_, ctx) async {
+      var chunkCount = 0;
+      final response = await ai.generate(
+        model: googleAI.geminiTts('gemini-3.8-flash-lite-tts'),
+        promptParts: _joeAndJane(),
+        config: GeminiTtsOptions(speechConfig: _joeAndJaneVoices),
+        onChunk: (chunk) {
+          // A real client would play chunk.media here; report progress only.
+          chunkCount++;
+          ctx.sendChunk('chunk $chunkCount: ${chunk.media?.contentType}');
+        },
+      );
+      final media = response.media ?? (throw Exception('No audio generated'));
+      return {
+        'chunkCount': chunkCount,
+        'streamedContentType': media.contentType,
+        'media': _pcmToWav(media).toJson(),
+      };
+    },
+  );
+
   ai.defineFlow(
     name: 'embedding',
     inputSchema: .string(defaultValue: 'Hello Genkit'),
@@ -398,3 +550,80 @@ void main(List<String> args) async {
     },
   );
 }
+
+GeminiSpeechConfig _voice(String voiceName) => GeminiSpeechConfig(
+  voiceConfig: GeminiVoiceConfig(
+    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(voiceName: voiceName),
+  ),
+);
+
+final _joeAndJaneVoices = GeminiSpeechConfig(
+  multiSpeakerVoiceConfig: GeminiMultiSpeakerVoiceConfig(
+    speakerVoiceConfigs: [
+      GeminiSpeakerVoiceConfig(
+        speaker: 'Joe',
+        voiceConfig: _voice('Puck').voiceConfig!,
+      ),
+      GeminiSpeakerVoiceConfig(
+        speaker: 'Jane',
+        voiceConfig: _voice('Kore').voiceConfig!,
+      ),
+    ],
+  ),
+);
+
+/// Wraps raw PCM audio (16-bit little-endian, mono) in a WAV header so it can
+/// be played; WAV media is returned as is. The sample rate comes from the
+/// content type (`rate=...`), else 24000 Hz (the Gemini TTS models' rate).
+/// Like `pcmMediaToWav` in packages/genkit_google_genai/example.
+Media _pcmToWav(Media media) {
+  final contentType = media.contentType ?? '';
+  if (contentType.toLowerCase().startsWith('audio/wav')) return media;
+
+  final pcm = base64Decode(media.url.substring(media.url.indexOf(',') + 1));
+  final rate = RegExp(r'rate=(\d+)').firstMatch(contentType);
+  final sampleRate = rate == null ? 24000 : int.parse(rate.group(1)!);
+
+  final header = ByteData(44);
+  void ascii4(int offset, String s) {
+    for (var i = 0; i < 4; i++) {
+      header.setUint8(offset + i, s.codeUnitAt(i));
+    }
+  }
+
+  ascii4(0, 'RIFF');
+  header.setUint32(4, 36 + pcm.length, Endian.little);
+  ascii4(8, 'WAVE');
+  ascii4(12, 'fmt ');
+  header
+    ..setUint32(16, 16, Endian.little) // fmt chunk size for PCM
+    ..setUint16(20, 1, Endian.little) // PCM
+    ..setUint16(22, 1, Endian.little) // mono
+    ..setUint32(24, sampleRate, Endian.little)
+    ..setUint32(28, sampleRate * 2, Endian.little) // bytes per second
+    ..setUint16(32, 2, Endian.little) // bytes per sample
+    ..setUint16(34, 16, Endian.little); // bits per sample
+  ascii4(36, 'data');
+  header.setUint32(40, pcm.length, Endian.little);
+
+  final wav = Uint8List.fromList([...header.buffer.asUint8List(), ...pcm]);
+  return Media(
+    url: 'data:audio/wav;base64,${base64Encode(wav)}',
+    contentType: 'audio/wav',
+  );
+}
+
+List<Part> _joeAndJane({String? janeStyle}) => [
+  TextPart(
+    text: "How's it going today, Jane?",
+    metadata: {
+      'speechMetadata': {'speaker': 'Joe'},
+    },
+  ),
+  TextPart(
+    text: 'Not too bad, how about you?',
+    metadata: {
+      'speechMetadata': {'speaker': 'Jane', 'style': ?janeStyle},
+    },
+  ),
+];

@@ -19,6 +19,86 @@ import 'package:genkit/genkit.dart';
 import 'package:http/http.dart' as http;
 
 import 'generated/generativelanguage.dart';
+import 'interaction_converters.dart' show interactionErrorCodeToGenkitStatus;
+import 'interaction_types.dart';
+
+/// The `Api-Revision` header value that selects the Interactions API steps
+/// schema (JS `INTERACTIONS_API_REVISION`).
+const interactionsApiRevision = '2026-05-20';
+
+/// Parses Interactions SSE [lines] into events.
+///
+/// An event is the `data:` lines up to a blank line, joined; other SSE
+/// fields (`event:`, `id:`, comments) and the final `data: [DONE]` are
+/// ignored. Text that isn't SSE
+/// (e.g. a plain JSON error body sent with a 200) throws a GenkitException
+/// with the error's status, like JS `parseInteractionStreamErrorText`. An
+/// `error` event throws too.
+Stream<InteractionSseEvent> parseInteractionSse(Stream<String> lines) async* {
+  final data = StringBuffer();
+  final leftover = StringBuffer();
+
+  InteractionSseEvent? flush() {
+    if (data.isEmpty) return null;
+    final text = data.toString();
+    data.clear();
+    // The stream ends with `data: [DONE]` (seen live); not an event.
+    if (text.trim() == '[DONE]') return null;
+    final decoded = jsonDecode(text);
+    if (decoded is! Map || decoded['event_type'] is! String) return null;
+    final event = InteractionSseEvent.fromJson(decoded.cast<String, Object?>());
+    if (event.eventType == 'error') {
+      final error = ErrorEvent.fromJson(event.json).error;
+      throw GenkitException(
+        'Interaction API returned an error: [${error?.code}] ${error?.message}',
+        status:
+            interactionErrorCodeToGenkitStatus(error?.code) ??
+            StatusCode.internal,
+      );
+    }
+    return event;
+  }
+
+  await for (final line in lines) {
+    if (line.isEmpty) {
+      final event = flush();
+      if (event != null) yield event;
+    } else if (line.startsWith('data:')) {
+      data.write(line.substring(line.startsWith('data: ') ? 6 : 5));
+    } else if (!line.startsWith('event:') &&
+        !line.startsWith('id:') &&
+        !line.startsWith('retry:') &&
+        !line.startsWith(':')) {
+      leftover.writeln(line);
+    }
+  }
+  final last = flush();
+  if (last != null) yield last;
+
+  final rest = leftover.toString().trim();
+  if (rest.isNotEmpty) {
+    Object? error;
+    try {
+      final decoded = jsonDecode(rest);
+      if (decoded is Map) error = decoded['error'];
+    } on FormatException {
+      // Not JSON: reported as is below.
+    }
+    if (error is Map) {
+      throw GenkitException(
+        'Interaction API returned an error: [${error['code']}] '
+        '${error['message']}',
+        status:
+            interactionErrorCodeToGenkitStatus(error['code']) ??
+            StatusCode.internal,
+      );
+    }
+    throw GenkitException(
+      'Failed to parse the Interactions stream: $rest',
+      status: StatusCode.internal,
+    );
+  }
+}
 
 class GenerativeLanguageBaseClient {
   final String baseUrl;
@@ -89,6 +169,43 @@ class GenerativeLanguageBaseClient {
       url,
       request.toJson(),
     ).map(GenerateContentResponse.fromJson);
+  }
+
+  /// Creates an interaction (Interactions API, steps schema).
+  ///
+  /// Sent with the `Api-Revision` header that selects the steps schema (JS
+  /// `INTERACTIONS_API_REVISION`).
+  Future<GeminiInteraction> createInteraction(
+    CreateInteractionRequest request,
+  ) async {
+    final res = await _call(
+      'POST',
+      '${apiUrlPrefix}interactions',
+      request.json,
+      const {'Api-Revision': interactionsApiRevision},
+    );
+    return GeminiInteraction.fromJson(res);
+  }
+
+  /// Creates an interaction and streams its SSE events (`stream: true` is
+  /// set on the request).
+  Stream<InteractionSseEvent> createInteractionStream(
+    CreateInteractionRequest request,
+  ) async* {
+    final body = {...request.json, 'stream': true};
+    final httpRequest =
+        http.Request('POST', Uri.parse('$baseUrl${apiUrlPrefix}interactions'))
+          ..headers['Content-Type'] = 'application/json'
+          ..headers['Api-Revision'] = interactionsApiRevision
+          ..body = jsonEncode(body);
+    final response = await client.send(httpRequest);
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final text = await response.stream.bytesToString();
+      throw _parseGoogleError(response.statusCode, text);
+    }
+    yield* parseInteractionSse(
+      response.stream.transform(utf8.decoder).transform(const LineSplitter()),
+    );
   }
 
   Future<Map<String, dynamic>> _call(
@@ -171,9 +288,14 @@ class GenerativeLanguageBaseClient {
         final err = json['error'] as Map;
         final message = err['message'] as String? ?? 'Unknown error';
         final statusStr = err['status'] as String?;
+        // Interactions API errors carry a string `code` (e.g.
+        // `rate_limit_exceeded`) instead of a gRPC `status`.
+        final interactionStatus = statusStr == null
+            ? interactionErrorCodeToGenkitStatus(err['code'])
+            : null;
         return GenkitException(
           'Google AI Error: $message',
-          status: _errorStatus(statusCode, statusStr),
+          status: interactionStatus ?? _errorStatus(statusCode, statusStr),
         );
       }
     } catch (_) {}

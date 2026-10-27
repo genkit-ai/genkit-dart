@@ -54,6 +54,27 @@ abstract class $GeminiOptions {
   int? get seed;
 
   $GeminiSpeechConfig? get speechConfig;
+
+  @StringField(
+    description:
+        'Service tier for the Gemini API: standard, flex or priority. '
+        'Other values are sent as given.',
+  )
+  String? get serviceTier;
+
+  @StringField(
+    description:
+        'The ID of the previous interaction, if any. Requires store: true. '
+        'Only used by models called through the Interactions API.',
+  )
+  String? get previousInteractionId;
+
+  @Field(
+    description:
+        'Whether to store the interaction for later retrieval. Defaults to '
+        'false. Only used by models called through the Interactions API.',
+  )
+  bool? get store;
 }
 
 @Schema()
@@ -162,6 +183,27 @@ abstract class $GeminiTtsOptions {
   int? get seed;
 
   $GeminiSpeechConfig? get speechConfig;
+
+  @StringField(
+    description:
+        'Service tier for the Gemini API: standard, flex or priority. '
+        'Other values are sent as given.',
+  )
+  String? get serviceTier;
+
+  @StringField(
+    description:
+        'The ID of the previous interaction, if any. Requires store: true. '
+        'Only used by models called through the Interactions API.',
+  )
+  String? get previousInteractionId;
+
+  @Field(
+    description:
+        'Whether to store the interaction for later retrieval. Defaults to '
+        'false. Only used by models called through the Interactions API.',
+  )
+  bool? get store;
 }
 
 @Schema(description: 'Speech generation config')
