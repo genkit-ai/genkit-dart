@@ -31,13 +31,30 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   /// closed by the plugin; the caller owns its lifecycle.
   final http.Client? httpClient;
 
-  GoogleGenAiPluginImpl({this.apiKey, this.httpClient});
+  /// Whether interactions are stored when a request doesn't set `store`
+  /// (Interactions models only).
+  final bool store;
+
+  GoogleGenAiPluginImpl({this.apiKey, this.httpClient, this.store = false});
 
   @override
   String get name => 'googleai';
 
   @override
   final Map<String, ModelInfo> knownModels = knownGeminiModels;
+
+  /// Known models pinned to generateContent stay there; every other name
+  /// (newer, unlisted, `-latest` aliases) uses the Interactions API, as in
+  /// the JS plugin.
+  @override
+  bool usesInteractions(String modelName) =>
+      knownGeminiInteractions[modelName] ?? true;
+
+  @override
+  bool get storeInteractions => store;
+
+  @override
+  bool get supportsServiceTier => true;
 
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([

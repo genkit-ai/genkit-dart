@@ -50,6 +50,9 @@ base class GeminiOptions {
     double? frequencyPenalty,
     int? seed,
     GeminiSpeechConfig? speechConfig,
+    String? serviceTier,
+    String? previousInteractionId,
+    bool? store,
   }) {
     _json = {
       'apiKey': ?apiKey,
@@ -73,6 +76,9 @@ base class GeminiOptions {
       'frequencyPenalty': ?frequencyPenalty,
       'seed': ?seed,
       'speechConfig': ?speechConfig?.toJson(),
+      'serviceTier': ?serviceTier,
+      'previousInteractionId': ?previousInteractionId,
+      'store': ?store,
     };
   }
 
@@ -356,6 +362,42 @@ base class GeminiOptions {
     }
   }
 
+  String? get serviceTier {
+    return _json['serviceTier'] as String?;
+  }
+
+  set serviceTier(String? value) {
+    if (value == null) {
+      _json.remove('serviceTier');
+    } else {
+      _json['serviceTier'] = value;
+    }
+  }
+
+  String? get previousInteractionId {
+    return _json['previousInteractionId'] as String?;
+  }
+
+  set previousInteractionId(String? value) {
+    if (value == null) {
+      _json.remove('previousInteractionId');
+    } else {
+      _json['previousInteractionId'] = value;
+    }
+  }
+
+  bool? get store {
+    return _json['store'] as bool?;
+  }
+
+  set store(bool? value) {
+    if (value == null) {
+      _json.remove('store');
+    } else {
+      _json['store'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -426,6 +468,21 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'seed': <String, Object?>{'type': 'integer'},
         'speechConfig': <String, Object?>{
           r'$ref': r'#/$defs/GeminiSpeechConfig',
+        },
+        'serviceTier': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Service tier for the Gemini API: standard, flex or priority. Other values are sent as given.',
+        },
+        'previousInteractionId': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The ID of the previous interaction, if any. Requires store: true. Only used by models called through the Interactions API.',
+        },
+        'store': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Whether to store the interaction for later retrieval. Defaults to false. Only used by models called through the Interactions API.',
         },
       },
     },
@@ -822,6 +879,9 @@ base class GeminiTtsOptions {
     double? frequencyPenalty,
     int? seed,
     GeminiSpeechConfig? speechConfig,
+    String? serviceTier,
+    String? previousInteractionId,
+    bool? store,
   }) {
     _json = {
       'apiKey': ?apiKey,
@@ -845,6 +905,9 @@ base class GeminiTtsOptions {
       'frequencyPenalty': ?frequencyPenalty,
       'seed': ?seed,
       'speechConfig': ?speechConfig?.toJson(),
+      'serviceTier': ?serviceTier,
+      'previousInteractionId': ?previousInteractionId,
+      'store': ?store,
     };
   }
 
@@ -1128,6 +1191,42 @@ base class GeminiTtsOptions {
     }
   }
 
+  String? get serviceTier {
+    return _json['serviceTier'] as String?;
+  }
+
+  set serviceTier(String? value) {
+    if (value == null) {
+      _json.remove('serviceTier');
+    } else {
+      _json['serviceTier'] = value;
+    }
+  }
+
+  String? get previousInteractionId {
+    return _json['previousInteractionId'] as String?;
+  }
+
+  set previousInteractionId(String? value) {
+    if (value == null) {
+      _json.remove('previousInteractionId');
+    } else {
+      _json['previousInteractionId'] = value;
+    }
+  }
+
+  bool? get store {
+    return _json['store'] as bool?;
+  }
+
+  set store(bool? value) {
+    if (value == null) {
+      _json.remove('store');
+    } else {
+      _json['store'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -1199,6 +1298,21 @@ base class _GeminiTtsOptionsTypeFactory
         'seed': <String, Object?>{'type': 'integer'},
         'speechConfig': <String, Object?>{
           r'$ref': r'#/$defs/GeminiSpeechConfig',
+        },
+        'serviceTier': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Service tier for the Gemini API: standard, flex or priority. Other values are sent as given.',
+        },
+        'previousInteractionId': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The ID of the previous interaction, if any. Requires store: true. Only used by models called through the Interactions API.',
+        },
+        'store': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Whether to store the interaction for later retrieval. Defaults to false. Only used by models called through the Interactions API.',
         },
       },
     },
