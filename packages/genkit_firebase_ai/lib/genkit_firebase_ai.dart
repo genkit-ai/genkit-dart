@@ -996,6 +996,7 @@ fai.ToolConfig? toGeminiToolConfig(
   return fai.ToolConfig(functionCallingConfig: mConfig);
 }
 
+/// Converts Firebase AI [fai.UsageMetadata] into Genkit [GenerationUsage].
 @visibleForTesting
 GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
   if (metadata == null) return null;
@@ -1003,6 +1004,12 @@ GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
     inputTokens: metadata.promptTokenCount ?? 0,
     outputTokens: metadata.candidatesTokenCount ?? 0,
     totalTokens: metadata.totalTokenCount ?? 0,
+    thoughtsTokens: metadata.thoughtsTokenCount,
+    cachedContentTokens: metadata.cachedContentTokenCount,
+    custom: switch (metadata.toolUsePromptTokenCount) {
+      final count? => {'toolUsePromptTokenCount': count},
+      null => null,
+    },
   );
 }
 
