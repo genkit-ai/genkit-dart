@@ -55,7 +55,7 @@ void main() {
         expect(action.customOptions, same(model.family.customOptions));
         final info = modelInfoOf(action);
         expect(info['label'], model.label);
-        expect(info['stage'], 'stable');
+        expect(info['stage'], model.stage.wireName);
         expect(
           (info['supports'] as Map).cast<String, dynamic>(),
           model.info.supports,
@@ -97,21 +97,50 @@ void main() {
       final client = ListingClient(
         modelsResponse:
             '{"models": ['
-            '{"name": "models/gemini-3.5-flash"}, '
+            '{"name": "models/gemini-3.8-flash"}, '
             '{"name": "models/gemini-2.0-flash"}]}',
       );
       final actions = await plugin(client: client).list();
       final names = actions.map((a) => a.name).toList();
 
-      expect(names, contains('googleai/gemini-3.5-flash'));
+      expect(names, contains('googleai/gemini-3.8-flash'));
 
       final discovered = actions.firstWhere(
-        (a) => a.name == 'googleai/gemini-3.5-flash',
+        (a) => a.name == 'googleai/gemini-3.8-flash',
       );
       final info = (discovered.metadata['model'] as Map)
           .cast<String, dynamic>();
-      expect(info['label'], 'Gemini 3.5 Flash');
+      expect(info['label'], 'Gemini 3.8 Flash');
       expect(info['stage'], 'stable');
+    });
+
+    test('lists hidden models with their stage', () async {
+      final actions = await plugin().list();
+
+      for (final model in KnownGeminiModel.values.where((m) => m.hidden)) {
+        final action = actions.firstWhere(
+          (a) => a.name == 'googleai/${model.id}',
+        );
+        final info = (action.metadata['model'] as Map).cast<String, dynamic>();
+        expect(info['label'], model.label, reason: model.id);
+        expect(info['stage'], model.stage.wireName, reason: model.id);
+      }
+    });
+
+    test('a discovered hidden model keeps its stage', () async {
+      final client = ListingClient(
+        modelsResponse: '{"models": [{"name": "models/gemini-2.5-pro"}]}',
+      );
+      final actions = await plugin(client: client).list();
+
+      final discovered = actions.where(
+        (a) => a.name == 'googleai/gemini-2.5-pro',
+      );
+      expect(discovered, hasLength(1));
+      final info = (discovered.single.metadata['model'] as Map)
+          .cast<String, dynamic>();
+      expect(info['label'], 'Gemini 2.5 Pro');
+      expect(info['stage'], 'legacy');
     });
 
     test('gives a discovered un-curated -tts model the TTS profile', () async {
@@ -143,10 +172,10 @@ void main() {
       }
 
       final curated = actions.firstWhere(
-        (a) => a.name == 'googleai/gemini-3.5-flash',
+        (a) => a.name == 'googleai/gemini-3.8-flash',
       );
       final info = (curated.metadata['model'] as Map).cast<String, dynamic>();
-      expect(info['label'], 'Gemini 3.5 Flash');
+      expect(info['label'], 'Gemini 3.8 Flash');
       expect(info['stage'], 'stable');
     });
 
@@ -182,14 +211,14 @@ void main() {
       final client = ListingClient(
         modelsResponse:
             '{"models": ['
-            '{"name": "models/gemini-3.5-flash"}, '
+            '{"name": "models/gemini-3.8-flash"}, '
             '{"name": "models/gemini-2.0-flash"}]}',
       );
       final actions = await plugin(client: client).list();
       final names = actions.map((a) => a.name).toList();
 
       expect(
-        names.where((n) => n == 'googleai/gemini-3.5-flash'),
+        names.where((n) => n == 'googleai/gemini-3.8-flash'),
         hasLength(1),
       );
       for (final model in KnownGeminiModel.values) {
@@ -210,10 +239,10 @@ void main() {
       }
       expect(names.where((n) => n.contains('embedding')), isEmpty);
       final curated = actions.firstWhere(
-        (a) => a.name == 'googleai/gemini-3.5-flash',
+        (a) => a.name == 'googleai/gemini-3.8-flash',
       );
       final info = (curated.metadata['model'] as Map).cast<String, dynamic>();
-      expect(info['label'], 'Gemini 3.5 Flash');
+      expect(info['label'], 'Gemini 3.8 Flash');
       expect(info['stage'], 'stable');
     });
 
@@ -242,7 +271,10 @@ void main() {
 
     test('generate does not close the injected client', () async {
       final client = ListingClient();
-      final model = plugin(client: client).resolve(.model, 'gemini-2.0-flash')!;
+      // A model pinned to generateContent (ListingClient serves that).
+      final model = plugin(
+        client: client,
+      ).resolve(.model, 'gemini-3.1-flash-lite')!;
 
       await model.run(
         ModelRequest(
@@ -265,7 +297,7 @@ void main() {
         final client = _CancellingClient(controller);
         final model = plugin(
           client: client,
-        ).resolve(.model, 'gemini-2.0-flash')!;
+        ).resolve(.model, 'gemini-3.1-flash-lite')!;
 
         await expectLater(
           model.run(
@@ -292,7 +324,7 @@ void main() {
         final client = _CancellingClient(controller);
         final model = plugin(
           client: client,
-        ).resolve(.model, 'gemini-2.0-flash')!;
+        ).resolve(.model, 'gemini-3.1-flash-lite')!;
 
         await expectLater(
           model.run(

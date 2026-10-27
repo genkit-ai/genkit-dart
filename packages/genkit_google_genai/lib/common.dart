@@ -31,8 +31,16 @@ library;
 
 export 'src/api_client.dart';
 export 'src/common_plugin.dart' hide toGeminiPart;
-// The catalog enums stay in src/: vertexai only needs the resulting map and
-// the family rules, and the enums would invite users to switch over them.
+export 'src/interaction_converters.dart';
+export 'src/interaction_model.dart';
+export 'src/interaction_types.dart';
+// The catalog enums stay in src/: vertexai only needs the family rules and the
+// stage vocabulary (it keeps its own model list), and the catalog enums would
+// invite users to switch over them.
 export 'src/known_models.dart'
-    show GeminiModelFamily, geminiTtsSupports, knownGeminiModels;
+    show
+        GeminiModelFamily,
+        GeminiModelStage,
+        geminiTtsSupports,
+        knownGeminiModels;
 export 'src/model.dart';

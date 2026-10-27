@@ -24,8 +24,15 @@ const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
 class GoogleGenAiPluginHandle {
   const GoogleGenAiPluginHandle();
 
-  GenkitPlugin call({String? apiKey}) {
-    return GoogleGenAiPluginImpl(apiKey: apiKey);
+  /// Creates the Gemini API plugin.
+  ///
+  /// [apiKey] defaults to the `GOOGLE_API_KEY` or `GEMINI_API_KEY`
+  /// environment variable. [store] stores interactions on the server for
+  /// requests that don't set `store` themselves (only for models called
+  /// through the Interactions API); a stored interaction is continued by the
+  /// next request, which then only sends the newer messages.
+  GenkitPlugin call({String? apiKey, bool store = false}) {
+    return GoogleGenAiPluginImpl(apiKey: apiKey, store: store);
   }
 
   ModelRef<GeminiOptions> gemini(String name) {

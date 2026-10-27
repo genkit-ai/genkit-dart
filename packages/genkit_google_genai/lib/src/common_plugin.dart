@@ -22,6 +22,8 @@ import 'package:schemantic/schemantic.dart';
 import 'aggregation.dart';
 import 'api_client.dart';
 import 'generated/generativelanguage.dart' as gcl;
+import 'interaction_converters.dart' show warnDroppedConfigField;
+import 'interaction_model.dart';
 import 'known_models.dart';
 import 'model.dart';
 
@@ -80,17 +82,39 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         );
   }
 
+  /// Whether [modelName] is called through the Interactions API rather than
+  /// generateContent (JS `modelInteractionsMap`).
+  ///
+  /// The default keeps every model on generateContent; plugins override it.
+  bool usesInteractions(String modelName) => false;
+
+  /// Whether interactions are stored when a request doesn't set `store`
+  /// (the plugin-level `store` option). Only used on Interactions models.
+  bool get storeInteractions => false;
+
+  /// Whether this plugin sends the `serviceTier` option to the API. When
+  /// false, it is dropped with a warning (the vertexAI plugin has no service
+  /// tier option in JS).
+  bool get supportsServiceTier => false;
+
   Model createModel(String modelName, SchemanticType customOptions) {
     return Model(
       name: '$name/$modelName',
       customOptions: customOptions,
       metadata: {'model': modelInfoFor(modelName).toJson()},
       fn: (req, ctx) async {
+        if (usesInteractions(modelName)) {
+          return generateWithInteractions(this, modelName, req, ctx);
+        }
+
         gcl.GenerationConfig generationConfig;
         List<gcl.SafetySetting>? safetySettings;
         List<gcl.Tool>? tools;
         gcl.ToolConfig? toolConfig;
         String? apiKey;
+        String? serviceTier;
+        bool? store;
+        String? previousInteractionId;
 
         final isJsonMode =
             req.output?.format == 'json' ||
@@ -101,6 +125,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
               ? GeminiTtsOptions()
               : GeminiTtsOptions.$schema.parse(req.config!);
           apiKey = options.apiKey;
+          serviceTier = options.serviceTier;
+          store = options.store;
+          previousInteractionId = options.previousInteractionId;
           generationConfig = toGeminiTtsSettings(
             options,
             req.output?.schema,
@@ -123,6 +150,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
               ? GeminiOptions()
               : GeminiOptions.$schema.parse(req.config!);
           apiKey = options.apiKey;
+          serviceTier = options.serviceTier;
+          store = options.store;
+          previousInteractionId = options.previousInteractionId;
           generationConfig = toGeminiSettings(
             options,
             req.output?.schema,
@@ -140,6 +170,18 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           );
+        }
+
+        // `store: false` is already how this model behaves, so only warn when
+        // something would actually be ignored.
+        if (store == true || (previousInteractionId?.isNotEmpty ?? false)) {
+          logger.warning(
+            'store and previousInteractionId are not supported for this model '
+            'and will be ignored.',
+          );
+        }
+        if (serviceTier != null && !supportsServiceTier) {
+          warnDroppedConfigField(modelName, 'serviceTier');
         }
 
         final service = await getApiClient(apiKey);
@@ -174,6 +216,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
                     role: 'system',
                   ),
           );
+          if (serviceTier != null && supportsServiceTier) {
+            generateRequest.toJson()['serviceTier'] = serviceTier;
+          }
 
           if (ctx.streamingRequested) {
             final stream = service.streamGenerateContent(
