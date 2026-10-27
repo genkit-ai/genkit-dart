@@ -62,7 +62,20 @@ abstract class $GeminiOptions {
   double? get frequencyPenalty;
   List<String>? get responseModalities;
   String? get responseMimeType;
+  @Field(
+    description:
+        'OpenAPI-subset schema the response must conform to. Ignored when '
+        'responseJsonSchema is set or the request has a constrained JSON '
+        'output schema.',
+  )
   Map<String, dynamic>? get responseSchema;
+  @Field(
+    description:
+        'JSON Schema the response must conform to, sent to Gemini unchanged. '
+        'Requires responseMimeType "application/json". Takes precedence over '
+        'responseSchema when both are set. Ignored when the request has a '
+        'constrained JSON output schema, which is sent instead.',
+  )
   Map<String, dynamic>? get responseJsonSchema;
   $ThinkingConfig? get thinkingConfig;
   int? get candidateCount;
@@ -830,18 +843,17 @@ fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
 
 /// Maps Genkit's request onto Firebase AI's generation config.
 ///
-/// [outputSchema] only becomes a native `responseSchema` on a constrained JSON
-/// request, matching `genkit_google_genai`. A caller asking for a schema
-/// without constraint wants it enforced by nothing rather than by Gemini
-/// specifically - core does not inject textual instructions for it either
-/// (`jsonFormatter` sets `defaultInstructions: false`), so honouring that
-/// choice here means the model sees no description of the shape at all,
-/// native or textual, unless the caller supplied their own. Gemini only honours
-/// `responseSchema` alongside an `application/json` response mime type, so
-/// the JSON-mode half of the condition is the provider's rule, not a
-/// preference.
-/// `options.responseSchema` is unaffected — that is an explicit config the
-/// caller wrote, not an output-format inference.
+/// [outputSchema] is sent verbatim as `responseJsonSchema` only on a
+/// constrained JSON request, matching `genkit_google_genai`. A caller asking
+/// for a schema without constraint wants it enforced by nothing rather than by
+/// Gemini specifically - core does not inject textual instructions for it
+/// either (`jsonFormatter` sets `defaultInstructions: false`), so honouring
+/// that choice here means the model sees no description of the shape at all,
+/// native or textual, unless the caller supplied their own. Gemini only
+/// honours a response schema alongside an `application/json` response mime
+/// type, so the JSON-mode half of the condition is the provider's rule, not a
+/// preference. `firebase_ai` forbids sending both `responseJsonSchema` and
+/// `responseSchema`.
 @visibleForTesting
 fai.GenerationConfig toGeminiSettings(
   GeminiOptions options,
@@ -849,6 +861,9 @@ fai.GenerationConfig toGeminiSettings(
   bool isJsonMode, {
   bool constrained = false,
 }) {
+  final responseJsonSchema = constrained && isJsonMode && outputSchema != null
+      ? outputSchema
+      : options.responseJsonSchema;
   return fai.GenerationConfig(
     candidateCount: options.candidateCount,
     stopSequences: options.stopSequences ?? [],
@@ -861,11 +876,10 @@ fai.GenerationConfig toGeminiSettings(
         : (options.responseMimeType?.isEmpty ?? true
               ? null
               : options.responseMimeType),
-    responseSchema: constrained && isJsonMode && outputSchema != null
-        ? toGeminiSchema(outputSchema)
-        : (options.responseSchema != null
-              ? toGeminiSchema(options.responseSchema!)
-              : null),
+    responseJsonSchema: responseJsonSchema,
+    responseSchema: responseJsonSchema == null && options.responseSchema != null
+        ? toGeminiSchema(options.responseSchema!)
+        : null,
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseModalities: options.responseModalities

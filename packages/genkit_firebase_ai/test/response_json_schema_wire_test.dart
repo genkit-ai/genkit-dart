@@ -1,0 +1,154 @@
+// Copyright 2026 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:genkit/genkit.dart';
+import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
+
+import 'wire_harness.dart';
+
+const _outputSchema = <String, dynamic>{
+  'type': 'object',
+  'properties': {
+    'colour': {
+      'type': 'string',
+      'enum': ['red', 'green'],
+    },
+    'count': {'type': 'integer', 'minimum': 1},
+  },
+  'required': ['colour'],
+  'additionalProperties': false,
+};
+
+Future<Map<String, dynamic>> _generationConfigOnTheWire({
+  OutputConfig? output,
+  Map<String, dynamic>? config,
+}) async {
+  final client = WireClient(response: textResponse('{"colour":"red"}'));
+  final model = wireModel(client);
+  await model(
+    ModelRequest(
+      messages: [
+        Message(
+          role: Role.user,
+          content: [TextPart(text: 'pick a colour')],
+        ),
+      ],
+      output: output,
+      config: config,
+    ),
+  );
+  return (client.requests.single.body['generationConfig'] as Map)
+      .cast<String, dynamic>();
+}
+
+void main() {
+  setUpAll(setUpFirebaseApp);
+
+  test('a constrained JSON request sends the output schema verbatim as '
+      'responseJsonSchema', () async {
+    final config = await _generationConfigOnTheWire(
+      output: OutputConfig(
+        format: 'json',
+        schema: _outputSchema,
+        constrained: true,
+      ),
+    );
+
+    expect(config['responseMimeType'], 'application/json');
+    expect(config['responseJsonSchema'], _outputSchema);
+    expect(config, isNot(contains('responseSchema')));
+  });
+
+  test('an unconstrained JSON request sends no schema', () async {
+    final config = await _generationConfigOnTheWire(
+      output: OutputConfig(
+        format: 'json',
+        schema: _outputSchema,
+        constrained: false,
+      ),
+    );
+
+    expect(config['responseMimeType'], 'application/json');
+    expect(config, isNot(contains('responseJsonSchema')));
+    expect(config, isNot(contains('responseSchema')));
+  });
+
+  test('options.responseJsonSchema is forwarded verbatim', () async {
+    final config = await _generationConfigOnTheWire(
+      config: {
+        'responseMimeType': 'application/json',
+        'responseJsonSchema': _outputSchema,
+      },
+    );
+
+    expect(config['responseJsonSchema'], _outputSchema);
+    expect(config, isNot(contains('responseSchema')));
+  });
+
+  test('options.responseJsonSchema wins over options.responseSchema', () async {
+    final config = await _generationConfigOnTheWire(
+      config: {
+        'responseMimeType': 'application/json',
+        'responseSchema': {'type': 'string'},
+        'responseJsonSchema': _outputSchema,
+      },
+    );
+
+    expect(config['responseJsonSchema'], _outputSchema);
+    expect(config, isNot(contains('responseSchema')));
+  });
+
+  test('a constrained output schema replaces options.responseJsonSchema and '
+      'options.responseSchema', () async {
+    final config = await _generationConfigOnTheWire(
+      output: OutputConfig(
+        format: 'json',
+        schema: _outputSchema,
+        constrained: true,
+      ),
+      config: {
+        'responseSchema': {'type': 'string'},
+        'responseJsonSchema': {'type': 'integer'},
+      },
+    );
+
+    expect(config['responseJsonSchema'], _outputSchema);
+    expect(config, isNot(contains('responseSchema')));
+  });
+
+  test('ai.generate with a generated output type keeps its refs', () async {
+    final client = WireClient(response: textResponse('{}'));
+    final ai = Genkit(
+      isDevEnv: false,
+      plugins: [firebaseAI(httpClient: client)],
+    );
+    addTearDown(ai.shutdown);
+
+    await ai.generate(
+      model: firebaseAI.gemini('gemini-2.5-flash'),
+      prompt: 'pick some options',
+      outputSchema: GeminiOptions.$schema,
+    );
+
+    final config = client.requests.single.body['generationConfig'] as Map;
+    final schema = config['responseJsonSchema'] as Map;
+    expect(schema[r'$ref'], r'#/$defs/GeminiOptions');
+    expect(
+      schema[r'$defs'],
+      containsPair('ThinkingConfig', isA<Map<String, dynamic>>()),
+    );
+    expect(config, isNot(contains('responseSchema')));
+  });
+}
