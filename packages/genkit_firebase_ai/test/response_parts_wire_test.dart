@@ -302,7 +302,8 @@ void main() {
   });
 
   test('user-authored custom part is not sent to the API', () async {
-    final model = wireModel(WireClient(response: partsResponse([])));
+    final client = WireClient(response: partsResponse([]));
+    final model = wireModel(client);
 
     await expectLater(
       model(
@@ -322,12 +323,11 @@ void main() {
         ),
       ),
       throwsA(
-        isA<GenkitException>().having(
-          (e) => e.cause,
-          'cause',
-          isA<UnimplementedError>(),
-        ),
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.invalidArgument)
+            .having((e) => e.message, 'message', contains('futurePart')),
       ),
     );
+    expect(client.requests, isEmpty);
   });
 }
