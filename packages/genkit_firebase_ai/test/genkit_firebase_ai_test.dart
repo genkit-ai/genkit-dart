@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// firebase_ai 5 deprecates the sampling parameters for Gemini 3.x, but the
+// plugin still forwards them (#596), and these tests check that it does.
+// ignore_for_file: deprecated_member_use
+
 import 'package:firebase_ai/firebase_ai.dart' as m;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';

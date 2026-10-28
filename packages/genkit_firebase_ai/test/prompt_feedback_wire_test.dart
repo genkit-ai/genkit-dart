@@ -39,13 +39,29 @@ final _blockedWithoutRatings = {
   'promptFeedback': {'blockReason': 'PROHIBITED_CONTENT'},
 };
 
-final _isUnparsedFeedbackException = isA<GenkitException>()
-    .having((e) => e.status, 'status', StatusCode.unknown)
+final _isBlockedWithoutRatingsException = isA<GenkitException>()
+    .having((e) => e.status, 'status', StatusCode.failedPrecondition)
     .having(
       (e) => e.message,
       'message',
-      contains('Unhandled format for PromptFeedback'),
+      'Prompt was blocked (PROHIBITED_CONTENT).',
     );
+
+/// A part firebase_ai still cannot parse (firebase/flutterfire#18881).
+final _unparseable = {
+  'candidates': [
+    {
+      'content': {
+        'role': 'model',
+        'parts': [
+          {
+            'codeExecutionResult': {'outcome': 'OUTCOME_OK'},
+          },
+        ],
+      },
+    },
+  ],
+};
 
 void main() {
   setUpAll(setUpFirebaseApp);
@@ -117,28 +133,28 @@ void main() {
     );
   });
 
-  test('generate fails inside firebase_ai when promptFeedback has no '
+  test('generate reports a block reason that comes without '
       'safetyRatings', () async {
     final model = wireModel(WireClient(response: _blockedWithoutRatings));
 
     await expectLater(
       model(userRequest('hello')),
-      throwsA(_isUnparsedFeedbackException),
+      throwsA(_isBlockedWithoutRatingsException),
     );
   });
 
-  test('streaming generate fails inside firebase_ai when promptFeedback '
-      'has no safetyRatings', () async {
+  test('streaming generate reports a block reason that comes without '
+      'safetyRatings', () async {
     final model = wireModel(WireClient(streamChunks: [_blockedWithoutRatings]));
 
     await expectLater(
       model(userRequest('hello'), onChunk: (_) {}),
-      throwsA(_isUnparsedFeedbackException),
+      throwsA(_isBlockedWithoutRatingsException),
     );
   });
 
   test('a response firebase_ai cannot parse is not retried', () async {
-    final client = WireClient(response: _blockedWithoutRatings);
+    final client = WireClient(response: _unparseable);
     final ai = Genkit(
       isDevEnv: false,
       plugins: [firebaseAI(httpClient: client)],
