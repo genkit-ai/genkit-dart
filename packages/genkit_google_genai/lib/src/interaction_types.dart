@@ -18,13 +18,8 @@
 // names, same order. Keep the two in step: change JS first, then translate.
 //
 // Not ported yet (translate from the JS file when the feature arrives):
-// - Agent configs (DynamicAgentConfig, DeepResearchAgentConfig,
-//   AntigravityAgentConfig, InteractionsAgentConfig), the request fields
-//   agent / agent_config / background / environment and the interaction's
-//   agent: need background models.
-// - VideoConfig and generation_config.video_config: video generation (Omni).
-// - ImageConfig and generation_config.image_config: come with the
-//   `imageConfig` option.
+// - DynamicAgentConfig, DeepResearchAgentConfig and the request field
+//   background: need background models (Deep Research).
 // - InteractionSafetySetting and the request fields safety_settings /
 //   labels: vertexAI only; come with vertexAI Interactions support.
 // - InteractionStreamResult: comes with the client (its Dart shape depends
@@ -1033,6 +1028,28 @@ extension type SpeechConfig.fromJson(Map<String, Object?> json) {
   String? get speaker => json['speaker'] as String?;
 }
 
+/// The configuration for image interaction.
+extension type ImageConfig.fromJson(Map<String, Object?> json) {
+  ImageConfig({String? aspectRatio, String? imageSize})
+    : this.fromJson({'aspect_ratio': ?aspectRatio, 'image_size': ?imageSize});
+
+  /// The aspect ratio of the image.
+  String? get aspectRatio => json['aspect_ratio'] as String?;
+
+  /// The size of the image.
+  String? get imageSize => json['image_size'] as String?;
+}
+
+/// The configuration for video generation (e.g. gemini-omni-1.1-flash).
+extension type VideoConfig.fromJson(Map<String, Object?> json) {
+  VideoConfig({String? task}) : this.fromJson({'task': ?task});
+
+  /// The kind of generation: `text_to_video`, `image_to_video`,
+  /// `reference_to_video`, `edit` or `extend`. Inferred from the prompt if
+  /// not set.
+  String? get task => json['task'] as String?;
+}
+
 /// Configuration parameters for model interactions.
 extension type ModelGenerationConfig.fromJson(Map<String, Object?> json) {
   ModelGenerationConfig({
@@ -1045,6 +1062,8 @@ extension type ModelGenerationConfig.fromJson(Map<String, Object?> json) {
     String? thinkingSummaries,
     int? maxOutputTokens,
     Object? speechConfig,
+    ImageConfig? imageConfig,
+    VideoConfig? videoConfig,
   }) : this.fromJson({
          'temperature': ?temperature,
          'top_p': ?topP,
@@ -1055,6 +1074,8 @@ extension type ModelGenerationConfig.fromJson(Map<String, Object?> json) {
          'thinking_summaries': ?thinkingSummaries,
          'max_output_tokens': ?maxOutputTokens,
          'speech_config': ?speechConfig,
+         'image_config': ?imageConfig,
+         'video_config': ?videoConfig,
        });
 
   /// Controls the randomness of the output.
@@ -1091,6 +1112,25 @@ extension type ModelGenerationConfig.fromJson(Map<String, Object?> json) {
   /// speaker, or `{speakers: [...]}` for multi-speaker.
   Object? get speechConfig => json['speech_config'];
   set speechConfig(Object? value) => _set(json, 'speech_config', value);
+
+  /// Deprecated by the API: image settings go in a `response_format` image
+  /// entry. The plugin doesn't send it.
+  ImageConfig? get imageConfig =>
+      _wrap(json['image_config'], ImageConfig.fromJson);
+
+  /// Configuration for video generation.
+  VideoConfig? get videoConfig =>
+      _wrap(json['video_config'], VideoConfig.fromJson);
+}
+
+/// Configuration for the Antigravity agent.
+extension type AntigravityAgentConfig.fromJson(Map<String, Object?> json)
+    implements InteractionsAgentConfig {
+  AntigravityAgentConfig({String? model})
+    : this.fromJson({'type': 'antigravity', 'model': ?model});
+
+  /// The Gemini model the agent runs on (defaults to the agent's default).
+  String? get model => json['model'] as String?;
 }
 
 /// The service tier.
@@ -1098,6 +1138,14 @@ extension type const ServiceTier(String value) {
   static const flex = ServiceTier('flex');
   static const standard = ServiceTier('standard');
   static const priority = ServiceTier('priority');
+}
+
+/// Configuration for the agent.
+///
+/// One of the `*AgentConfig` types (only [AntigravityAgentConfig] is ported
+/// so far), told apart by [type].
+extension type InteractionsAgentConfig.fromJson(Map<String, Object?> json) {
+  String? get type => json['type'] as String?;
 }
 
 /// Indicates the model should return text, images, or audio.
@@ -1113,6 +1161,8 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
     required Object input,
     String? previousInteractionId,
     String? model,
+    String? agent,
+    Object? environment,
     String? systemInstruction,
     List<InteractionTool>? tools,
     Object? responseFormat,
@@ -1120,10 +1170,13 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
     bool? stream,
     bool? store,
     ModelGenerationConfig? generationConfig,
+    InteractionsAgentConfig? agentConfig,
     ServiceTier? serviceTier,
   }) : this.fromJson({
          'previous_interaction_id': ?previousInteractionId,
          'model': ?model,
+         'agent': ?agent,
+         'environment': ?environment,
          'input': input,
          'system_instruction': ?systemInstruction,
          'tools': ?tools,
@@ -1132,6 +1185,7 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
          'stream': ?stream,
          'store': ?store,
          'generation_config': ?generationConfig,
+         'agent_config': ?agentConfig,
          'service_tier': ?serviceTier,
        });
 
@@ -1141,8 +1195,15 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
   set previousInteractionId(String? value) =>
       _set(json, 'previous_interaction_id', value);
 
-  /// The model to use for this request.
+  /// The model to use for this request (mutually exclusive with [agent]).
   String? get model => json['model'] as String?;
+
+  /// The agent to use for this request (mutually exclusive with [model]).
+  String? get agent => json['agent'] as String?;
+
+  /// The environment configuration for the sandbox: a string (e.g.
+  /// `remote`, or an environment ID) or a configuration map.
+  Object? get environment => json['environment'];
 
   /// The inputs for the interaction: a string, a list of [Step] maps or one
   /// [Step] map.
@@ -1176,6 +1237,10 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
   /// Configuration parameters for the model interaction.
   ModelGenerationConfig? get generationConfig =>
       _wrap(json['generation_config'], ModelGenerationConfig.fromJson);
+
+  /// Configuration for the agent.
+  InteractionsAgentConfig? get agentConfig =>
+      _wrap(json['agent_config'], InteractionsAgentConfig.fromJson);
 
   ServiceTier? get serviceTier => _wrap(json['service_tier'], ServiceTier.new);
 }
@@ -1421,6 +1486,9 @@ extension type StepStop.fromJson(Map<String, Object?> json)
 extension type GeminiInteraction.fromJson(Map<String, Object?> json) {
   /// The name of the Model used for generating the interaction.
   String? get model => json['model'] as String?;
+
+  /// The name of the Agent used for generating the interaction.
+  String? get agent => json['agent'] as String?;
 
   /// The environment ID for the sandbox, if used.
   String? get environmentId => json['environment_id'] as String?;

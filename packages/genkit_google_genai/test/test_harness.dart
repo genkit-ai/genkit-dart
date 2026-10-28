@@ -26,7 +26,8 @@ import 'package:http/testing.dart';
 /// response whose text is the JSON scalar `"ok"`, so it also parses as
 /// JSON-format output.
 class WirePlugin extends GoogleGenAiPluginImpl {
-  WirePlugin(this.captured, {this.response}) : super(apiKey: 'test-key');
+  WirePlugin(this.captured, {this.response, super.store})
+    : super(apiKey: 'test-key');
 
   /// Request bodies seen so far, oldest first.
   final List<Map<String, dynamic>> captured;
