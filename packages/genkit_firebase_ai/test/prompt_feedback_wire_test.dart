@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:firebase_ai/firebase_ai.dart' show FirebaseAISdkException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
@@ -40,11 +39,13 @@ final _blockedWithoutRatings = {
   'promptFeedback': {'blockReason': 'PROHIBITED_CONTENT'},
 };
 
-final _isUnparsedFeedbackException = isA<FirebaseAISdkException>().having(
-  (e) => e.message,
-  'message',
-  contains('Unhandled format for PromptFeedback'),
-);
+final _isUnparsedFeedbackException = isA<GenkitException>()
+    .having((e) => e.status, 'status', StatusCode.unknown)
+    .having(
+      (e) => e.message,
+      'message',
+      contains('Unhandled format for PromptFeedback'),
+    );
 
 void main() {
   setUpAll(setUpFirebaseApp);
@@ -134,6 +135,26 @@ void main() {
       model(userRequest('hello'), onChunk: (_) {}),
       throwsA(_isUnparsedFeedbackException),
     );
+  });
+
+  test('a response firebase_ai cannot parse is not retried', () async {
+    final client = WireClient(response: _blockedWithoutRatings);
+    final ai = Genkit(
+      isDevEnv: false,
+      plugins: [firebaseAI(httpClient: client)],
+    );
+    addTearDown(ai.shutdown);
+
+    final result = await ai.generate(
+      model: firebaseAI.gemini('gemini-2.5-flash'),
+      prompt: 'hello',
+      use: [
+        retry(maxRetries: 2, initialDelay: const Duration(milliseconds: 1)),
+      ],
+    );
+
+    expect(result.finishReason, FinishReason.failed);
+    expect(client.requests, hasLength(1));
   });
 
   test('a response with candidates is returned even when promptFeedback '

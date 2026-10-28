@@ -32,11 +32,9 @@ m.GenerateContentResponse aggregateResponses(
       usageMetadata = response.usageMetadata;
     }
 
-    if (response.candidates.isNotEmpty) {
-      // Firebase AI Candidates don't expose index, assume single candidate.
-      final index = 0;
-      final state = candidateStates.putIfAbsent(index, _CandidateState.new);
-      state.merge(response.candidates.first);
+    // firebase_ai drops the wire `index`, so a candidate's position stands in.
+    for (final (index, candidate) in response.candidates.indexed) {
+      candidateStates.putIfAbsent(index, _CandidateState.new).merge(candidate);
     }
   }
 
@@ -50,7 +48,7 @@ m.GenerateContentResponse aggregateResponses(
 class _CandidateState {
   m.FinishReason? finalFinishReason;
   String? finalFinishMessage;
-  List<m.SafetyRating> safetyRatings = [];
+  final Map<m.HarmCategory, m.SafetyRating> safetyRatings = {};
   m.CitationMetadata? citationMetadata;
   String role = 'model';
   List<m.Part> parts = [];
@@ -58,15 +56,16 @@ class _CandidateState {
   _CandidateState();
 
   void merge(m.Candidate chunk) {
-    if (chunk.finishReason != null &&
-        chunk.finishReason != m.FinishReason.unknown) {
-      finalFinishReason = chunk.finishReason;
+    // An unknown reason is kept until a known one arrives.
+    if (chunk.finishReason case final reason?
+        when reason != m.FinishReason.unknown || finalFinishReason == null) {
+      finalFinishReason = reason;
     }
     if (chunk.finishMessage != null) {
       finalFinishMessage = chunk.finishMessage;
     }
-    if (chunk.safetyRatings != null && chunk.safetyRatings!.isNotEmpty) {
-      safetyRatings.addAll(chunk.safetyRatings!);
+    for (final rating in chunk.safetyRatings ?? const <m.SafetyRating>[]) {
+      safetyRatings[rating.category] = rating;
     }
     if (chunk.citationMetadata != null) {
       citationMetadata = chunk.citationMetadata;
@@ -134,7 +133,7 @@ class _CandidateState {
   m.Candidate toCandidate() {
     return m.Candidate(
       m.Content(role, parts),
-      safetyRatings.isEmpty ? null : safetyRatings,
+      safetyRatings.isEmpty ? null : safetyRatings.values.toList(),
       citationMetadata,
       finalFinishReason,
       finalFinishMessage,
