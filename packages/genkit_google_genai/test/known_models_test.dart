@@ -14,6 +14,7 @@
 
 import 'package:genkit_google_genai/src/known_models.dart';
 import 'package:genkit_google_genai/src/model.dart';
+import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
 const _multimodalProfile = {
@@ -46,6 +47,9 @@ void main() {
       'gemini-2.5-flash-image': GeminiModelFamily.image,
       'gemini-3.1-flash-lite-image': GeminiModelFamily.image,
       'gemini-3-pro-image-preview': GeminiModelFamily.image,
+      'gemini-nano-banana-2.1': GeminiModelFamily.image,
+      'gemini-omni-1.1-flash': GeminiModelFamily.video,
+      'gemini-omni-future': GeminiModelFamily.video,
       'gemini-2.5-flash-preview-tts': GeminiModelFamily.tts,
       'gemini-3.1-flash-tts-preview': GeminiModelFamily.tts,
       'gemini-2.5-flash-tts': GeminiModelFamily.tts,
@@ -72,11 +76,110 @@ void main() {
     test('text and image share the multimodal profile', () {
       expect(GeminiModelFamily.text.supports, _multimodalProfile);
       expect(GeminiModelFamily.image.supports, _multimodalProfile);
+    });
+
+    test('each family has its own options type (as the JS schemas)', () {
       expect(GeminiModelFamily.text.customOptions, same(GeminiOptions.$schema));
       expect(
         GeminiModelFamily.image.customOptions,
-        same(GeminiOptions.$schema),
+        same(GeminiImageOptions.$schema),
       );
+      expect(
+        GeminiModelFamily.video.customOptions,
+        same(GeminiVideoOptions.$schema),
+      );
+    });
+
+    test('the Gemini option types share every GeminiOptions field', () {
+      // The schema generator has no inheritance, so the shared fields are
+      // repeated in each type; this keeps them from drifting apart.
+      Set<String> fieldsOf(SchemanticType<dynamic> type) {
+        final definition = type.schemaMetadata!.definition;
+        return (definition['properties'] as Map).keys.cast<String>().toSet();
+      }
+
+      final shared = fieldsOf(GeminiOptions.$schema);
+      expect(fieldsOf(GeminiTtsOptions.$schema), shared.union({'audioFormat'}));
+      expect(
+        fieldsOf(GeminiImageOptions.$schema),
+        shared.union({'imageConfig'}),
+      );
+      expect(
+        fieldsOf(GeminiVideoOptions.$schema),
+        shared.union({'videoFormat', 'videoConfig'}),
+      );
+    });
+
+    test('every Gemini option field is known to the plugin (JS "handles '
+        'every config schema field explicitly")', () {
+      // The plugin only sends fields it reads, so a new field does nothing
+      // until both request paths map it (send, translate, or drop with a
+      // warning). If this fails after adding a field, map it in
+      // common_plugin.dart (generateContent) and interaction_model.dart
+      // (Interactions), add wire tests, then add it here.
+      const known = {
+        'apiKey',
+        'safetySettings',
+        'codeExecution',
+        'functionCallingConfig',
+        'thinkingConfig',
+        'responseModalities',
+        'googleSearch',
+        'fileSearch',
+        'urlContext',
+        'retrievalConfig',
+        'tools',
+        'temperature',
+        'topP',
+        'topK',
+        'candidateCount',
+        'stopSequences',
+        'maxOutputTokens',
+        'responseMimeType',
+        'responseLogprobs',
+        'logprobs',
+        'presencePenalty',
+        'frequencyPenalty',
+        'seed',
+        'speechConfig',
+        'serviceTier',
+        'previousInteractionId',
+        'store',
+        // vertexAI only (googleAI drops them with a warning).
+        'location',
+        'labels',
+        'vertexRetrieval',
+        'payGo',
+        // Family fields.
+        'audioFormat',
+        'imageConfig',
+        'videoFormat',
+        'videoConfig',
+      };
+      for (final type in [
+        GeminiOptions.$schema,
+        GeminiTtsOptions.$schema,
+        GeminiImageOptions.$schema,
+        GeminiVideoOptions.$schema,
+      ]) {
+        final definition = type.schemaMetadata!.definition;
+        for (final field in (definition['properties'] as Map).keys) {
+          expect(known, contains(field), reason: 'unhandled field: $field');
+        }
+      }
+    });
+
+    test('video carries the video profile (no tools, no constrained '
+        'output, media out)', () {
+      expect(GeminiModelFamily.video.supports, {
+        'multiturn': true,
+        'media': true,
+        'tools': false,
+        'toolChoice': false,
+        'systemRole': true,
+        'constrained': false,
+        'output': ['media'],
+      });
     });
 
     test('tts carries the TTS profile and options', () {
@@ -103,39 +206,56 @@ void main() {
     });
   });
 
+  group('GeminiModelStage', () {
+    test('uses the Genkit stage names', () {
+      expect(GeminiModelStage.values.map((s) => s.wireName), [
+        'stable',
+        'legacy',
+        'deprecated',
+      ]);
+    });
+  });
+
   group('KnownGeminiModel', () {
     for (final model in KnownGeminiModel.values) {
-      test(
-        '${model.id} info carries its label, stable stage and family profile',
-        () {
-          final info = model.info;
-          expect(info.label, model.label);
-          expect(info.stage, 'stable');
-          expect(info.supports, model.family.supports);
-        },
-      );
+      test('${model.id} info carries its label, stage and profile', () {
+        final info = model.info;
+        expect(info.label, model.label);
+        expect(info.stage, model.stage.wireName);
+        expect(info.supports, model.supportsOverride ?? model.family.supports);
+      });
 
       test('${model.id} family agrees with the classifier', () {
         expect(GeminiModelFamily.of(model.id), model.family);
       });
+
+      test('${model.id} is hidden exactly when it is not stable', () {
+        expect(model.hidden, model.stage != GeminiModelStage.stable);
+      });
     }
 
-    test('curates the live Gemini API catalog by family', () {
+    test('curates the Gemini API catalog by family', () {
       expect(
         {
           for (final model in KnownGeminiModel.values)
             if (model.family == GeminiModelFamily.text) model.id,
         },
         {
-          'gemini-3.1-pro-preview',
-          'gemini-3-flash-preview',
+          'gemini-pro-latest',
+          'gemini-flash-latest',
+          'gemini-flash-lite-latest',
+          'gemini-4-argon',
           'gemini-3.8-flash',
-          'gemini-3.7-flash',
           'gemini-3.6-flash',
-          'gemini-3.5-flash',
           'gemini-3.5-flash-lite',
           'gemini-3.1-flash-lite',
+          'gemini-3.1-pro-preview-customtools',
+          'gemini-3.1-pro-preview',
+          'gemini-3-flash-preview',
+          'gemini-2.5-pro',
+          'gemini-2.5-flash',
           'gemini-2.5-flash-lite',
+          'gemini-3.5-flash',
         },
       );
       expect(
@@ -144,11 +264,19 @@ void main() {
             if (model.family == GeminiModelFamily.image) model.id,
         },
         {
-          'gemini-3.1-flash-image',
           'gemini-3.1-flash-lite-image',
+          'gemini-nano-banana-2.1',
           'gemini-3-pro-image',
           'gemini-2.5-flash-image',
+          'gemini-3.1-flash-image',
         },
+      );
+      expect(
+        {
+          for (final model in KnownGeminiModel.values)
+            if (model.family == GeminiModelFamily.video) model.id,
+        },
+        {'gemini-omni-1.1-flash'},
       );
       expect(
         {
@@ -158,15 +286,114 @@ void main() {
         {
           'gemini-3.8-flash-tts',
           'gemini-3.8-flash-lite-tts',
+          'gemini-2.5-flash-preview-tts',
+          'gemini-2.5-pro-preview-tts',
           'gemini-3.1-flash-tts-preview',
         },
       );
     });
 
-    test('every curated model is stable', () {
-      for (final model in KnownGeminiModel.values) {
-        expect(model.info.stage, 'stable', reason: model.id);
+    test('hides the same models as the JS plugin, with the same stages', () {
+      expect(
+        {
+          for (final model in KnownGeminiModel.values)
+            if (model.hidden) model.id: model.stage,
+        },
+        {
+          'gemini-2.5-pro': GeminiModelStage.legacy,
+          'gemini-2.5-flash': GeminiModelStage.legacy,
+          'gemini-2.5-flash-lite': GeminiModelStage.legacy,
+          'gemini-2.5-flash-image': GeminiModelStage.legacy,
+          'gemini-2.5-flash-preview-tts': GeminiModelStage.deprecated,
+          'gemini-2.5-pro-preview-tts': GeminiModelStage.deprecated,
+          'gemini-3.1-flash-tts-preview': GeminiModelStage.deprecated,
+          'gemini-3.5-flash': GeminiModelStage.deprecated,
+          'gemini-3.1-flash-image': GeminiModelStage.deprecated,
+        },
+      );
+    });
+
+    test('keeps every hidden model on generateContent', () {
+      for (final model in KnownGeminiModel.values.where((m) => m.hidden)) {
+        expect(model.interactions, isFalse, reason: model.id);
       }
+    });
+
+    test('Nano Banana 2.1 has no native constrained output (as in JS)', () {
+      // With a schema it still returns only an image (checked live by JS).
+      final supports = KnownGeminiModel.geminiNanoBanana21.info.supports!;
+      expect(supports['constrained'], isFalse);
+      expect(supports['tools'], isTrue);
+    });
+
+    test('leaves out a deprecated model that routes right when unlisted', () {
+      // gemini-3.7-flash now serves gemini-3.8-flash and, unlisted, already
+      // uses the Interactions API (as in JS), so an entry would change nothing.
+      expect(knownGeminiModels, isNot(contains('gemini-3.7-flash')));
+    });
+  });
+
+  group('knownGeminiInteractions', () {
+    test('pins the same models to generateContent as the JS plugin', () {
+      expect(
+        {
+          for (final MapEntry(:key, :value) in knownGeminiInteractions.entries)
+            if (!value) key,
+        },
+        {
+          'gemini-3.1-flash-lite',
+          'gemini-3.1-pro-preview-customtools',
+          'gemini-3.1-pro-preview',
+          'gemini-3-flash-preview',
+          'gemini-3-pro-image',
+          'gemma-4-26b-a4b-it',
+          'gemma-4-31b-it',
+          'gemini-2.5-pro',
+          'gemini-2.5-flash',
+          'gemini-2.5-flash-lite',
+          'gemini-2.5-flash-image',
+          'gemini-2.5-flash-preview-tts',
+          'gemini-2.5-pro-preview-tts',
+          'gemini-3.1-flash-tts-preview',
+          'gemini-3.5-flash',
+          'gemini-3.1-flash-image',
+        },
+      );
+    });
+
+    test('covers exactly the curated models', () {
+      expect(
+        knownGeminiInteractions.keys,
+        unorderedEquals(knownGeminiModels.keys),
+      );
+    });
+
+    test('is unmodifiable', () {
+      expect(
+        () => knownGeminiInteractions['gemini-3.8-flash'] = false,
+        throwsUnsupportedError,
+      );
+    });
+  });
+
+  group('KnownGeminiEmbedder', () {
+    test('curates the same embedders as the JS plugin', () {
+      expect(knownGeminiEmbedders.keys, [
+        'gemini-embedding-001',
+        'gemini-embedding-2',
+      ]);
+      expect(knownGeminiEmbedders['gemini-embedding-2'], {
+        'label': 'Gemini Embedding 2',
+        'dimensions': 3072,
+        'supports': {
+          'input': ['text', 'image', 'video'],
+        },
+      });
+      expect(
+        (knownGeminiEmbedders['gemini-embedding-001']!['supports']
+            as Map)['input'],
+        ['text'],
+      );
     });
   });
 
