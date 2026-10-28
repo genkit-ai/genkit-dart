@@ -84,6 +84,54 @@ void main() {
     });
   });
 
+  group('receiveLiveSession', () {
+    final text = fai.LiveServerContent(
+      modelTurn: fai.Content.model([fai.TextPart('hi')]),
+    );
+
+    test('forwards events until the plugin closes the session', () async {
+      final session = _ReceivingLiveSession([
+        fai.LiveServerResponse(message: text),
+      ]);
+      final chunks = <ModelResponseChunk>[];
+
+      await receiveLiveSession(session, chunks.add, closedByPlugin: () => true);
+
+      expect(chunks.single.content.single.text, 'hi');
+      expect(session.receiveCalls, 1);
+    });
+
+    test('a server close the plugin did not ask for is an error', () async {
+      final session = _ReceivingLiveSession(
+        [],
+        closedWith:
+            'WebSocket Closed, closeCode: 1007, closeReason: '
+            'API key not valid. Please pass a valid API key.',
+      );
+
+      await expectLater(
+        receiveLiveSession(session, (_) {}, closedByPlugin: () => false),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('API key not valid'),
+          ),
+        ),
+      );
+      expect(session.receiveCalls, 2);
+    });
+
+    test('a receive error is reported, not swallowed', () async {
+      final session = _ReceivingLiveSession([], error: StateError('boom'));
+
+      await expectLater(
+        receiveLiveSession(session, (_) {}, closedByPlugin: () => true),
+        throwsA(isA<GenkitException>()),
+      );
+    });
+  });
+
   group('sendToLiveSession', () {
     Part media(String contentType) => MediaPart(
       media: Media(
@@ -226,6 +274,32 @@ class _FakeLiveSession implements fai.LiveSession {
       calls.add(
         'turn(parts: ${input?.parts.length}, turnComplete: $turnComplete)',
       );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// A session whose first `receive()` yields [events] (then [error], if set),
+/// and whose later calls throw [closedWith], as firebase_ai does once the
+/// server has closed the socket.
+class _ReceivingLiveSession implements fai.LiveSession {
+  _ReceivingLiveSession(this.events, {this.error, this.closedWith});
+
+  final List<fai.LiveServerResponse> events;
+  final Error? error;
+  final String? closedWith;
+  int receiveCalls = 0;
+
+  @override
+  Stream<fai.LiveServerResponse> receive() async* {
+    receiveCalls++;
+    if (receiveCalls > 1) {
+      if (closedWith case final reason?) throw Exception(reason);
+      return;
+    }
+    yield* Stream.fromIterable(events);
+    if (error case final error?) throw error;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

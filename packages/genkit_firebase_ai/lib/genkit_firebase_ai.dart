@@ -404,6 +404,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           await sendToLiveSession(session, msg);
         }
 
+        var closedByPlugin = false;
         final sub = stream.listen(
           (chunk) async {
             for (final msg in chunk.messages) {
@@ -415,31 +416,23 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           },
           onDone: () {
             _logger.info('InputStream done');
+            closedByPlugin = true;
             session.close();
           },
         );
 
-        final receiveFuture = () async {
-          try {
-            await for (final event in session.receive()) {
-              _logger.fine('Session receive loop: $event');
-              final chunk = _fromGeminiLiveEvent(event);
-              if (chunk != null) ctx.sendChunk(chunk);
-            }
-            _logger.fine('Session receive loop finished naturally');
-          } catch (e, s) {
-            _logger.warning('Error in Live session receive loop', e, s);
-          }
-        }();
-
-        await receiveFuture;
-        await sub.cancel();
-        _logger.fine('Closing session');
-        session.close();
-        // Session closed in receiveFuture usually, but ensure it here?
-        // Actually session.close() is called on inputStream done.
-        // If receive loop finishes, we might want to stop input stream?
-        // Usually Bidi sessions end when input ends OR model ends.
+        try {
+          await receiveLiveSession(
+            session,
+            ctx.sendChunk,
+            closedByPlugin: () => closedByPlugin,
+          );
+        } finally {
+          await sub.cancel();
+          _logger.fine('Closing session');
+          closedByPlugin = true;
+          await session.close();
+        }
 
         return ModelResponse(finishReason: FinishReason.stop);
       },
@@ -493,6 +486,31 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
   );
+}
+
+/// Forwards [session]'s events to [onChunk] until it ends.
+///
+/// Throws a [GenkitException] when receiving fails, or when the server closed
+/// the session without the plugin asking ([closedByPlugin] false), for
+/// example after rejecting the API key. `firebase_ai` ends `receive()`
+/// quietly on a server close and reports the reason only on the next call.
+@visibleForTesting
+Future<void> receiveLiveSession(
+  fai.LiveSession session,
+  void Function(ModelResponseChunk) onChunk, {
+  required bool Function() closedByPlugin,
+}) async {
+  try {
+    await for (final event in session.receive()) {
+      _logger.fine('Session receive loop: $event');
+      if (_fromGeminiLiveEvent(event) case final chunk?) onChunk(chunk);
+    }
+    if (!closedByPlugin()) {
+      await session.receive().drain<void>();
+    }
+  } catch (e, stack) {
+    throw toGenkitException(e, stack);
+  }
 }
 
 /// Sends [msg] to a Live [session].
