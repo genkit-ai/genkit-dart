@@ -869,12 +869,18 @@ Future<GenerateResult> _runGenerateAction(
         // trigger tool side effects. `_resolveResume` re-checks on the next
         // pass, which also covers respond-only resumes.
         _assertResumable(opts.messages);
-        execution = await _executeTools(
+        final restartTools = await _resolveTools(
           generateRegistry,
+          opts.tools,
+          resolvedMiddleware,
+        );
+        execution = await _executeTools(
+          restartTools.registry,
           resumeRestart.cast<ToolRequestPart>().toList(),
           c.context,
           cancel: c.cancel,
           middleware: resolvedMiddleware,
+          toolMap: restartTools.toolMap,
         );
       } catch (e) {
         // A cancel during the restart tool execution resolves to an aborted
@@ -918,7 +924,8 @@ Future<GenerateResult> _runGenerateAction(
       // Map outputs back to respondents
       final respond = opts.resume?.respond?.toList() ?? [];
       for (final entry in toolStatus.entries) {
-        if (!entry.value.interrupted && entry.value.output != null) {
+        if (!entry.value.interrupted &&
+            (entry.value.output != null || entry.value.content != null)) {
           final reqPart = resumeRestart.firstWhere((p) {
             final t = p.toolRequest;
             return (t.ref ?? t.name) == entry.key;
@@ -929,7 +936,9 @@ Future<GenerateResult> _runGenerateAction(
                 ref: reqPart.toolRequest.ref,
                 name: reqPart.toolRequest.name,
                 output: entry.value.output,
+                content: entry.value.content,
               ),
+              metadata: entry.value.metadata,
             ),
           );
         }

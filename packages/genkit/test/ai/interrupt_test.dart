@@ -515,6 +515,98 @@ void main() {
       expect(toolCallCount, 1);
     });
 
+    test(
+      'should validly resume from interrupt using restart with a namespaced tool',
+      () async {
+        var modelCallCount = 0;
+        var toolCallCount = 0;
+        String? observedToolOutput;
+
+        const modelName = 'namespacedRestartModel';
+        const namespacedToolName = 'work-orders/order_part';
+        const wireToolName = 'order_part';
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            modelCallCount++;
+            if (request.messages.last.role == Role.tool) {
+              observedToolOutput = request
+                  .messages
+                  .last
+                  .content
+                  .first
+                  .toolResponse
+                  ?.output
+                  ?.toString();
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'Restarted namespaced tool!')],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: wireToolName,
+                      input: {'part': 'heating element'},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool(
+          name: namespacedToolName,
+          description: 'Orders a spare part',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (input, context) async {
+            toolCallCount++;
+            if (toolCallCount == 1) {
+              return .interrupt('CONFIRM_ORDER');
+            }
+            return .response('OrderedPart');
+          },
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'order part',
+          toolNames: [namespacedToolName],
+        );
+
+        expect(response1.finishReason, FinishReason.interrupted);
+
+        final history = [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'order part')],
+          ),
+          response1.message!,
+        ];
+
+        final response2 = await genkit.generate(
+          model: modelRef(modelName),
+          messages: history,
+          toolNames: [namespacedToolName],
+          interruptRestart: [response1.message!.content.first.toolRequestPart!],
+        );
+
+        expect(response2.text, 'Restarted namespaced tool!');
+        expect(modelCallCount, 2);
+        expect(toolCallCount, 2);
+        expect(observedToolOutput, 'OrderedPart');
+      },
+    );
+
     test('should access metadata in tool', () async {
       const modelName = 'metaModel';
       const toolName = 'metaTool';
