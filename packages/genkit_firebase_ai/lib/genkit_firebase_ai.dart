@@ -258,7 +258,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   Model _createModel(String modelName) {
     return Model(
       name: 'firebaseai/$modelName',
-      metadata: {'model': firebaseAiModelInfo.toJson()},
+      metadata: {'model': modelInfoFor(modelName).toJson()},
       fn: (req, ctx) async {
         final isJsonMode =
             req.output?.format == 'json' ||
@@ -359,6 +359,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   BidiModel _createBidiModel(String modelName) {
     return BidiModel(
       name: 'firebaseai/$modelName',
+      metadata: {'model': modelInfoFor(modelName, live: true).toJson()},
       customOptions: LiveGenerationConfig.$schema,
       fn: (stream, ctx) async {
         final tools = toGeminiTools(ctx.init?.tools);
