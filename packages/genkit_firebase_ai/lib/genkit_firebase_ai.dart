@@ -833,31 +833,31 @@ List<fai.Tool>? toGeminiTools(
   ];
 }
 
-fai.Tool _toGeminiTool(ToolDefinition tool) {
-  final rawSchema = tool.inputSchema;
+fai.Tool _toGeminiTool(ToolDefinition tool) => fai.Tool.functionDeclarations([
+  _JsonSchemaFunctionDeclaration(tool.name, tool.description, tool.inputSchema),
+]);
 
-  final flattened = rawSchema?.flatten() ?? <String, dynamic>{};
+/// A function declaration that sends the tool's input schema to Gemini
+/// unchanged as `parametersJsonSchema`, as `genkit_google_genai` does.
+///
+/// `firebase_ai` builds `parametersJsonSchema` only from its typed
+/// [fai.JSONSchema], which cannot carry `additionalProperties`, `pattern`,
+/// `oneOf` or a top-level `$defs`, so converting would lose them.
+final class _JsonSchemaFunctionDeclaration extends fai.FunctionDeclaration {
+  _JsonSchemaFunctionDeclaration(
+    super.name,
+    super.description,
+    this.parametersJsonSchema,
+  ) : super(parameters: const {});
 
-  final propertiesMap = flattened['properties'] as Map<String, dynamic>? ?? {};
-  final requiredList =
-      (flattened['required'] as List<dynamic>?)?.cast<String>() ?? [];
+  final Map<String, dynamic>? parametersJsonSchema;
 
-  final parameters = propertiesMap.map((key, value) {
-    return MapEntry(key, toGeminiSchema(value as Map<String, dynamic>));
-  });
-
-  final optionalParameters = propertiesMap.keys
-      .where((k) => !requiredList.contains(k))
-      .toList();
-
-  return fai.Tool.functionDeclarations([
-    fai.FunctionDeclaration(
-      tool.name,
-      tool.description,
-      parameters: parameters,
-      optionalParameters: optionalParameters,
-    ),
-  ]);
+  @override
+  Map<String, Object?> toJson() => {
+    'name': name,
+    'description': description,
+    'parametersJsonSchema': ?parametersJsonSchema,
+  };
 }
 
 @visibleForTesting
