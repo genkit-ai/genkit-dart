@@ -47,15 +47,24 @@ class VertexAiPluginHandle {
   /// It is never closed by the plugin; the caller owns its lifecycle. Because
   /// close() is suppressed, cancellation cannot abort an in-flight request on
   /// an injected client.
+  ///
+  /// [store] is used by requests that don't set `store` themselves. On
+  /// models called through the Interactions API it stores interactions on
+  /// the server (not set = not stored); a stored interaction is continued by
+  /// the next request, which then only sends the newer messages. On
+  /// generateContent models `store: true` is ignored with a warning (the
+  /// platform has nothing to store).
   GenkitPlugin call({
     String? projectId,
     String? location,
     http.Client? authClient,
+    bool? store,
   }) {
     return VertexAiPluginImpl(
       projectId: projectId,
       location: location,
       authClient: authClient,
+      store: store,
     );
   }
 

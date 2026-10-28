@@ -103,37 +103,50 @@ void main() {
     });
 
     test('keeps its own list, independent of the Gemini API catalog', () {
-      // Unchanged from when this list was derived from the Gemini API catalog.
-      // The two lists now change separately (models come and go differently
-      // on the two endpoints).
+      // The JS vertexAI names that change routing or stage (newer JS models
+      // come in a later PR). The two lists change separately: models come
+      // and go differently on the two endpoints.
       expect(vertexAiKnownModels.keys, {
-        'gemini-3.1-pro-preview',
-        'gemini-3-flash-preview',
         'gemini-3.8-flash',
+        'gemini-3.8-flash-cyber',
         'gemini-3.7-flash',
-        'gemini-3.6-flash',
-        'gemini-3.5-flash',
         'gemini-3.5-flash-lite',
+        'gemini-3.5-flash',
         'gemini-3.1-flash-lite',
+        'gemini-3.1-pro-preview',
+        'gemini-3.1-pro-preview-customtools',
+        'gemini-3-flash-preview',
+        'gemini-3.1-flash-lite-image',
+        'gemini-3.1-flash-image',
+        'gemini-3-pro-image',
+        'gemini-2.5-flash-image',
         'gemini-2.5-pro',
         'gemini-2.5-flash',
         'gemini-2.5-flash-lite',
-        'gemini-3.1-flash-image',
-        'gemini-3.1-flash-lite-image',
-        'gemini-3-pro-image',
-        'gemini-2.5-flash-image',
+      });
+      // Left out, as in JS (shuts down Nov 19 2026).
+      expect(vertexAiKnownModels, isNot(contains('gemini-3.6-flash')));
+    });
+
+    test('hidden models match the JS vertexAI HIDDEN_MODELS', () {
+      final hidden = {
+        for (final model in KnownVertexGeminiModel.values)
+          if (model.hidden) model.id: model.stage,
+      };
+      expect(hidden, {
+        'gemini-2.5-pro': GeminiModelStage.deprecated,
+        'gemini-2.5-flash': GeminiModelStage.deprecated,
+        'gemini-2.5-flash-lite': GeminiModelStage.deprecated,
       });
     });
 
     test('does not take googleAI stages', () {
-      // Hidden on googleAI (deprecated / legacy), not here.
-      for (final id in [
-        'gemini-3.5-flash',
-        'gemini-3.1-flash-image',
-        'gemini-2.5-pro',
-      ]) {
+      // Hidden on googleAI (deprecated), stable here.
+      for (final id in ['gemini-3.5-flash', 'gemini-3.1-flash-image']) {
         expect(vertexAiKnownModels[id]?.stage, 'stable', reason: id);
       }
+      // legacy on googleAI, deprecated here.
+      expect(vertexAiKnownModels['gemini-2.5-pro']?.stage, 'deprecated');
     });
 
     test('leaves out Gemini API TTS names', () {
@@ -151,6 +164,65 @@ void main() {
         expect(model.hidden, model.stage != GeminiModelStage.stable);
       });
     }
+  });
+
+  group('vertexUsesInteractions', () {
+    test('known models pinned to generateContent match JS', () {
+      expect(
+        {
+          for (final MapEntry(:key, :value)
+              in vertexAiKnownInteractions.entries)
+            if (!value) key,
+        },
+        {
+          'gemini-3.8-flash-cyber',
+          'gemini-3.5-flash',
+          'gemini-3.1-flash-lite',
+          'gemini-3.1-pro-preview',
+          'gemini-3.1-pro-preview-customtools',
+          'gemini-3-flash-preview',
+          'gemini-3.1-flash-lite-image',
+          'gemini-3.1-flash-image',
+          'gemini-3-pro-image',
+          'gemini-2.5-flash-image',
+          'gemini-2.5-pro',
+          'gemini-2.5-flash',
+          'gemini-2.5-flash-lite',
+        },
+      );
+      for (final id in vertexAiKnownInteractions.keys) {
+        expect(
+          vertexUsesInteractions(id),
+          vertexAiKnownInteractions[id],
+          reason: id,
+        );
+      }
+    });
+
+    test('known Interactions models and unlisted names use Interactions', () {
+      for (final name in [
+        'gemini-3.8-flash',
+        'gemini-3.7-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.6-flash',
+        'gemini-4-argon',
+        'gemini-omni-1.1-flash-preview',
+        'gemini-future-model',
+      ]) {
+        expect(vertexUsesInteractions(name), isTrue, reason: name);
+      }
+    });
+
+    test('unlisted image and TTS names stay on generateContent', () {
+      for (final name in [
+        'gemini-nano-banana-2.1',
+        'gemini-9-flash-image',
+        'gemini-3.8-flash-tts',
+        'gemini-2.5-flash-tts',
+      ]) {
+        expect(vertexUsesInteractions(name), isFalse, reason: name);
+      }
+    });
   });
 
   group('list', () {

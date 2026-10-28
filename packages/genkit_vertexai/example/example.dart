@@ -22,7 +22,9 @@ void main(List<String> args) async {
     plugins: [
       vertexAI(
         projectId: Platform.environment['GCLOUD_PROJECT'],
-        location: Platform.environment['GCLOUD_LOCATION'] ?? 'us-central1',
+        // Newer models use the Interactions API, which is on `global` (and
+        // the `us` / `eu` multi-regions).
+        location: Platform.environment['GCLOUD_LOCATION'] ?? 'global',
       ),
     ],
   );
@@ -34,7 +36,7 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (input, context) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-flash-latest'),
+        model: vertexAI.gemini('gemini-3.8-flash'),
         prompt: input,
       );
       return response.text;
@@ -48,7 +50,7 @@ void main(List<String> args) async {
     outputSchema: .list(.doubleSchema()),
     fn: (input, _) async {
       final embeddings = await ai.embed(
-        embedder: vertexAI.textEmbedding('text-embedding-004'),
+        embedder: vertexAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: input)]),
         ],

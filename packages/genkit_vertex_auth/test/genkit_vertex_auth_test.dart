@@ -139,5 +139,16 @@ void main() {
       );
       expect(normalizeVertexLocation(' US-EAST5 '), 'us-east5');
     });
+
+    test('maps multi-regional locations to their rep host', () {
+      expect(
+        vertexApiHostForLocation('us'),
+        'aiplatform.us.rep.googleapis.com',
+      );
+      expect(
+        vertexApiHostForLocation(' EU '),
+        'aiplatform.eu.rep.googleapis.com',
+      );
+    });
   });
 }
