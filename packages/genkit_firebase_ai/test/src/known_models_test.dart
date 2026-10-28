@@ -69,4 +69,56 @@ void main() {
     expect(model, isA<Model>());
     expect(model!.name, 'firebaseai/gemini-9-flash');
   });
+
+  Map<String, dynamic> modelMetadata(Action action) =>
+      action.metadata['model'] as Map<String, dynamic>;
+
+  test(
+    'catalog models advertise their label, stage and capabilities',
+    () async {
+      final actions = await registered(const FirebaseAiProvider.googleAI());
+
+      final flash = modelMetadata(actions['firebaseai/gemini-3.8-flash']!);
+      expect(flash['label'], 'Gemini 3.8 Flash');
+      expect(flash['stage'], 'stable');
+      expect((flash['supports'] as Map)['tools'], isTrue);
+
+      final preview = modelMetadata(
+        actions['firebaseai/gemini-3.1-pro-preview']!,
+      );
+      expect(preview['stage'], 'unstable');
+
+      final image = modelMetadata(
+        actions['firebaseai/gemini-3.1-flash-image']!,
+      );
+      expect(image['supports'], containsPair('tools', false));
+      expect(image['supports'], containsPair('output', ['text', 'media']));
+
+      final tts = modelMetadata(
+        actions['firebaseai/gemini-3.1-flash-tts-preview']!,
+      );
+      expect(tts['supports'], containsPair('output', ['media']));
+      expect(tts['supports'], containsPair('multiturn', false));
+
+      final live = modelMetadata(
+        actions['firebaseai/gemini-3.1-flash-live-preview']!,
+      );
+      expect(live['stage'], 'unstable');
+      expect(live['supports'], containsPair('constrained', false));
+    },
+  );
+
+  test('names outside the catalog get capabilities from their family', () {
+    expect(modelInfoFor('gemini-9-flash').supports?['tools'], isTrue);
+    expect(modelInfoFor('gemini-9-flash').label, isNull);
+    expect(modelInfoFor('gemini-9-flash-image').supports?['output'], [
+      'text',
+      'media',
+    ]);
+    expect(modelInfoFor('gemini-9-flash-tts').supports?['output'], ['media']);
+    expect(
+      modelInfoFor('gemini-9-flash', live: true).supports?['constrained'],
+      isFalse,
+    );
+  });
 }
