@@ -822,6 +822,68 @@ void main() {
       );
     });
 
+    group('toInteractionSafetySettings', () {
+      GeminiSafetySettings setting(Map<String, dynamic> json) =>
+          GeminiSafetySettings.fromJson(json);
+
+      test('converts to lower-case types and thresholds', () {
+        // The server rejects upper-case values with a 400 listing the
+        // lower-case ones (seen live by the JS plugin on vertexAI).
+        expect(
+          toInteractionSafetySettings([
+            setting({
+              'category': 'HARM_CATEGORY_HATE_SPEECH',
+              'threshold': 'BLOCK_LOW_AND_ABOVE',
+            }),
+            setting({
+              'category': 'HARM_CATEGORY_HARASSMENT',
+              'threshold': 'BLOCK_NONE',
+            }),
+          ])!.map((s) => s.json),
+          [
+            {'type': 'hate_speech', 'threshold': 'block_low_and_above'},
+            {'type': 'harassment', 'threshold': 'block_none'},
+          ],
+        );
+      });
+
+      test('lower-cases method and passes other fields in snake_case', () {
+        // The server rejects 'SEVERITY' with a 400 (JS review).
+        expect(
+          toInteractionSafetySettings([
+            setting({
+              'category': 'HARM_CATEGORY_HATE_SPEECH',
+              'threshold': 'BLOCK_ONLY_HIGH',
+              'method': 'SEVERITY',
+              'someField': 1,
+            }),
+          ])!.single.json,
+          {
+            'some_field': 1,
+            'type': 'hate_speech',
+            'threshold': 'block_only_high',
+            'method': 'severity',
+          },
+        );
+      });
+
+      test('leaves out HARM_CATEGORY_UNSPECIFIED', () {
+        expect(
+          toInteractionSafetySettings([
+            setting({
+              'category': 'HARM_CATEGORY_UNSPECIFIED',
+              'threshold': 'BLOCK_ONLY_HIGH',
+            }),
+          ]),
+          isNull,
+        );
+      });
+
+      test('returns null when not set', () {
+        expect(toInteractionSafetySettings(null), isNull);
+      });
+    });
+
     group('toInteractionConfigTool', () {
       test('throws if the tool is not a map', () {
         for (final tool in [

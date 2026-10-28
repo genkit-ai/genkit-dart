@@ -105,11 +105,19 @@ class GenerativeLanguageBaseClient {
   final String apiUrlPrefix;
   final http.Client client;
 
+  /// The Interactions API path, relative to [baseUrl]. Defaults to
+  /// `${apiUrlPrefix}interactions` (the Gemini API's
+  /// `v1beta/interactions`); the Gemini Enterprise Agent Platform's is
+  /// under the project and location, not under the publisher models
+  /// prefix.
+  final String interactionsPath;
+
   GenerativeLanguageBaseClient({
     required this.baseUrl,
     required this.client,
     this.apiUrlPrefix = 'v1beta/',
-  });
+    String? interactionsPath,
+  }) : interactionsPath = interactionsPath ?? '${apiUrlPrefix}interactions';
 
   Future<EmbedContentResponse> embedContent(
     EmbedContentRequest request, {
@@ -178,12 +186,9 @@ class GenerativeLanguageBaseClient {
   Future<GeminiInteraction> createInteraction(
     CreateInteractionRequest request,
   ) async {
-    final res = await _call(
-      'POST',
-      '${apiUrlPrefix}interactions',
-      request.json,
-      const {'Api-Revision': interactionsApiRevision},
-    );
+    final res = await _call('POST', interactionsPath, request.json, const {
+      'Api-Revision': interactionsApiRevision,
+    });
     return GeminiInteraction.fromJson(res);
   }
 
@@ -194,7 +199,7 @@ class GenerativeLanguageBaseClient {
   ) async* {
     final body = {...request.json, 'stream': true};
     final httpRequest =
-        http.Request('POST', Uri.parse('$baseUrl${apiUrlPrefix}interactions'))
+        http.Request('POST', Uri.parse('$baseUrl$interactionsPath'))
           ..headers['Content-Type'] = 'application/json'
           ..headers['Api-Revision'] = interactionsApiRevision
           ..body = jsonEncode(body);

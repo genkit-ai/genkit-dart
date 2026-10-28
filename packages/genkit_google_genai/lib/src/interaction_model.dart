@@ -16,8 +16,11 @@
 //
 // Mirrors the `useInteractions` branch of the model function in
 // js/plugins/google-genai/src/googleai/gemini.ts (as on the JS branch
-// `if-fixStore`, Oct 27 2026). Keep the two in step: change JS first, then
-// translate.
+// `if-fixStore`, Oct 27 2026), and for vertexAI the differences in
+// js/plugins/google-genai/src/vertexai/gemini.ts `generateWithInteractions`
+// (plugin hooks on CommonGoogleGenPlugin: safety settings are sent, some
+// server-side tool steps are left out of stateless resends, no TTS audio
+// default). Keep them in step: change JS first, then translate.
 //
 // Differences from JS (decided for Dart):
 // - No config passthrough: Dart only sends the GeminiOptions fields it
@@ -28,6 +31,8 @@
 //   outside JSON mode, and candidateCount (only warned about when > 1, as
 //   in JS). JS forwards topK; a JS TODO is open to stop that.
 // - responseLogprobs / logprobs are sent (they work on gemini-4-argon).
+// - `store`: the request's value wins over the plugin option when set (JS
+//   ORs them, so a request can't turn off a plugin-wide `store: true`).
 // - The family fields (imageConfig, audioFormat, videoFormat, videoConfig)
 //   are read through their option types (GeminiImageOptions, ...); JS
 //   reads them from the untyped config.
@@ -37,6 +42,7 @@
 import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
+import 'package:meta/meta.dart';
 
 import 'common_plugin.dart';
 import 'interaction_converters.dart';
@@ -173,21 +179,22 @@ CreateInteractionRequest buildInteractionRequest(
   // The Gemini API's Interactions endpoint does not accept
   // `safety_settings` (it returns 400), even though the published
   // Interactions spec lists the field. The Gemini Enterprise Agent Platform
-  // accepts it, so the vertexAI plugin should map safety settings rather
-  // than copy this guard. Permissive settings can be dropped safely: per
-  // the Gemini API docs, the adjustable safety filters are Off by default
-  // for current Gemini models, so BLOCK_NONE (and HARM_CATEGORY_UNSPECIFIED
-  // entries) never block anything beyond the default. Built-in protections
-  // against core harms always apply.
+  // accepts it, so vertexAI sends them (see
+  // `supportsInteractionSafetySettings`). Permissive settings can be dropped
+  // safely: per the Gemini API docs, the adjustable safety filters are Off
+  // by default for current Gemini models, so BLOCK_NONE (and
+  // HARM_CATEGORY_UNSPECIFIED entries) never block anything beyond the
+  // default. Built-in protections against core harms always apply.
   // See https://ai.google.dev/gemini-api/docs/safety-settings
   //
   // Blocking thresholds (BLOCK_ONLY_HIGH and stricter) cannot be honored, so
   // throw rather than silently weaken the requested filtering.
   final blockingSafetySettings = [
-    for (final setting in options.safetySettings ?? <GeminiSafetySettings>[])
-      if (setting.category != 'HARM_CATEGORY_UNSPECIFIED' &&
-          setting.threshold != 'BLOCK_NONE')
-        setting.toJson(),
+    if (!plugin.supportsInteractionSafetySettings)
+      for (final setting in options.safetySettings ?? <GeminiSafetySettings>[])
+        if (setting.category != 'HARM_CATEGORY_UNSPECIFIED' &&
+            setting.threshold != 'BLOCK_NONE')
+          setting.toJson(),
   ];
   if (blockingSafetySettings.isNotEmpty) {
     throw GenkitException(
@@ -317,7 +324,10 @@ CreateInteractionRequest _withGenerationConfig(
     generationConfig.toolChoice = toolChoice.json;
   }
 
-  final store = options.store == true || plugin.store == true;
+  // The request's `store` wins when set (a request's false turns off a
+  // plugin-wide true); not set anywhere means stateless. JS currently ORs
+  // the two (`config.store === true || plugin.store === true`); JS TODO.
+  final store = options.store ?? plugin.store ?? false;
   final (:messages, :previousInteractionId) = selectInteractionInput(
     parts.messages,
     store,
@@ -336,10 +346,18 @@ CreateInteractionRequest _withGenerationConfig(
     model: modelName,
     tools: parts.tools.isEmpty ? null : parts.tools,
     generationConfig: generationConfig,
-    input: toInteractionSteps(messages),
+    input: _withoutUnsupportedResentSteps(plugin, toInteractionSteps(messages)),
     serviceTier: serviceTier == null ? null : ServiceTier(serviceTier),
     store: store,
+    safetySettings: plugin.supportsInteractionSafetySettings
+        ? toInteractionSafetySettings(options.safetySettings)
+        : null,
   );
+
+  // TTS models on vertexAI use generateContent, so audioFormat has no use
+  // on this plugin's Interactions models (JS vertexAI drops it too).
+  final sendAudioFormat = plugin.defaultsTtsToAudio;
+  if (audioFormat != null && !sendAudioFormat) drop('audioFormat');
 
   // One `response_format` with an entry per output type (the deprecated
   // `response_modalities` isn't sent). TTS and image models ask for the same
@@ -349,13 +367,13 @@ CreateInteractionRequest _withGenerationConfig(
     modalities: responseModalities != null && responseModalities.isNotEmpty
         ? responseModalities
         : switch (GeminiModelFamily.of(modelName)) {
-            .tts => ['AUDIO'],
+            .tts when plugin.defaultsTtsToAudio => ['AUDIO'],
             .image => ['TEXT', 'IMAGE'],
             // Video models return video by default (JS sends nothing).
-            .text || .video => null,
+            .tts || .text || .video => null,
           },
     imageConfig: imageConfig?.toJson(),
-    audioFormat: audioFormat?.toJson(),
+    audioFormat: sendAudioFormat ? audioFormat?.toJson() : null,
     videoFormat: videoOptions.videoFormat?.toJson(),
     // Without a schema the server answers in prose (live: no schema 0/9
     // JSON); an empty schema `{}` gives JSON of any shape (6/6), like
@@ -380,6 +398,35 @@ CreateInteractionRequest _withGenerationConfig(
   }
   return request;
 }
+
+/// Whether the dropped-steps warning has been logged (once per process).
+var _warnedDroppedResentSteps = false;
+
+/// Removes the steps in [CommonGoogleGenPlugin.unsupportedResentStepTypes]
+/// (JS vertexai `withoutUnsupportedResentSteps`), warning once when any
+/// were removed.
+List<Step> _withoutUnsupportedResentSteps(
+  CommonGoogleGenPlugin plugin,
+  List<Step> steps,
+) {
+  final unsupported = plugin.unsupportedResentStepTypes;
+  if (unsupported.isEmpty) return steps;
+  final kept = steps.where((s) => !unsupported.contains(s.type)).toList();
+  if (kept.length < steps.length && !_warnedDroppedResentSteps) {
+    _warnedDroppedResentSteps = true;
+    logger.warning(
+      'Earlier server-side tool results (e.g. Google Search, URL context, '
+      'Google Maps) are not sent back in this conversation history, because '
+      'the server rejects them. The model may call those tools again. Set '
+      'store: true to keep the full tool history on the server.',
+    );
+  }
+  return kept;
+}
+
+/// Forgets that the dropped-steps warning was logged.
+@visibleForTesting
+void resetDroppedResentStepsWarning() => _warnedDroppedResentSteps = false;
 
 /// Checks speech metadata (speaker/style on text parts) against the speech
 /// config, so the user gets a clear error instead of the server's generic

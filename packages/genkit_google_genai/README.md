@@ -268,7 +268,8 @@ If your code reads the provider payload in `response.raw`, it differs:
 3. **Stateless by default:** the plugin sends `store: false`, so nothing is
    kept on Google's servers. To store interactions, set
    `GeminiOptions(store: true)` on a request, or `googleAI(store: true)`
-   for every request. A stored interaction's ID is in
+   for every request (a request's own `store`, `true` or `false`, wins
+   over the plugin option). A stored interaction's ID is in
    `response.message?.metadata?['interactionId']`; passing
    `messages: previousResponse.messages` with `store: true` continues that
    interaction and sends only the new messages. Setting

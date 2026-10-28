@@ -457,6 +457,15 @@ void _configTests() {
       expect(warnings.single, startsWith('Multiple candidates are not'));
     });
 
+    test('googleAI keeps its resend history whole and asks TTS models for '
+        'audio', () async {
+      final plugin = InteractionsWirePlugin();
+      expect(plugin.unsupportedResentStepTypes, isEmpty);
+      expect(plugin.supportsInteractionSafetySettings, isFalse);
+      await _run(plugin, model: 'gemini-3.8-flash-tts');
+      expect(plugin.lastBody['response_format'], {'type': 'audio'});
+    });
+
     test('sends serviceTier', () async {
       final plugin = InteractionsWirePlugin();
       await _run(plugin, config: {'serviceTier': 'flex'});
@@ -791,6 +800,23 @@ void _storeTests() {
       final plugin = InteractionsWirePlugin(store: true);
       await _run(plugin, messages: history);
       expect(plugin.lastBody['previous_interaction_id'], 'v1_prev');
+    });
+
+    test("the request's store wins over the plugin's", () async {
+      // false in the request turns off a plugin-wide true (JS ORs them).
+      var plugin = InteractionsWirePlugin(store: true);
+      await _run(plugin, messages: history, config: {'store': false});
+      var body = plugin.lastBody;
+      expect(body['store'], false);
+      expect(body, isNot(contains('previous_interaction_id')));
+      expect((body['input'] as List).length, 3);
+
+      // true in the request turns on storing over a plugin-wide false.
+      plugin = InteractionsWirePlugin(store: false);
+      await _run(plugin, messages: history, config: {'store': true});
+      body = plugin.lastBody;
+      expect(body['store'], true);
+      expect(body['previous_interaction_id'], 'v1_prev');
     });
 
     test('plugin-wide store: false is the default (stateless)', () async {

@@ -139,6 +139,32 @@ void main() {
       });
     });
 
+    test('interactionsPath replaces the default path', () async {
+      requests = [];
+      final client = GenerativeLanguageBaseClient(
+        baseUrl: 'https://example.test/',
+        apiUrlPrefix: 'v1beta1/projects/p/locations/global/publishers/google/',
+        interactionsPath: 'v1beta1/projects/p/locations/global/interactions',
+        client: MockClient((request) async {
+          requests.add(request);
+          return http.Response(
+            'data: {"event_type":"interaction.completed",'
+            '"interaction":{"status":"completed"}}\n\n',
+            200,
+          );
+        }),
+      );
+      await client
+          .createInteractionStream(
+            CreateInteractionRequest(model: 'gemini-3.8-flash', input: 'Hi'),
+          )
+          .toList();
+      expect(
+        requests.single.url.toString(),
+        'https://example.test/v1beta1/projects/p/locations/global/interactions',
+      );
+    });
+
     test('createInteraction maps an Interactions error code', () {
       final client = clientFor(
         http.Response(

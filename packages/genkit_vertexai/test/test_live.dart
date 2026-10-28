@@ -35,7 +35,8 @@ abstract class $CalculatorInput {
 
 void main() {
   final projectId = Platform.environment['GCLOUD_PROJECT'];
-  final location = Platform.environment['GCLOUD_LOCATION'] ?? 'us-central1';
+  // The Interactions API (used by gemini-3.8-flash) is on `global`.
+  final location = Platform.environment['GCLOUD_LOCATION'] ?? 'global';
 
   final configs = [
     if (projectId != null)
@@ -44,7 +45,7 @@ void main() {
         plugin: vertexAI(projectId: projectId, location: location),
         gemini: vertexAI.gemini,
         textEmbedding: vertexAI.textEmbedding,
-        modelName: 'gemini-flash-latest',
+        modelName: 'gemini-3.8-flash',
         embedderName: 'gemini-embedding-001',
       ),
   ];
