@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 
 import 'wire_harness.dart';
@@ -241,6 +242,39 @@ void main() {
         'parts': [containsPair('text', 'two b')],
       }),
     ]);
+  });
+
+  test('streaming with candidateCount > 1 throws invalidArgument and sends '
+      'nothing', () async {
+    final client = WireClient();
+
+    await expectLater(
+      wireModel(client)(
+        userRequest('hello', config: {'candidateCount': 2}),
+        onChunk: (_) {},
+      ),
+      throwsA(
+        isA<GenkitException>().having(
+          (e) => e.status,
+          'status',
+          StatusCode.invalidArgument,
+        ),
+      ),
+    );
+    expect(client.requests, isEmpty);
+  });
+
+  test('generate with candidateCount > 1 is still sent', () async {
+    final client = WireClient();
+
+    await wireModel(client)(
+      userRequest('hello', config: {'candidateCount': 2}),
+    );
+
+    expect(
+      client.requests.single.body['generationConfig'],
+      containsPair('candidateCount', 2),
+    );
   });
 
   test('streaming raw keeps an unknown finish reason', () async {

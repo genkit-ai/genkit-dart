@@ -294,6 +294,15 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             );
 
         if (ctx.streamingRequested) {
+          if ((options.candidateCount ?? 1) > 1) {
+            // firebase_ai drops each candidate's `index`, so streamed chunks
+            // could not be told apart and would be merged (#656).
+            throw GenkitException(
+              'Streaming with candidateCount > 1 is not supported; use a '
+              'non-streaming request.',
+              status: StatusCode.invalidArgument,
+            );
+          }
           final stream = model
               .generateContentStream(toGeminiContent(req.messages))
               .handleError((Object e, StackTrace s) => throw mapError(e, s));
