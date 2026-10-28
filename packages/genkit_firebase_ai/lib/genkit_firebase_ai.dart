@@ -32,6 +32,7 @@ import 'package:schemantic/schemantic.dart';
 import 'src/aggregation.dart';
 import 'src/error_mapping.dart';
 import 'src/finish_reason.dart';
+import 'src/grounding.dart';
 
 part 'genkit_firebase_ai.g.dart';
 
@@ -90,6 +91,39 @@ abstract class $GeminiOptions {
         'needs a category and a threshold.',
   )
   List<$GeminiSafetySettings>? get safetySettings;
+  @Field(description: 'Grounds responses in Google Search results.')
+  $GeminiGoogleSearch? get googleSearch;
+  @Field(description: 'Lets the model read the URLs given in the prompt.')
+  $GeminiUrlContext? get urlContext;
+  @Field(
+    description:
+        'Grounds responses in Google Maps data. Pass the user location in '
+        'retrievalConfig.',
+  )
+  $GeminiGoogleMaps? get googleMaps;
+  @Field(description: 'Location and language for Google Maps grounding.')
+  $GeminiRetrievalConfig? get retrievalConfig;
+}
+
+@Schema()
+abstract class $GeminiGoogleSearch {}
+
+@Schema()
+abstract class $GeminiUrlContext {}
+
+@Schema()
+abstract class $GeminiGoogleMaps {}
+
+@Schema()
+abstract class $GeminiRetrievalConfig {
+  $GeminiLatLng? get latLng;
+  String? get languageCode;
+}
+
+@Schema()
+abstract class $GeminiLatLng {
+  double? get latitude;
+  double? get longitude;
 }
 
 @Schema()
@@ -325,11 +359,18 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             isJsonMode,
             constrained: req.output?.constrained ?? false,
           ),
-          tools: toGeminiTools(req.tools, codeExecution: options.codeExecution),
+          tools: toGeminiTools(
+            req.tools,
+            codeExecution: options.codeExecution,
+            googleSearch: options.googleSearch != null,
+            urlContext: options.urlContext != null,
+            googleMaps: options.googleMaps != null,
+          ),
           toolConfig: toGeminiToolConfig(
             options.functionCallingConfig,
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
+            retrievalConfig: options.retrievalConfig,
           ),
           httpClient: transport,
         );
@@ -368,7 +409,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           return ModelResponse(
             finishReason: finishReason,
             finishMessage: aggregated.candidates.first.finishMessage,
-            custom: _finishCustom(aggregated.candidates.first),
+            custom: _candidateCustom(aggregated.candidates.first),
             message: message,
             raw: _rawResponse(aggregated),
             usage: extractUsage(aggregated.usageMetadata),
@@ -394,7 +435,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           return ModelResponse(
             finishReason: finishReason,
             finishMessage: response.candidates.first.finishMessage,
-            custom: _finishCustom(response.candidates.first),
+            custom: _candidateCustom(response.candidates.first),
             message: message,
             raw: _rawResponse(response),
             usage: extractUsage(response.usageMetadata),
@@ -774,13 +815,21 @@ fai.Part toGeminiPart(Part p) {
   return (message, finishReasonFromWire(candidate.finishReason?.toJson()));
 }
 
-/// The `custom` map for a response, holding the finish reason as `firebase_ai`
-/// parsed it, or null when it parsed none or [fai.FinishReason.unknown], whose
-/// original wire value is lost.
-Map<String, dynamic>? _finishCustom(fai.Candidate candidate) {
-  final reason = candidate.finishReason;
-  if (reason == null || reason == fai.FinishReason.unknown) return null;
-  return {'finishReason': reason.toJson()};
+/// The `custom` map for a response, or null when it has nothing to hold.
+///
+/// It holds the finish reason as `firebase_ai` parsed it, left out when it
+/// parsed none or [fai.FinishReason.unknown], whose original wire value is
+/// lost, and the candidate's grounding and URL context metadata in wire form.
+Map<String, dynamic>? _candidateCustom(fai.Candidate candidate) {
+  final custom = {
+    'finishReason': ?switch (candidate.finishReason) {
+      null || fai.FinishReason.unknown => null,
+      final reason => reason.toJson(),
+    },
+    'groundingMetadata': ?groundingMetadataJson(candidate),
+    'urlContextMetadata': ?urlContextMetadataJson(candidate),
+  };
+  return custom.isEmpty ? null : custom;
 }
 
 /// Marks a [CustomPart] built from an unparsed API part, so it can go back.
@@ -967,13 +1016,18 @@ T _wireValue<T>(String field, String? value, Map<String, T> byWireName) {
 List<fai.Tool>? toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
+  bool googleSearch = false,
+  bool urlContext = false,
+  bool googleMaps = false,
 }) {
-  if ((tools == null || tools.isEmpty) && codeExecution != true) return null;
-
-  return [
-    if (tools != null) ...(tools.map(_toGeminiTool)),
+  final result = [
+    if (tools != null) ...tools.map(_toGeminiTool),
     if (codeExecution == true) fai.Tool.codeExecution(),
+    if (googleSearch) fai.Tool.googleSearch(),
+    if (urlContext) fai.Tool.urlContext(),
+    if (googleMaps) fai.Tool.googleMaps(),
   ];
+  return result.isEmpty ? null : result;
 }
 
 fai.Tool _toGeminiTool(ToolDefinition tool) {
@@ -1181,27 +1235,60 @@ fai.ToolConfig? toGeminiToolConfig(
   FunctionCallingConfig? functionCallingConfig, {
   ToolChoice? toolChoice,
   bool hasFunctionTools = false,
+  GeminiRetrievalConfig? retrievalConfig,
+}) {
+  final calling = _toFunctionCallingConfig(
+    functionCallingConfig,
+    toolChoice: toolChoice,
+    hasFunctionTools: hasFunctionTools,
+  );
+  final retrieval = _toRetrievalConfig(retrievalConfig);
+  if (calling == null && retrieval == null) return null;
+  return fai.ToolConfig(
+    functionCallingConfig: calling,
+    retrievalConfig: retrieval,
+  );
+}
+
+fai.FunctionCallingConfig? _toFunctionCallingConfig(
+  FunctionCallingConfig? functionCallingConfig, {
+  ToolChoice? toolChoice,
+  bool hasFunctionTools = false,
 }) {
   if (functionCallingConfig == null) {
     if (!hasFunctionTools) return null;
-    final fromChoice = switch (toolChoice?.value) {
+    return switch (toolChoice?.value) {
       'auto' => fai.FunctionCallingConfig.auto(),
       'required' => fai.FunctionCallingConfig.any({}),
       'none' => fai.FunctionCallingConfig.none(),
       _ => null,
     };
-    return fromChoice == null
-        ? null
-        : fai.ToolConfig(functionCallingConfig: fromChoice);
   }
-  final mConfig = switch (functionCallingConfig.mode?.toUpperCase()) {
+  return switch (functionCallingConfig.mode?.toUpperCase()) {
     'ANY' => fai.FunctionCallingConfig.any(
       functionCallingConfig.allowedFunctionNames?.toSet() ?? {},
     ),
     'NONE' => fai.FunctionCallingConfig.none(),
     _ => fai.FunctionCallingConfig.auto(),
   };
-  return fai.ToolConfig(functionCallingConfig: mConfig);
+}
+
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] when `latLng`
+/// is missing a coordinate.
+fai.RetrievalConfig? _toRetrievalConfig(GeminiRetrievalConfig? config) {
+  if (config == null) return null;
+  final latLng = switch (config.latLng) {
+    null => null,
+    GeminiLatLng(:final latitude?, :final longitude?) => fai.LatLng(
+      latitude: latitude,
+      longitude: longitude,
+    ),
+    _ => throw GenkitException(
+      'retrievalConfig.latLng needs both latitude and longitude.',
+      status: StatusCode.invalidArgument,
+    ),
+  };
+  return fai.RetrievalConfig(latLng: latLng, languageCode: config.languageCode);
 }
 
 /// Converts Firebase AI [fai.UsageMetadata] into Genkit [GenerationUsage].
@@ -1237,8 +1324,7 @@ GenkitException _noCandidatesException(fai.PromptFeedback? feedback) {
 
 /// Rebuilds the wire JSON of [response] from the fields `firebase_ai` parses.
 ///
-/// Citation, grounding and URL context metadata are left out because the SDK
-/// gives them no serialization.
+/// Citation metadata is left out because the SDK gives it no serialization.
 Map<String, dynamic> _rawResponse(fai.GenerateContentResponse response) => {
   'candidates': [
     for (final c in response.candidates)
@@ -1247,6 +1333,8 @@ Map<String, dynamic> _rawResponse(fai.GenerateContentResponse response) => {
         'finishReason': ?c.finishReason?.toJson(),
         'finishMessage': ?c.finishMessage,
         'safetyRatings': ?c.safetyRatings?.map(_rawSafetyRating).toList(),
+        'groundingMetadata': ?groundingMetadataJson(c),
+        'urlContextMetadata': ?urlContextMetadataJson(c),
       },
   ],
   if (response.promptFeedback case final feedback?)
