@@ -24,14 +24,14 @@ import 'wire_harness.dart';
 
 Map<String, dynamic> _error(
   int code,
-  String status,
+  String? status,
   String message, {
   List<Map<String, dynamic>>? details,
 }) => {
   'error': {
     'code': code,
     'message': message,
-    'status': status,
+    'status': ?status,
     'details': ?details,
   },
 };
@@ -48,6 +48,34 @@ class _UnreachableClient extends WireClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async =>
       throw http.ClientException('Connection refused', request.url);
+}
+
+/// Answers every request with [statusCode] and a plain-text [body], as a
+/// proxy or load balancer might.
+class _PlainTextClient extends WireClient {
+  _PlainTextClient(this.code, this.body);
+
+  final int code;
+  final String body;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
+      http.StreamedResponse(
+        Stream.value(utf8.encode(body)),
+        code,
+        headers: {'content-type': 'text/html'},
+      );
+}
+
+/// A caller's HTTP client that fails with its own [GenkitException].
+class _ThrowingClient extends WireClient {
+  _ThrowingClient(this.error);
+
+  final GenkitException error;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async =>
+      throw error;
 }
 
 class _OpenStreamClient extends WireClient {
@@ -261,6 +289,41 @@ void main() {
     );
   });
 
+  for (final stream in [false, true]) {
+    test('a 503 without an error status maps to UNAVAILABLE '
+        '(streaming: $stream)', () async {
+      final client = WireClient(
+        statusCode: 503,
+        response: _error(503, null, 'The model is overloaded.'),
+      );
+
+      await expectLater(
+        generate(client, stream: stream),
+        _throwsGenkit(
+          StatusCode.unavailable,
+          'The model is overloaded.',
+          isA<fai.FirebaseAIException>(),
+        ),
+      );
+    });
+
+    test('a non-JSON 502 maps to INTERNAL (streaming: $stream)', () async {
+      await expectLater(
+        generate(
+          _PlainTextClient(502, '<html>Bad Gateway</html>'),
+          stream: stream,
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.internal,
+          ),
+        ),
+      );
+    });
+  }
+
   test('a streaming 503 maps to UNAVAILABLE', () async {
     final client = WireClient(
       statusCode: 503,
@@ -372,19 +435,18 @@ void main() {
     );
   });
 
-  test('a GenkitException from the plugin passes through unwrapped', () async {
-    final client = WireClient(
-      response: {
-        'promptFeedback': {
-          'blockReason': 'SAFETY',
-          'safetyRatings': <Object>[],
-        },
-      },
-    );
+  for (final stream in [false, true]) {
+    test('a GenkitException from the HTTP client passes through unwrapped '
+        '(streaming: $stream)', () async {
+      final error = GenkitException(
+        'Blocked by the caller.',
+        status: StatusCode.permissionDenied,
+      );
 
-    await expectLater(
-      generate(client),
-      _throwsGenkit(StatusCode.failedPrecondition, 'SAFETY', isNull),
-    );
-  });
+      await expectLater(
+        generate(_ThrowingClient(error), stream: stream),
+        throwsA(same(error)),
+      );
+    });
+  }
 }
