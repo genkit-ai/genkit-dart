@@ -42,6 +42,7 @@ void main() {
           'voiceConfig': {
             'prebuiltVoiceConfig': {'voiceName': 'Kore'},
           },
+          'languageCode': 'en-GB',
         },
         'maxOutputTokens': 256,
         'temperature': 1,
@@ -53,6 +54,7 @@ void main() {
 
       expect(config.responseModalities, [fai.ResponseModalities.audio]);
       expect(config.speechConfig!.voiceName, 'Kore');
+      expect(config.speechConfig!.languageCode, 'en-GB');
       expect(config.maxOutputTokens, 256);
       // The sampling getters are deprecated from firebase_ai 5 (#596), so
       // check the wire form instead.
