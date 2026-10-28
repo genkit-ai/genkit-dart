@@ -96,84 +96,41 @@ void main() {
   });
 
   group('Tool Conversion', () {
-    test('converts tool definition', () {
-      final toolDef = ToolDefinition(
-        name: 'myTool',
-        description: 'desc',
-        inputSchema: {
-          'type': 'object',
-          'properties': {
-            'a': {'type': 'string'},
-          },
+    test('sends the tool input schema as parametersJsonSchema', () {
+      final inputSchema = {
+        'type': 'object',
+        'properties': {
+          'a': {'type': 'string'},
         },
-        outputSchema: {'type': 'string'},
-      );
-      final mTools = toGeminiTools([toolDef]);
-      expect(mTools, isNotNull);
-      expect(mTools!.length, 1);
-      final mTool = mTools.first;
-      expect(mTool, isA<m.Tool>());
-      expect(mTool.toJson(), {
+      };
+      final mTools = toGeminiTools([
+        ToolDefinition(
+          name: 'myTool',
+          description: 'desc',
+          inputSchema: inputSchema,
+          outputSchema: {'type': 'string'},
+        ),
+      ]);
+
+      expect(mTools!.single.toJson(), {
         'functionDeclarations': [
           {
             'name': 'myTool',
             'description': 'desc',
-            'parameters': {
-              'type': 'OBJECT',
-              'properties': {
-                'a': {'type': 'STRING', 'nullable': false},
-              },
-              'required': [],
-            },
+            'parametersJsonSchema': inputSchema,
           },
         ],
       });
     });
 
-    test('flattens schema', () {
-      final toolDef = ToolDefinition(
-        name: 'myTool',
-        description: 'desc',
-        inputSchema: {
-          '\$ref': '#/\$defs/WeatherToolInput',
-          '\$defs': {
-            'WeatherToolInput': {
-              'type': 'object',
-              'properties': {
-                'city': {
-                  'type': 'string',
-                  'description': 'The city to get the weather for',
-                },
-              },
-              'required': ['city'],
-            },
-          },
-          '\$schema': 'http://json-schema.org/draft-07/schema#',
-        },
-        outputSchema: {'type': 'string'},
-      );
-      final mTools = toGeminiTools([toolDef]);
-      expect(mTools, isNotNull);
-      expect(mTools!.length, 1);
-      final mTool = mTools.first;
-      expect(mTool, isA<m.Tool>());
-      expect(mTool.toJson(), {
+    test('a tool without an input schema sends no parameters', () {
+      final mTools = toGeminiTools([
+        ToolDefinition(name: 'myTool', description: 'desc'),
+      ]);
+
+      expect(mTools!.single.toJson(), {
         'functionDeclarations': [
-          {
-            'name': 'myTool',
-            'description': 'desc',
-            'parameters': {
-              'type': 'OBJECT',
-              'properties': {
-                'city': {
-                  'type': 'STRING',
-                  'description': 'The city to get the weather for',
-                  'nullable': false,
-                },
-              },
-              'required': ['city'],
-            },
-          },
+          {'name': 'myTool', 'description': 'desc'},
         ],
       });
     });
