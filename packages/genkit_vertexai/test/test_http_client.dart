@@ -55,6 +55,11 @@ class MockHttpClient extends http.BaseClient {
   final List<String> requestBodies = [];
   Uri? lastUrl;
   String? lastBody;
+  Map<String, String>? lastHeaders;
+
+  /// The streamed generateContent response (SSE `data:` lines), for
+  /// `:streamGenerateContent` requests. Null = a single default chunk.
+  List<Map<String, Object?>>? streamChunks;
   bool closed = false;
 
   @override
@@ -66,6 +71,9 @@ class MockHttpClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     requestUrls.add(request.url);
     lastUrl = request.url;
+    if (request.url.host.contains('aiplatform')) {
+      lastHeaders = Map.of(request.headers);
+    }
     final requestBody = request is http.Request ? request.body : null;
     if (request is http.Request) {
       lastBody = requestBody;
@@ -81,6 +89,32 @@ class MockHttpClient extends http.BaseClient {
         ),
         200,
         headers: {'content-type': 'application/json'},
+      );
+    }
+    if (request.url.path.endsWith(':streamGenerateContent')) {
+      final chunks =
+          streamChunks ??
+          [
+            {
+              'candidates': [
+                {
+                  'content': {
+                    'parts': [
+                      {'text': 'response'},
+                    ],
+                    'role': 'model',
+                  },
+                  'finishReason': 'STOP',
+                },
+              ],
+            },
+          ];
+      return http.StreamedResponse(
+        Stream.value(
+          utf8.encode(chunks.map((c) => 'data: ${jsonEncode(c)}\n\n').join()),
+        ),
+        200,
+        headers: {'content-type': 'text/event-stream'},
       );
     }
     if (request.url.path.endsWith('/interactions')) {
@@ -99,6 +133,25 @@ class MockHttpClient extends http.BaseClient {
           ),
         ),
         publisherModelsStatus,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    if (request.url.path.endsWith(':embedContent')) {
+      // One content per request; the embedding encodes the number of
+      // parts, so tests can tell the documents apart.
+      final body = jsonDecode(requestBody!) as Map<String, dynamic>;
+      final parts = (body['content'] as Map)['parts'] as List;
+      return http.StreamedResponse(
+        Stream.value(
+          utf8.encode(
+            jsonEncode({
+              'embedding': {
+                'values': [parts.length + 0.1, parts.length + 0.2],
+              },
+            }),
+          ),
+        ),
+        200,
         headers: {'content-type': 'application/json'},
       );
     }

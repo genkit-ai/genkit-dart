@@ -18,6 +18,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/common.dart' show CreateInteractionRequest;
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
 import 'package:http/http.dart' as http;
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 import 'test_http_client.dart';
@@ -103,6 +104,35 @@ void main() {
         final body = jsonDecode(mockClient.lastBody!) as Map;
         expect(body, isNot(contains('store')), reason: 'store: $store');
       }
+    });
+
+    test('does not warn about its own options', () async {
+      final warnings = <String>[];
+      final subscription = Logger.root.onRecord
+          .where((r) => r.level == Level.WARNING)
+          .listen((r) => warnings.add(r.message));
+      addTearDown(subscription.cancel);
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'global',
+        authClient: MockHttpClient(),
+      );
+      final model = plugin.resolve(.model, 'gemini-2.5-pro') as Action;
+      await model.run(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
+          config: {
+            'labels': {'team': 'genkit'},
+            'payGo': 'flex',
+          },
+        ),
+      );
+      expect(warnings, isEmpty);
     });
   });
 

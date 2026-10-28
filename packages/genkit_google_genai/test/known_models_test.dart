@@ -110,6 +110,65 @@ void main() {
       );
     });
 
+    test('every Gemini option field is known to the plugin (JS "handles '
+        'every config schema field explicitly")', () {
+      // The plugin only sends fields it reads, so a new field does nothing
+      // until both request paths map it (send, translate, or drop with a
+      // warning). If this fails after adding a field, map it in
+      // common_plugin.dart (generateContent) and interaction_model.dart
+      // (Interactions), add wire tests, then add it here.
+      const known = {
+        'apiKey',
+        'safetySettings',
+        'codeExecution',
+        'functionCallingConfig',
+        'thinkingConfig',
+        'responseModalities',
+        'googleSearch',
+        'fileSearch',
+        'urlContext',
+        'retrievalConfig',
+        'tools',
+        'temperature',
+        'topP',
+        'topK',
+        'candidateCount',
+        'stopSequences',
+        'maxOutputTokens',
+        'responseMimeType',
+        'responseLogprobs',
+        'logprobs',
+        'presencePenalty',
+        'frequencyPenalty',
+        'seed',
+        'speechConfig',
+        'serviceTier',
+        'previousInteractionId',
+        'store',
+        // vertexAI only (googleAI drops them with a warning).
+        'location',
+        'labels',
+        'vertexRetrieval',
+        'payGo',
+        // Family fields.
+        'audioFormat',
+        'imageConfig',
+        'videoFormat',
+        'videoConfig',
+      };
+      for (final type in [
+        GeminiOptions.$schema,
+        GeminiTtsOptions.$schema,
+        GeminiImageOptions.$schema,
+        GeminiVideoOptions.$schema,
+      ]) {
+        final definition = type.schemaMetadata!.definition;
+        for (final field in (definition['properties'] as Map).keys) {
+          expect(known, contains(field), reason: 'unhandled field: $field');
+        }
+      }
+    });
+
     test('video carries the video profile (no tools, no constrained '
         'output, media out)', () {
       expect(GeminiModelFamily.video.supports, {
