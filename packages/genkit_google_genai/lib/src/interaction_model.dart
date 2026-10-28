@@ -20,7 +20,9 @@
 // js/plugins/google-genai/src/vertexai/gemini.ts `generateWithInteractions`
 // (plugin hooks on CommonGoogleGenPlugin: safety settings are sent, some
 // server-side tool steps are left out of stateless resends, no TTS audio
-// default). Keep them in step: change JS first, then translate.
+// default, `labels` and the `vertexRetrieval` retrieval tool; per-request
+// `location` and `payGo` are applied by getApiClientForRequest). Keep them
+// in step: change JS first, then translate.
 //
 // Differences from JS (decided for Dart):
 // - No config passthrough: Dart only sends the GeminiOptions fields it
@@ -62,7 +64,7 @@ Future<ModelResponse> generateWithInteractions(
   final options = GeminiOptions.$schema.parse({...?req.config});
   final request = buildInteractionRequest(plugin, modelName, req, options);
 
-  final service = await plugin.getApiClient(options.apiKey);
+  final service = await plugin.getApiClientForRequest(req.config);
   // Aborts the in-flight request on a plugin-owned client; an injected
   // client's close() is a no-op, so cancellation there only lands at the
   // next throwIfCancelled checkpoint.
@@ -231,6 +233,22 @@ CreateInteractionRequest buildInteractionRequest(
   if (urlContext != null) {
     tools.add(toInteractionConfigTool({'urlContext': urlContext.toJson()}));
   }
+  final vertexRetrieval = options.vertexRetrieval;
+  if (vertexRetrieval != null && plugin.supportsVertexOptions) {
+    if (vertexRetrieval.disableAttribution != null) {
+      warnDroppedConfigField(modelName, 'vertexRetrieval.disableAttribution');
+    }
+    tools.add(
+      InteractionRetrievalTool(
+        retrievalTypes: ['vertex_ai_search'],
+        vertexAiSearchConfig: {
+          'datastores': [
+            plugin.vertexSearchDatastore(vertexRetrieval.datastore),
+          ],
+        },
+      ),
+    );
+  }
   final retrievalConfig = options.retrievalConfig;
   if (retrievalConfig != null) {
     // There is no retrieval config on the Interactions path; the user
@@ -301,6 +319,14 @@ CreateInteractionRequest _withGenerationConfig(
   final audioFormat = GeminiTtsOptions.$schema.parse(config).audioFormat;
   final videoOptions = GeminiVideoOptions.$schema.parse(config);
 
+  // vertexAI-only options (the Gemini API has no such fields).
+  warnDroppedVertexOptions(plugin, modelName, req.config);
+  // A copy: toJson() returns the request config's own map.
+  final videoFormat = videoOptions.videoFormat == null
+      ? null
+      : {...videoOptions.videoFormat!.toJson()};
+  if (!plugin.supportsVertexOptions) videoFormat?.remove('gcsUri');
+
   final stopSequences = options.stopSequences;
   final generationConfig = toInteractionGenerationConfig({
     'temperature': ?options.temperature,
@@ -352,6 +378,9 @@ CreateInteractionRequest _withGenerationConfig(
     safetySettings: plugin.supportsInteractionSafetySettings
         ? toInteractionSafetySettings(options.safetySettings)
         : null,
+    labels: plugin.supportsVertexOptions
+        ? toGeminiLabels(options.labels)
+        : null,
   );
 
   // TTS models on vertexAI use generateContent, so audioFormat has no use
@@ -374,7 +403,7 @@ CreateInteractionRequest _withGenerationConfig(
           },
     imageConfig: imageConfig?.toJson(),
     audioFormat: sendAudioFormat ? audioFormat?.toJson() : null,
-    videoFormat: videoOptions.videoFormat?.toJson(),
+    videoFormat: videoFormat,
     // Without a schema the server answers in prose (live: no schema 0/9
     // JSON); an empty schema `{}` gives JSON of any shape (6/6), like
     // `responseMimeType: 'application/json'` on generateContent. (`{type:

@@ -16,9 +16,12 @@
 // tests/googleai/lyria_test.ts, plus routing and listing.
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/common.dart'
+    show resetDroppedConfigFieldWarnings;
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_google_genai/src/google_api_client.dart';
 import 'package:genkit_google_genai/src/lyria.dart';
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 import 'test_harness.dart';
@@ -111,6 +114,22 @@ void _requestTests() {
       expect(plugin.lastBody['response_format'], {'type': 'audio'});
     });
 
+    test('drops location (vertexAI only) with a warning', () async {
+      final warnings = <String>[];
+      final subscription = Logger.root.onRecord
+          .where((r) => r.level == Level.WARNING)
+          .listen((r) => warnings.add(r.message));
+      addTearDown(subscription.cancel);
+      resetDroppedConfigFieldWarnings();
+      final plugin = InteractionsWirePlugin(response: _interaction);
+      await _run(plugin, config: {'location': 'global'});
+      expect(plugin.lastBody, isNot(contains('location')));
+      expect(warnings, [
+        "location is not supported by 'lyria-3-clip-preview' and was "
+            'ignored.',
+      ]);
+    });
+
     test('does not send config keys it does not know (no '
         'passthrough)', () async {
       final plugin = InteractionsWirePlugin(response: _interaction);
@@ -133,6 +152,44 @@ void _responseTests() {
       expect(content[0].text, 'Here are the lyrics...');
       expect(content[1].media?.contentType, 'audio/mpeg');
       expect(content[1].media?.url, 'data:audio/mpeg;base64,audio-data');
+    });
+
+    test('maps usage statistics correctly (JS test)', () async {
+      final response = await _run(
+        InteractionsWirePlugin(
+          response: {
+            ..._interaction,
+            'usage': {
+              'total_input_tokens': 15,
+              'total_output_tokens': 500,
+              'total_tokens': 515,
+              'total_cached_tokens': 0,
+              'total_thought_tokens': 0,
+              'input_tokens_by_modality': [
+                {'modality': 'text', 'tokens': 15},
+              ],
+              'output_tokens_by_modality': [
+                {'modality': 'text', 'tokens': 100},
+                {'modality': 'audio', 'tokens': 400},
+              ],
+            },
+          },
+        ),
+        model: 'lyria-3-pro-preview',
+      );
+
+      expect(response.usage!.toJson(), {
+        'inputTokens': 15,
+        'outputTokens': 500,
+        'totalTokens': 515,
+        'cachedContentTokens': 0,
+        'thoughtsTokens': 0,
+        'custom': {
+          'inputTextTokens': 15,
+          'outputTextTokens': 100,
+          'outputAudioTokens': 400,
+        },
+      });
     });
 
     test('throws for a failed interaction', () async {

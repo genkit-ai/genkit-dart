@@ -12,11 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The Lyria music generation models on the Gemini API (googleAI): plain
-// Interactions models (not streamed, not background).
+// The Lyria music generation models: plain Interactions models (not
+// streamed, not background), on both plugins.
 //
-// Mirrors js/plugins/google-genai/src/googleai/lyria.ts (Oct 27 2026). Keep
-// the two in step: change JS first, then translate.
+// Mirrors js/plugins/google-genai/src/googleai/lyria.ts and the Lyria 3 path
+// of js/plugins/google-genai/src/vertexai/lyria.ts (Oct 27 2026). Keep them
+// in step: change JS first, then translate. Each plugin keeps its own known
+// list (genkit_vertexai has its own).
 //
 // Differences from JS (decided for Dart):
 // - No config passthrough: only the LyriaOptions fields are read, so
@@ -24,6 +26,9 @@
 //   fields).
 // - A streamed request gets the final response without chunks (JS doesn't
 //   stream these models either).
+// - vertexAI: lyria-002 (the older `:predict` model, JS
+//   vertexai/lyria.ts) isn't ported; like every `lyria-*` name it goes to
+//   the Interactions API, which doesn't serve it.
 
 import 'package:genkit/plugin.dart';
 
@@ -82,24 +87,39 @@ final knownLyriaModels = Map<String, ModelInfo>.unmodifiable({
 ModelInfo lyriaModelInfo(String modelName) =>
     knownLyriaModels[modelName] ?? ModelInfo(supports: lyriaSupports);
 
-/// Creates the Lyria model [modelName] for [plugin].
-Model createLyriaModel(CommonGoogleGenPlugin plugin, String modelName) {
+/// Creates the Lyria model [modelName] for [plugin], with [info] (default:
+/// the googleAI catalog, [lyriaModelInfo]).
+///
+/// [defaultModalities] are asked for when the request sets no
+/// `responseModalities`. googleAI asks for audio and text; vertexAI passes
+/// null and sends nothing, because the platform rejects an audio entry
+/// without a `bit_rate` with a 400 ("bit_rate must be positive", seen live
+/// by the JS plugin, Oct 2026) and returns audio and text by default anyway.
+Model createLyriaModel(
+  CommonGoogleGenPlugin plugin,
+  String modelName, {
+  ModelInfo? info,
+  List<String>? defaultModalities = const ['AUDIO', 'TEXT'],
+}) {
   return Model(
     name: '${plugin.name}/$modelName',
     customOptions: LyriaOptions.$schema,
-    metadata: {'model': lyriaModelInfo(modelName).toJson()},
+    metadata: {'model': (info ?? lyriaModelInfo(modelName)).toJson()},
     fn: (req, ctx) async {
       final options = LyriaOptions.$schema.parse({...?req.config});
+      if (options.location != null && !plugin.supportsVertexOptions) {
+        warnDroppedConfigField(modelName, 'location');
+      }
       final request = CreateInteractionRequest(
         model: modelName,
         input: toInteractionSteps(ensureToolIds(req.messages)),
-        // Audio and the lyrics/caption text by default.
         responseFormat: toInteractionResponseFormat(
-          modalities: options.responseModalities ?? const ['AUDIO', 'TEXT'],
+          modalities: options.responseModalities ?? defaultModalities,
         ),
       );
 
-      final service = await plugin.getApiClient(options.apiKey);
+      // Applies the request's apiKey (googleAI) or location (vertexAI).
+      final service = await plugin.getApiClientForRequest(req.config);
       // Aborts the in-flight request on a plugin-owned client (see
       // generateWithInteractions).
       final disposeCancel = ctx.cancel?.onCancel(service.client.close);

@@ -17,37 +17,54 @@ import 'dart:convert';
 import 'package:genkit/plugin.dart';
 import 'package:genkit_google_genai/common.dart' as google;
 
+import 'known_models.dart';
+
+/// Embedder metadata for the discovered embedders, then the curated ones
+/// ([vertexAiKnownEmbedders]) discovery left out. Without [publisherModels]
+/// (discovery failed), only the curated ones.
 List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
   required String pluginName,
-  required List<dynamic> publisherModels,
+  List<dynamic> publisherModels = const [],
 }) {
-  return publisherModels
-      .whereType<Map>()
-      .where((modelMap) {
-        final name = modelMap['name'] as String?;
-        return name != null && google.isEmbedderModelName(name);
-      })
-      .map((modelMap) {
-        final modelName = (modelMap['name'] as String).split('/').last;
-        return _vertexEmbedderMetadata('$pluginName/$modelName');
-      })
-      .toList();
+  final discovered = <String>{
+    for (final modelMap in publisherModels.whereType<Map>())
+      if (modelMap['name'] case final String name
+          when google.isEmbedderModelName(name))
+        name.split('/').last,
+  };
+  return [
+    for (final embedderName in discovered)
+      _vertexEmbedderMetadata(pluginName, embedderName),
+    for (final embedderName in vertexAiKnownEmbedders.keys)
+      if (!discovered.contains(embedderName))
+        _vertexEmbedderMetadata(pluginName, embedderName),
+  ];
 }
 
 ActionMetadata<dynamic, dynamic, dynamic, dynamic> _vertexEmbedderMetadata(
-  String name,
+  String pluginName,
+  String embedderName,
 ) {
   final metadata = embedderMetadata(
-    name,
+    '$pluginName/$embedderName',
     customOptions: google.GoogleGenAiEmbedderOptions.$schema,
   );
+  final info = vertexAiKnownEmbedders[embedderName];
   return ActionMetadata(
     name: metadata.name,
     description: metadata.description,
     actionType: metadata.actionType,
     inputSchema: EmbedRequest.$schema,
     outputSchema: EmbedResponse.$schema,
-    metadata: metadata.metadata,
+    metadata: info == null
+        ? metadata.metadata
+        : {
+            ...metadata.metadata,
+            'model': <String, dynamic>{
+              ...(metadata.metadata['model'] as Map).cast<String, dynamic>(),
+              ...info,
+            },
+          },
   );
 }
 
@@ -57,8 +74,12 @@ Embedder createVertexEmbedder({
   required Future<google.GenerativeLanguageBaseClient> Function() getApiClient,
   required GenkitException Function(Object, StackTrace) handleException,
 }) {
+  final info = vertexAiKnownEmbedders[embedderName];
   return Embedder(
     name: '$pluginName/$embedderName',
+    metadata: {
+      'model': ?info == null ? null : {...info},
+    },
     fn: (req, ctx) async {
       if (req.input.isEmpty) {
         return EmbedResponse(embeddings: []);
@@ -69,6 +90,26 @@ Embedder createVertexEmbedder({
         final options = req.options != null
             ? google.GoogleGenAiEmbedderOptions.fromJson(req.options!)
             : null;
+
+        if (vertexUsesEmbedContent(embedderName)) {
+          // The model has no task type or title field (the task goes in the
+          // text instead), as in JS.
+          if (options?.taskType != null) {
+            google.warnDroppedConfigField(embedderName, 'taskType');
+          }
+          if (options?.title != null) {
+            google.warnDroppedConfigField(embedderName, 'title');
+          }
+          return EmbedResponse(
+            embeddings: await google.embedWithEmbedContent(
+              service,
+              embedderName: embedderName,
+              docs: req.input,
+              options: options,
+              sendTaskTypeAndTitle: false,
+            ),
+          );
+        }
 
         final embeddings = switch (_requestShapeFor(embedderName)) {
           _VertexEmbedderRequestShape.multimodalPredict =>
@@ -445,11 +486,11 @@ Embedding _embeddingFromMultimodalValues(
 }
 
 _VertexEmbedderRequestShape _requestShapeFor(String modelName) {
-  // Vertex AI exposes a single online embedding method: `:predict`. Multimodal
-  // models take a distinct instance/response shape; every other text and Gemini
-  // embedding model uses the text predict shape. (Vertex has no
-  // `:batchEmbedContents` method, and `:embedContent` accepts only one input,
-  // so `:predict` is the universal online path.)
+  // The `:predict` embedders (gemini-embedding-2 and newer use
+  // `:embedContent`, see vertexUsesEmbedContent). Multimodal models take a
+  // distinct instance/response shape; every other text and Gemini embedding
+  // model uses the text predict shape. (Vertex has no `:batchEmbedContents`
+  // method.)
   if (_isMultimodalEmbeddingFamily(modelName)) {
     return _VertexEmbedderRequestShape.multimodalPredict;
   }

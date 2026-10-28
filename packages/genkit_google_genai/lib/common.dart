@@ -44,4 +44,6 @@ export 'src/known_models.dart'
         geminiTtsSupports,
         geminiVideoSupports,
         knownGeminiModels;
+// The Lyria model builder and profile (vertexAI keeps its own known list).
+export 'src/lyria.dart' show createLyriaModel, isLyriaModelName, lyriaSupports;
 export 'src/model.dart';

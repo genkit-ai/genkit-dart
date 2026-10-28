@@ -693,8 +693,11 @@ void main() {
         'inputTokens': 48,
         'outputTokens': 62,
         'totalTokens': 1101,
-        'inputCharacters': 48,
-        'custom': {'toolUseTokens': 908, 'googleSearchCount': 2},
+        'custom': {
+          'inputTextTokens': 48,
+          'toolUseTokens': 908,
+          'googleSearchCount': 2,
+        },
         'thoughtsTokens': 83,
       });
       expect(response.raw!['model'], 'gemini-3.8-flash');

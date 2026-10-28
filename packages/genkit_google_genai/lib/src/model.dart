@@ -94,6 +94,38 @@ abstract class $GeminiOptions {
         "set (otherwise the project's logging setting applies).",
   )
   bool? get store;
+
+  // vertexAI only (the googleAI plugin ignores them with a warning).
+  @StringField(
+    description:
+        'vertexAI only. The Google Cloud location for this request (e.g. '
+        'global, us, us-central1); overrides the plugin location.',
+  )
+  String? get location;
+
+  @Field(
+    description:
+        'vertexAI only. Key-value labels to attach to the request for cost '
+        'tracking.',
+  )
+  Map<String, String>? get labels;
+
+  @Field(
+    description:
+        'vertexAI only. Retrieve from a Vertex AI Search data store for '
+        'grounding generative responses.',
+  )
+  $GeminiVertexRetrieval? get vertexRetrieval;
+
+  @StringField(
+    enumValues: ['priority', 'priority-only', 'flex', 'flex-only'],
+    description:
+        'vertexAI only. PayGo consumption options. Priority provides more '
+        'consistent performance than Standard PayGo. Flex is a '
+        'cost-effective option for non-critical workloads. The "-only" '
+        'options use only PayGo and no Provisioned Throughput.',
+  )
+  String? get payGo;
 }
 
 @Schema()
@@ -236,6 +268,38 @@ abstract class $GeminiTtsOptions {
   )
   bool? get store;
 
+  // vertexAI only (the googleAI plugin ignores them with a warning).
+  @StringField(
+    description:
+        'vertexAI only. The Google Cloud location for this request (e.g. '
+        'global, us, us-central1); overrides the plugin location.',
+  )
+  String? get location;
+
+  @Field(
+    description:
+        'vertexAI only. Key-value labels to attach to the request for cost '
+        'tracking.',
+  )
+  Map<String, String>? get labels;
+
+  @Field(
+    description:
+        'vertexAI only. Retrieve from a Vertex AI Search data store for '
+        'grounding generative responses.',
+  )
+  $GeminiVertexRetrieval? get vertexRetrieval;
+
+  @StringField(
+    enumValues: ['priority', 'priority-only', 'flex', 'flex-only'],
+    description:
+        'vertexAI only. PayGo consumption options. Priority provides more '
+        'consistent performance than Standard PayGo. Flex is a '
+        'cost-effective option for non-critical workloads. The "-only" '
+        'options use only PayGo and no Provisioned Throughput.',
+  )
+  String? get payGo;
+
   // TTS only.
   $GeminiAudioFormat? get audioFormat;
 }
@@ -311,6 +375,38 @@ abstract class $GeminiImageOptions {
         "set (otherwise the project's logging setting applies).",
   )
   bool? get store;
+
+  // vertexAI only (the googleAI plugin ignores them with a warning).
+  @StringField(
+    description:
+        'vertexAI only. The Google Cloud location for this request (e.g. '
+        'global, us, us-central1); overrides the plugin location.',
+  )
+  String? get location;
+
+  @Field(
+    description:
+        'vertexAI only. Key-value labels to attach to the request for cost '
+        'tracking.',
+  )
+  Map<String, String>? get labels;
+
+  @Field(
+    description:
+        'vertexAI only. Retrieve from a Vertex AI Search data store for '
+        'grounding generative responses.',
+  )
+  $GeminiVertexRetrieval? get vertexRetrieval;
+
+  @StringField(
+    enumValues: ['priority', 'priority-only', 'flex', 'flex-only'],
+    description:
+        'vertexAI only. PayGo consumption options. Priority provides more '
+        'consistent performance than Standard PayGo. Flex is a '
+        'cost-effective option for non-critical workloads. The "-only" '
+        'options use only PayGo and no Provisioned Throughput.',
+  )
+  String? get payGo;
 
   // Image only.
   $GeminiImageConfig? get imageConfig;
@@ -390,6 +486,38 @@ abstract class $GeminiVideoOptions {
   )
   bool? get store;
 
+  // vertexAI only (the googleAI plugin ignores them with a warning).
+  @StringField(
+    description:
+        'vertexAI only. The Google Cloud location for this request (e.g. '
+        'global, us, us-central1); overrides the plugin location.',
+  )
+  String? get location;
+
+  @Field(
+    description:
+        'vertexAI only. Key-value labels to attach to the request for cost '
+        'tracking.',
+  )
+  Map<String, String>? get labels;
+
+  @Field(
+    description:
+        'vertexAI only. Retrieve from a Vertex AI Search data store for '
+        'grounding generative responses.',
+  )
+  $GeminiVertexRetrieval? get vertexRetrieval;
+
+  @StringField(
+    enumValues: ['priority', 'priority-only', 'flex', 'flex-only'],
+    description:
+        'vertexAI only. PayGo consumption options. Priority provides more '
+        'consistent performance than Standard PayGo. Flex is a '
+        'cost-effective option for non-critical workloads. The "-only" '
+        'options use only PayGo and no Provisioned Throughput.',
+  )
+  String? get payGo;
+
   // Video only.
   $GeminiVideoFormat? get videoFormat;
   $GeminiVideoConfig? get videoConfig;
@@ -466,6 +594,49 @@ abstract class $GeminiLatLng {
   double? get longitude;
 }
 
+@Schema(
+  description:
+      'Retrieve from a Vertex AI Search data store for grounding generative '
+      'responses (vertexAI only).',
+)
+abstract class $GeminiVertexRetrieval {
+  @Field(description: 'Vertex AI Search data store details.')
+  $GeminiVertexDatastore get datastore;
+
+  @Field(
+    description:
+        'Disable using the search data in detecting grounding attribution. '
+        'This does not affect how the result is given to the model for '
+        'generation.',
+  )
+  bool? get disableAttribution;
+}
+
+@Schema(description: 'Vertex AI Search data store details.')
+abstract class $GeminiVertexDatastore {
+  @StringField(
+    description:
+        'Google Cloud project ID. Defaults to the plugin project when not set.',
+  )
+  String? get projectId;
+
+  @StringField(
+    description:
+        'Data store location: global, us or eu. Defaults to the plugin '
+        'location when not set.',
+  )
+  String? get location;
+
+  @StringField(
+    description:
+        'The data store ID, when projectId and location are given '
+        'separately. Alternatively, the full path to the data store: '
+        '"projects/{project}/locations/{location}/collections/'
+        'default_collection/dataStores/{data_store}".',
+  )
+  String get dataStoreId;
+}
+
 @Schema(description: 'Settings for generated images.')
 abstract class $GeminiImageConfig {
   @StringField(
@@ -486,7 +657,8 @@ abstract class $GeminiImageConfig {
 @Schema(
   description:
       'Format of the generated audio. Supported by models called through the '
-      'Interactions API (e.g. gemini-3.8-flash-tts).',
+      'Interactions API (e.g. gemini-3.8-flash-tts on googleAI) and by TTS '
+      'models on vertexAI.',
 )
 abstract class $GeminiAudioFormat {
   @StringField(
@@ -521,9 +693,16 @@ abstract class $GeminiVideoFormat {
     description:
         'How the video is returned. Inline by default; "uri" returns a Files '
         'API URI instead, recommended for large videos (requires store: '
-        'true).',
+        'true). On vertexAI, "uri" stores it in Cloud Storage (set gcsUri).',
   )
   String? get delivery;
+
+  @StringField(
+    description:
+        'vertexAI only. The Cloud Storage URI to store the video in. '
+        'Required when delivery is "uri".',
+  )
+  String? get gcsUri;
 }
 
 @Schema(description: 'Video generation settings.')
@@ -548,10 +727,18 @@ abstract class $LyriaOptions {
 
   @Field(
     description:
-        'The modalities to be used in response: TEXT, IMAGE, AUDIO. Defaults '
-        'to AUDIO and TEXT for Lyria (the music, plus the lyrics or caption).',
+        'The modalities to be used in response: TEXT, IMAGE, AUDIO. When not '
+        'set, Lyria returns AUDIO and TEXT (the music, plus the lyrics or '
+        'caption).',
   )
   List<String>? get responseModalities;
+
+  @StringField(
+    description:
+        'vertexAI only. Lyria is only available in global. If the plugin '
+        'uses a different location, set this to global.',
+  )
+  String? get location;
 }
 
 /// Options for the Antigravity agent (e.g. antigravity-preview-09-2026).

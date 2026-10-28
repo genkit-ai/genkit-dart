@@ -252,51 +252,20 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           final options = req.options != null
               ? GoogleGenAiEmbedderOptions.fromJson(req.options!)
               : null;
-
-          final contents = [
-            for (final (index, doc) in req.input.indexed)
-              gcl.Content(role: 'user', parts: _embedParts(index, doc)),
-          ];
-
-          final futures = contents.map((content) async {
-            final res = await service.embedContent(
-              gcl.EmbedContentRequest(
-                content: content,
-                outputDimensionality: options?.outputDimensionality,
-                taskType: options?.taskType,
-                title: options?.title,
-              ),
-              model: 'models/$embedderName',
-            );
-            return Embedding(embedding: res.embedding?.values ?? []);
-          });
-          final embeddings = await Future.wait(futures);
-          return EmbedResponse(embeddings: embeddings);
+          return EmbedResponse(
+            embeddings: await embedWithEmbedContent(
+              service,
+              embedderName: embedderName,
+              docs: req.input,
+              options: options,
+            ),
+          );
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
           service.client.close();
         }
       },
-    );
-  }
-}
-
-/// Converts text and media, ignoring other parts for backward compatibility.
-/// Text-only and empty documents retain the legacy single-text-part shape.
-/// Malformed media fails before any request is sent, without leaking its source.
-List<gcl.Part> _embedParts(int index, DocumentData doc) {
-  final parts = doc.content.where((p) => p.isText || p.isMedia).toList();
-  if (!parts.any((p) => p.isMedia)) {
-    return [gcl.Part(text: parts.map((p) => p.text).join('\n'))];
-  }
-  try {
-    return parts.map(toGeminiPart).toList();
-  } on FormatException catch (e) {
-    // The parser's source can contain media payloads; keep only its message.
-    throw GenkitException(
-      'Cannot embed the document at index $index: ${e.message}',
-      status: StatusCode.invalidArgument,
     );
   }
 }

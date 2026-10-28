@@ -298,12 +298,20 @@ If your code reads the provider payload in `response.raw`, it differs:
    is set on the Google Maps tool (there's no retrieval config on this API);
    other `retrievalConfig` fields are ignored with a warning. `audioFormat`,
    `videoFormat` and `videoConfig` only work on these models (they're
-   ignored with a warning on `generateContent`).
+   ignored with a warning on `generateContent`). The vertexAI-only options
+   (`location`, `labels`, `vertexRetrieval`, `payGo`, `videoFormat.gcsUri`)
+   are ignored with a warning on both APIs.
 7. **Streaming:** text, media and thought summaries stream as they arrive.
    A server-side tool step (Google Search, code execution, ...) streams as
    one complete part when the step ends, and a function call streams as a
    complete tool request when the response ends. With structured output,
    `chunk.output` is null for chunks it can't parse yet (or that have no
    JSON text, such as thoughts or tool calls), so check it before use.
+8. **Usage:** `response.usage` has the token totals (`inputTokens`,
+   `outputTokens`, `thoughtsTokens`, ...). Token counts per modality are in
+   `response.usage?.custom` (e.g. `inputTextTokens`, `inputImageTokens`,
+   `outputAudioTokens`), and tool-use tokens in
+   `response.usage?.custom?['toolUseTokens']` (also on `generateContent`).
+   Grounding tool use is counted there too (e.g. `googleSearchCount`).
 
 

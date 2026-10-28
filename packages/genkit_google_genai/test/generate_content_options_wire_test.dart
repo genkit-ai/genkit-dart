@@ -182,6 +182,118 @@ void _formatOptionTests() {
       ]);
     });
   });
+
+  group('TTS', () {
+    test('sends speech metadata on text parts (as JS, both plugins)', () async {
+      final plugin = WirePlugin([]);
+      final action = plugin.resolve(.model, _ttsModel) as Model;
+      await action(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [
+                TextPart(
+                  text: 'Hi Jane!',
+                  metadata: {
+                    'speechMetadata': {'speaker': 'Joe', 'style': 'cheerful'},
+                  },
+                ),
+                TextPart(
+                  text: 'plain',
+                  metadata: {
+                    'speechMetadata': {'speaker': ''},
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+      );
+      final contents = plugin.captured.last['contents'] as List;
+      expect((contents.first as Map)['parts'], [
+        {
+          'text': 'Hi Jane!',
+          'speechMetadata': {'speaker': 'Joe', 'style': 'cheerful'},
+        },
+        {'text': 'plain'},
+      ]);
+    });
+
+    test('adds no responseFormat or audio default on googleAI', () async {
+      final body = await _bodyFor(
+        WirePlugin([]),
+        model: _ttsModel,
+        config: {
+          'audioFormat': {'mimeType': 'audio/mulaw'},
+        },
+      );
+      final generationConfig = body['generationConfig'] as Map;
+      expect(generationConfig, isNot(contains('responseFormat')));
+      expect(generationConfig, isNot(contains('responseModalities')));
+    });
+
+    test('toGeminiAudioResponseFormat', () {
+      expect(toGeminiAudioResponseFormat(null), isNull);
+      expect(toGeminiAudioResponseFormat(GeminiAudioFormat()), isNull);
+      expect(
+        toGeminiAudioResponseFormat(
+          GeminiAudioFormat(mimeType: 'audio/alaw', sampleRate: 8000),
+        ),
+        [
+          {
+            'audio': {'mimeType': 'AUDIO_ALAW', 'sampleRate': 8000},
+          },
+        ],
+      );
+      // Enum values pass through.
+      expect(
+        toGeminiAudioResponseFormat(GeminiAudioFormat(mimeType: 'AUDIO_WAV')),
+        [
+          {
+            'audio': {'mimeType': 'AUDIO_WAV'},
+          },
+        ],
+      );
+    });
+
+    test('toGeminiLabels drops empty keys', () {
+      expect(toGeminiLabels(null), isNull);
+      expect(toGeminiLabels({'': 'x'}), isNull);
+      expect(toGeminiLabels({'a': '1', '': 'x'}), {'a': '1'});
+    });
+  });
+
+  group('vertexAI-only options', () {
+    test('are dropped with a warning, once per model and field', () async {
+      final warnings = _captureWarnings();
+      final plugin = WirePlugin([]);
+      final config = {
+        'location': 'us',
+        'labels': {'team': 'genkit'},
+        'vertexRetrieval': {
+          'datastore': {'dataStoreId': 'my-store'},
+          'disableAttribution': true,
+        },
+        'payGo': 'priority',
+      };
+      await _bodyFor(plugin, config: config);
+      final body = await _bodyFor(plugin, config: config);
+
+      for (final key in ['location', 'labels', 'tools', 'payGo']) {
+        expect(body, isNot(contains(key)), reason: key);
+      }
+      expect(body['generationConfig'], isNot(contains('labels')));
+      String dropped(String field) =>
+          "$field is not supported by '$_textModel' and was ignored.";
+      expect(warnings, [
+        dropped('location'),
+        dropped('labels'),
+        dropped('vertexRetrieval'),
+        dropped('payGo'),
+      ]);
+    });
+  });
 }
 
 void _storeTests() {
