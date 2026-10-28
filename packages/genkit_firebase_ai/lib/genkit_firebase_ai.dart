@@ -84,6 +84,48 @@ abstract class $GeminiOptions {
   int? get candidateCount;
   bool? get codeExecution;
   $FunctionCallingConfig? get functionCallingConfig;
+  @Field(
+    description:
+        'Per-category thresholds for blocking harmful content. Each entry '
+        'needs a category and a threshold.',
+  )
+  List<$GeminiSafetySettings>? get safetySettings;
+}
+
+@Schema()
+abstract class $GeminiSafetySettings {
+  @StringField(
+    enumValues: [
+      'HARM_CATEGORY_HARASSMENT',
+      'HARM_CATEGORY_HATE_SPEECH',
+      'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'HARM_CATEGORY_DANGEROUS_CONTENT',
+      'HARM_CATEGORY_IMAGE_HATE',
+      'HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT',
+      'HARM_CATEGORY_IMAGE_HARASSMENT',
+      'HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT',
+    ],
+  )
+  String? get category;
+
+  @StringField(
+    enumValues: [
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+      'OFF',
+    ],
+  )
+  String? get threshold;
+
+  @StringField(
+    enumValues: ['SEVERITY', 'PROBABILITY'],
+    description:
+        'Whether the threshold applies to the probability or the severity '
+        'score. Agent Platform only; the Gemini Developer API rejects it.',
+  )
+  String? get method;
 }
 
 @Schema()
@@ -270,6 +312,10 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         final transport = _StatusRecordingClient(_httpClient);
         final model = _firebaseAI.generativeModel(
           model: modelName,
+          safetySettings: toGeminiSafetySettings(
+            options.safetySettings,
+            developerApi: provider is _GoogleAIProvider,
+          ),
           generationConfig: toGeminiSettings(
             options,
             req.output?.schema,
@@ -818,6 +864,64 @@ ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
   final parts = liveParts.map(fromGeminiPart).toList();
 
   return ModelResponseChunk(index: 0, content: parts);
+}
+
+/// Converts [settings] to `firebase_ai` safety settings.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a missing
+/// or unknown category or threshold, or for a `method` on the Gemini Developer
+/// API ([developerApi]), which does not support it.
+@visibleForTesting
+List<fai.SafetySetting>? toGeminiSafetySettings(
+  List<GeminiSafetySettings>? settings, {
+  required bool developerApi,
+}) {
+  if (settings == null) return null;
+  return [
+    for (final s in settings)
+      fai.SafetySetting(
+        _wireValue('category', s.category, _harmCategories),
+        _wireValue('threshold', s.threshold, _harmBlockThresholds),
+        switch (s.method) {
+          null => null,
+          _ when developerApi => throw GenkitException(
+            'safetySettings method is not supported by the Gemini Developer '
+            'API; use FirebaseAiProvider.agentPlatform() or remove it.',
+            status: StatusCode.invalidArgument,
+          ),
+          final method => _wireValue('method', method, _harmBlockMethods),
+        },
+      ),
+  ];
+}
+
+final _harmCategories = {
+  for (final c in fai.HarmCategory.values)
+    if (c != fai.HarmCategory.unknown) c.toJson(): c,
+};
+
+final _harmBlockThresholds = {
+  for (final t in fai.HarmBlockThreshold.values) t.toJson() as String: t,
+};
+
+final _harmBlockMethods = {
+  for (final m in [
+    fai.HarmBlockMethod.severity,
+    fai.HarmBlockMethod.probability,
+  ])
+    m.toJson() as String: m,
+};
+
+/// The enum value of safety setting [field] whose wire name is [value].
+T _wireValue<T>(String field, String? value, Map<String, T> byWireName) {
+  if (byWireName[value] case final match?) return match;
+  throw GenkitException(
+    value == null
+        ? 'safetySettings entries need a $field.'
+        : 'Unknown safetySettings $field "$value"; expected one of '
+              '${byWireName.keys.join(', ')}.',
+    status: StatusCode.invalidArgument,
+  );
 }
 
 @visibleForTesting
