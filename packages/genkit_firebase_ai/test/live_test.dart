@@ -185,6 +185,42 @@ void main() {
     });
   });
 
+  test('a Live system message with a non-text part fails before '
+      'connecting', () async {
+    final model =
+        firebaseAI().resolve(
+              ActionType.bidiModel,
+              'gemini-3.1-flash-live-preview',
+            )
+            as BidiModel;
+
+    final session = model.streamBidi(
+      init: ModelRequest(
+        messages: [
+          Message(
+            role: Role.system,
+            content: [
+              MediaPart(
+                media: Media(url: 'gs://b/f.png', contentType: 'image/png'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    await expectLater(
+      session,
+      emitsError(
+        isA<GenkitException>().having(
+          (e) => e.status,
+          'status',
+          StatusCode.invalidArgument,
+        ),
+      ),
+    );
+  });
+
   test('live models expose LiveGenerationConfig as their options', () {
     final model =
         firebaseAI().resolve(
