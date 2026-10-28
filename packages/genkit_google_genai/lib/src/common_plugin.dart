@@ -104,6 +104,23 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   /// Gemini Enterprise Agent Platform has no such field).
   bool get supportsGenerateContentStore => false;
 
+  /// Whether Interactions requests send `safety_settings`. The Gemini API
+  /// rejects the field (400), so by default permissive settings are dropped
+  /// and blocking ones throw; the Gemini Enterprise Agent Platform accepts
+  /// it (vertexAI overrides this).
+  bool get supportsInteractionSafetySettings => false;
+
+  /// Server-side tool step types left out of a stateless (`store: false`)
+  /// history on the Interactions API, because the server rejects them when
+  /// they're sent back (vertexAI). A warning is logged once when any are
+  /// left out.
+  Set<String> get unsupportedResentStepTypes => const {};
+
+  /// Whether Interactions requests to text-to-speech models ask for audio
+  /// by default (a `{type: audio}` response format). The Gemini API needs
+  /// it; vertexAI sends its TTS models through generateContent.
+  bool get defaultsTtsToAudio => true;
+
   /// Whether this plugin sends the `serviceTier` option to the API. When
   /// false, it is dropped with a warning (the vertexAI plugin has no service
   /// tier option in JS).

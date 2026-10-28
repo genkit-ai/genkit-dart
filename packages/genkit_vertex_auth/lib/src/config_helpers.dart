@@ -130,11 +130,22 @@ String normalizeVertexLocation(String location) {
   return location.trim().toLowerCase();
 }
 
+/// The multi-regional Vertex locations, which have a host of their own.
+const _multiRegionalLocations = {'us', 'eu'};
+
 /// Returns the Vertex API host for a normalized/non-normalized location.
+///
+/// `global` uses `aiplatform.googleapis.com`, the `us` and `eu`
+/// multi-regions use `aiplatform.<location>.rep.googleapis.com`, and every
+/// other (regional) location uses `<location>-aiplatform.googleapis.com`
+/// (as in the JS Genkit plugin).
 String vertexApiHostForLocation(String location) {
   final normalizedLocation = normalizeVertexLocation(location);
   if (normalizedLocation == 'global') {
     return 'aiplatform.googleapis.com';
+  }
+  if (_multiRegionalLocations.contains(normalizedLocation)) {
+    return 'aiplatform.$normalizedLocation.rep.googleapis.com';
   }
   return '$normalizedLocation-aiplatform.googleapis.com';
 }

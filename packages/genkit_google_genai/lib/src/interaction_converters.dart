@@ -27,7 +27,6 @@
 // a stream).
 //
 // Not ported yet (translate from the JS file when the feature arrives):
-// - toInteractionSafetySettings: vertexAI only.
 // - fromInteraction (to an Operation): needs background models.
 // - toInteractionRole: unused in JS.
 //
@@ -473,6 +472,45 @@ Object? toInteractionResponseFormat({
   final result = entries.values.toList();
   if (result.isEmpty) return null;
   return result.length == 1 ? result.single : result;
+}
+
+/// Converts generateContent-style safety settings to the Interactions API
+/// shape: `type` without the `HARM_CATEGORY_` prefix, and lower-case values
+/// (`HARM_CATEGORY_HATE_SPEECH` / `BLOCK_LOW_AND_ABOVE` -> `hate_speech` /
+/// `block_low_and_above`). The server rejects the upper-case values with a
+/// 400. `method` (`SEVERITY` / `PROBABILITY`) is lower-cased too.
+/// `HARM_CATEGORY_UNSPECIFIED` has no equivalent and is left out. Other
+/// fields are passed through in snake_case.
+///
+/// Returns null when [settings] is null or nothing is left.
+List<InteractionSafetySetting>? toInteractionSafetySettings(
+  List<GeminiSafetySettings>? settings,
+) {
+  if (settings == null) return null;
+  final result = [
+    for (final setting in settings)
+      if (setting.category != 'HARM_CATEGORY_UNSPECIFIED')
+        _toInteractionSafetySetting(setting.toJson()),
+  ];
+  return result.isEmpty ? null : result;
+}
+
+InteractionSafetySetting _toInteractionSafetySetting(
+  Map<String, dynamic> setting,
+) {
+  final rest = {...setting}
+    ..remove('category')
+    ..remove('threshold')
+    ..remove('method');
+  final method = setting['method'];
+  return InteractionSafetySetting.fromJson({
+    ...toSnakeCaseObj(rest),
+    'type': (setting['category'] as String? ?? '')
+        .replaceFirst(RegExp('^HARM_CATEGORY_'), '')
+        .toLowerCase(),
+    'threshold': (setting['threshold'] as String? ?? '').toLowerCase(),
+    if (method is String) 'method': method.toLowerCase(),
+  });
 }
 
 /// Converts a generateContent-style `speechConfig` to the Interactions API

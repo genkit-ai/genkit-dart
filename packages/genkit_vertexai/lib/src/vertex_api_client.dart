@@ -22,6 +22,12 @@ import 'auth.dart';
 import 'embedders.dart';
 import 'known_models.dart';
 
+/// The API base URL for [location] (see `vertexApiHostForLocation`: global,
+/// `us` / `eu` multi-regional and regional hosts, as in the JS plugin).
+@visibleForTesting
+String vertexBaseUrl(String location) =>
+    'https://${vertexApiHostForLocation(location)}/';
+
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String? projectId;
@@ -32,7 +38,18 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   /// cancellation cannot abort an in-flight request on an injected client.
   http.Client? authClient;
 
-  VertexAiPluginImpl({this.projectId, this.location, this.authClient});
+  /// Whether interactions are stored when a request doesn't set `store`;
+  /// null when not set (= not stored). Only used by models on the
+  /// Interactions API (the platform's generateContent has no `store`).
+  @override
+  final bool? store;
+
+  VertexAiPluginImpl({
+    this.projectId,
+    this.location,
+    this.authClient,
+    this.store,
+  });
 
   String? _resolvedProjectId;
   String get _getResolvedProjectId =>
@@ -48,6 +65,50 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
 
   @override
   final Map<String, ModelInfo> knownModels = vertexAiKnownModels;
+
+  /// Known models pinned to generateContent stay there; other names use the
+  /// Interactions API, except image and TTS models (see
+  /// [vertexUsesInteractions]).
+  @override
+  bool usesInteractions(String modelName) => vertexUsesInteractions(modelName);
+
+  /// The platform accepts `safety_settings` on the Interactions API.
+  @override
+  bool get supportsInteractionSafetySettings => true;
+
+  /// Server-side tool step types that are intentionally NOT sent back in a
+  /// stateless history (`input`) on this platform (JS vertexai
+  /// `UNSUPPORTED_RESENT_STEP_TYPES`).
+  ///
+  /// Resending them makes the platform return 501 "Operation is not
+  /// implemented, or supported, or enabled" (seen live by the JS plugin, Oct
+  /// 2026, whatever the step order, arguments or signature), while the
+  /// Gemini API (googleAI) accepts the same history. `store: true`
+  /// conversations work, because the steps stay on the server. Without them
+  /// the model loses the earlier tool results (it may call the tool again).
+  /// Only step types seen working are resent; code execution steps are
+  /// accepted and are not listed here. Remove an entry once the platform
+  /// accepts it.
+  @override
+  Set<String> get unsupportedResentStepTypes => const {
+    // Rejected with 501 (seen live).
+    'google_search_call',
+    'google_search_result',
+    'url_context_call',
+    'url_context_result',
+    'google_maps_call',
+    'google_maps_result',
+    // Not seen working here (untestable or not available for models).
+    'file_search_call',
+    'file_search_result',
+    'mcp_server_tool_call',
+    'mcp_server_tool_result',
+  };
+
+  /// TTS models use generateContent here, so nothing asks for audio by
+  /// default on the Interactions API.
+  @override
+  bool get defaultsTtsToAudio => false;
 
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([
@@ -69,11 +130,9 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
 
     final tokenProvider = createAdcAccessTokenProvider(baseClient: injected);
 
-    final baseUrl = safeLocation == 'global'
-        ? 'https://aiplatform.googleapis.com/'
-        : 'https://$safeLocation-aiplatform.googleapis.com/';
-    final apiUrlPrefix =
-        'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
+    final baseUrl = vertexBaseUrl(safeLocation);
+    final parent = 'v1beta1/projects/$safeProjectId/locations/$safeLocation/';
+    final apiUrlPrefix = '${parent}publishers/google/';
 
     final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
     final customClient = CustomClient(defaultHeaders: headers, inner: injected);
@@ -83,6 +142,9 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       baseUrl: baseUrl,
       client: client,
       apiUrlPrefix: apiUrlPrefix,
+      // Under the project and location, not under the publisher models
+      // (JS vertexai getInteractionsResourcePath).
+      interactionsPath: '${parent}interactions',
     );
   }
 
