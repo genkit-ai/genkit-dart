@@ -37,7 +37,9 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (input, context) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-flash-latest'),
+        // Called through the Interactions API (see the README's routing
+        // section). The -latest aliases aren't served on this platform.
+        model: vertexAI.gemini('gemini-3.8-flash'),
         prompt: input,
       );
       return response.text;
@@ -86,7 +88,7 @@ void main(List<String> args) async {
         location: Platform.environment['GCLOUD_LOCATION'] ?? 'global',
       );
       final response = await lite.generate(
-        model: gemini.model('gemini-flash-latest'),
+        model: gemini.model('gemini-3.8-flash'),
         prompt: input,
       );
       return response.text;
@@ -128,15 +130,19 @@ void main(List<String> args) async {
     outputSchema: RpgCharacter.$schema,
     fn: (name, ctx) async {
       final stream = ai.generateStream(
-        model: vertexAI.gemini('gemini-flash-latest'),
+        model: vertexAI.gemini('gemini-3.8-flash'),
         config: GeminiOptions(temperature: 2.0),
         outputSchema: RpgCharacter.$schema,
         prompt: 'Generate an RPC character called $name',
       );
 
       await for (final chunk in stream) {
-        if (ctx.streamingRequested) {
-          ctx.sendChunk(chunk.output!);
+        // `output` is null while the JSON streamed so far can't be parsed
+        // yet, or for chunks without JSON text (e.g. thoughts or tool
+        // calls), so skip those.
+        final output = chunk.output;
+        if (ctx.streamingRequested && output != null) {
+          ctx.sendChunk(output);
         }
       }
 
@@ -155,12 +161,14 @@ void main(List<String> args) async {
     streamSchema: CharacterProfile.$schema,
     fn: (prompt, ctx) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-flash-latest'),
+        model: vertexAI.gemini('gemini-3.8-flash'),
         outputSchema: CharacterProfile.$schema,
         prompt: prompt,
         onChunk: ctx.streamingRequested
             ? (GenerateResponseChunk<CharacterProfile?> chunk) {
-                ctx.sendChunk(chunk.output!);
+                // Null until enough JSON has arrived to parse.
+                final output = chunk.output;
+                if (output != null) ctx.sendChunk(output);
               }
             : null,
       );
@@ -175,7 +183,7 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-flash-latest'),
+        model: vertexAI.gemini('gemini-3.8-flash'),
         prompt: prompt,
         messages: [
           Message(
@@ -202,7 +210,7 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-flash-latest'),
+        model: vertexAI.gemini('gemini-3.8-flash'),
         prompt: prompt,
         messages: [
           Message(
@@ -254,11 +262,13 @@ void main(List<String> args) async {
     name: 'safetySettings',
     // Example of configuring safety settings.
     // Note: The model might not block the default content if it's not harmful enough.
+    // Unlike googleAI, blocking thresholds work on vertexAI models called
+    // through the Interactions API (they're sent as `safety_settings`).
     inputSchema: .string(defaultValue: 'Some potentially harmful content'),
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-flash-latest'),
+        model: vertexAI.gemini('gemini-3.8-flash'),
         prompt: prompt,
         config: GeminiOptions(
           safetySettings: [
@@ -282,7 +292,7 @@ void main(List<String> args) async {
     outputSchema: .map(.string(), .dynamicSchema()),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-flash-latest'),
+        model: vertexAI.gemini('gemini-3.8-flash'),
         prompt: prompt,
         config: GeminiOptions(googleSearch: GeminiGoogleSearch()),
       );
@@ -297,7 +307,7 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-pro-latest'),
+        model: vertexAI.gemini('gemini-3.8-flash'),
         prompt: prompt,
         config: GeminiOptions(codeExecution: true),
       );
@@ -376,6 +386,60 @@ void main(List<String> args) async {
         return response.media!;
       }
       throw Exception('No audio generated');
+    },
+  );
+
+  // --- Interactions API flows ---
+  // Newer models (e.g. gemini-3.8-flash) are called through the Interactions
+  // API; the flows below use features of that path.
+
+  // Server-side conversation state: with store: true the interaction is kept
+  // on the server, and the next request continues it (the plugin finds its
+  // ID in the message metadata and sends only the new messages).
+  ai.defineFlow(
+    name: 'multiTurnPreviousInteraction',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (_, _) async {
+      final turn1 = await ai.generate(
+        model: vertexAI.gemini('gemini-3.8-flash'),
+        prompt: 'My secret code is BLUE-BANANA-42. Remember this secret code.',
+        config: GeminiOptions(store: true),
+      );
+      final turn2 = await ai.generate(
+        model: vertexAI.gemini('gemini-3.8-flash'),
+        messages: turn1.messages,
+        prompt: 'What was my secret code?',
+        config: GeminiOptions(store: true),
+      );
+      return {
+        'turn1Answer': turn1.text,
+        'turn2Answer': turn2.text,
+        'turn1InteractionId': turn1.message?.metadata?['interactionId'],
+        'turn2InteractionId': turn2.message?.metadata?['interactionId'],
+      };
+    },
+  );
+
+  // A stateless (store: false) two-turn conversation with Google Search.
+  // The platform rejects earlier search steps when they're sent back, so
+  // the plugin leaves them out of turn 2's history (with a warning); the
+  // model may search again. The text of turn 1 is still sent.
+  ai.defineFlow(
+    name: 'groundingMultiTurnStateless',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (_, _) async {
+      final turn1 = await ai.generate(
+        model: vertexAI.gemini('gemini-3.8-flash'),
+        prompt: 'Who won the most recent Formula 1 race?',
+        config: GeminiOptions(googleSearch: GeminiGoogleSearch()),
+      );
+      final turn2 = await ai.generate(
+        model: vertexAI.gemini('gemini-3.8-flash'),
+        messages: turn1.messages,
+        prompt: 'Which team does that driver race for?',
+        config: GeminiOptions(googleSearch: GeminiGoogleSearch()),
+      );
+      return {'turn1': turn1.text, 'turn2': turn2.text};
     },
   );
 
