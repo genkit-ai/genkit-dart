@@ -54,14 +54,28 @@ final firebaseAiModelInfo = ModelInfo(
   },
 );
 
+// firebase_ai 5 deprecates these for Gemini 3.x, but they still work on
+// older models and are portable Genkit options, so they stay through 1.0
+// (#596).
+const _ignoredByGemini3 =
+    'Gemini 3 and newer models ignore this and manage sampling themselves.';
+const _rejectedByGemini3 =
+    'Gemini 3 and newer models reject requests that set this with a 400 '
+    'error.';
+
 @Schema()
 abstract class $GeminiOptions {
   List<String>? get stopSequences;
   int? get maxOutputTokens;
+  @Field(description: _ignoredByGemini3)
   double? get temperature;
+  @Field(description: _ignoredByGemini3)
   double? get topP;
+  @Field(description: _ignoredByGemini3)
   int? get topK;
+  @Field(description: _rejectedByGemini3)
   double? get presencePenalty;
+  @Field(description: _rejectedByGemini3)
   double? get frequencyPenalty;
   List<String>? get responseModalities;
   String? get responseMimeType;
@@ -81,6 +95,7 @@ abstract class $GeminiOptions {
   )
   Map<String, dynamic>? get responseJsonSchema;
   $ThinkingConfig? get thinkingConfig;
+  @Field(description: _ignoredByGemini3)
   int? get candidateCount;
   bool? get codeExecution;
   $FunctionCallingConfig? get functionCallingConfig;
@@ -128,10 +143,15 @@ abstract class $LiveGenerationConfig {
   $SpeechConfig? get speechConfig;
   List<String>? get stopSequences;
   int? get maxOutputTokens;
+  @Field(description: _ignoredByGemini3)
   double? get temperature;
+  @Field(description: _ignoredByGemini3)
   double? get topP;
+  @Field(description: _ignoredByGemini3)
   int? get topK;
+  @Field(description: _rejectedByGemini3)
   double? get presencePenalty;
+  @Field(description: _rejectedByGemini3)
   double? get frequencyPenalty;
 }
 
