@@ -101,6 +101,8 @@ void main() {
 
     final usage = response.usage!;
     expect(usage.inputTokens, 3);
+    expect(usage.outputTokens, isNull);
+    expect(usage.totalTokens, 3);
     expect(usage.thoughtsTokens, isNull);
     expect(usage.cachedContentTokens, isNull);
     expect(usage.custom, isNull);
