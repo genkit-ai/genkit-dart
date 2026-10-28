@@ -1066,9 +1066,10 @@ fai.ToolConfig? toGeminiToolConfig(
 GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
   if (metadata == null) return null;
   return GenerationUsage(
-    inputTokens: metadata.promptTokenCount ?? 0,
-    outputTokens: metadata.candidatesTokenCount ?? 0,
-    totalTokens: metadata.totalTokenCount ?? 0,
+    // A count the API leaves out stays null, not 0, as in genkit_google_genai.
+    inputTokens: metadata.promptTokenCount,
+    outputTokens: metadata.candidatesTokenCount,
+    totalTokens: metadata.totalTokenCount,
     thoughtsTokens: metadata.thoughtsTokenCount,
     cachedContentTokens: metadata.cachedContentTokenCount,
     custom: switch (metadata.toolUsePromptTokenCount) {
