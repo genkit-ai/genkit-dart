@@ -19,13 +19,13 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
 import 'package:test/test.dart';
 
-final custom = const A2uiCatalog(
+final custom = A2uiCatalog.of(
   id: 'my-catalog',
   components: [
-    A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Widget',
       description: 'A widget.',
-      props: 'label: string.',
+      params: [const A2uiParam.dynamicValue('label')],
     ),
   ],
 );
@@ -97,7 +97,7 @@ void main() {
           file: file.path,
         );
         expect(result.components.length, 1);
-        expect(result.components.first.name, 'Widget');
+        expect(result.components['Widget'], isNotNull);
       });
 
       test('throws on a missing file', () async {
