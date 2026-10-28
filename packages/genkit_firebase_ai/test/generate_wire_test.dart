@@ -22,6 +22,25 @@ void main() {
   setUpAll(setUpFirebaseApp);
 
   group('generate on the wire', () {
+    test('sends sampling options in generationConfig', () async {
+      final client = WireClient();
+
+      await wireModel(client)(
+        userRequest(
+          'hello',
+          config: {'temperature': 0.1, 'maxOutputTokens': 5},
+        ),
+      );
+
+      expect(
+        client.requests.single.body['generationConfig'],
+        allOf(
+          containsPair('temperature', 0.1),
+          containsPair('maxOutputTokens', 5),
+        ),
+      );
+    });
+
     test('generate sends contents on the wire and parses the canned '
         'response', () async {
       final client = WireClient(response: textResponse('hi there'));
