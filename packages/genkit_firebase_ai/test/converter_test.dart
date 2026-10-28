@@ -57,4 +57,20 @@ void main() {
       expect(fileData.fileUri, 'https://example.com/image.png');
     });
   });
+
+  group('fromGeminiPart', () {
+    test('keeps thought out of a fallback custom payload', () {
+      final part = fromGeminiPart(
+        m.FunctionResponse('f', {'a': 1}, isThought: true),
+      );
+
+      expect(part.custom, {
+        'functionResponse': {
+          'name': 'f',
+          'response': {'a': 1},
+        },
+      });
+      expect(part.metadata, {'isThought': true});
+    });
+  });
 }
