@@ -121,6 +121,7 @@ void main() {
 
   _requestTests();
   _configTests();
+  _toolAndFormatOptionTests();
   _storeTests();
   _responseTests();
   _streamingTests();
@@ -584,6 +585,182 @@ void _safetyAndSpeechTests() {
   });
 }
 
+void _toolAndFormatOptionTests() {
+  group('tool and format options', () {
+    test('sends config tools, then the built-in tool options', () async {
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        config: {
+          'tools': [
+            {'googleMaps': <String, dynamic>{}},
+            {'type': 'some_new_tool', 'someSetting': 1},
+          ],
+          'codeExecution': true,
+          'googleSearch': <String, dynamic>{},
+          'urlContext': <String, dynamic>{},
+        },
+      );
+      expect(plugin.lastBody['tools'], [
+        {'type': 'google_maps'},
+        {'type': 'some_new_tool', 'some_setting': 1},
+        {'type': 'code_execution'},
+        {'type': 'google_search'},
+        {'type': 'url_context'},
+      ]);
+    });
+
+    test('applies retrievalConfig.latLng to the google_maps tool', () async {
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        config: {
+          'tools': [
+            {
+              'googleMaps': {'enableWidget': true},
+            },
+          ],
+          'retrievalConfig': {
+            'latLng': {'latitude': 43.0896, 'longitude': -79.0849},
+          },
+        },
+      );
+      final body = plugin.lastBody;
+      expect(body['tools'], [
+        {
+          'type': 'google_maps',
+          'enable_widget': true,
+          'latitude': 43.0896,
+          'longitude': -79.0849,
+        },
+      ]);
+      expect(body['generation_config'], isNot(contains('retrieval_config')));
+    });
+
+    test('keeps a location set on the googleMaps tool over '
+        'retrievalConfig.latLng', () async {
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        config: {
+          'tools': [
+            {
+              'googleMaps': {'latitude': 1, 'longitude': 2},
+            },
+          ],
+          'retrievalConfig': {
+            'latLng': {'latitude': 43.0896, 'longitude': -79.0849},
+          },
+        },
+      );
+      expect(plugin.lastBody['tools'], [
+        {'type': 'google_maps', 'latitude': 1, 'longitude': 2},
+      ]);
+    });
+
+    test('warns about retrievalConfig it cannot use', () async {
+      final warnings = _captureWarnings();
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        config: {
+          'retrievalConfig': {
+            'latLng': {'latitude': 43.0896, 'longitude': -79.0849},
+            'languageCode': 'en',
+          },
+        },
+      );
+      expect(plugin.lastBody, isNot(contains('tools')));
+      expect(warnings, [
+        'retrievalConfig.latLng is only used with the googleMaps tool for '
+            'this model and will be ignored.',
+        'retrievalConfig.languageCode is not supported for this model with '
+            'the Interactions API and will be ignored.',
+      ]);
+    });
+
+    test('sends imageConfig on the image entry with text, for image '
+        'models', () async {
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        model: 'gemini-nano-banana-2.1',
+        config: {
+          'imageConfig': {'aspectRatio': '9:16', 'imageSize': '2K'},
+        },
+      );
+      final body = plugin.lastBody;
+      expect(body['response_format'], [
+        {'type': 'text'},
+        {'type': 'image', 'aspect_ratio': '9:16', 'image_size': '2K'},
+      ]);
+      expect(body['generation_config'], isNot(contains('image_config')));
+    });
+
+    test('sends audioFormat on the audio entry', () async {
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        model: 'gemini-3.8-flash-tts',
+        config: {
+          'audioFormat': {'mimeType': 'audio/l16', 'sampleRate': 16000},
+        },
+      );
+      expect(plugin.lastBody['response_format'], {
+        'type': 'audio',
+        'mime_type': 'audio/l16',
+        'sample_rate': 16000,
+      });
+    });
+
+    test('keeps JSON output when audioFormat is set too', () async {
+      final schema = {
+        'type': 'object',
+        'properties': {
+          'answer': {'type': 'string'},
+        },
+      };
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        config: {
+          'responseModalities': ['TEXT', 'AUDIO'],
+          'audioFormat': {'mimeType': 'audio/wav'},
+        },
+        output: OutputConfig(format: 'json', schema: schema, constrained: true),
+      );
+      expect(plugin.lastBody['response_format'], [
+        {'type': 'text', 'mime_type': 'application/json', 'schema': schema},
+        {'type': 'audio', 'mime_type': 'audio/wav'},
+      ]);
+    });
+
+    test('sends videoFormat on the video entry and videoConfig in the '
+        'generation config', () async {
+      final warnings = _captureWarnings();
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        model: 'gemini-omni-1.1-flash',
+        config: {
+          'videoFormat': {'aspectRatio': '9:16', 'resolution': '1080p'},
+          'videoConfig': {'task': 'text_to_video'},
+        },
+      );
+      final body = plugin.lastBody;
+      expect(body['response_format'], {
+        'type': 'video',
+        'aspect_ratio': '9:16',
+        'resolution': '1080p',
+      });
+      expect(body['generation_config'], {
+        'video_config': {'task': 'text_to_video'},
+      });
+      expect(warnings, isEmpty);
+    });
+  });
+}
+
 void _storeTests() {
   group('store', () {
     final history = [
@@ -614,6 +791,14 @@ void _storeTests() {
       final plugin = InteractionsWirePlugin(store: true);
       await _run(plugin, messages: history);
       expect(plugin.lastBody['previous_interaction_id'], 'v1_prev');
+    });
+
+    test('plugin-wide store: false is the default (stateless)', () async {
+      final plugin = InteractionsWirePlugin(store: false);
+      await _run(plugin, messages: history);
+      final body = plugin.lastBody;
+      expect(body['store'], false);
+      expect(body, isNot(contains('previous_interaction_id')));
     });
 
     test('without store, sends the whole history', () async {

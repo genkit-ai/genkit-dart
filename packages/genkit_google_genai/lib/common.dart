@@ -42,5 +42,6 @@ export 'src/known_models.dart'
         GeminiModelFamily,
         GeminiModelStage,
         geminiTtsSupports,
+        geminiVideoSupports,
         knownGeminiModels;
 export 'src/model.dart';

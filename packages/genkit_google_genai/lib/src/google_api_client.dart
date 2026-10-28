@@ -16,10 +16,12 @@ import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
+import 'antigravity.dart';
 import 'api_client.dart';
 import 'common_plugin.dart';
 import 'generated/generativelanguage.dart' as gcl;
 import 'known_models.dart';
+import 'lyria.dart';
 import 'model.dart';
 
 @visibleForTesting
@@ -31,11 +33,14 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   /// closed by the plugin; the caller owns its lifecycle.
   final http.Client? httpClient;
 
-  /// Whether interactions are stored when a request doesn't set `store`
-  /// (Interactions models only).
-  final bool store;
+  /// The `store` used when a request doesn't set it; null when not set.
+  /// Interactions models: whether interactions are stored (null = false).
+  /// generateContent models: whether the server logs requests for the
+  /// project (null = not sent, so the project's setting applies).
+  @override
+  final bool? store;
 
-  GoogleGenAiPluginImpl({this.apiKey, this.httpClient, this.store = false});
+  GoogleGenAiPluginImpl({this.apiKey, this.httpClient, this.store});
 
   @override
   String get name => 'googleai';
@@ -50,8 +55,21 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   bool usesInteractions(String modelName) =>
       knownGeminiInteractions[modelName] ?? true;
 
+  /// Routes Lyria and Antigravity names to their own models (as the JS
+  /// googleAI resolver does); everything else is a Gemini model.
   @override
-  bool get storeInteractions => store;
+  Action? resolve(ActionType actionType, String name) {
+    if (actionType == .model) {
+      if (isLyriaModelName(name)) return createLyriaModel(this, name);
+      if (isAntigravityModelName(name)) {
+        return createAntigravityModel(this, name);
+      }
+    }
+    return super.resolve(actionType, name);
+  }
+
+  @override
+  bool get supportsGenerateContentStore => true;
 
   @override
   bool get supportsServiceTier => true;
@@ -109,6 +127,25 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
 
       final curated = curatedModelMetadata(discoveredNames: discoveredNames);
 
+      // Lyria and Antigravity (Interactions only, so no generateContent
+      // check), without the ones marked deprecated, as in JS.
+      final discoveredOthers = <String>{};
+      final others = (modelsResponse.models ?? [])
+          .where((model) {
+            final bareName = model.name?.split('/').last;
+            return bareName != null &&
+                (isLyriaModelName(bareName) ||
+                    isAntigravityModelName(bareName)) &&
+                !(model.description?.contains('deprecated') ?? false);
+          })
+          .map((model) {
+            final bareName = model.name!.split('/').last;
+            discoveredOthers.add(bareName);
+            return _otherModelMetadata(bareName);
+          })
+          .toList();
+
+      final discoveredEmbedders = <String>{};
       final embedders = (modelsResponse.models ?? [])
           .where(
             (model) =>
@@ -122,20 +159,90 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
                     false),
           )
           .map((model) {
-            return embedderMetadata('$name/${model.name!.split('/').last}');
+            final bareName = model.name!.split('/').last;
+            discoveredEmbedders.add(bareName);
+            return _embedderMetadata(bareName);
           })
           .toList();
-      return [...models, ...curated, ...embedders];
+      return [
+        ...models,
+        ...curated,
+        ...others,
+        ..._curatedOtherModelMetadata(discovered: discoveredOthers),
+        ...embedders,
+        ..._curatedEmbedderMetadata(discovered: discoveredEmbedders),
+      ];
     } catch (e, stack) {
       logger.warning('Failed to list models: $e', e, stack);
-      return curatedModelMetadata().toList();
+      return [
+        ...curatedModelMetadata(),
+        ..._curatedOtherModelMetadata(),
+        ..._curatedEmbedderMetadata(),
+      ];
     }
   }
 
+  /// Metadata for the Lyria or Antigravity model [modelName].
+  ActionMetadata<dynamic, dynamic, dynamic, dynamic> _otherModelMetadata(
+    String modelName,
+  ) => isLyriaModelName(modelName)
+      ? modelMetadata(
+          '$name/$modelName',
+          customOptions: LyriaOptions.$schema,
+          info: lyriaModelInfo(modelName),
+        )
+      : modelMetadata(
+          '$name/$modelName',
+          customOptions: AntigravityOptions.$schema,
+          info: antigravityModelInfo(modelName),
+        );
+
+  /// Metadata for the curated Lyria and Antigravity models not in
+  /// [discovered], so they stay listed when discovery omits them or fails.
+  Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>
+  _curatedOtherModelMetadata({Set<String> discovered = const {}}) => [
+    for (final modelName in [
+      ...knownLyriaModels.keys,
+      ...knownAntigravityModels.keys,
+    ])
+      if (!discovered.contains(modelName)) _otherModelMetadata(modelName),
+  ];
+
+  /// Embedder metadata for [embedderName], with the curated info (label,
+  /// dimensions, accepted input) when it's a known embedder.
+  ActionMetadata<dynamic, dynamic, dynamic, dynamic> _embedderMetadata(
+    String embedderName,
+  ) {
+    final base = embedderMetadata('$name/$embedderName');
+    final info = knownGeminiEmbedders[embedderName];
+    if (info == null) return base;
+    return ActionMetadata(
+      name: base.name,
+      description: base.description,
+      actionType: base.actionType,
+      metadata: {
+        ...base.metadata,
+        'model': {...(base.metadata['model'] as Map), ...info},
+      },
+    );
+  }
+
+  /// Metadata for the curated embedders not in [discovered], so they stay
+  /// listed when discovery omits them or fails.
+  Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>
+  _curatedEmbedderMetadata({Set<String> discovered = const {}}) => [
+    for (final embedderName in knownGeminiEmbedders.keys)
+      if (!discovered.contains(embedderName)) _embedderMetadata(embedderName),
+  ];
+
   @override
   Embedder createEmbedder(String embedderName) {
+    final info = knownGeminiEmbedders[embedderName];
     return Embedder(
       name: '$name/$embedderName',
+      metadata: {
+        'model': ?info == null ? null : {...info},
+      },
       fn: (req, ctx) async {
         if (req.input.isEmpty) {
           return EmbedResponse(embeddings: []);

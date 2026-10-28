@@ -27,25 +27,81 @@ class GoogleGenAiPluginHandle {
   /// Creates the Gemini API plugin.
   ///
   /// [apiKey] defaults to the `GOOGLE_API_KEY` or `GEMINI_API_KEY`
-  /// environment variable. [store] stores interactions on the server for
-  /// requests that don't set `store` themselves (only for models called
-  /// through the Interactions API); a stored interaction is continued by the
-  /// next request, which then only sends the newer messages.
-  GenkitPlugin call({String? apiKey, bool store = false}) {
+  /// environment variable. [store] is used by requests that don't set
+  /// `store` themselves. On models called through the Interactions API it
+  /// stores interactions on the server (not set = not stored); a stored
+  /// interaction is continued by the next request, which then only sends the
+  /// newer messages. On generateContent models it sets whether the server
+  /// logs requests for the API key's project; not set, it isn't sent and the
+  /// project's logging setting applies.
+  GenkitPlugin call({String? apiKey, bool? store}) {
     return GoogleGenAiPluginImpl(apiKey: apiKey, store: store);
   }
 
+  /// A [ModelRef] for the Gemini model [name].
+  ///
+  /// Carries [GeminiOptions]. It works for every Gemini model, including
+  /// image, text-to-speech and video models; their own handles
+  /// ([geminiImage], [geminiTts], [geminiVideo]) add the options only those
+  /// models take.
   ModelRef<GeminiOptions> gemini(String name) {
     return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
   }
 
   /// A [ModelRef] for the Gemini text-to-speech model [name].
   ///
-  /// Carries [GeminiTtsOptions], which adds `speechConfig` on top of
-  /// [GeminiOptions]. Use it for any `-tts` name, curated or not, so the
+  /// Carries [GeminiTtsOptions]: the [GeminiOptions] fields plus
+  /// `audioFormat`. Use it for any `-tts` name, curated or not, so the
   /// request config is typed to what the model accepts.
   ModelRef<GeminiTtsOptions> geminiTts(String name) {
     return modelRef('googleai/$name', customOptions: GeminiTtsOptions.$schema);
+  }
+
+  /// A [ModelRef] for the Gemini image model [name] (e.g.
+  /// `gemini-nano-banana-2.1`).
+  ///
+  /// Carries [GeminiImageOptions]: the [GeminiOptions] fields plus
+  /// `imageConfig` (aspect ratio and size). Use it for any image model,
+  /// curated or not.
+  ModelRef<GeminiImageOptions> geminiImage(String name) {
+    return modelRef(
+      'googleai/$name',
+      customOptions: GeminiImageOptions.$schema,
+    );
+  }
+
+  /// A [ModelRef] for the Gemini video model [name] (e.g.
+  /// `gemini-omni-1.1-flash`).
+  ///
+  /// Carries [GeminiVideoOptions]: the [GeminiOptions] fields plus
+  /// `videoFormat` (aspect ratio, resolution, delivery) and `videoConfig`
+  /// (the kind of generation). Use it for any video model, curated or not.
+  ModelRef<GeminiVideoOptions> geminiVideo(String name) {
+    return modelRef(
+      'googleai/$name',
+      customOptions: GeminiVideoOptions.$schema,
+    );
+  }
+
+  /// A [ModelRef] for the Lyria music generation model [name] (e.g.
+  /// `lyria-3.5`).
+  ///
+  /// Carries [LyriaOptions]. Lyria returns the music as audio, plus its
+  /// lyrics or caption as text.
+  ModelRef<LyriaOptions> lyria(String name) {
+    return modelRef('googleai/$name', customOptions: LyriaOptions.$schema);
+  }
+
+  /// A [ModelRef] for the Antigravity agent [name] (e.g.
+  /// `antigravity-preview-09-2026`).
+  ///
+  /// Carries [AntigravityOptions]. The agent keeps its conversation on the
+  /// server: passing a previous response's messages continues it.
+  ModelRef<AntigravityOptions> antigravity(String name) {
+    return modelRef(
+      'googleai/$name',
+      customOptions: AntigravityOptions.$schema,
+    );
   }
 
   /// A [ModelRef] for the Gemma model [name] served by the Gemini API.

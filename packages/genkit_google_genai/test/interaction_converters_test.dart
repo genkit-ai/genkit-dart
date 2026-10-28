@@ -822,6 +822,189 @@ void main() {
       );
     });
 
+    group('toInteractionConfigTool', () {
+      test('throws if the tool is not a map', () {
+        for (final tool in [
+          'not-an-object',
+          ['not-an-object'],
+          null,
+        ]) {
+          expect(
+            () => toInteractionConfigTool(tool),
+            throwsA(
+              isA<ArgumentError>().having(
+                (e) => e.message,
+                'message',
+                contains('Invalid tool configuration'),
+              ),
+            ),
+            reason: '$tool',
+          );
+        }
+      });
+
+      test('built-in tool settings in snake_case', () {
+        expect(
+          toInteractionConfigTool({
+            'codeExecution': {'someProp': 123},
+          }).json,
+          {'type': 'code_execution', 'some_prop': 123},
+        );
+      });
+
+      test('built-in tool with true', () {
+        expect(toInteractionConfigTool({'codeExecution': true}).json, {
+          'type': 'code_execution',
+        });
+      });
+
+      test('throws for built-in tool settings of the wrong type', () {
+        expect(
+          () => toInteractionConfigTool({'codeExecution': 'invalid'}),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('Invalid configuration for codeExecution tool'),
+            ),
+          ),
+        );
+      });
+
+      test('fileSearch store names must be a list of strings', () {
+        expect(
+          toInteractionConfigTool({
+            'fileSearch': {
+              'fileSearchStoreNames': ['store1'],
+            },
+          }).json,
+          {
+            'type': 'file_search',
+            'file_search_store_names': ['store1'],
+          },
+        );
+        expect(
+          () => toInteractionConfigTool({
+            'fileSearch': {'fileSearchStoreNames': 'store1'},
+          }),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('fileSearchStoreNames must be an array of strings'),
+            ),
+          ),
+        );
+      });
+
+      test('passes through other tools that name their type', () {
+        expect(
+          toInteractionConfigTool({
+            'type': 'function',
+            'name': 'myFunction',
+            'parameters': {'type': 'object'},
+          }).json,
+          {
+            'type': 'function',
+            'name': 'myFunction',
+            'parameters': {'type': 'object'},
+          },
+        );
+      });
+
+      test('throws for a tool with no known key and no type', () {
+        expect(
+          () => toInteractionConfigTool({'somethingElse': <String, Object?>{}}),
+          throwsA(
+            isA<ArgumentError>().having(
+              (e) => e.message,
+              'message',
+              contains('Unsupported tool configuration'),
+            ),
+          ),
+        );
+      });
+
+      test('passes through unknown settings of a built-in tool', () {
+        expect(
+          toInteractionConfigTool({
+            'urlContext': {'myUrlParam': 1},
+          }).json,
+          {'type': 'url_context', 'my_url_param': 1},
+        );
+      });
+
+      test('googleMaps, computerUse and retrieval keys', () {
+        expect(
+          toInteractionConfigTool({
+            'googleMaps': {'enableWidget': true},
+          }).json,
+          {'type': 'google_maps', 'enable_widget': true},
+        );
+        expect(toInteractionConfigTool({'computerUse': true}).json, {
+          'type': 'computer_use',
+        });
+        expect(
+          toInteractionConfigTool({'retrieval': <String, Object?>{}}).json,
+          {'type': 'retrieval'},
+        );
+      });
+
+      test('mcpServer: a list of tool names becomes allowed_tools '
+          'objects', () {
+        expect(
+          toInteractionConfigTool({
+            'mcpServer': {
+              'name': 'my-server',
+              'url': 'https://mcp.example.com',
+              'allowedTools': ['search', 'read_doc'],
+            },
+          }).json,
+          {
+            'type': 'mcp_server',
+            'name': 'my-server',
+            'url': 'https://mcp.example.com',
+            'allowed_tools': [
+              {
+                'tools': ['search', 'read_doc'],
+              },
+            ],
+          },
+        );
+      });
+    });
+
+    test('applyLatLngToGoogleMapsTools', () {
+      final latLng = GeminiLatLng(latitude: 43.0896, longitude: -79.0849);
+      final tools = [
+        toInteractionConfigTool({'codeExecution': true}),
+        toInteractionConfigTool({
+          'googleMaps': {'enableWidget': true},
+        }),
+        // A location already on the tool is kept.
+        toInteractionConfigTool({
+          'googleMaps': {'latitude': 1, 'longitude': 2},
+        }),
+      ];
+      expect(applyLatLngToGoogleMapsTools(tools, latLng), isTrue);
+      expect(tools.map((t) => t.json), [
+        {'type': 'code_execution'},
+        {
+          'type': 'google_maps',
+          'enable_widget': true,
+          'latitude': 43.0896,
+          'longitude': -79.0849,
+        },
+        {'type': 'google_maps', 'latitude': 1, 'longitude': 2},
+      ]);
+
+      final noMaps = [
+        toInteractionConfigTool({'codeExecution': true}),
+      ];
+      expect(applyLatLngToGoogleMapsTools(noMaps, latLng), isFalse);
+      expect(noMaps.single.json, {'type': 'code_execution'});
+    });
+
     test('toInteractionGenerationConfig maps thinking and speech config', () {
       final dropped = <String>[];
       final config = toInteractionGenerationConfig({

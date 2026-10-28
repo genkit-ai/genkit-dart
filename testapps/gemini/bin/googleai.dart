@@ -49,7 +49,7 @@ void main(List<String> args) async {
       final photoBase64 = base64Encode(photoBytes);
 
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3.1-flash-image'),
+        model: googleAI.geminiImage('gemini-nano-banana-2.1'),
         prompt: input,
         messages: [
           Message(
@@ -532,6 +532,275 @@ void main(List<String> args) async {
         'streamedContentType': media.contentType,
         'media': _pcmToWav(media).toJson(),
       };
+    },
+  );
+
+  // --- Built-in tools ---
+
+  // Google Maps: a `tools` map plus the user's location in retrievalConfig.
+  // On Interactions models the location is set on the google_maps tool.
+  ai.defineFlow(
+    name: 'mapsGrounding',
+    inputSchema: .string(defaultValue: 'Describe some sights near me'),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        prompt: prompt,
+        config: GeminiOptions(
+          tools: [
+            {
+              'googleMaps': {'enableWidget': true},
+            },
+          ],
+          retrievalConfig: GeminiRetrievalConfig(
+            latLng: GeminiLatLng(latitude: 43.0896, longitude: -79.0849),
+          ),
+        ),
+      );
+      return response.text;
+    },
+  );
+
+  // The same on a model pinned to generateContent (toolConfig.retrievalConfig).
+  ai.defineFlow(
+    name: 'mapsGroundingGenerateContent',
+    inputSchema: .string(defaultValue: 'Describe some sights near me'),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-3.1-pro-preview'),
+        prompt: prompt,
+        config: GeminiOptions(
+          tools: [
+            {'googleMaps': <String, dynamic>{}},
+          ],
+          retrievalConfig: GeminiRetrievalConfig(
+            latLng: GeminiLatLng(latitude: 43.0896, longitude: -79.0849),
+          ),
+        ),
+      );
+      return response.text;
+    },
+  );
+
+  ai.defineFlow(
+    name: 'urlContext',
+    inputSchema: .string(
+      defaultValue:
+          'Compare the ingredients and cooking times from the recipes at '
+          'https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 '
+          'and https://www.allrecipes.com/recipe/70679/simple-whole-roasted-chicken/',
+    ),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        prompt: prompt,
+        config: GeminiOptions(urlContext: GeminiUrlContext()),
+      );
+      return response.text;
+    },
+  );
+
+  // --- Image generation settings ---
+
+  // Interactions model: imageConfig goes in the response_format image entry.
+  ai.defineFlow(
+    name: 'imageConfig',
+    inputSchema: .string(
+      defaultValue: 'A picture of a sunset in the mountains by a lake',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiImage('gemini-nano-banana-2.1'),
+        prompt: prompt,
+        config: GeminiImageOptions(
+          imageConfig: GeminiImageConfig(aspectRatio: '9:16', imageSize: '1K'),
+        ),
+      );
+      return response.media ?? (throw Exception('No image generated'));
+    },
+  );
+
+  // generateContent model: imageConfig goes in generationConfig.
+  ai.defineFlow(
+    name: 'imageConfigGenerateContent',
+    inputSchema: .string(
+      defaultValue: 'A picture of a sunset in the mountains by a lake',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiImage('gemini-3-pro-image'),
+        prompt: prompt,
+        config: GeminiImageOptions(
+          imageConfig: GeminiImageConfig(aspectRatio: '3:4', imageSize: '1K'),
+        ),
+      );
+      return response.media ?? (throw Exception('No image generated'));
+    },
+  );
+
+  // --- TTS audio format ---
+
+  // Streamed with audioFormat audio/wav: the final response is one playable
+  // WAV file (no wrapping needed).
+  ai.defineFlow(
+    name: 'ttsStreamingWav',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    streamSchema: .string(),
+    fn: (_, ctx) async {
+      var chunkCount = 0;
+      final response = await ai.generate(
+        model: googleAI.geminiTts('gemini-3.8-flash-lite-tts'),
+        prompt: 'Have a wonderful day!',
+        config: GeminiTtsOptions(
+          speechConfig: _voice('Kore'),
+          audioFormat: GeminiAudioFormat(mimeType: 'audio/wav'),
+        ),
+        onChunk: (chunk) {
+          chunkCount++;
+          ctx.sendChunk('chunk $chunkCount: ${chunk.media?.contentType}');
+        },
+      );
+      final media = response.media ?? (throw Exception('No audio generated'));
+      return {'chunkCount': chunkCount, 'media': media.toJson()};
+    },
+  );
+
+  // --- Video generation (Gemini Omni) ---
+
+  // ai.generate() returns the video directly, as an inline MP4 (a data URL)
+  // that plays in the Dev UI. 360p keeps it fast.
+  ai.defineFlow(
+    name: 'omniTextToVideo',
+    inputSchema: .string(
+      defaultValue:
+          'A paper boat floating down a rain-filled gutter, continuous '
+          'shot, with the sound of rain.',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiVideo('gemini-omni-1.1-flash'),
+        prompt: prompt,
+        config: GeminiVideoOptions(
+          videoFormat: GeminiVideoFormat(
+            aspectRatio: '9:16',
+            resolution: '360p',
+          ),
+          // Optional: the model infers the task from the prompt if not set.
+          videoConfig: GeminiVideoConfig(task: 'text_to_video'),
+        ),
+      );
+      return response.media ?? (throw Exception('No video generated'));
+    },
+  );
+
+  // --- Music generation (Lyria) ---
+
+  ai.defineFlow(
+    name: 'lyriaClip',
+    inputSchema: .string(
+      defaultValue:
+          'Create a 30-second cheerful acoustic folk song with guitar and '
+          'harmonica.',
+    ),
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.lyria('lyria-3-clip-preview'),
+        prompt: prompt,
+      );
+      final media = response.media ?? (throw Exception('No music generated'));
+      // The lyrics or a caption come back as text, next to the audio.
+      return {'text': response.text, 'media': media.toJson()};
+    },
+  );
+
+  ai.defineFlow(
+    name: 'lyriaInstrumental',
+    inputSchema: .string(
+      defaultValue:
+          'A bright chiptune melody in C Major, retro 8-bit video game style. '
+          'Instrumental only, no vocals.',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.lyria('lyria-3-clip-preview'),
+        prompt: prompt,
+        config: LyriaOptions(responseModalities: ['AUDIO']),
+      );
+      return response.media ?? (throw Exception('No music generated'));
+    },
+  );
+
+  // --- Antigravity agent ---
+
+  ai.defineFlow(
+    name: 'antigravity',
+    inputSchema: .string(
+      defaultValue: 'Read Hacker News, summarize the top 10 stories.',
+    ),
+    outputSchema: Message.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.antigravity('antigravity-preview-09-2026'),
+        prompt: prompt,
+        // Without tools, the agent uses all its default tools.
+        config: AntigravityOptions(environment: 'remote'),
+      );
+      return response.message!;
+    },
+  );
+
+  // Two turns: the second continues the stored interaction, in the same
+  // sandbox, because it passes the first response's messages.
+  ai.defineFlow(
+    name: 'antigravityMultiTurn',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (_, _) async {
+      final turn1 = await ai.generate(
+        model: googleAI.antigravity('antigravity-preview-09-2026'),
+        prompt: 'Create a simple python script to print hello world.',
+        config: AntigravityOptions(environment: 'remote'),
+      );
+      final turn2 = await ai.generate(
+        model: googleAI.antigravity('antigravity-preview-09-2026'),
+        messages: turn1.messages,
+        prompt: 'Now modify the script to print it backwards and run it.',
+      );
+      return {
+        'turn1': turn1.text,
+        'turn1Metadata': turn1.message?.metadata,
+        'turn2': turn2.text,
+      };
+    },
+  );
+
+  // Antigravity calling one of your own tools, on a chosen Gemini model.
+  ai.defineFlow(
+    name: 'antigravityFunctionTools',
+    inputSchema: .string(
+      defaultValue:
+          'Use the getWeather tool to get the weather in Tokyo, then tell me '
+          'in one sentence.',
+    ),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.antigravity('antigravity-preview-09-2026'),
+        prompt: prompt,
+        toolNames: ['getWeather'],
+        config: AntigravityOptions(
+          environment: 'remote',
+          model: 'gemini-3.5-flash-lite',
+        ),
+      );
+      return response.text;
     },
   );
 

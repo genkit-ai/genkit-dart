@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart';
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
 import 'package:http/http.dart' as http;
@@ -73,6 +75,33 @@ void main() {
         mockClient.lastUrl.toString(),
         'https://aiplatform.googleapis.com/v1beta1/projects/my-project/locations/global/publishers/google/models/gemini-2.5-pro:generateContent',
       );
+    });
+
+    test('does not send store on generateContent (the platform has no such '
+        'field)', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'global',
+        authClient: mockClient,
+      );
+      final model = plugin.resolve(.model, 'gemini-2.5-pro') as Action;
+
+      for (final store in [true, false]) {
+        await model.run(
+          ModelRequest(
+            messages: [
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'hello')],
+              ),
+            ],
+            config: {'store': store},
+          ),
+        );
+        final body = jsonDecode(mockClient.lastBody!) as Map;
+        expect(body, isNot(contains('store')), reason: 'store: $store');
+      }
     });
   });
 

@@ -49,7 +49,7 @@ void main(List<String> args) async {
       final photoBase64 = base64Encode(photoBytes);
 
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3.1-flash-image'),
+        model: googleAI.geminiImage('gemini-nano-banana-2.1'),
         prompt: input,
         messages: [
           Message(

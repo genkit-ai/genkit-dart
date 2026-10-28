@@ -16,8 +16,8 @@
 //
 // Mirrors the `useInteractions` branch of the model function in
 // js/plugins/google-genai/src/googleai/gemini.ts (as on the JS branch
-// `if-typeUpdates`, Oct 27 2026). Keep the two in step: change JS first,
-// then translate.
+// `if-fixStore`, Oct 27 2026). Keep the two in step: change JS first, then
+// translate.
 //
 // Differences from JS (decided for Dart):
 // - No config passthrough: Dart only sends the GeminiOptions fields it
@@ -28,10 +28,11 @@
 //   outside JSON mode, and candidateCount (only warned about when > 1, as
 //   in JS). JS forwards topK; a JS TODO is open to stop that.
 // - responseLogprobs / logprobs are sent (they work on gemini-4-argon).
+// - The family fields (imageConfig, audioFormat, videoFormat, videoConfig)
+//   are read through their option types (GeminiImageOptions, ...); JS
+//   reads them from the untyped config.
 //
-// Not ported yet (they come with their options): urlContext, googleMaps /
-// retrievalConfig, the `tools` passthrough, toolConfig, imageConfig,
-// audioFormat / videoFormat, legacyResponseSchema.
+// Not ported (Dart has no such option): toolConfig, legacyResponseSchema.
 
 import 'dart:convert';
 
@@ -207,21 +208,43 @@ CreateInteractionRequest buildInteractionRequest(
     );
   }
 
+  tools.addAll([...?options.tools?.map(toInteractionConfigTool)]);
   if (options.codeExecution == true) {
-    tools.add(InteractionCodeExecutionTool());
+    tools.add(toInteractionConfigTool({'codeExecution': true}));
   }
   final googleSearch = options.googleSearch;
   if (googleSearch != null) {
-    tools.add(toInteractionGoogleSearch(googleSearch.toJson()));
+    tools.add(toInteractionConfigTool({'googleSearch': googleSearch.toJson()}));
   }
   final fileSearch = options.fileSearch;
   if (fileSearch != null) {
-    tools.add(
-      InteractionTool.fromJson({
-        'type': 'file_search',
-        ...toSnakeCaseObj(fileSearch.toJson()),
-      }),
+    tools.add(toInteractionConfigTool({'fileSearch': fileSearch.toJson()}));
+  }
+  final urlContext = options.urlContext;
+  if (urlContext != null) {
+    tools.add(toInteractionConfigTool({'urlContext': urlContext.toJson()}));
+  }
+  final retrievalConfig = options.retrievalConfig;
+  if (retrievalConfig != null) {
+    // There is no retrieval config on the Interactions path; the user
+    // location is set on the google_maps tool instead.
+    final latLng = retrievalConfig.latLng;
+    if (latLng != null && !applyLatLngToGoogleMapsTools(tools, latLng)) {
+      logger.warning(
+        'retrievalConfig.latLng is only used with the googleMaps tool for '
+        'this model and will be ignored.',
+      );
+    }
+    final unsupportedKeys = retrievalConfig.toJson().keys.where(
+      (k) => k != 'latLng',
     );
+    if (unsupportedKeys.isNotEmpty) {
+      logger.warning(
+        'retrievalConfig.${unsupportedKeys.join(', retrievalConfig.')} is '
+        'not supported for this model with the Interactions API and will be '
+        'ignored.',
+      );
+    }
   }
 
   return _withGenerationConfig(plugin, modelName, req, options, (
@@ -264,6 +287,13 @@ CreateInteractionRequest _withGenerationConfig(
     drop('responseMimeType');
   }
 
+  // Family fields (see model.dart), read from the config whatever the
+  // model's family, as in JS.
+  final config = req.config ?? const <String, dynamic>{};
+  final imageConfig = GeminiImageOptions.$schema.parse(config).imageConfig;
+  final audioFormat = GeminiTtsOptions.$schema.parse(config).audioFormat;
+  final videoOptions = GeminiVideoOptions.$schema.parse(config);
+
   final stopSequences = options.stopSequences;
   final generationConfig = toInteractionGenerationConfig({
     'temperature': ?options.temperature,
@@ -276,6 +306,7 @@ CreateInteractionRequest _withGenerationConfig(
     'logprobs': ?options.logprobs,
     'speechConfig': ?options.speechConfig?.toJson(),
     'thinkingConfig': ?options.thinkingConfig?.toJson(),
+    'videoConfig': ?videoOptions.videoConfig?.toJson(),
   }, drop);
 
   final toolChoice = toInteractionToolChoice(
@@ -286,7 +317,7 @@ CreateInteractionRequest _withGenerationConfig(
     generationConfig.toolChoice = toolChoice.json;
   }
 
-  final store = options.store == true || plugin.storeInteractions;
+  final store = options.store == true || plugin.store == true;
   final (:messages, :previousInteractionId) = selectInteractionInput(
     parts.messages,
     store,
@@ -320,8 +351,12 @@ CreateInteractionRequest _withGenerationConfig(
         : switch (GeminiModelFamily.of(modelName)) {
             .tts => ['AUDIO'],
             .image => ['TEXT', 'IMAGE'],
-            .text => null,
+            // Video models return video by default (JS sends nothing).
+            .text || .video => null,
           },
+    imageConfig: imageConfig?.toJson(),
+    audioFormat: audioFormat?.toJson(),
+    videoFormat: videoOptions.videoFormat?.toJson(),
     // Without a schema the server answers in prose (live: no schema 0/9
     // JSON); an empty schema `{}` gives JSON of any shape (6/6), like
     // `responseMimeType: 'application/json'` on generateContent. (`{type:

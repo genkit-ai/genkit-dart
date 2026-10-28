@@ -27,8 +27,6 @@
 // a stream).
 //
 // Not ported yet (translate from the JS file when the feature arrives):
-// - toInteractionConfigTool, applyLatLngToGoogleMapsTools: come with the
-//   `tools` passthrough, `urlContext` and `googleMaps` options.
 // - toInteractionSafetySettings: vertexAI only.
 // - fromInteraction (to an Operation): needs background models.
 // - toInteractionRole: unused in JS.
@@ -113,6 +111,144 @@ InteractionTool toInteractionTool(ToolDefinition tool) {
     description: tool.description,
     parameters: schema == null ? null : cleanSchema(schema),
   );
+}
+
+/// Converts a built-in tool from the `tools` config (e.g.
+/// `{'googleSearch': {}}`, `{'urlContext': true}`) to an [InteractionTool].
+///
+/// Known keys map to their tool type, with the tool's settings (a map, or
+/// `true` for none) in snake_case. Any other map that names its own `type`
+/// is passed through in snake_case.
+InteractionTool toInteractionConfigTool(Object? toolRaw) {
+  if (toolRaw is! Map) {
+    throw ArgumentError(
+      'Invalid tool configuration: Expected an object, got '
+      '${toolRaw.runtimeType}',
+    );
+  }
+  final tool = toolRaw;
+
+  // A tool whose settings are passed through in snake_case.
+  InteractionTool withSettings(String name, String type, Object? config) {
+    if (config == true || config == null) {
+      return InteractionTool.fromJson({'type': type});
+    }
+    if (config is! Map) {
+      throw ArgumentError(
+        'Invalid configuration for $name tool: Expected object or true, got '
+        '${config.runtimeType}',
+      );
+    }
+    return InteractionTool.fromJson({'type': type, ...toSnakeCaseObj(config)});
+  }
+
+  if (tool.containsKey('googleSearch') || tool.containsKey('google_search')) {
+    return toInteractionGoogleSearch(
+      _or(tool['googleSearch'], tool['google_search']),
+    );
+  }
+  if (tool.containsKey('codeExecution') || tool.containsKey('code_execution')) {
+    return withSettings(
+      'codeExecution',
+      'code_execution',
+      _or(tool['codeExecution'], tool['code_execution']),
+    );
+  }
+  if (tool.containsKey('fileSearch') || tool.containsKey('file_search')) {
+    final config = _or(tool['fileSearch'], tool['file_search']);
+    if (config == true || config == null) {
+      return InteractionFileSearchTool();
+    }
+    if (config is! Map) {
+      throw ArgumentError(
+        'Invalid configuration for fileSearch tool: Expected object, got '
+        '${config.runtimeType}',
+      );
+    }
+    final fileSearchStoreNames = _or(
+      config['fileSearchStoreNames'],
+      config['file_search_store_names'],
+    );
+    final restFileSearch = {...config}
+      ..remove('fileSearchStoreNames')
+      ..remove('file_search_store_names');
+
+    if (fileSearchStoreNames != null &&
+        (fileSearchStoreNames is! List ||
+            !fileSearchStoreNames.every((n) => n is String))) {
+      throw ArgumentError('fileSearchStoreNames must be an array of strings.');
+    }
+    return InteractionTool.fromJson({
+      'type': 'file_search',
+      'file_search_store_names': ?(fileSearchStoreNames as List?)
+          ?.cast<String>(),
+      ...toSnakeCaseObj(restFileSearch),
+    });
+  }
+  if (tool.containsKey('urlContext')) {
+    return withSettings('urlContext', 'url_context', tool['urlContext']);
+  }
+  if (tool.containsKey('googleMaps')) {
+    return withSettings('googleMaps', 'google_maps', tool['googleMaps']);
+  }
+  if (tool.containsKey('computerUse')) {
+    return withSettings('computerUse', 'computer_use', tool['computerUse']);
+  }
+  if (tool.containsKey('retrieval')) {
+    return withSettings('retrieval', 'retrieval', tool['retrieval']);
+  }
+  if (tool.containsKey('mcpServer')) {
+    final result = withSettings('mcpServer', 'mcp_server', tool['mcpServer']);
+    final allowedTools = result.json['allowed_tools'];
+    if (allowedTools is List &&
+        allowedTools.isNotEmpty &&
+        allowedTools.first is String) {
+      result.json['allowed_tools'] = [
+        {'tools': allowedTools},
+      ];
+    }
+    return result;
+  }
+
+  // Pass through any other tool that names its own `type`, in snake_case.
+  final rest = toSnakeCaseObj(tool);
+  final type = rest.remove('type');
+  if (type is! String) {
+    throw ArgumentError(
+      'Unsupported tool configuration: ${jsonEncode(tool)}. '
+      'Use a built-in tool key (e.g. googleSearch, codeExecution) or set '
+      '`type`.',
+    );
+  }
+  return InteractionDynamicTool(type, rest);
+}
+
+/// Copies a `retrievalConfig.latLng` user location onto the Interactions
+/// `google_maps` tools in [tools], which take `latitude`/`longitude`
+/// directly (there is no retrieval config on the Interactions path). A
+/// location already set on a tool is kept.
+///
+/// Returns whether there was a `google_maps` tool to apply the location to.
+bool applyLatLngToGoogleMapsTools(
+  List<InteractionTool> tools,
+  GeminiLatLng latLng,
+) {
+  var found = false;
+  for (var i = 0; i < tools.length; i++) {
+    final tool = tools[i];
+    if (tool.type != 'google_maps') continue;
+    found = true;
+    if (tool.json.containsKey('latitude') ||
+        tool.json.containsKey('longitude')) {
+      continue;
+    }
+    tools[i] = InteractionTool.fromJson({
+      ...tool.json,
+      'latitude': ?latLng.latitude,
+      'longitude': ?latLng.longitude,
+    });
+  }
+  return found;
 }
 
 /// Picks the messages to send to the Interactions API and the interaction to
@@ -2169,6 +2305,9 @@ String? _nonEmpty(String? value) => _isEmpty(value) ? null : value;
 /// Whether [value] is truthy in JS terms.
 bool _isTruthy(Object? value) =>
     value != null && value != false && value != '' && value != 0;
+
+/// [a] if it's truthy, otherwise [b] (JS `a || b`).
+Object? _or(Object? a, Object? b) => _isTruthy(a) ? a : b;
 
 /// Sets [key] to [value], or removes it when [value] is null.
 void _setOrRemove(Map<String, Object?> json, String key, Object? value) {

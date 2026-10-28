@@ -43,6 +43,9 @@ final commonModelInfo = ModelInfo(
 /// Fallback metadata for an un-curated `-tts` model name.
 final commonTtsModelInfo = ModelInfo(supports: geminiTtsSupports);
 
+/// Fallback metadata for an un-curated video model name (`gemini-omni-*`).
+final commonVideoModelInfo = ModelInfo(supports: geminiVideoSupports);
+
 abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]);
 
@@ -63,6 +66,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       knownModels[modelName] ??
       switch (GeminiModelFamily.of(modelName)) {
         .tts => commonTtsModelInfo,
+        .video => commonVideoModelInfo,
         .text || .image => commonModelInfo,
       };
 
@@ -88,9 +92,17 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   /// The default keeps every model on generateContent; plugins override it.
   bool usesInteractions(String modelName) => false;
 
-  /// Whether interactions are stored when a request doesn't set `store`
-  /// (the plugin-level `store` option). Only used on Interactions models.
-  bool get storeInteractions => false;
+  /// The plugin-level `store` option, used when a request doesn't set
+  /// `store`; null when not set. Interactions models treat null as false;
+  /// generateContent models only send it when set (see
+  /// [supportsGenerateContentStore]).
+  bool? get store => null;
+
+  /// Whether this plugin's generateContent API takes a top-level `store`
+  /// (on the Gemini API it controls whether the server logs the request for
+  /// the project). When false, `store: true` is dropped with a warning (the
+  /// Gemini Enterprise Agent Platform has no such field).
+  bool get supportsGenerateContentStore => false;
 
   /// Whether this plugin sends the `serviceTier` option to the API. When
   /// false, it is dropped with a warning (the vertexAI plugin has no service
@@ -111,9 +123,10 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         List<gcl.SafetySetting>? safetySettings;
         List<gcl.Tool>? tools;
         gcl.ToolConfig? toolConfig;
+        GeminiRetrievalConfig? retrievalConfig;
         String? apiKey;
         String? serviceTier;
-        bool? store;
+        bool? storeFromConfig;
         String? previousInteractionId;
 
         final isJsonMode =
@@ -126,7 +139,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
               : GeminiTtsOptions.$schema.parse(req.config!);
           apiKey = options.apiKey;
           serviceTier = options.serviceTier;
-          store = options.store;
+          storeFromConfig = options.store;
           previousInteractionId = options.previousInteractionId;
           generationConfig = toGeminiTtsSettings(
             options,
@@ -138,20 +151,23 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           tools = toGeminiTools(
             req.tools,
             codeExecution: options.codeExecution,
+            configTools: options.tools,
             googleSearch: options.googleSearch,
+            urlContext: options.urlContext,
           );
           toolConfig = toGeminiToolConfig(
             options.functionCallingConfig,
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           );
+          retrievalConfig = options.retrievalConfig;
         } else {
           final options = req.config == null
               ? GeminiOptions()
               : GeminiOptions.$schema.parse(req.config!);
           apiKey = options.apiKey;
           serviceTier = options.serviceTier;
-          store = options.store;
+          storeFromConfig = options.store;
           previousInteractionId = options.previousInteractionId;
           generationConfig = toGeminiSettings(
             options,
@@ -163,22 +179,64 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           tools = toGeminiTools(
             req.tools,
             codeExecution: options.codeExecution,
+            configTools: options.tools,
             googleSearch: options.googleSearch,
+            urlContext: options.urlContext,
           );
           toolConfig = toGeminiToolConfig(
             options.functionCallingConfig,
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           );
+          retrievalConfig = options.retrievalConfig;
         }
 
-        // `store: false` is already how this model behaves, so only warn when
-        // something would actually be ignored.
-        if (store == true || (previousInteractionId?.isNotEmpty ?? false)) {
+        if (retrievalConfig != null) {
+          toolConfig ??= gcl.ToolConfig();
+          toolConfig.toJson()['retrievalConfig'] = retrievalConfig.toJson();
+        }
+
+        // Family fields (see model.dart), read from the config whatever the
+        // model's family, as in JS.
+        final config = req.config ?? const <String, dynamic>{};
+        final imageConfig = GeminiImageOptions.$schema
+            .parse(config)
+            .imageConfig;
+        if (imageConfig != null) {
+          generationConfig.toJson()['imageConfig'] = imageConfig.toJson();
+        }
+        // generateContent rejects unknown generationConfig fields with a 400,
+        // and has no equivalent for these Interactions-only fields (e.g. the
+        // older preview TTS models still use this API). JS forwards
+        // videoConfig; it's dropped here too, for the same reason.
+        if (GeminiTtsOptions.$schema.parse(config).audioFormat != null) {
+          warnDroppedConfigField(modelName, 'audioFormat');
+        }
+        final videoOptions = GeminiVideoOptions.$schema.parse(config);
+        if (videoOptions.videoFormat != null) {
+          warnDroppedConfigField(modelName, 'videoFormat');
+        }
+        if (videoOptions.videoConfig != null) {
+          warnDroppedConfigField(modelName, 'videoConfig');
+        }
+
+        // There's no stored conversation to continue on generateContent.
+        if (previousInteractionId?.isNotEmpty ?? false) {
           logger.warning(
-            'store and previousInteractionId are not supported for this model '
-            'and will be ignored.',
+            'previousInteractionId is not supported for this model and will '
+            'be ignored.',
           );
+        }
+        // On generateContent, `store` only controls whether the server logs
+        // this request for the API key's project (viewable in AI Studio's
+        // Logs and Datasets); there's nothing to continue. Sent only when
+        // set; otherwise the project's logging setting applies. Where the
+        // API has no `store` (the Gemini Enterprise Agent Platform), nothing
+        // is stored for later anyway, so only `store: true` asks for
+        // something that can't happen.
+        final generateContentStore = storeFromConfig ?? store;
+        if (generateContentStore == true && !supportsGenerateContentStore) {
+          warnDroppedConfigField(modelName, 'store');
         }
         if (serviceTier != null && !supportsServiceTier) {
           warnDroppedConfigField(modelName, 'serviceTier');
@@ -218,6 +276,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           );
           if (serviceTier != null && supportsServiceTier) {
             generateRequest.toJson()['serviceTier'] = serviceTier;
+          }
+          if (generateContentStore != null && supportsGenerateContentStore) {
+            generateRequest.toJson()['store'] = generateContentStore;
           }
 
           if (ctx.streamingRequested) {
@@ -551,16 +612,26 @@ List<gcl.SafetySetting>? toGeminiSafetySettings(
   return settings;
 }
 
+/// Builds the generateContent `tools`: the request's function tools, then
+/// the built-in tools from the config, in the JS plugin's order. The
+/// [configTools] maps (the `tools` option, e.g. `{'googleMaps': {}}`) are
+/// sent as they are.
 @visibleForTesting
 List<gcl.Tool> toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
+  List<Map<String, dynamic>>? configTools,
   GeminiGoogleSearch? googleSearch,
+  GeminiUrlContext? urlContext,
 }) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
+    ...?configTools?.map(gcl.Tool.fromJson),
     if (googleSearch != null) gcl.Tool(googleSearch: gcl.GoogleSearch()),
+    // The generated client has no urlContext field.
+    if (urlContext != null)
+      gcl.Tool.fromJson({'urlContext': urlContext.toJson()}),
   ];
 }
 
