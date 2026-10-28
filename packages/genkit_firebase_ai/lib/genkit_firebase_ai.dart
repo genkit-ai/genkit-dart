@@ -32,6 +32,7 @@ import 'package:schemantic/schemantic.dart';
 import 'src/aggregation.dart';
 import 'src/error_mapping.dart';
 import 'src/finish_reason.dart';
+import 'src/known_models.dart';
 
 part 'genkit_firebase_ai.g.dart';
 
@@ -238,12 +239,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   @override
   Future<List<Action>> init() async {
     // Pre-registered so they show up in the Developer UI; any other model name
-    // still resolves on demand (see [resolve]). The live (bidi) entry is the
-    // native-audio model line, which has its own naming.
+    // still resolves on demand (see [resolve]).
+    final agentPlatform = provider is _AgentPlatformProvider;
     return [
-      _createModel('gemini-flash-latest'),
-      _createModel('gemini-3.1-pro-preview'),
-      _createBidiModel('gemini-2.5-flash-native-audio-preview-12-2025'),
+      for (final model in KnownFirebaseAiModel.values)
+        if (model.servedOn(agentPlatform: agentPlatform))
+          model.live ? _createBidiModel(model.id) : _createModel(model.id),
     ];
   }
 
