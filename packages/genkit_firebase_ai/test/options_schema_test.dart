@@ -24,4 +24,23 @@ void main() {
     expect(properties, isNot(contains('responseLogprobs')));
     expect(properties, isNot(contains('logprobs')));
   });
+
+  test('sampling options say how Gemini 3 treats them', () {
+    String? description(Map<String, Object?> schema, String field) =>
+        ((schema['properties']! as Map<String, Object?>)[field]!
+                as Map<String, Object?>)['description']
+            as String?;
+    final options = GeminiOptions.$schema.jsonSchema();
+    final live = LiveGenerationConfig.$schema.jsonSchema();
+
+    for (final schema in [options, live]) {
+      for (final field in ['temperature', 'topP', 'topK']) {
+        expect(description(schema, field), contains('ignore'), reason: field);
+      }
+      for (final field in ['presencePenalty', 'frequencyPenalty']) {
+        expect(description(schema, field), contains('400'), reason: field);
+      }
+    }
+    expect(description(options, 'candidateCount'), contains('ignore'));
+  });
 }
