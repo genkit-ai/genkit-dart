@@ -288,11 +288,31 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
           'items': <String, Object?>{'type': 'string'},
         },
         'maxOutputTokens': <String, Object?>{'type': 'integer'},
-        'temperature': <String, Object?>{'type': 'number'},
-        'topP': <String, Object?>{'type': 'number'},
-        'topK': <String, Object?>{'type': 'integer'},
-        'presencePenalty': <String, Object?>{'type': 'number'},
-        'frequencyPenalty': <String, Object?>{'type': 'number'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topK': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'presencePenalty': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models reject requests that set this with a 400 error.',
+        },
+        'frequencyPenalty': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models reject requests that set this with a 400 error.',
+        },
         'responseModalities': <String, Object?>{
           'type': 'array',
           'items': <String, Object?>{'type': 'string'},
@@ -311,7 +331,11 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
           'additionalProperties': <String, Object?>{},
         },
         'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
-        'candidateCount': <String, Object?>{'type': 'integer'},
+        'candidateCount': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
         'codeExecution': <String, Object?>{'type': 'boolean'},
         'functionCallingConfig': <String, Object?>{
           r'$ref': r'#/$defs/FunctionCallingConfig',
@@ -877,11 +901,31 @@ base class _LiveGenerationConfigTypeFactory
           'items': <String, Object?>{'type': 'string'},
         },
         'maxOutputTokens': <String, Object?>{'type': 'integer'},
-        'temperature': <String, Object?>{'type': 'number'},
-        'topP': <String, Object?>{'type': 'number'},
-        'topK': <String, Object?>{'type': 'integer'},
-        'presencePenalty': <String, Object?>{'type': 'number'},
-        'frequencyPenalty': <String, Object?>{'type': 'number'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topK': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'presencePenalty': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models reject requests that set this with a 400 error.',
+        },
+        'frequencyPenalty': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models reject requests that set this with a 400 error.',
+        },
       },
     },
     dependencies: [SpeechConfig.$schema],
