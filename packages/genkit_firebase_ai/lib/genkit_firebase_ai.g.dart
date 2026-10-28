@@ -44,6 +44,7 @@ base class GeminiOptions {
     int? candidateCount,
     bool? codeExecution,
     FunctionCallingConfig? functionCallingConfig,
+    List<GeminiSafetySettings>? safetySettings,
   }) {
     _json = {
       'stopSequences': ?stopSequences,
@@ -61,6 +62,7 @@ base class GeminiOptions {
       'candidateCount': ?candidateCount,
       'codeExecution': ?codeExecution,
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
+      'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -258,6 +260,20 @@ base class GeminiOptions {
     }
   }
 
+  List<GeminiSafetySettings>? get safetySettings {
+    return (_json['safetySettings'] as List?)
+        ?.map((e) => GeminiSafetySettings.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set safetySettings(List<GeminiSafetySettings>? value) {
+    if (value == null) {
+      _json.remove('safetySettings');
+    } else {
+      _json['safetySettings'] = value.map((e) => e.toJson()).toList();
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -316,9 +332,133 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'functionCallingConfig': <String, Object?>{
           r'$ref': r'#/$defs/FunctionCallingConfig',
         },
+        'safetySettings': <String, Object?>{
+          'type': 'array',
+          'description':
+              'Per-category thresholds for blocking harmful content. Each entry needs a category and a threshold.',
+          'items': <String, Object?>{r'$ref': r'#/$defs/GeminiSafetySettings'},
+        },
       },
     },
-    dependencies: [ThinkingConfig.$schema, FunctionCallingConfig.$schema],
+    dependencies: [
+      ThinkingConfig.$schema,
+      FunctionCallingConfig.$schema,
+      GeminiSafetySettings.$schema,
+    ],
+  );
+}
+
+base class GeminiSafetySettings {
+  /// Creates a [GeminiSafetySettings] from a JSON map.
+  factory GeminiSafetySettings.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiSafetySettings._(this._json);
+
+  GeminiSafetySettings({String? category, String? threshold, String? method}) {
+    _json = {'category': ?category, 'threshold': ?threshold, 'method': ?method};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiSafetySettings].
+  static const SchemanticType<GeminiSafetySettings> $schema =
+      _GeminiSafetySettingsTypeFactory();
+
+  String? get category {
+    return _json['category'] as String?;
+  }
+
+  set category(String? value) {
+    if (value == null) {
+      _json.remove('category');
+    } else {
+      _json['category'] = value;
+    }
+  }
+
+  String? get threshold {
+    return _json['threshold'] as String?;
+  }
+
+  set threshold(String? value) {
+    if (value == null) {
+      _json.remove('threshold');
+    } else {
+      _json['threshold'] = value;
+    }
+  }
+
+  String? get method {
+    return _json['method'] as String?;
+  }
+
+  set method(String? value) {
+    if (value == null) {
+      _json.remove('method');
+    } else {
+      _json['method'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiSafetySettings] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiSafetySettingsTypeFactory
+    extends SchemanticType<GeminiSafetySettings> {
+  const _GeminiSafetySettingsTypeFactory();
+
+  @override
+  GeminiSafetySettings parse(Object? json) {
+    return GeminiSafetySettings._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiSafetySettings',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'category': <String, Object?>{
+          'type': 'string',
+          'enum': [
+            'HARM_CATEGORY_HARASSMENT',
+            'HARM_CATEGORY_HATE_SPEECH',
+            'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'HARM_CATEGORY_DANGEROUS_CONTENT',
+            'HARM_CATEGORY_IMAGE_HATE',
+            'HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT',
+            'HARM_CATEGORY_IMAGE_HARASSMENT',
+            'HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT',
+          ],
+        },
+        'threshold': <String, Object?>{
+          'type': 'string',
+          'enum': [
+            'BLOCK_LOW_AND_ABOVE',
+            'BLOCK_MEDIUM_AND_ABOVE',
+            'BLOCK_ONLY_HIGH',
+            'BLOCK_NONE',
+            'OFF',
+          ],
+        },
+        'method': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Whether the threshold applies to the probability or the severity score. Agent Platform only; the Gemini Developer API rejects it.',
+          'enum': ['SEVERITY', 'PROBABILITY'],
+        },
+      },
+    },
+    dependencies: [],
   );
 }
 
