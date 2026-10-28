@@ -46,4 +46,23 @@ void main() {
     }
     expect(description(options, 'candidateCount'), contains('parallel'));
   });
+
+  test('GeminiOptions schema declares safetySettings with enums', () {
+    final options =
+        GeminiOptions.$schema.jsonSchema()['properties']!
+            as Map<String, Object?>;
+    final setting =
+        GeminiSafetySettings.$schema.jsonSchema()['properties']!
+            as Map<String, Object?>;
+
+    expect(options, contains('safetySettings'));
+    expect(
+      (setting['threshold']! as Map<String, Object?>)['enum'],
+      contains('OFF'),
+    );
+    expect((setting['method']! as Map<String, Object?>)['enum'], [
+      'SEVERITY',
+      'PROBABILITY',
+    ]);
+  });
 }
