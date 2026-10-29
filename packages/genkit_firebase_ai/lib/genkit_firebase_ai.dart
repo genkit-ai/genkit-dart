@@ -868,11 +868,28 @@ ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
 
 /// Converts [settings] to `firebase_ai` safety settings.
 ///
-/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a missing
-/// or unknown category or threshold, or for a `method` on the Gemini Developer
-/// API ([developerApi]), which does not support it.
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a missing,
+/// unknown or wrongly typed category or threshold, or for a `method` on the
+/// Gemini Developer API ([developerApi]), which does not support it.
 @visibleForTesting
 List<fai.SafetySetting>? toGeminiSafetySettings(
+  List<GeminiSafetySettings>? settings, {
+  required bool developerApi,
+}) {
+  try {
+    return _toGeminiSafetySettings(settings, developerApi: developerApi);
+  } on GenkitException {
+    rethrow;
+  } catch (e) {
+    // A wrongly typed field fails in the generated getter.
+    throw GenkitException(
+      'Invalid safetySettings: $e',
+      status: StatusCode.invalidArgument,
+    );
+  }
+}
+
+List<fai.SafetySetting>? _toGeminiSafetySettings(
   List<GeminiSafetySettings>? settings, {
   required bool developerApi,
 }) {
