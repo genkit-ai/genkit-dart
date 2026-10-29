@@ -410,8 +410,11 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         _logger.info('Connected to model: $modelName');
         final sender = LiveSender(session);
         // Closing through the sender marks the close as the plugin's, so it
-        // is not reported as the server ending the session.
+        // is not reported as the server ending the session. A cancel during
+        // connect() closes the session at once; stop here rather than send
+        // history to it.
         final disposeCancel = ctx.cancel?.onCancel(sender.close);
+        ctx.cancel?.throwIfCancelled();
         sender.add(
           ctx.init?.messages.where((m) => m.role != Role.system) ?? const [],
         );
