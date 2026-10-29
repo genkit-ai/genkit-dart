@@ -95,6 +95,9 @@ abstract class $GeminiOptions {
 @Schema()
 abstract class $GeminiSafetySettings {
   @StringField(
+    description:
+        'The HARM_CATEGORY_IMAGE_* categories are Agent Platform only; the '
+        'Gemini Developer API rejects them.',
     enumValues: [
       'HARM_CATEGORY_HARASSMENT',
       'HARM_CATEGORY_HATE_SPEECH',
@@ -869,8 +872,9 @@ ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
 /// Converts [settings] to `firebase_ai` safety settings.
 ///
 /// Throws a [GenkitException] with [StatusCode.invalidArgument] for a missing,
-/// unknown or wrongly typed category or threshold, or for a `method` on the
-/// Gemini Developer API ([developerApi]), which does not support it.
+/// unknown or wrongly typed category or threshold, or, on the Gemini Developer
+/// API ([developerApi]), for an image category or a `method`, which it
+/// rejects.
 @visibleForTesting
 List<fai.SafetySetting>? toGeminiSafetySettings(
   List<GeminiSafetySettings>? settings, {
@@ -897,7 +901,17 @@ List<fai.SafetySetting>? _toGeminiSafetySettings(
   return [
     for (final s in settings)
       fai.SafetySetting(
-        _wireValue('category', s.category, _harmCategories),
+        switch (_wireValue('category', s.category, _harmCategories)) {
+          final category
+              when developerApi && _imageCategories.contains(category) =>
+            throw GenkitException(
+              'safetySettings category ${s.category} is not supported by the '
+              'Gemini Developer API; use FirebaseAiProvider.agentPlatform() or '
+              'remove it.',
+              status: StatusCode.invalidArgument,
+            ),
+          final category => category,
+        },
         _wireValue('threshold', s.threshold, _harmBlockThresholds),
         switch (s.method) {
           null => null,
@@ -915,6 +929,14 @@ List<fai.SafetySetting>? _toGeminiSafetySettings(
 final _harmCategories = {
   for (final c in fai.HarmCategory.values)
     if (c != fai.HarmCategory.unknown) c.toJson(): c,
+};
+
+/// Image categories, which the Gemini Developer API rejects.
+const _imageCategories = {
+  fai.HarmCategory.imageHate,
+  fai.HarmCategory.imageDangerousContent,
+  fai.HarmCategory.imageHarassment,
+  fai.HarmCategory.imageSexuallyExplicit,
 };
 
 final _harmBlockThresholds = {

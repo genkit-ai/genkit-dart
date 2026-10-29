@@ -41,7 +41,7 @@ void main() {
               'category': 'HARM_CATEGORY_HARASSMENT',
               'threshold': 'BLOCK_ONLY_HIGH',
             },
-            {'category': 'HARM_CATEGORY_IMAGE_HATE', 'threshold': 'OFF'},
+            {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'OFF'},
           ],
         },
       ),
@@ -49,7 +49,7 @@ void main() {
 
     expect(client.requests.single.body['safetySettings'], [
       {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_ONLY_HIGH'},
-      {'category': 'HARM_CATEGORY_IMAGE_HATE', 'threshold': 'OFF'},
+      {'category': 'HARM_CATEGORY_HATE_SPEECH', 'threshold': 'OFF'},
     ]);
   });
 
@@ -86,6 +86,28 @@ void main() {
     expect(client.requests.single.body, isNot(contains('safetySettings')));
   });
 
+  test('Agent Platform sends an image category', () async {
+    final client = WireClient();
+
+    await wireModel(client, provider: FirebaseAiProvider.agentPlatform())(
+      userRequest(
+        'hello',
+        config: {
+          'safetySettings': [
+            {
+              'category': 'HARM_CATEGORY_IMAGE_HATE',
+              'threshold': 'BLOCK_ONLY_HIGH',
+            },
+          ],
+        },
+      ),
+    );
+
+    expect(client.requests.single.body['safetySettings'], [
+      {'category': 'HARM_CATEGORY_IMAGE_HATE', 'threshold': 'BLOCK_ONLY_HIGH'},
+    ]);
+  });
+
   test('Agent Platform sends the method', () async {
     final client = WireClient();
 
@@ -118,6 +140,10 @@ void main() {
       'category': 'HARM_CATEGORY_HATE_SPEECH',
       'threshold': 'BLOCK_ONLY_HIGH',
       'method': 'SEVERITY',
+    },
+    'an image category on the Gemini Developer API': {
+      'category': 'HARM_CATEGORY_IMAGE_HATE',
+      'threshold': 'BLOCK_ONLY_HIGH',
     },
     'an unknown category': {
       'category': 'HARM_CATEGORY_CIVIC_INTEGRITY',

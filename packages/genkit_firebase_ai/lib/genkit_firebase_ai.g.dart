@@ -429,6 +429,8 @@ base class _GeminiSafetySettingsTypeFactory
       'properties': <String, Object?>{
         'category': <String, Object?>{
           'type': 'string',
+          'description':
+              'The HARM_CATEGORY_IMAGE_* categories are Agent Platform only; the Gemini Developer API rejects them.',
           'enum': [
             'HARM_CATEGORY_HARASSMENT',
             'HARM_CATEGORY_HATE_SPEECH',
