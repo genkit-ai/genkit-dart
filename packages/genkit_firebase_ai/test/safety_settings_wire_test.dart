@@ -129,6 +129,7 @@ void main() {
     },
     'a missing category': {'threshold': 'BLOCK_ONLY_HIGH'},
     'a missing threshold': {'category': 'HARM_CATEGORY_HATE_SPEECH'},
+    'a non-string category': {'category': 3, 'threshold': 'BLOCK_ONLY_HIGH'},
   };
   for (final MapEntry(key: name, value: setting) in invalid.entries) {
     test('$name throws invalidArgument and sends nothing', () async {
