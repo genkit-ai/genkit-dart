@@ -214,7 +214,7 @@ void main() {
 
       expect(model.customOptions, same(GeminiOptions.$schema));
       expect(
-        (model.metadata['model'] as Map)['customOptions'],
+        (model.metadata['model'] as Map<String, dynamic>)['customOptions'],
         isA<Map<String, dynamic>>(),
       );
     });
