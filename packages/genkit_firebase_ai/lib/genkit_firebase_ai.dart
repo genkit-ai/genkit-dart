@@ -396,21 +396,26 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         }
         _logger.info('Connected to model: $modelName');
 
-        // Send initial history
-        final initialMessages =
-            ctx.init?.messages.where((m) => m.role != Role.system).toList() ??
-            [];
-        for (final msg in initialMessages) {
-          await sendToLiveSession(session, msg);
-        }
-
         var closedByPlugin = false;
-        final sub = stream.listen(
-          (chunk) async {
-            for (final msg in chunk.messages) {
+        // The first failure to send, which ends the session.
+        (Object, StackTrace)? sendFailure;
+        Future<void> sendAll(Iterable<Message> messages) async {
+          try {
+            for (final msg in messages) {
               await sendToLiveSession(session, msg);
             }
-          },
+          } catch (e, stack) {
+            sendFailure ??= (e, stack);
+            closedByPlugin = true;
+            await session.close();
+          }
+        }
+
+        await sendAll(
+          ctx.init?.messages.where((m) => m.role != Role.system) ?? const [],
+        );
+        final sub = stream.listen(
+          (chunk) => sendAll(chunk.messages),
           onError: (e) {
             _logger.severe('InputStream error', e);
           },
@@ -432,6 +437,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           _logger.fine('Closing session');
           closedByPlugin = true;
           await session.close();
+        }
+        if (sendFailure case (final e, final stack)) {
+          throw toGenkitException(e, stack);
         }
 
         return ModelResponse(finishReason: FinishReason.stop);
