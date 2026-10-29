@@ -370,15 +370,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
       customOptions: LiveGenerationConfig.$schema,
       fn: (stream, ctx) async {
         final tools = toGeminiTools(ctx.init?.tools);
-        final systemMessage = ctx.init?.messages
-            .where((m) => m.role == Role.system)
-            .firstOrNull;
-        final systemInstruction = systemMessage != null
-            ? fai.Content(
-                'system',
-                systemMessage.content.map(toGeminiPart).toList(),
-              )
-            : null;
+        final systemInstruction = toGeminiSystemInstruction(
+          ctx.init?.messages ?? const [],
+        );
 
         final liveConfig = toLiveGenerationConfig(ctx.init?.config);
 
