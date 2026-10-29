@@ -45,6 +45,10 @@ base class GeminiOptions {
     bool? codeExecution,
     FunctionCallingConfig? functionCallingConfig,
     List<GeminiSafetySettings>? safetySettings,
+    GeminiGoogleSearch? googleSearch,
+    GeminiUrlContext? urlContext,
+    GeminiGoogleMaps? googleMaps,
+    GeminiRetrievalConfig? retrievalConfig,
   }) {
     _json = {
       'stopSequences': ?stopSequences,
@@ -63,6 +67,10 @@ base class GeminiOptions {
       'codeExecution': ?codeExecution,
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
       'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
+      'googleSearch': ?googleSearch?.toJson(),
+      'urlContext': ?urlContext?.toJson(),
+      'googleMaps': ?googleMaps?.toJson(),
+      'retrievalConfig': ?retrievalConfig?.toJson(),
     };
   }
 
@@ -274,6 +282,70 @@ base class GeminiOptions {
     }
   }
 
+  GeminiGoogleSearch? get googleSearch {
+    return _json['googleSearch'] == null
+        ? null
+        : GeminiGoogleSearch.fromJson(
+            _json['googleSearch'] as Map<String, dynamic>,
+          );
+  }
+
+  set googleSearch(GeminiGoogleSearch? value) {
+    if (value == null) {
+      _json.remove('googleSearch');
+    } else {
+      _json['googleSearch'] = value.toJson();
+    }
+  }
+
+  GeminiUrlContext? get urlContext {
+    return _json['urlContext'] == null
+        ? null
+        : GeminiUrlContext.fromJson(
+            _json['urlContext'] as Map<String, dynamic>,
+          );
+  }
+
+  set urlContext(GeminiUrlContext? value) {
+    if (value == null) {
+      _json.remove('urlContext');
+    } else {
+      _json['urlContext'] = value.toJson();
+    }
+  }
+
+  GeminiGoogleMaps? get googleMaps {
+    return _json['googleMaps'] == null
+        ? null
+        : GeminiGoogleMaps.fromJson(
+            _json['googleMaps'] as Map<String, dynamic>,
+          );
+  }
+
+  set googleMaps(GeminiGoogleMaps? value) {
+    if (value == null) {
+      _json.remove('googleMaps');
+    } else {
+      _json['googleMaps'] = value.toJson();
+    }
+  }
+
+  GeminiRetrievalConfig? get retrievalConfig {
+    return _json['retrievalConfig'] == null
+        ? null
+        : GeminiRetrievalConfig.fromJson(
+            _json['retrievalConfig'] as Map<String, dynamic>,
+          );
+  }
+
+  set retrievalConfig(GeminiRetrievalConfig? value) {
+    if (value == null) {
+      _json.remove('retrievalConfig');
+    } else {
+      _json['retrievalConfig'] = value.toJson();
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -338,13 +410,337 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
               'Per-category thresholds for blocking harmful content. Each entry needs a category and a threshold.',
           'items': <String, Object?>{r'$ref': r'#/$defs/GeminiSafetySettings'},
         },
+        'googleSearch': <String, Object?>{
+          'description': 'Grounds responses in Google Search results.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiGoogleSearch'},
+          ],
+        },
+        'urlContext': <String, Object?>{
+          'description': 'Lets the model read the URLs given in the prompt.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiUrlContext'},
+          ],
+        },
+        'googleMaps': <String, Object?>{
+          'description':
+              'Grounds responses in Google Maps data. Pass the user location in retrievalConfig.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiGoogleMaps'},
+          ],
+        },
+        'retrievalConfig': <String, Object?>{
+          'description': 'Location and language for Google Maps grounding.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiRetrievalConfig'},
+          ],
+        },
       },
     },
     dependencies: [
       ThinkingConfig.$schema,
       FunctionCallingConfig.$schema,
       GeminiSafetySettings.$schema,
+      GeminiGoogleSearch.$schema,
+      GeminiUrlContext.$schema,
+      GeminiGoogleMaps.$schema,
+      GeminiRetrievalConfig.$schema,
     ],
+  );
+}
+
+base class GeminiGoogleSearch {
+  /// Creates a [GeminiGoogleSearch] from a JSON map.
+  factory GeminiGoogleSearch.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiGoogleSearch._(this._json);
+
+  GeminiGoogleSearch() {
+    _json = {};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiGoogleSearch].
+  static const SchemanticType<GeminiGoogleSearch> $schema =
+      _GeminiGoogleSearchTypeFactory();
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiGoogleSearch] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiGoogleSearchTypeFactory
+    extends SchemanticType<GeminiGoogleSearch> {
+  const _GeminiGoogleSearchTypeFactory();
+
+  @override
+  GeminiGoogleSearch parse(Object? json) {
+    return GeminiGoogleSearch._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiGoogleSearch',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{},
+    },
+    dependencies: [],
+  );
+}
+
+base class GeminiUrlContext {
+  /// Creates a [GeminiUrlContext] from a JSON map.
+  factory GeminiUrlContext.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiUrlContext._(this._json);
+
+  GeminiUrlContext() {
+    _json = {};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiUrlContext].
+  static const SchemanticType<GeminiUrlContext> $schema =
+      _GeminiUrlContextTypeFactory();
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiUrlContext] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiUrlContextTypeFactory
+    extends SchemanticType<GeminiUrlContext> {
+  const _GeminiUrlContextTypeFactory();
+
+  @override
+  GeminiUrlContext parse(Object? json) {
+    return GeminiUrlContext._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiUrlContext',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{},
+    },
+    dependencies: [],
+  );
+}
+
+base class GeminiGoogleMaps {
+  /// Creates a [GeminiGoogleMaps] from a JSON map.
+  factory GeminiGoogleMaps.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiGoogleMaps._(this._json);
+
+  GeminiGoogleMaps() {
+    _json = {};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiGoogleMaps].
+  static const SchemanticType<GeminiGoogleMaps> $schema =
+      _GeminiGoogleMapsTypeFactory();
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiGoogleMaps] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiGoogleMapsTypeFactory
+    extends SchemanticType<GeminiGoogleMaps> {
+  const _GeminiGoogleMapsTypeFactory();
+
+  @override
+  GeminiGoogleMaps parse(Object? json) {
+    return GeminiGoogleMaps._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiGoogleMaps',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{},
+    },
+    dependencies: [],
+  );
+}
+
+base class GeminiRetrievalConfig {
+  /// Creates a [GeminiRetrievalConfig] from a JSON map.
+  factory GeminiRetrievalConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiRetrievalConfig._(this._json);
+
+  GeminiRetrievalConfig({GeminiLatLng? latLng, String? languageCode}) {
+    _json = {'latLng': ?latLng?.toJson(), 'languageCode': ?languageCode};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiRetrievalConfig].
+  static const SchemanticType<GeminiRetrievalConfig> $schema =
+      _GeminiRetrievalConfigTypeFactory();
+
+  GeminiLatLng? get latLng {
+    return _json['latLng'] == null
+        ? null
+        : GeminiLatLng.fromJson(_json['latLng'] as Map<String, dynamic>);
+  }
+
+  set latLng(GeminiLatLng? value) {
+    if (value == null) {
+      _json.remove('latLng');
+    } else {
+      _json['latLng'] = value.toJson();
+    }
+  }
+
+  String? get languageCode {
+    return _json['languageCode'] as String?;
+  }
+
+  set languageCode(String? value) {
+    if (value == null) {
+      _json.remove('languageCode');
+    } else {
+      _json['languageCode'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiRetrievalConfig] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiRetrievalConfigTypeFactory
+    extends SchemanticType<GeminiRetrievalConfig> {
+  const _GeminiRetrievalConfigTypeFactory();
+
+  @override
+  GeminiRetrievalConfig parse(Object? json) {
+    return GeminiRetrievalConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiRetrievalConfig',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'latLng': <String, Object?>{r'$ref': r'#/$defs/GeminiLatLng'},
+        'languageCode': <String, Object?>{'type': 'string'},
+      },
+    },
+    dependencies: [GeminiLatLng.$schema],
+  );
+}
+
+base class GeminiLatLng {
+  /// Creates a [GeminiLatLng] from a JSON map.
+  factory GeminiLatLng.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiLatLng._(this._json);
+
+  GeminiLatLng({double? latitude, double? longitude}) {
+    _json = {'latitude': ?latitude, 'longitude': ?longitude};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiLatLng].
+  static const SchemanticType<GeminiLatLng> $schema =
+      _GeminiLatLngTypeFactory();
+
+  double? get latitude {
+    return (_json['latitude'] as num?)?.toDouble();
+  }
+
+  set latitude(double? value) {
+    if (value == null) {
+      _json.remove('latitude');
+    } else {
+      _json['latitude'] = value;
+    }
+  }
+
+  double? get longitude {
+    return (_json['longitude'] as num?)?.toDouble();
+  }
+
+  set longitude(double? value) {
+    if (value == null) {
+      _json.remove('longitude');
+    } else {
+      _json['longitude'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiLatLng] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiLatLngTypeFactory extends SchemanticType<GeminiLatLng> {
+  const _GeminiLatLngTypeFactory();
+
+  @override
+  GeminiLatLng parse(Object? json) {
+    return GeminiLatLng._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiLatLng',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'latitude': <String, Object?>{'type': 'number'},
+        'longitude': <String, Object?>{'type': 'number'},
+      },
+    },
+    dependencies: [],
   );
 }
 
