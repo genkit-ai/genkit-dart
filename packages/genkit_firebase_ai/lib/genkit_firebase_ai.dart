@@ -359,18 +359,22 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             isJsonMode,
             constrained: req.output?.constrained ?? false,
           ),
-          tools: toGeminiTools(
-            req.tools,
-            codeExecution: options.codeExecution,
-            googleSearch: options.googleSearch != null,
-            urlContext: options.urlContext != null,
-            googleMaps: options.googleMaps != null,
+          tools: _readConfig(
+            () => toGeminiTools(
+              req.tools,
+              codeExecution: options.codeExecution,
+              googleSearch: options.googleSearch != null,
+              urlContext: options.urlContext != null,
+              googleMaps: options.googleMaps != null,
+            ),
           ),
-          toolConfig: toGeminiToolConfig(
-            options.functionCallingConfig,
-            toolChoice: req.toolChoice,
-            hasFunctionTools: req.tools?.isNotEmpty ?? false,
-            retrievalConfig: options.retrievalConfig,
+          toolConfig: _readConfig(
+            () => toGeminiToolConfig(
+              options.functionCallingConfig,
+              toolChoice: req.toolChoice,
+              hasFunctionTools: req.tools?.isNotEmpty ?? false,
+              retrievalConfig: options.retrievalConfig,
+            ),
           ),
           httpClient: transport,
         );
@@ -1271,6 +1275,21 @@ fai.FunctionCallingConfig? _toFunctionCallingConfig(
     'NONE' => fai.FunctionCallingConfig.none(),
     _ => fai.FunctionCallingConfig.auto(),
   };
+}
+
+/// Runs [read], reporting a wrongly typed config field, which fails in the
+/// generated getter, as [StatusCode.invalidArgument].
+T _readConfig<T>(T Function() read) {
+  try {
+    return read();
+  } on GenkitException {
+    rethrow;
+  } catch (e) {
+    throw GenkitException(
+      'Invalid model config: $e',
+      status: StatusCode.invalidArgument,
+    );
+  }
 }
 
 /// Throws a [GenkitException] with [StatusCode.invalidArgument] when `latLng`

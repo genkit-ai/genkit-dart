@@ -162,6 +162,27 @@ void main() {
     expect(client.requests, isEmpty);
   });
 
+  for (final MapEntry(key: name, value: config) in {
+    'googleSearch: true': {'googleSearch': true},
+    'a string retrievalConfig': {'retrievalConfig': 'London'},
+  }.entries) {
+    test('$name throws invalidArgument and sends nothing', () async {
+      final client = WireClient();
+
+      await expectLater(
+        wireModel(client)(userRequest('hello', config: config)),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+      expect(client.requests, isEmpty);
+    });
+  }
+
   for (final streaming in [false, true]) {
     test('grounding and URL context metadata reach custom and raw '
         '(streaming: $streaming)', () async {
