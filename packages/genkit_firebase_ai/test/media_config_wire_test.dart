@@ -112,6 +112,28 @@ void main() {
       });
     });
 
+    test('an empty voiceConfig next to multiple speakers throws '
+        'invalidArgument and sends nothing', () async {
+      await expectRejected({
+        'speechConfig': {
+          'voiceConfig': <String, Object?>{},
+          'multiSpeakerVoiceConfig': {
+            'speakerVoiceConfigs': [
+              {'speaker': 'Joe', 'voiceConfig': _voice('Puck')},
+            ],
+          },
+        },
+      });
+    });
+
+    test('no speakers throws invalidArgument and sends nothing', () async {
+      await expectRejected({
+        'speechConfig': {
+          'multiSpeakerVoiceConfig': {'speakerVoiceConfigs': <Object>[]},
+        },
+      });
+    });
+
     test('a speaker without a voice throws invalidArgument and sends '
         'nothing', () async {
       await expectRejected({
@@ -155,6 +177,31 @@ void main() {
 
     test('an unknown value throws invalidArgument and sends nothing', () async {
       await expectRejected({'mediaResolution': 'LOW'});
+    });
+
+    test('a non-string part mediaResolution throws invalidArgument and '
+        'sends nothing', () async {
+      final client = WireClient();
+
+      await expectLater(
+        wireModel(client)(
+          ModelRequest(
+            messages: [
+              Message(
+                role: Role.user,
+                content: [
+                  MediaPart(
+                    media: Media(url: 'data:image/png;base64,iVBORw0KGgo='),
+                    metadata: {'mediaResolution': 2},
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        _throwsInvalidArgument,
+      );
+      expect(client.requests, isEmpty);
     });
 
     test('a media part can set its own', () async {

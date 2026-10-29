@@ -770,7 +770,14 @@ fai.Part toGeminiPart(Part p) {
       if (uri.data != null) {
         final mimeType = media.contentType ?? _dataUriMimeType(uri.data!);
         final mediaResolution = _toMediaResolution(
-          p.metadata?['mediaResolution'] as String?,
+          switch (p.metadata?['mediaResolution']) {
+            null => null,
+            final String value => value,
+            final other => throw GenkitException(
+              'metadata.mediaResolution must be a string, not $other.',
+              status: StatusCode.invalidArgument,
+            ),
+          },
         );
         try {
           return fai.InlineDataPart.forTest(
@@ -1274,9 +1281,15 @@ fai.SpeechConfig? toGeminiSpeechConfig(SpeechConfig? config) {
       languageCode: config.languageCode,
     );
   }
-  if (voiceName != null) {
+  if (config.voiceConfig != null) {
     throw GenkitException(
       'speechConfig cannot set both voiceConfig and multiSpeakerVoiceConfig.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  if (multi.speakerVoiceConfigs?.isEmpty ?? true) {
+    throw GenkitException(
+      'multiSpeakerVoiceConfig needs at least one speakerVoiceConfigs entry.',
       status: StatusCode.invalidArgument,
     );
   }
