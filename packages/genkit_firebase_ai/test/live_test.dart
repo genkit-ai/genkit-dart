@@ -42,6 +42,7 @@ void main() {
           'voiceConfig': {
             'prebuiltVoiceConfig': {'voiceName': 'Kore'},
           },
+          'languageCode': 'en-GB',
         },
         'maxOutputTokens': 256,
         'temperature': 1,
@@ -53,6 +54,7 @@ void main() {
 
       expect(config.responseModalities, [fai.ResponseModalities.audio]);
       expect(config.speechConfig!.voiceName, 'Kore');
+      expect(config.speechConfig!.languageCode, 'en-GB');
       expect(config.maxOutputTokens, 256);
       expect(config.temperature, 1.0);
       expect(config.topP, 0.9);

@@ -49,6 +49,9 @@ base class GeminiOptions {
     GeminiUrlContext? urlContext,
     GeminiGoogleMaps? googleMaps,
     GeminiRetrievalConfig? retrievalConfig,
+    SpeechConfig? speechConfig,
+    GeminiImageConfig? imageConfig,
+    String? mediaResolution,
   }) {
     _json = {
       'stopSequences': ?stopSequences,
@@ -71,6 +74,9 @@ base class GeminiOptions {
       'urlContext': ?urlContext?.toJson(),
       'googleMaps': ?googleMaps?.toJson(),
       'retrievalConfig': ?retrievalConfig?.toJson(),
+      'speechConfig': ?speechConfig?.toJson(),
+      'imageConfig': ?imageConfig?.toJson(),
+      'mediaResolution': ?mediaResolution,
     };
   }
 
@@ -346,6 +352,48 @@ base class GeminiOptions {
     }
   }
 
+  SpeechConfig? get speechConfig {
+    return _json['speechConfig'] == null
+        ? null
+        : SpeechConfig.fromJson(_json['speechConfig'] as Map<String, dynamic>);
+  }
+
+  set speechConfig(SpeechConfig? value) {
+    if (value == null) {
+      _json.remove('speechConfig');
+    } else {
+      _json['speechConfig'] = value.toJson();
+    }
+  }
+
+  GeminiImageConfig? get imageConfig {
+    return _json['imageConfig'] == null
+        ? null
+        : GeminiImageConfig.fromJson(
+            _json['imageConfig'] as Map<String, dynamic>,
+          );
+  }
+
+  set imageConfig(GeminiImageConfig? value) {
+    if (value == null) {
+      _json.remove('imageConfig');
+    } else {
+      _json['imageConfig'] = value.toJson();
+    }
+  }
+
+  String? get mediaResolution {
+    return _json['mediaResolution'] as String?;
+  }
+
+  set mediaResolution(String? value) {
+    if (value == null) {
+      _json.remove('mediaResolution');
+    } else {
+      _json['mediaResolution'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -435,6 +483,29 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
             <String, Object?>{r'$ref': r'#/$defs/GeminiRetrievalConfig'},
           ],
         },
+        'speechConfig': <String, Object?>{
+          'description': 'Voice and language for text-to-speech models.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/SpeechConfig'},
+          ],
+        },
+        'imageConfig': <String, Object?>{
+          'description': 'Aspect ratio and size for image generation models.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiImageConfig'},
+          ],
+        },
+        'mediaResolution': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Resolution for media inputs. A media part can set its own in metadata.mediaResolution.',
+          'enum': [
+            'MEDIA_RESOLUTION_LOW',
+            'MEDIA_RESOLUTION_MEDIUM',
+            'MEDIA_RESOLUTION_HIGH',
+            'MEDIA_RESOLUTION_ULTRA_HIGH',
+          ],
+        },
       },
     },
     dependencies: [
@@ -445,7 +516,105 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
       GeminiUrlContext.$schema,
       GeminiGoogleMaps.$schema,
       GeminiRetrievalConfig.$schema,
+      SpeechConfig.$schema,
+      GeminiImageConfig.$schema,
     ],
+  );
+}
+
+base class GeminiImageConfig {
+  /// Creates a [GeminiImageConfig] from a JSON map.
+  factory GeminiImageConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiImageConfig._(this._json);
+
+  GeminiImageConfig({String? aspectRatio, String? imageSize}) {
+    _json = {'aspectRatio': ?aspectRatio, 'imageSize': ?imageSize};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiImageConfig].
+  static const SchemanticType<GeminiImageConfig> $schema =
+      _GeminiImageConfigTypeFactory();
+
+  String? get aspectRatio {
+    return _json['aspectRatio'] as String?;
+  }
+
+  set aspectRatio(String? value) {
+    if (value == null) {
+      _json.remove('aspectRatio');
+    } else {
+      _json['aspectRatio'] = value;
+    }
+  }
+
+  String? get imageSize {
+    return _json['imageSize'] as String?;
+  }
+
+  set imageSize(String? value) {
+    if (value == null) {
+      _json.remove('imageSize');
+    } else {
+      _json['imageSize'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiImageConfig] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiImageConfigTypeFactory
+    extends SchemanticType<GeminiImageConfig> {
+  const _GeminiImageConfigTypeFactory();
+
+  @override
+  GeminiImageConfig parse(Object? json) {
+    return GeminiImageConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiImageConfig',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'aspectRatio': <String, Object?>{
+          'type': 'string',
+          'enum': [
+            '1:1',
+            '9:16',
+            '16:9',
+            '3:4',
+            '4:3',
+            '2:3',
+            '3:2',
+            '4:5',
+            '5:4',
+            '1:4',
+            '4:1',
+            '1:8',
+            '8:1',
+            '21:9',
+          ],
+        },
+        'imageSize': <String, Object?>{
+          'type': 'string',
+          'enum': ['512', '1K', '2K', '4K'],
+        },
+      },
+    },
+    dependencies: [],
   );
 }
 
@@ -1176,8 +1345,16 @@ base class SpeechConfig {
 
   SpeechConfig._(this._json);
 
-  SpeechConfig({VoiceConfig? voiceConfig}) {
-    _json = {'voiceConfig': ?voiceConfig?.toJson()};
+  SpeechConfig({
+    VoiceConfig? voiceConfig,
+    MultiSpeakerVoiceConfig? multiSpeakerVoiceConfig,
+    String? languageCode,
+  }) {
+    _json = {
+      'voiceConfig': ?voiceConfig?.toJson(),
+      'multiSpeakerVoiceConfig': ?multiSpeakerVoiceConfig?.toJson(),
+      'languageCode': ?languageCode,
+    };
   }
 
   late final Map<String, dynamic> _json;
@@ -1197,6 +1374,34 @@ base class SpeechConfig {
       _json.remove('voiceConfig');
     } else {
       _json['voiceConfig'] = value.toJson();
+    }
+  }
+
+  MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig {
+    return _json['multiSpeakerVoiceConfig'] == null
+        ? null
+        : MultiSpeakerVoiceConfig.fromJson(
+            _json['multiSpeakerVoiceConfig'] as Map<String, dynamic>,
+          );
+  }
+
+  set multiSpeakerVoiceConfig(MultiSpeakerVoiceConfig? value) {
+    if (value == null) {
+      _json.remove('multiSpeakerVoiceConfig');
+    } else {
+      _json['multiSpeakerVoiceConfig'] = value.toJson();
+    }
+  }
+
+  String? get languageCode {
+    return _json['languageCode'] as String?;
+  }
+
+  set languageCode(String? value) {
+    if (value == null) {
+      _json.remove('languageCode');
+    } else {
+      _json['languageCode'] = value;
     }
   }
 
@@ -1225,6 +1430,168 @@ base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
+        'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/VoiceConfig'},
+        'multiSpeakerVoiceConfig': <String, Object?>{
+          'description':
+              'Voices for a multi-speaker conversation. Cannot be set together with voiceConfig.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/MultiSpeakerVoiceConfig'},
+          ],
+        },
+        'languageCode': <String, Object?>{
+          'type': 'string',
+          'description': 'BCP-47 language code, for example en-US.',
+        },
+      },
+    },
+    dependencies: [VoiceConfig.$schema, MultiSpeakerVoiceConfig.$schema],
+  );
+}
+
+base class MultiSpeakerVoiceConfig {
+  /// Creates a [MultiSpeakerVoiceConfig] from a JSON map.
+  factory MultiSpeakerVoiceConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  MultiSpeakerVoiceConfig._(this._json);
+
+  MultiSpeakerVoiceConfig({List<SpeakerVoiceConfig>? speakerVoiceConfigs}) {
+    _json = {
+      'speakerVoiceConfigs': ?speakerVoiceConfigs
+          ?.map((e) => e.toJson())
+          .toList(),
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [MultiSpeakerVoiceConfig].
+  static const SchemanticType<MultiSpeakerVoiceConfig> $schema =
+      _MultiSpeakerVoiceConfigTypeFactory();
+
+  List<SpeakerVoiceConfig>? get speakerVoiceConfigs {
+    return (_json['speakerVoiceConfigs'] as List?)
+        ?.map((e) => SpeakerVoiceConfig.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set speakerVoiceConfigs(List<SpeakerVoiceConfig>? value) {
+    if (value == null) {
+      _json.remove('speakerVoiceConfigs');
+    } else {
+      _json['speakerVoiceConfigs'] = value.map((e) => e.toJson()).toList();
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [MultiSpeakerVoiceConfig] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _MultiSpeakerVoiceConfigTypeFactory
+    extends SchemanticType<MultiSpeakerVoiceConfig> {
+  const _MultiSpeakerVoiceConfigTypeFactory();
+
+  @override
+  MultiSpeakerVoiceConfig parse(Object? json) {
+    return MultiSpeakerVoiceConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MultiSpeakerVoiceConfig',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'speakerVoiceConfigs': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/SpeakerVoiceConfig'},
+        },
+      },
+    },
+    dependencies: [SpeakerVoiceConfig.$schema],
+  );
+}
+
+base class SpeakerVoiceConfig {
+  /// Creates a [SpeakerVoiceConfig] from a JSON map.
+  factory SpeakerVoiceConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  SpeakerVoiceConfig._(this._json);
+
+  SpeakerVoiceConfig({String? speaker, VoiceConfig? voiceConfig}) {
+    _json = {'speaker': ?speaker, 'voiceConfig': ?voiceConfig?.toJson()};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [SpeakerVoiceConfig].
+  static const SchemanticType<SpeakerVoiceConfig> $schema =
+      _SpeakerVoiceConfigTypeFactory();
+
+  String? get speaker {
+    return _json['speaker'] as String?;
+  }
+
+  set speaker(String? value) {
+    if (value == null) {
+      _json.remove('speaker');
+    } else {
+      _json['speaker'] = value;
+    }
+  }
+
+  VoiceConfig? get voiceConfig {
+    return _json['voiceConfig'] == null
+        ? null
+        : VoiceConfig.fromJson(_json['voiceConfig'] as Map<String, dynamic>);
+  }
+
+  set voiceConfig(VoiceConfig? value) {
+    if (value == null) {
+      _json.remove('voiceConfig');
+    } else {
+      _json['voiceConfig'] = value.toJson();
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [SpeakerVoiceConfig] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _SpeakerVoiceConfigTypeFactory
+    extends SchemanticType<SpeakerVoiceConfig> {
+  const _SpeakerVoiceConfigTypeFactory();
+
+  @override
+  SpeakerVoiceConfig parse(Object? json) {
+    return SpeakerVoiceConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'SpeakerVoiceConfig',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'speaker': <String, Object?>{
+          'type': 'string',
+          'description': 'The speaker name used in the prompt.',
+        },
         'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/VoiceConfig'},
       },
     },

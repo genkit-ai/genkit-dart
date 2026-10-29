@@ -103,6 +103,48 @@ abstract class $GeminiOptions {
   $GeminiGoogleMaps? get googleMaps;
   @Field(description: 'Location and language for Google Maps grounding.')
   $GeminiRetrievalConfig? get retrievalConfig;
+  @Field(description: 'Voice and language for text-to-speech models.')
+  $SpeechConfig? get speechConfig;
+  @Field(description: 'Aspect ratio and size for image generation models.')
+  $GeminiImageConfig? get imageConfig;
+  @StringField(
+    enumValues: [
+      'MEDIA_RESOLUTION_LOW',
+      'MEDIA_RESOLUTION_MEDIUM',
+      'MEDIA_RESOLUTION_HIGH',
+      'MEDIA_RESOLUTION_ULTRA_HIGH',
+    ],
+    description:
+        'Resolution for media inputs. A media part can set its own in '
+        'metadata.mediaResolution.',
+  )
+  String? get mediaResolution;
+}
+
+@Schema()
+abstract class $GeminiImageConfig {
+  @StringField(
+    enumValues: [
+      '1:1',
+      '9:16',
+      '16:9',
+      '3:4',
+      '4:3',
+      '2:3',
+      '3:2',
+      '4:5',
+      '5:4',
+      '1:4',
+      '4:1',
+      '1:8',
+      '8:1',
+      '21:9',
+    ],
+  )
+  String? get aspectRatio;
+
+  @StringField(enumValues: ['512', '1K', '2K', '4K'])
+  String? get imageSize;
 }
 
 @Schema()
@@ -198,6 +240,26 @@ abstract class $VoiceConfig {
 
 @Schema()
 abstract class $SpeechConfig {
+  $VoiceConfig? get voiceConfig;
+  @Field(
+    description:
+        'Voices for a multi-speaker conversation. Cannot be set together '
+        'with voiceConfig.',
+  )
+  $MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig;
+  @Field(description: 'BCP-47 language code, for example en-US.')
+  String? get languageCode;
+}
+
+@Schema()
+abstract class $MultiSpeakerVoiceConfig {
+  List<$SpeakerVoiceConfig>? get speakerVoiceConfigs;
+}
+
+@Schema()
+abstract class $SpeakerVoiceConfig {
+  @Field(description: 'The speaker name used in the prompt.')
+  String? get speaker;
   $VoiceConfig? get voiceConfig;
 }
 
@@ -575,11 +637,7 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
     responseModalities: options.responseModalities
         ?.map((e) => fai.ResponseModalities.values.byName(e.toLowerCase()))
         .toList(),
-    speechConfig: speechConfig == null
-        ? null
-        : fai.SpeechConfig(
-            voiceName: speechConfig.voiceConfig?.prebuiltVoiceConfig?.voiceName,
-          ),
+    speechConfig: toGeminiSpeechConfig(speechConfig),
     maxOutputTokens: options.maxOutputTokens,
     temperature: options.temperature,
     topP: options.topP,
@@ -711,10 +769,21 @@ fai.Part toGeminiPart(Part p) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
         final mimeType = media.contentType ?? _dataUriMimeType(uri.data!);
+        final mediaResolution = _toMediaResolution(
+          switch (p.metadata?['mediaResolution']) {
+            null => null,
+            final String value => value,
+            final other => throw GenkitException(
+              'metadata.mediaResolution must be a string, not $other.',
+              status: StatusCode.invalidArgument,
+            ),
+          },
+        );
         try {
           return fai.InlineDataPart.forTest(
             mimeType,
             uri.data!.contentAsBytes(),
+            mediaResolution: mediaResolution,
             isThought: isThought,
             thoughtSignature: thoughtSignature,
           );
@@ -722,6 +791,7 @@ fai.Part toGeminiPart(Part p) {
           return fai.InlineDataPart(
             mimeType,
             uri.data!.contentAsBytes(),
+            mediaResolution: mediaResolution,
             isThought: isThought,
           );
         }
@@ -1190,6 +1260,109 @@ fai.GenerationConfig _toGeminiSettings(
     thinkingConfig: options.thinkingConfig == null
         ? null
         : _toGeminiThinkingConfig(options.thinkingConfig!),
+    speechConfig: toGeminiSpeechConfig(options.speechConfig),
+    imageConfig: _toGeminiImageConfig(options.imageConfig),
+    mediaResolution: _toMediaResolution(options.mediaResolution),
+  );
+}
+
+/// Converts [config] to a `firebase_ai` speech config.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] when both a
+/// voice and multiple speakers are set, or a speaker lacks a name or voice.
+@visibleForTesting
+fai.SpeechConfig? toGeminiSpeechConfig(SpeechConfig? config) {
+  if (config == null) return null;
+  final voiceName = config.voiceConfig?.prebuiltVoiceConfig?.voiceName;
+  final multi = config.multiSpeakerVoiceConfig;
+  if (multi == null) {
+    return fai.SpeechConfig(
+      voiceName: voiceName,
+      languageCode: config.languageCode,
+    );
+  }
+  if (config.voiceConfig != null) {
+    throw GenkitException(
+      'speechConfig cannot set both voiceConfig and multiSpeakerVoiceConfig.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  if (multi.speakerVoiceConfigs?.isEmpty ?? true) {
+    throw GenkitException(
+      'multiSpeakerVoiceConfig needs at least one speakerVoiceConfigs entry.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  return fai.SpeechConfig.multiSpeaker(
+    multiSpeakerVoiceConfig: fai.MultiSpeakerVoiceConfig(
+      speakerVoiceConfigs: [
+        for (final speaker
+            in multi.speakerVoiceConfigs ?? <SpeakerVoiceConfig>[])
+          switch (speaker) {
+            SpeakerVoiceConfig(
+              speaker: final name?,
+              voiceConfig: VoiceConfig(
+                prebuiltVoiceConfig: PrebuiltVoiceConfig(
+                  voiceName: final voice?,
+                ),
+              ),
+            ) =>
+              fai.SpeakerVoiceConfig(speaker: name, voiceName: voice),
+            _ => throw GenkitException(
+              'Each speakerVoiceConfigs entry needs a speaker and a '
+              'voiceConfig.prebuiltVoiceConfig.voiceName.',
+              status: StatusCode.invalidArgument,
+            ),
+          },
+      ],
+    ),
+    languageCode: config.languageCode,
+  );
+}
+
+fai.ImageConfig? _toGeminiImageConfig(GeminiImageConfig? config) {
+  if (config == null) return null;
+  return fai.ImageConfig(
+    aspectRatio: _byWireName(
+      'imageConfig.aspectRatio',
+      config.aspectRatio,
+      fai.ImageAspectRatio.values,
+      (r) => r.toJson(),
+    ),
+    imageSize: _byWireName(
+      'imageConfig.imageSize',
+      config.imageSize,
+      fai.ImageSize.values,
+      (s) => s.toJson(),
+    ),
+  );
+}
+
+fai.MediaResolution? _toMediaResolution(String? value) => _byWireName(
+  'mediaResolution',
+  value,
+  fai.MediaResolution.values.where((r) => r != fai.MediaResolution.unspecified),
+  (r) => r.toJson(),
+);
+
+/// The value of [values] whose wire name is [value], or null when [value] is.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for an unknown
+/// [value] in [field].
+T? _byWireName<T>(
+  String field,
+  String? value,
+  Iterable<T> values,
+  String Function(T) wireName,
+) {
+  if (value == null) return null;
+  for (final v in values) {
+    if (wireName(v) == value) return v;
+  }
+  throw GenkitException(
+    'Unknown $field "$value"; expected one of '
+    '${values.map(wireName).join(', ')}.',
+    status: StatusCode.invalidArgument,
   );
 }
 
