@@ -84,6 +84,63 @@ void main() {
     });
   });
 
+  group('LiveSender', () {
+    Message text(String t) => Message(
+      role: Role.user,
+      content: [TextPart(text: t)],
+    );
+
+    test('sends messages in the order they were added', () async {
+      final session = _SlowLiveSession();
+      final sender = LiveSender(session)
+        ..add([text('one'), text('two')])
+        ..add([text('three')]);
+
+      await sender.flush();
+
+      expect(session.sent, ['one', 'two', 'three']);
+    });
+
+    test('flushing before close sends what was queued', () async {
+      final session = _SlowLiveSession();
+      final sender = LiveSender(session)..add([text('last')]);
+
+      await sender.flush();
+      await sender.close();
+
+      expect(session.sent, ['last']);
+      expect(session.closeCalls, 1);
+      expect(sender.closed, isTrue);
+    });
+
+    test('a failure closes the session and stops later sends', () async {
+      final session = _SlowLiveSession(failOn: 'bad');
+      final sender = LiveSender(session)
+        ..add([text('ok'), text('bad'), text('never')])
+        ..add([text('also never')]);
+
+      await sender.flush();
+
+      expect(session.sent, ['ok']);
+      expect(sender.failure?.$1, isA<StateError>());
+      expect(sender.closed, isTrue);
+      expect(session.closeCalls, 1);
+    });
+
+    test('nothing is sent after close', () async {
+      final session = _SlowLiveSession();
+      final sender = LiveSender(session);
+
+      await sender.close();
+      sender.add([text('late')]);
+      await sender.flush();
+      await sender.close();
+
+      expect(session.sent, isEmpty);
+      expect(session.closeCalls, 1);
+    });
+  });
+
   group('receiveLiveSession', () {
     final text = fai.LiveServerContent(
       modelTurn: fai.Content.model([fai.TextPart('hi')]),
@@ -300,6 +357,30 @@ class _ReceivingLiveSession implements fai.LiveSession {
     yield* Stream.fromIterable(events);
     if (error case final error?) throw error;
   }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Records sent turn text, yielding between sends as a real socket write
+/// can, and throws a [StateError] for the text [failOn].
+class _SlowLiveSession implements fai.LiveSession {
+  _SlowLiveSession({this.failOn});
+
+  final String? failOn;
+  final sent = <String>[];
+  int closeCalls = 0;
+
+  @override
+  Future<void> send({fai.Content? input, bool turnComplete = false}) async {
+    await Future<void>.delayed(Duration.zero);
+    final text = (input!.parts.single as fai.TextPart).text;
+    if (text == failOn) throw StateError('socket closed');
+    sent.add(text);
+  }
+
+  @override
+  Future<void> close() async => closeCalls++;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

@@ -396,33 +396,21 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         }
         _logger.info('Connected to model: $modelName');
 
-        var closedByPlugin = false;
-        // The first failure to send, which ends the session.
-        (Object, StackTrace)? sendFailure;
-        Future<void> sendAll(Iterable<Message> messages) async {
-          try {
-            for (final msg in messages) {
-              await sendToLiveSession(session, msg);
-            }
-          } catch (e, stack) {
-            sendFailure ??= (e, stack);
-            closedByPlugin = true;
-            await session.close();
-          }
-        }
-
-        await sendAll(
-          ctx.init?.messages.where((m) => m.role != Role.system) ?? const [],
-        );
+        final sender = LiveSender(session)
+          ..add(
+            ctx.init?.messages.where((m) => m.role != Role.system) ?? const [],
+          );
+        await sender.flush();
         final sub = stream.listen(
-          (chunk) => sendAll(chunk.messages),
+          (chunk) => sender.add(chunk.messages),
           onError: (e) {
             _logger.severe('InputStream error', e);
           },
-          onDone: () {
+          onDone: () async {
             _logger.info('InputStream done');
-            closedByPlugin = true;
-            session.close();
+            // Let messages already queued go out before closing.
+            await sender.flush();
+            await sender.close();
           },
         );
 
@@ -430,15 +418,14 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           await receiveLiveSession(
             session,
             ctx.sendChunk,
-            closedByPlugin: () => closedByPlugin,
+            closedByPlugin: () => sender.closed,
           );
         } finally {
           await sub.cancel();
           _logger.fine('Closing session');
-          closedByPlugin = true;
-          await session.close();
+          await sender.close();
         }
-        if (sendFailure case (final e, final stack)) {
+        if (sender.failure case (final e, final stack)) {
           throw toGenkitException(e, stack);
         }
 
@@ -494,6 +481,56 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
   );
+}
+
+/// Sends messages to a Live session one at a time, in the order they were
+/// added.
+///
+/// Input chunks arrive faster than they are sent, so without the queue their
+/// parts could interleave on the socket. The first failure closes the session
+/// and is kept in [failure]; nothing is sent after it, or after [close].
+@visibleForTesting
+class LiveSender {
+  LiveSender(this._session);
+
+  final fai.LiveSession _session;
+  Future<void> _pending = Future.value();
+
+  /// The first failure to send, which ended the session.
+  (Object, StackTrace)? failure;
+
+  /// Whether the plugin closed the session.
+  bool get closed => _closed;
+  bool _closed = false;
+
+  /// Queues [messages] after everything added before.
+  void add(Iterable<Message> messages) {
+    final batch = messages.toList();
+    _pending = _pending.then((_) => _send(batch));
+  }
+
+  /// Completes once every message added so far has been sent or dropped.
+  Future<void> flush() => _pending;
+
+  /// Closes the session. Messages still queued are dropped.
+  Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    await _session.close();
+  }
+
+  Future<void> _send(List<Message> messages) async {
+    for (final msg in messages) {
+      if (_closed) return;
+      try {
+        await sendToLiveSession(_session, msg);
+      } catch (e, stack) {
+        failure ??= (e, stack);
+        await close();
+        return;
+      }
+    }
+  }
 }
 
 /// Forwards [session]'s events to [onChunk] until it ends.
