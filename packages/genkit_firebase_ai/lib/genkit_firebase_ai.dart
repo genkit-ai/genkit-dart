@@ -568,9 +568,20 @@ Future<void> receiveLiveSession(
 /// and media in model messages (history), go inside the turn instead. All tool responses go
 /// out together, and the remaining parts as one complete client turn, so the
 /// model does not answer before the whole message is in.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a system
+/// message, which a session takes only in its initial request.
 @visibleForTesting
 Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
   _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
+  if (msg.role == Role.system) {
+    // The system instruction is fixed when the session is set up, and sending
+    // the text as a user turn would change what it means.
+    throw GenkitException(
+      'A Live session takes system messages only in its initial request.',
+      status: StatusCode.invalidArgument,
+    );
+  }
 
   final parts = msg.content.map(toGeminiPart).toList();
   final toolResponses = parts.whereType<fai.FunctionResponse>().toList();

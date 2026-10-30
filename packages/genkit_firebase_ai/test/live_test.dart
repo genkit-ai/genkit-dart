@@ -190,6 +190,28 @@ void main() {
   });
 
   group('sendToLiveSession', () {
+    test('rejects a system message', () async {
+      final session = _FakeLiveSession();
+
+      await expectLater(
+        sendToLiveSession(
+          session,
+          Message(
+            role: Role.system,
+            content: [TextPart(text: 'Be terse.')],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+      expect(session.calls, isEmpty);
+    });
+
     Part media(String contentType) => MediaPart(
       media: Media(
         url: 'data:$contentType;base64,AAAA',
