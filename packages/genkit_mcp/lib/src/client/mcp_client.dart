@@ -625,6 +625,10 @@ class GenkitMcpClient {
     final subscription = _client!.listenSubscriptions(
       mcp.SubscriptionsListenRequest(notifications: filter),
     );
+    // If opening fails, the caller gets the error from `acknowledged`, and the
+    // same error on `done` must not be unhandled. This registers before any
+    // await so `done` can't fail first. Later listeners still see its result.
+    subscription.done.ignore();
     _openingSubscriptions.add(subscription);
     final notifications = subscription.notifications.listen(
       (notification) {
@@ -648,9 +652,6 @@ class GenkitMcpClient {
       return _ClientSubscription(subscription, notifications, acknowledged);
     } catch (_) {
       subscription.cancel();
-      // The caller gets the error from `acknowledged`. Without this, the same
-      // error on `done` would be unhandled.
-      subscription.done.ignore();
       await notifications.cancel();
       rethrow;
     } finally {
