@@ -750,6 +750,13 @@ Part fromGeminiPart(gcl.Part p) {
       );
     }
   }
+  // Thinking models can send a thought signature in a part of its own, with
+  // no content. Keep it, so it goes back to the model on the next turn.
+  if (p.thoughtSignature != null) {
+    return p.thought == true
+        ? ReasoningPart(reasoning: '', metadata: metadata)
+        : TextPart(text: '', metadata: metadata);
+  }
   throw UnimplementedError('Unsupported part type: ${p.toJson()}');
 }
 
