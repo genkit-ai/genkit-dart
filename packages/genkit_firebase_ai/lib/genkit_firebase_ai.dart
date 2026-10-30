@@ -267,7 +267,11 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
-        final transport = _StatusRecordingClient(_httpClient);
+        ctx.cancel?.throwIfCancelled();
+        final transport = _StatusRecordingClient(
+          _httpClient,
+          abortTrigger: ctx.cancel?.whenCancelled,
+        );
         final model = _firebaseAI.generativeModel(
           model: modelName,
           generationConfig: toGeminiSettings(
@@ -284,14 +288,20 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           ),
           httpClient: transport,
         );
-        GenkitException mapError(Object e, StackTrace stack) =>
-            toGenkitException(
-              e,
-              stack,
-              httpStatus: transport.lastStatusCode,
-              errorStatus: transport.lastError?.status,
-              errorMessage: transport.lastError?.message,
-            );
+        GenkitException mapError(Object e, StackTrace stack) {
+          // An aborted request surfaces as a transport error; report the
+          // cancellation instead.
+          if (ctx.cancel case final cancel? when cancel.isCancelled) {
+            return CancelledException(reason: cancel.reason, token: cancel);
+          }
+          return toGenkitException(
+            e,
+            stack,
+            httpStatus: transport.lastStatusCode,
+            errorStatus: transport.lastError?.status,
+            errorMessage: transport.lastError?.message,
+          );
+        }
 
         if (ctx.streamingRequested) {
           final stream = model
@@ -299,6 +309,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               .handleError((Object e, StackTrace s) => throw mapError(e, s));
           final chunks = <fai.GenerateContentResponse>[];
           await for (final chunk in stream) {
+            ctx.cancel?.throwIfCancelled();
             chunks.add(chunk);
             if (chunk.candidates.isNotEmpty) {
               final (message, finishReason) = fromGeminiCandidate(
@@ -309,6 +320,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
               );
             }
           }
+          ctx.cancel?.throwIfCancelled();
           final aggregated = aggregateResponses(chunks);
           if (aggregated.candidates.isEmpty) {
             throw _noCandidatesException(aggregated.promptFeedback);
@@ -333,6 +345,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           } catch (e, stack) {
             throw mapError(e, stack);
           }
+          ctx.cancel?.throwIfCancelled();
 
           if (response.candidates.isEmpty) {
             throw _noCandidatesException(response.promptFeedback);
@@ -395,11 +408,16 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           throw toGenkitException(e, stack);
         }
         _logger.info('Connected to model: $modelName');
-
-        final sender = LiveSender(session)
-          ..add(
-            ctx.init?.messages.where((m) => m.role != Role.system) ?? const [],
-          );
+        final sender = LiveSender(session);
+        // Closing through the sender marks the close as the plugin's, so it
+        // is not reported as the server ending the session. A cancel during
+        // connect() closes the session at once; stop here rather than send
+        // history to it.
+        final disposeCancel = ctx.cancel?.onCancel(sender.close);
+        ctx.cancel?.throwIfCancelled();
+        sender.add(
+          ctx.init?.messages.where((m) => m.role != Role.system) ?? const [],
+        );
         await sender.flush();
         final sub = stream.listen(
           (chunk) => sender.add(chunk.messages),
@@ -421,6 +439,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             closedByPlugin: () => sender.closed,
           );
         } finally {
+          disposeCancel?.call();
           await sub.cancel();
           _logger.fine('Closing session');
           await sender.close();
@@ -1224,10 +1243,37 @@ Map<String, dynamic> _rawSafetyRating(fai.SafetyRating rating) => {
 
 /// Records the HTTP status and the error body's gRPC status of the last
 /// response, which `firebase_ai` drops from the exceptions it throws.
+///
+/// When [abortTrigger] completes, the in-flight request is aborted. That needs
+/// a client that honours [http.Abortable], as `IOClient` and `BrowserClient`
+/// do; with any other client, cancellation lands at the next checkpoint.
 class _StatusRecordingClient extends http.BaseClient {
-  _StatusRecordingClient(this._inner);
+  _StatusRecordingClient(this._inner, {this.abortTrigger});
 
   final http.Client _inner;
+
+  final Future<void>? abortTrigger;
+
+  /// [request] as an [http.AbortableRequest] tied to [abortTrigger].
+  /// `firebase_ai` sends plain [http.Request]s.
+  http.BaseRequest _abortable(http.BaseRequest request) {
+    if ((abortTrigger, request) case (
+      final trigger?,
+      final http.Request plain,
+    ) when plain is! http.Abortable) {
+      return http.AbortableRequest(
+          plain.method,
+          plain.url,
+          abortTrigger: trigger,
+        )
+        ..headers.addAll(plain.headers)
+        ..bodyBytes = plain.bodyBytes
+        ..followRedirects = plain.followRedirects
+        ..maxRedirects = plain.maxRedirects
+        ..persistentConnection = plain.persistentConnection;
+    }
+    return request;
+  }
 
   int? lastStatusCode;
 
@@ -1236,7 +1282,7 @@ class _StatusRecordingClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    final response = await _inner.send(request);
+    final response = await _inner.send(_abortable(request));
     lastStatusCode = response.statusCode;
     lastError = null;
     if (response.statusCode != 200) {
