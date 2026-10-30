@@ -84,7 +84,134 @@ void main() {
     });
   });
 
+  group('LiveSender', () {
+    Message text(String t) => Message(
+      role: Role.user,
+      content: [TextPart(text: t)],
+    );
+
+    test('sends messages in the order they were added', () async {
+      final session = _SlowLiveSession();
+      final sender = LiveSender(session)
+        ..add([text('one'), text('two')])
+        ..add([text('three')]);
+
+      await sender.flush();
+
+      expect(session.sent, ['one', 'two', 'three']);
+    });
+
+    test('flushing before close sends what was queued', () async {
+      final session = _SlowLiveSession();
+      final sender = LiveSender(session)..add([text('last')]);
+
+      await sender.flush();
+      await sender.close();
+
+      expect(session.sent, ['last']);
+      expect(session.closeCalls, 1);
+      expect(sender.closed, isTrue);
+    });
+
+    test('a failure closes the session and stops later sends', () async {
+      final session = _SlowLiveSession(failOn: 'bad');
+      final sender = LiveSender(session)
+        ..add([text('ok'), text('bad'), text('never')])
+        ..add([text('also never')]);
+
+      await sender.flush();
+
+      expect(session.sent, ['ok']);
+      expect(sender.failure?.$1, isA<StateError>());
+      expect(sender.closed, isTrue);
+      expect(session.closeCalls, 1);
+    });
+
+    test('nothing is sent after close', () async {
+      final session = _SlowLiveSession();
+      final sender = LiveSender(session);
+
+      await sender.close();
+      sender.add([text('late')]);
+      await sender.flush();
+      await sender.close();
+
+      expect(session.sent, isEmpty);
+      expect(session.closeCalls, 1);
+    });
+  });
+
+  group('receiveLiveSession', () {
+    final text = fai.LiveServerContent(
+      modelTurn: fai.Content.model([fai.TextPart('hi')]),
+    );
+
+    test('forwards events until the plugin closes the session', () async {
+      final session = _ReceivingLiveSession([
+        fai.LiveServerResponse(message: text),
+      ]);
+      final chunks = <ModelResponseChunk>[];
+
+      await receiveLiveSession(session, chunks.add, closedByPlugin: () => true);
+
+      expect(chunks.single.content.single.text, 'hi');
+      expect(session.receiveCalls, 1);
+    });
+
+    test('a server close the plugin did not ask for is an error', () async {
+      final session = _ReceivingLiveSession(
+        [],
+        closedWith:
+            'WebSocket Closed, closeCode: 1007, closeReason: '
+            'API key not valid. Please pass a valid API key.',
+      );
+
+      await expectLater(
+        receiveLiveSession(session, (_) {}, closedByPlugin: () => false),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('API key not valid'),
+          ),
+        ),
+      );
+      expect(session.receiveCalls, 2);
+    });
+
+    test('a receive error is reported, not swallowed', () async {
+      final session = _ReceivingLiveSession([], error: StateError('boom'));
+
+      await expectLater(
+        receiveLiveSession(session, (_) {}, closedByPlugin: () => true),
+        throwsA(isA<GenkitException>()),
+      );
+    });
+  });
+
   group('sendToLiveSession', () {
+    test('rejects a system message', () async {
+      final session = _FakeLiveSession();
+
+      await expectLater(
+        sendToLiveSession(
+          session,
+          Message(
+            role: Role.system,
+            content: [TextPart(text: 'Be terse.')],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+      expect(session.calls, isEmpty);
+    });
+
     Part media(String contentType) => MediaPart(
       media: Media(
         url: 'data:$contentType;base64,AAAA',
@@ -226,6 +353,56 @@ class _FakeLiveSession implements fai.LiveSession {
       calls.add(
         'turn(parts: ${input?.parts.length}, turnComplete: $turnComplete)',
       );
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// A session whose first `receive()` yields [events] (then [error], if set),
+/// and whose later calls throw [closedWith], as firebase_ai does once the
+/// server has closed the socket.
+class _ReceivingLiveSession implements fai.LiveSession {
+  _ReceivingLiveSession(this.events, {this.error, this.closedWith});
+
+  final List<fai.LiveServerResponse> events;
+  final Error? error;
+  final String? closedWith;
+  int receiveCalls = 0;
+
+  @override
+  Stream<fai.LiveServerResponse> receive() async* {
+    receiveCalls++;
+    if (receiveCalls > 1) {
+      if (closedWith case final reason?) throw Exception(reason);
+      return;
+    }
+    yield* Stream.fromIterable(events);
+    if (error case final error?) throw error;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Records sent turn text, yielding between sends as a real socket write
+/// can, and throws a [StateError] for the text [failOn].
+class _SlowLiveSession implements fai.LiveSession {
+  _SlowLiveSession({this.failOn});
+
+  final String? failOn;
+  final sent = <String>[];
+  int closeCalls = 0;
+
+  @override
+  Future<void> send({fai.Content? input, bool turnComplete = false}) async {
+    await Future<void>.delayed(Duration.zero);
+    final text = (input!.parts.single as fai.TextPart).text;
+    if (text == failOn) throw StateError('socket closed');
+    sent.add(text);
+  }
+
+  @override
+  Future<void> close() async => closeCalls++;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);

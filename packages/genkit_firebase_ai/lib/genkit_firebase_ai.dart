@@ -396,50 +396,38 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         }
         _logger.info('Connected to model: $modelName');
 
-        // Send initial history
-        final initialMessages =
-            ctx.init?.messages.where((m) => m.role != Role.system).toList() ??
-            [];
-        for (final msg in initialMessages) {
-          await sendToLiveSession(session, msg);
-        }
-
+        final sender = LiveSender(session)
+          ..add(
+            ctx.init?.messages.where((m) => m.role != Role.system) ?? const [],
+          );
+        await sender.flush();
         final sub = stream.listen(
-          (chunk) async {
-            for (final msg in chunk.messages) {
-              await sendToLiveSession(session, msg);
-            }
-          },
+          (chunk) => sender.add(chunk.messages),
           onError: (e) {
             _logger.severe('InputStream error', e);
           },
-          onDone: () {
+          onDone: () async {
             _logger.info('InputStream done');
-            session.close();
+            // Let messages already queued go out before closing.
+            await sender.flush();
+            await sender.close();
           },
         );
 
-        final receiveFuture = () async {
-          try {
-            await for (final event in session.receive()) {
-              _logger.fine('Session receive loop: $event');
-              final chunk = _fromGeminiLiveEvent(event);
-              if (chunk != null) ctx.sendChunk(chunk);
-            }
-            _logger.fine('Session receive loop finished naturally');
-          } catch (e, s) {
-            _logger.warning('Error in Live session receive loop', e, s);
-          }
-        }();
-
-        await receiveFuture;
-        await sub.cancel();
-        _logger.fine('Closing session');
-        session.close();
-        // Session closed in receiveFuture usually, but ensure it here?
-        // Actually session.close() is called on inputStream done.
-        // If receive loop finishes, we might want to stop input stream?
-        // Usually Bidi sessions end when input ends OR model ends.
+        try {
+          await receiveLiveSession(
+            session,
+            ctx.sendChunk,
+            closedByPlugin: () => sender.closed,
+          );
+        } finally {
+          await sub.cancel();
+          _logger.fine('Closing session');
+          await sender.close();
+        }
+        if (sender.failure case (final e, final stack)) {
+          throw toGenkitException(e, stack);
+        }
 
         return ModelResponse(finishReason: FinishReason.stop);
       },
@@ -495,6 +483,81 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
   );
 }
 
+/// Sends messages to a Live session one at a time, in the order they were
+/// added.
+///
+/// Input chunks arrive faster than they are sent, so without the queue their
+/// parts could interleave on the socket. The first failure closes the session
+/// and is kept in [failure]; nothing is sent after it, or after [close].
+@visibleForTesting
+class LiveSender {
+  LiveSender(this._session);
+
+  final fai.LiveSession _session;
+  Future<void> _pending = Future.value();
+
+  /// The first failure to send, which ended the session.
+  (Object, StackTrace)? failure;
+
+  /// Whether the plugin closed the session.
+  bool get closed => _closed;
+  bool _closed = false;
+
+  /// Queues [messages] after everything added before.
+  void add(Iterable<Message> messages) {
+    final batch = messages.toList();
+    _pending = _pending.then((_) => _send(batch));
+  }
+
+  /// Completes once every message added so far has been sent or dropped.
+  Future<void> flush() => _pending;
+
+  /// Closes the session. Messages still queued are dropped.
+  Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    await _session.close();
+  }
+
+  Future<void> _send(List<Message> messages) async {
+    for (final msg in messages) {
+      if (_closed) return;
+      try {
+        await sendToLiveSession(_session, msg);
+      } catch (e, stack) {
+        failure ??= (e, stack);
+        await close();
+        return;
+      }
+    }
+  }
+}
+
+/// Forwards [session]'s events to [onChunk] until it ends.
+///
+/// Throws a [GenkitException] when receiving fails, or when the server closed
+/// the session without the plugin asking ([closedByPlugin] false), for
+/// example after rejecting the API key. `firebase_ai` ends `receive()`
+/// quietly on a server close and reports the reason only on the next call.
+@visibleForTesting
+Future<void> receiveLiveSession(
+  fai.LiveSession session,
+  void Function(ModelResponseChunk) onChunk, {
+  required bool Function() closedByPlugin,
+}) async {
+  try {
+    await for (final event in session.receive()) {
+      _logger.fine('Session receive loop: $event');
+      if (_fromGeminiLiveEvent(event) case final chunk?) onChunk(chunk);
+    }
+    if (!closedByPlugin()) {
+      await session.receive().drain<void>();
+    }
+  } catch (e, stack) {
+    throw toGenkitException(e, stack);
+  }
+}
+
 /// Sends [msg] to a Live [session].
 ///
 /// Only a user's media can be realtime input: audio always goes out as
@@ -505,9 +568,20 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
 /// and media in model messages (history), go inside the turn instead. All tool responses go
 /// out together, and the remaining parts as one complete client turn, so the
 /// model does not answer before the whole message is in.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a system
+/// message, which a session takes only in its initial request.
 @visibleForTesting
 Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
   _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
+  if (msg.role == Role.system) {
+    // The system instruction is fixed when the session is set up, and sending
+    // the text as a user turn would change what it means.
+    throw GenkitException(
+      'A Live session takes system messages only in its initial request.',
+      status: StatusCode.invalidArgument,
+    );
+  }
 
   final parts = msg.content.map(toGeminiPart).toList();
   final toolResponses = parts.whereType<fai.FunctionResponse>().toList();
