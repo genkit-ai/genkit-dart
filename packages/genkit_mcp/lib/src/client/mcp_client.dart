@@ -593,7 +593,21 @@ class GenkitMcpClient {
           : null,
     );
     if (filter.toJson().isEmpty) return;
-    final subscription = await _openSubscription(filter);
+    final _ClientSubscription subscription;
+    try {
+      subscription = await _openSubscription(filter);
+    } catch (e) {
+      // List change notifications are optional, so a server that advertises
+      // `listChanged` but can't handle `subscriptions/listen` stays usable.
+      if (e is! mcp.McpError || e.code != mcp.ErrorCode.methodNotFound.value) {
+        rethrow;
+      }
+      mcpLogger.warning(
+        '[MCP Client] Server rejected ${mcp.Method.subscriptionsListen}; '
+        'list change notifications are disabled: ${e.message}',
+      );
+      return;
+    }
     _listChangeSubscription = subscription;
     _watchListChangeSubscription(subscription, filter);
     _logMissingListChangeAcknowledgments(
@@ -634,6 +648,9 @@ class GenkitMcpClient {
       return _ClientSubscription(subscription, notifications, acknowledged);
     } catch (_) {
       subscription.cancel();
+      // The caller gets the error from `acknowledged`. Without this, the same
+      // error on `done` would be unhandled.
+      subscription.done.ignore();
       await notifications.cancel();
       rethrow;
     } finally {
