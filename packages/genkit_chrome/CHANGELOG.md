@@ -1,3 +1,7 @@
+## 0.2.1
+
+ - updated internal dependencies.
+
 ## 0.2.0
 
 ### Breaking Changes
