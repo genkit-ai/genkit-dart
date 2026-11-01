@@ -49,7 +49,7 @@ void main(List<String> args) async {
       final photoBase64 = base64Encode(photoBytes);
 
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3.1-flash-image'),
+        model: googleAI.geminiImage('gemini-nano-banana-2.1'),
         prompt: input,
         messages: [
           Message(
@@ -151,8 +151,12 @@ void main(List<String> args) async {
       );
 
       await for (final chunk in stream) {
-        if (ctx.streamingRequested) {
-          ctx.sendChunk(chunk.output!);
+        // `output` is null while the JSON streamed so far can't be parsed
+        // yet, or for chunks without JSON text (e.g. thoughts or tool
+        // calls), so skip those.
+        final output = chunk.output;
+        if (ctx.streamingRequested && output != null) {
+          ctx.sendChunk(output);
         }
       }
 
@@ -176,7 +180,9 @@ void main(List<String> args) async {
         prompt: prompt,
         onChunk: ctx.streamingRequested
             ? (GenerateResponseChunk<CharacterProfile?> chunk) {
-                ctx.sendChunk(chunk.output!);
+                // Null until enough JSON has arrived to parse.
+                final output = chunk.output;
+                if (output != null) ctx.sendChunk(output);
               }
             : null,
       );
@@ -344,10 +350,9 @@ void main(List<String> args) async {
       if (response.media == null) {
         throw Exception('No audio generated');
       }
-      // Gemini TTS returns raw PCM audio (16-bit, mono, 24kHz) which is not a
-      // playable file on its own. Wrap it in a WAV container so it can be
-      // played back. (This mirrors the `toWav` helper used in the JS samples.)
-      return pcmMediaToWav(response.media!);
+      // The 3.8 TTS models (called through the Interactions API) return a
+      // complete WAV file (audio/wav), ready to play.
+      return response.media!;
     },
   );
 
@@ -363,9 +368,10 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
-        // 3.8 TTS wants a speech_metadata.speaker on every text part for
-        // multi-speaker requests, which GeminiTtsOptions cannot express yet;
-        // 3.1 still takes speakers from the transcript.
+        // 3.1 TTS (called through generateContent) takes the speakers from
+        // the transcript. The 3.8 TTS models (Interactions API) need each
+        // turn as a separate text part naming its speaker in
+        // `metadata: {'speechMetadata': {'speaker': ...}}`.
         model: googleAI.geminiTts('gemini-3.1-flash-tts-preview'),
         prompt: prompt,
         config: GeminiTtsOptions(
@@ -397,9 +403,10 @@ void main(List<String> args) async {
       if (response.media == null) {
         throw Exception('No audio generated');
       }
-      // Gemini TTS returns raw PCM audio (16-bit, mono, 24kHz) which is not a
-      // playable file on its own. Wrap it in a WAV container so it can be
-      // played back. (This mirrors the `toWav` helper used in the JS samples.)
+      // TTS models called through generateContent return raw PCM audio
+      // (16-bit, mono, 24kHz), which is not a playable file on its own. Wrap
+      // it in a WAV container so it can be played back. (This mirrors the
+      // `toWav` helper used in the JS samples.)
       return pcmMediaToWav(response.media!);
     },
   );

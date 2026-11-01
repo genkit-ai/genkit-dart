@@ -17,16 +17,23 @@ import 'dart:typed_data';
 
 import 'package:genkit/genkit.dart';
 
-/// Wraps the raw PCM audio returned by the Gemini TTS models in a WAV
-/// container so that it becomes a playable audio file.
+/// Wraps raw PCM audio from the Gemini TTS models in a WAV container so that
+/// it becomes a playable audio file. Media that is already WAV is returned
+/// as is.
 ///
-/// The Gemini TTS API returns audio as raw, headerless PCM (signed 16-bit,
-/// little-endian) with an inline-data MIME type such as
-/// `audio/L16;codec=pcm;rate=24000`. Without a container header this data
-/// cannot be played by most audio players, so we prepend a standard 44-byte
-/// WAV/RIFF header. This mirrors the `toWav` helper used in the Genkit JS
-/// samples.
+/// TTS models called through `generateContent` (e.g.
+/// `gemini-3.1-flash-tts-preview`), and streamed responses of the models
+/// called through the Interactions API, return raw, headerless PCM (signed
+/// 16-bit, little-endian) with a MIME type such as
+/// `audio/L16;codec=pcm;rate=24000` or `audio/l16`. Without a container
+/// header this data cannot be played by most audio players, so we prepend a
+/// standard 44-byte WAV/RIFF header. This mirrors the `toWav` helper used in
+/// the Genkit JS samples. Non-streamed responses of the Interactions TTS
+/// models (e.g. `gemini-3.8-flash-tts`) are already a complete WAV file.
 Media pcmMediaToWav(Media media) {
+  if (media.contentType?.toLowerCase().startsWith('audio/wav') ?? false) {
+    return media;
+  }
   final url = media.url;
   // Extract the base64 payload from the data URL.
   final commaIndex = url.indexOf(',');

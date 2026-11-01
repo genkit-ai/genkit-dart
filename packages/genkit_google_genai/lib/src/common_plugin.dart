@@ -22,6 +22,9 @@ import 'package:schemantic/schemantic.dart';
 import 'aggregation.dart';
 import 'api_client.dart';
 import 'generated/generativelanguage.dart' as gcl;
+import 'interaction_converters.dart'
+    show mergeStreamedAudio, warnDroppedConfigField;
+import 'interaction_model.dart';
 import 'known_models.dart';
 import 'model.dart';
 
@@ -41,8 +44,26 @@ final commonModelInfo = ModelInfo(
 /// Fallback metadata for an un-curated `-tts` model name.
 final commonTtsModelInfo = ModelInfo(supports: geminiTtsSupports);
 
+/// Fallback metadata for an un-curated video model name (`gemini-omni-*`).
+final commonVideoModelInfo = ModelInfo(supports: geminiVideoSupports);
+
 abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]);
+
+  /// The API client for a model request with [config] (the request's
+  /// options). By default it only reads `apiKey`; vertexAI overrides it to
+  /// apply the per-request `location` and `payGo`.
+  Future<GenerativeLanguageBaseClient> getApiClientForRequest(
+    Map<String, dynamic>? config,
+  ) => getApiClient(
+    config == null ? null : GeminiOptions.$schema.parse(config).apiKey,
+  );
+
+  /// The full Vertex AI Search data store path for `vertexRetrieval` (JS
+  /// vertexai toVertexAISearchDatastore). Only called when
+  /// [supportsVertexOptions] is true.
+  String vertexSearchDatastore(GeminiVertexDatastore datastore) =>
+      throw UnsupportedError('vertexRetrieval is not supported by $name.');
 
   /// Curated per-model capability metadata exposed by this plugin, keyed by
   /// bare model name.
@@ -61,6 +82,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       knownModels[modelName] ??
       switch (GeminiModelFamily.of(modelName)) {
         .tts => commonTtsModelInfo,
+        .video => commonVideoModelInfo,
         .text || .image => commonModelInfo,
       };
 
@@ -80,17 +102,78 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         );
   }
 
+  /// Whether [modelName] is called through the Interactions API rather than
+  /// generateContent (JS `modelInteractionsMap`).
+  ///
+  /// The default keeps every model on generateContent; plugins override it.
+  bool usesInteractions(String modelName) => false;
+
+  /// The plugin-level `store` option, used when a request doesn't set
+  /// `store`; null when not set. Interactions models treat null as false;
+  /// generateContent models only send it when set (see
+  /// [supportsGenerateContentStore]).
+  bool? get store => null;
+
+  /// Whether this plugin's generateContent API takes a top-level `store`
+  /// (on the Gemini API it controls whether the server logs the request for
+  /// the project). When false, `store: true` is dropped with a warning (the
+  /// Gemini Enterprise Agent Platform has no such field).
+  bool get supportsGenerateContentStore => false;
+
+  /// Whether Interactions requests send `safety_settings`. The Gemini API
+  /// rejects the field (400), so by default permissive settings are dropped
+  /// and blocking ones throw; the Gemini Enterprise Agent Platform accepts
+  /// it (vertexAI overrides this).
+  bool get supportsInteractionSafetySettings => false;
+
+  /// Server-side tool step types left out of a stateless (`store: false`)
+  /// history on the Interactions API, because the server rejects them when
+  /// they're sent back (vertexAI). A warning is logged once when any are
+  /// left out.
+  Set<String> get unsupportedResentStepTypes => const {};
+
+  /// Whether Interactions requests to text-to-speech models ask for audio
+  /// by default (a `{type: audio}` response format). The Gemini API needs
+  /// it; vertexAI sends its TTS models through generateContent.
+  bool get defaultsTtsToAudio => true;
+
+  /// Whether this plugin sends the `serviceTier` option to the API. When
+  /// false, it is dropped with a warning (the vertexAI plugin has no service
+  /// tier option in JS).
+  bool get supportsServiceTier => false;
+
+  /// Whether this plugin uses the vertexAI-only options (`location`,
+  /// `labels`, `vertexRetrieval`, `payGo`, `videoFormat.gcsUri`). When false
+  /// (the Gemini API has no such fields), they are dropped with a warning
+  /// (see [warnDroppedVertexOptions]).
+  bool get supportsVertexOptions => false;
+
+  /// Whether this plugin's generateContent TTS models take `audioFormat`
+  /// (as `generationConfig.responseFormat`) and join streamed audio chunks
+  /// into one part in the final response (vertexAI, as in JS). When false,
+  /// `audioFormat` is dropped with a warning there and streamed chunks are
+  /// returned as they arrived (googleAI, whose generateContent TTS models
+  /// are all deprecated; its newer TTS models use the Interactions API).
+  bool get generateContentTtsFormats => false;
+
   Model createModel(String modelName, SchemanticType customOptions) {
     return Model(
       name: '$name/$modelName',
       customOptions: customOptions,
       metadata: {'model': modelInfoFor(modelName).toJson()},
       fn: (req, ctx) async {
+        if (usesInteractions(modelName)) {
+          return generateWithInteractions(this, modelName, req, ctx);
+        }
+
         gcl.GenerationConfig generationConfig;
         List<gcl.SafetySetting>? safetySettings;
         List<gcl.Tool>? tools;
         gcl.ToolConfig? toolConfig;
-        String? apiKey;
+        GeminiRetrievalConfig? retrievalConfig;
+        String? serviceTier;
+        bool? storeFromConfig;
+        String? previousInteractionId;
 
         final isJsonMode =
             req.output?.format == 'json' ||
@@ -100,7 +183,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           final options = req.config == null
               ? GeminiTtsOptions()
               : GeminiTtsOptions.$schema.parse(req.config!);
-          apiKey = options.apiKey;
+          serviceTier = options.serviceTier;
+          storeFromConfig = options.store;
+          previousInteractionId = options.previousInteractionId;
           generationConfig = toGeminiTtsSettings(
             options,
             req.output?.schema,
@@ -111,18 +196,23 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           tools = toGeminiTools(
             req.tools,
             codeExecution: options.codeExecution,
+            configTools: options.tools,
             googleSearch: options.googleSearch,
+            urlContext: options.urlContext,
           );
           toolConfig = toGeminiToolConfig(
             options.functionCallingConfig,
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           );
+          retrievalConfig = options.retrievalConfig;
         } else {
           final options = req.config == null
               ? GeminiOptions()
               : GeminiOptions.$schema.parse(req.config!);
-          apiKey = options.apiKey;
+          serviceTier = options.serviceTier;
+          storeFromConfig = options.store;
+          previousInteractionId = options.previousInteractionId;
           generationConfig = toGeminiSettings(
             options,
             req.output?.schema,
@@ -133,16 +223,107 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
           tools = toGeminiTools(
             req.tools,
             codeExecution: options.codeExecution,
+            configTools: options.tools,
             googleSearch: options.googleSearch,
+            urlContext: options.urlContext,
           );
           toolConfig = toGeminiToolConfig(
             options.functionCallingConfig,
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           );
+          retrievalConfig = options.retrievalConfig;
         }
 
-        final service = await getApiClient(apiKey);
+        if (retrievalConfig != null) {
+          toolConfig ??= gcl.ToolConfig();
+          toolConfig.toJson()['retrievalConfig'] = retrievalConfig.toJson();
+        }
+
+        warnDroppedVertexOptions(this, modelName, req.config);
+
+        // Family fields (see model.dart), read from the config whatever the
+        // model's family, as in JS.
+        final config = req.config ?? const <String, dynamic>{};
+
+        // vertexAI-only fields (the vertexAI fields are the same on every
+        // Gemini option type).
+        final vertexOptions = GeminiOptions.$schema.parse(config);
+        final labels = supportsVertexOptions
+            ? toGeminiLabels(vertexOptions.labels)
+            : null;
+        final vertexRetrieval = vertexOptions.vertexRetrieval;
+        if (supportsVertexOptions && vertexRetrieval != null) {
+          // After the other tools, as in JS.
+          tools = [
+            ...tools,
+            gcl.Tool.fromJson({
+              'retrieval': {
+                'vertexAiSearch': {
+                  'datastore': vertexSearchDatastore(vertexRetrieval.datastore),
+                },
+                'disableAttribution': ?vertexRetrieval.disableAttribution,
+              },
+            }),
+          ];
+        }
+        final imageConfig = GeminiImageOptions.$schema
+            .parse(config)
+            .imageConfig;
+        if (imageConfig != null) {
+          generationConfig.toJson()['imageConfig'] = imageConfig.toJson();
+        }
+        // TTS models on vertexAI: audioFormat is the generateContent
+        // `responseFormat`, and audio is asked for by default (as in JS).
+        final isTts = GeminiModelFamily.of(modelName) == .tts;
+        final audioFormat = GeminiTtsOptions.$schema.parse(config).audioFormat;
+        if (generateContentTtsFormats) {
+          final responseFormat = toGeminiAudioResponseFormat(audioFormat);
+          if (responseFormat != null) {
+            generationConfig.toJson()['responseFormat'] = responseFormat;
+          }
+          if (isTts && generationConfig.responseModalities == null) {
+            generationConfig.responseModalities = ['AUDIO'];
+          }
+        } else if (audioFormat != null) {
+          // generateContent rejects unknown generationConfig fields with a
+          // 400 (googleAI's generateContent TTS models have no such field).
+          warnDroppedConfigField(modelName, 'audioFormat');
+        }
+        // No equivalent on generateContent for these Interactions-only
+        // fields. JS forwards videoConfig; it's dropped here too, for the
+        // same reason.
+        final videoOptions = GeminiVideoOptions.$schema.parse(config);
+        if (videoOptions.videoFormat != null) {
+          warnDroppedConfigField(modelName, 'videoFormat');
+        }
+        if (videoOptions.videoConfig != null) {
+          warnDroppedConfigField(modelName, 'videoConfig');
+        }
+
+        // There's no stored conversation to continue on generateContent.
+        if (previousInteractionId?.isNotEmpty ?? false) {
+          logger.warning(
+            'previousInteractionId is not supported for this model and will '
+            'be ignored.',
+          );
+        }
+        // On generateContent, `store` only controls whether the server logs
+        // this request for the API key's project (viewable in AI Studio's
+        // Logs and Datasets); there's nothing to continue. Sent only when
+        // set; otherwise the project's logging setting applies. Where the
+        // API has no `store` (the Gemini Enterprise Agent Platform), nothing
+        // is stored for later anyway, so only `store: true` asks for
+        // something that can't happen.
+        final generateContentStore = storeFromConfig ?? store;
+        if (generateContentStore == true && !supportsGenerateContentStore) {
+          warnDroppedConfigField(modelName, 'store');
+        }
+        if (serviceTier != null && !supportsServiceTier) {
+          warnDroppedConfigField(modelName, 'serviceTier');
+        }
+
+        final service = await getApiClientForRequest(req.config);
 
         // Aborts the in-flight request on a plugin-owned client; an injected
         // client's close() is a no-op, so cancellation there only lands at
@@ -174,6 +355,15 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
                     role: 'system',
                   ),
           );
+          if (serviceTier != null && supportsServiceTier) {
+            generateRequest.toJson()['serviceTier'] = serviceTier;
+          }
+          if (generateContentStore != null && supportsGenerateContentStore) {
+            generateRequest.toJson()['store'] = generateContentStore;
+          }
+          if (labels != null) {
+            generateRequest.toJson()['labels'] = labels;
+          }
 
           if (ctx.streamingRequested) {
             final stream = service.streamGenerateContent(
@@ -203,7 +393,17 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
               );
             }
             final candidate = aggregated.candidates!.first;
-            final (message, finishReason) = fromGeminiCandidate(candidate);
+            var (message, finishReason) = fromGeminiCandidate(candidate);
+            if (isTts && generateContentTtsFormats) {
+              // Streamed audio arrives as many headerless chunks (audio/l16
+              // by default); join them into one part, like a non-streamed
+              // response (JS vertexAI).
+              message = Message(
+                role: message.role,
+                content: mergeStreamedAudio(message.content),
+                metadata: message.metadata,
+              );
+            }
             return ModelResponse(
               finishReason: finishReason,
               finishMessage: candidate.finishMessage,
@@ -288,6 +488,29 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
       cause: e,
       stackTrace: stack,
     );
+  }
+}
+
+/// Warns (once per model and field) about the vertexAI-only options in
+/// [config] when [plugin] doesn't use them (see
+/// [CommonGoogleGenPlugin.supportsVertexOptions]). The caller leaves them
+/// out of the request.
+void warnDroppedVertexOptions(
+  CommonGoogleGenPlugin plugin,
+  String modelName,
+  Map<String, dynamic>? config,
+) {
+  if (plugin.supportsVertexOptions || config == null) return;
+  // The fields are the same on every Gemini option type (see model.dart).
+  final options = GeminiVideoOptions.$schema.parse(config);
+  for (final (field, value) in [
+    ('location', options.location),
+    ('labels', options.labels),
+    ('vertexRetrieval', options.vertexRetrieval),
+    ('payGo', options.payGo),
+    ('videoFormat.gcsUri', options.videoFormat?.gcsUri),
+  ]) {
+    if (value != null) warnDroppedConfigField(modelName, field);
   }
 }
 
@@ -506,16 +729,73 @@ List<gcl.SafetySetting>? toGeminiSafetySettings(
   return settings;
 }
 
+/// Reads a text part's `metadata.speechMetadata` (`{speaker?, style?}`),
+/// used by TTS models to assign each turn to a speaker and set its delivery
+/// style (JS common toGeminiSpeechMetadata). Returns null if neither is set.
+Map<String, String>? _toGeminiSpeechMetadata(Object? value) {
+  if (value is! Map) return null;
+  final speaker = value['speaker'];
+  final style = value['style'];
+  final result = {
+    if (speaker is String && speaker.isNotEmpty) 'speaker': speaker,
+    if (style is String && style.isNotEmpty) 'style': style,
+  };
+  return result.isEmpty ? null : result;
+}
+
+/// Converts the TTS `audioFormat` (`{mimeType: 'audio/mulaw'}`) to the
+/// generateContent `responseFormat` (`[{audio: {mimeType: 'AUDIO_MULAW'}}]`)
+/// (JS vertexai toGeminiAudioResponseFormat). Returns null when no mimeType
+/// is set, so the server defaults apply (audio/wav, or audio/l16 when
+/// streaming).
+@visibleForTesting
+List<Map<String, Object?>>? toGeminiAudioResponseFormat(
+  GeminiAudioFormat? audioFormat,
+) {
+  final mimeType = audioFormat?.mimeType;
+  if (audioFormat == null || mimeType == null) return null;
+  return [
+    {
+      'audio': {
+        ...audioFormat.toJson(),
+        // 'audio/mulaw' -> 'AUDIO_MULAW'; enum values pass through.
+        'mimeType': mimeType.toUpperCase().replaceFirst('/', '_'),
+      },
+    },
+  ];
+}
+
+/// The request's `labels` without empty keys; null when none are left (JS
+/// vertexai toGeminiLabels). Used on both APIs.
+Map<String, String>? toGeminiLabels(Map<String, String>? labels) {
+  if (labels == null) return null;
+  final result = {
+    for (final MapEntry(:key, :value) in labels.entries)
+      if (key.isNotEmpty) key: value,
+  };
+  return result.isEmpty ? null : result;
+}
+
+/// Builds the generateContent `tools`: the request's function tools, then
+/// the built-in tools from the config, in the JS plugin's order. The
+/// [configTools] maps (the `tools` option, e.g. `{'googleMaps': {}}`) are
+/// sent as they are.
 @visibleForTesting
 List<gcl.Tool> toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
+  List<Map<String, dynamic>>? configTools,
   GeminiGoogleSearch? googleSearch,
+  GeminiUrlContext? urlContext,
 }) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
     if (codeExecution == true) gcl.Tool(codeExecution: gcl.CodeExecution()),
+    ...?configTools?.map(gcl.Tool.fromJson),
     if (googleSearch != null) gcl.Tool(googleSearch: gcl.GoogleSearch()),
+    // The generated client has no urlContext field.
+    if (urlContext != null)
+      gcl.Tool.fromJson({'urlContext': urlContext.toJson()}),
   ];
 }
 
@@ -572,6 +852,59 @@ String toGeminiRole(Role role) {
   return 'user';
 }
 
+/// Embeds each of [docs] with the `:embedContent` method: one request per
+/// document, with its text and media as parts (the googleAI embedders, and
+/// gemini-embedding-2 and newer on vertexAI, as in JS).
+///
+/// [sendTaskTypeAndTitle] is false where the model has no such fields
+/// (vertexAI's gemini-embedding-2; the caller warns about them).
+Future<List<Embedding>> embedWithEmbedContent(
+  GenerativeLanguageBaseClient service, {
+  required String embedderName,
+  required List<DocumentData> docs,
+  GoogleGenAiEmbedderOptions? options,
+  bool sendTaskTypeAndTitle = true,
+}) {
+  // Built first, so malformed media fails before any request is sent.
+  final contents = [
+    for (final (index, doc) in docs.indexed)
+      gcl.Content(role: 'user', parts: _embedParts(index, doc)),
+  ];
+  return Future.wait(
+    contents.map((content) async {
+      final res = await service.embedContent(
+        gcl.EmbedContentRequest(
+          content: content,
+          outputDimensionality: options?.outputDimensionality,
+          taskType: sendTaskTypeAndTitle ? options?.taskType : null,
+          title: sendTaskTypeAndTitle ? options?.title : null,
+        ),
+        model: 'models/$embedderName',
+      );
+      return Embedding(embedding: res.embedding?.values ?? []);
+    }),
+  );
+}
+
+/// Converts text and media, ignoring other parts for backward compatibility.
+/// Text-only and empty documents retain the legacy single-text-part shape.
+/// Malformed media fails before any request is sent, without leaking its source.
+List<gcl.Part> _embedParts(int index, DocumentData doc) {
+  final parts = doc.content.where((p) => p.isText || p.isMedia).toList();
+  if (!parts.any((p) => p.isMedia)) {
+    return [gcl.Part(text: parts.map((p) => p.text).join('\n'))];
+  }
+  try {
+    return parts.map(toGeminiPart).toList();
+  } on FormatException catch (e) {
+    // The parser's source can contain media payloads; keep only its message.
+    throw GenkitException(
+      'Cannot embed the document at index $index: ${e.message}',
+      status: StatusCode.invalidArgument,
+    );
+  }
+}
+
 /// Whether [name] (bare or resource-prefixed) names an embedding model:
 /// any name containing `embedding`, such as `text-embedding-004`,
 /// `gemini-embedding-2`, or `multimodalembedding`.
@@ -603,7 +936,15 @@ gcl.Part toGeminiPart(Part p) {
     );
   }
   if (p.isText) {
-    return gcl.Part(text: p.text, thoughtSignature: thoughtSignature);
+    final part = gcl.Part(text: p.text, thoughtSignature: thoughtSignature);
+    // The generated client has no speechMetadata field.
+    final speechMetadata = _toGeminiSpeechMetadata(
+      p.metadata?['speechMetadata'],
+    );
+    if (speechMetadata != null) {
+      part.toJson()['speechMetadata'] = speechMetadata;
+    }
+    return part;
   }
   if (p.isToolRequest) {
     return gcl.Part(
@@ -779,8 +1120,9 @@ GenerationUsage? extractUsage(gcl.UsageMetadata? metadata) {
     thoughtsTokens: metadata.thoughtsTokenCount,
     cachedContentTokens: metadata.cachedContentTokenCount,
     custom: {
-      if (metadata.toolUsePromptTokenCount != null)
-        'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount,
+      // Same key as on the Interactions API (as in JS).
+      if (metadata.toolUsePromptTokenCount case final tokens? when tokens != 0)
+        'toolUseTokens': tokens,
     },
   );
 }

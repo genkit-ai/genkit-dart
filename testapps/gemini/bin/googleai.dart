@@ -13,6 +13,7 @@
 // limitations under the License.
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/lite.dart' as lite;
@@ -48,7 +49,7 @@ void main(List<String> args) async {
       final photoBase64 = base64Encode(photoBytes);
 
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3.1-flash-image'),
+        model: googleAI.geminiImage('gemini-nano-banana-2.1'),
         prompt: input,
         messages: [
           Message(
@@ -136,8 +137,12 @@ void main(List<String> args) async {
       );
 
       await for (final chunk in stream) {
-        if (ctx.streamingRequested) {
-          ctx.sendChunk(chunk.output!);
+        // `output` is null while the JSON streamed so far can't be parsed
+        // yet, or for chunks without JSON text (e.g. thoughts or tool
+        // calls), so skip those.
+        final output = chunk.output;
+        if (ctx.streamingRequested && output != null) {
+          ctx.sendChunk(output);
         }
       }
 
@@ -161,7 +166,9 @@ void main(List<String> args) async {
         prompt: prompt,
         onChunk: ctx.streamingRequested
             ? (GenerateResponseChunk<CharacterProfile?> chunk) {
-                ctx.sendChunk(chunk.output!);
+                // Null until enough JSON has arrived to parse.
+                final output = chunk.output;
+                if (output != null) ctx.sendChunk(output);
               }
             : null,
       );
@@ -255,11 +262,14 @@ void main(List<String> args) async {
     name: 'safetySettings',
     // Example of configuring safety settings.
     // Note: The model might not block the default content if it's not harmful enough.
+    // Blocking thresholds need a model called through generateContent: models
+    // called through the Interactions API (e.g. gemini-flash-latest) only
+    // accept BLOCK_NONE and throw INVALID_ARGUMENT for stricter thresholds.
     inputSchema: .string(defaultValue: 'Some potentially harmful content'),
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-flash-latest'),
+        model: googleAI.gemini('gemini-3.1-flash-lite'),
         prompt: prompt,
         config: GeminiOptions(
           safetySettings: [
@@ -307,6 +317,8 @@ void main(List<String> args) async {
   );
 
   // --- TTS Flow ---
+  // The 3.8 TTS models are called through the Interactions API and return a
+  // complete WAV file (audio/wav), ready to play or save.
   ai.defineFlow(
     name: 'textToSpeech',
     inputSchema: .string(
@@ -345,9 +357,9 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
-        // 3.8 TTS wants a speech_metadata.speaker on every text part for
-        // multi-speaker requests, which GeminiTtsOptions cannot express yet;
-        // 3.1 still takes speakers from the transcript.
+        // 3.1 TTS (called through generateContent) takes the speakers from
+        // the transcript. For the 3.8 TTS models (Interactions API), see
+        // ttsInteractionsMultiSpeaker: each turn names its speaker.
         model: googleAI.geminiTts('gemini-3.1-flash-tts-preview'),
         prompt: prompt,
         config: GeminiTtsOptions(
@@ -383,6 +395,415 @@ void main(List<String> args) async {
     },
   );
 
+  // --- Interactions API flows ---
+  // Newer models (and the -latest aliases) are called through the
+  // Interactions API; the flows below use features only that API has.
+
+  // Server-side conversation state: with store: true the interaction is kept
+  // on the server, and the next request continues it (the plugin finds its
+  // ID in the message metadata and sends only the new messages).
+  ai.defineFlow(
+    name: 'multiTurnPreviousInteraction',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (_, _) async {
+      final turn1 = await ai.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        prompt: 'My secret code is BLUE-BANANA-42. Remember this secret code.',
+        config: GeminiOptions(store: true),
+      );
+      final turn2 = await ai.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        messages: turn1.messages,
+        prompt: 'What was my secret code?',
+        config: GeminiOptions(store: true),
+      );
+      return {
+        'turn1Answer': turn1.text,
+        'turn2Answer': turn2.text,
+        'turn1InteractionId': turn1.message?.metadata?['interactionId'],
+        'turn2InteractionId': turn2.message?.metadata?['interactionId'],
+      };
+    },
+  );
+
+  // Flex tier: lower cost, variable latency.
+  ai.defineFlow(
+    name: 'flexTier',
+    inputSchema: .string(
+      defaultValue: 'You are a helpful AI assistant named Walt, say hello',
+    ),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-flash-lite-latest'),
+        prompt: prompt,
+        config: GeminiOptions(serviceTier: 'flex'), // or standard, priority
+      );
+      return response.text;
+    },
+  );
+
+  // Thinking levels (Interactions models have no thinking budget).
+  ai.defineFlow(
+    name: 'thinkingLevel',
+    inputSchema: .string(defaultValue: 'LOW'),
+    outputSchema: Message.$schema,
+    fn: (level, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-3.8-flash'),
+        prompt:
+            'Alice, Bob, and Carol each live in a different house on the '
+            'same street: red, green, and blue. The person who lives in the '
+            'red house owns a cat. Bob does not live in the green house. '
+            'Carol owns a dog. The green house is to the left of the red '
+            'house. Alice does not own a cat. The person in the blue house '
+            'owns a fish. Who lives in each house, and what pet do they own?',
+        config: GeminiOptions(
+          thinkingConfig: GeminiThinkingConfig(
+            thinkingLevel: level,
+            includeThoughts: true,
+          ),
+        ),
+      );
+      return response.message!;
+    },
+  );
+
+  // Turn-level speech style, set in the part metadata; requires a voice.
+  ai.defineFlow(
+    name: 'ttsInteractionsVoiceAndStyle',
+    inputSchema: .string(defaultValue: 'Have a wonderful day!'),
+    outputSchema: Media.$schema,
+    fn: (text, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiTts('gemini-3.8-flash-lite-tts'),
+        promptParts: [
+          TextPart(
+            text: text,
+            metadata: {
+              'speechMetadata': {'style': 'cheerful and friendly'},
+            },
+          ),
+        ],
+        config: GeminiTtsOptions(speechConfig: _voice('Puck')),
+      );
+      return response.media ?? (throw Exception('No audio generated'));
+    },
+  );
+
+  // Multi-speaker TTS through the Interactions API: each turn is a separate
+  // text part that names one of the configured speakers.
+  ai.defineFlow(
+    name: 'ttsInteractionsMultiSpeaker',
+    outputSchema: Media.$schema,
+    fn: (_, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiTts('gemini-3.8-flash-lite-tts'),
+        promptParts: _joeAndJane(janeStyle: 'calm'),
+        config: GeminiTtsOptions(speechConfig: _joeAndJaneVoices),
+      );
+      return response.media ?? (throw Exception('No audio generated'));
+    },
+  );
+
+  // Streamed TTS: raw PCM (audio/l16) chunks arrive while the speech is
+  // generated, so a client can start playing right away; the final response
+  // joins them into one audio/l16 part, wrapped in a WAV header here so it
+  // can be played.
+  ai.defineFlow(
+    name: 'ttsStreaming',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    streamSchema: .string(),
+    fn: (_, ctx) async {
+      var chunkCount = 0;
+      final response = await ai.generate(
+        model: googleAI.geminiTts('gemini-3.8-flash-lite-tts'),
+        promptParts: _joeAndJane(),
+        config: GeminiTtsOptions(speechConfig: _joeAndJaneVoices),
+        onChunk: (chunk) {
+          // A real client would play chunk.media here; report progress only.
+          chunkCount++;
+          ctx.sendChunk('chunk $chunkCount: ${chunk.media?.contentType}');
+        },
+      );
+      final media = response.media ?? (throw Exception('No audio generated'));
+      return {
+        'chunkCount': chunkCount,
+        'streamedContentType': media.contentType,
+        'media': _pcmToWav(media).toJson(),
+      };
+    },
+  );
+
+  // --- Built-in tools ---
+
+  // Google Maps: a `tools` map plus the user's location in retrievalConfig.
+  // On Interactions models the location is set on the google_maps tool.
+  ai.defineFlow(
+    name: 'mapsGrounding',
+    inputSchema: .string(defaultValue: 'Describe some sights near me'),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        prompt: prompt,
+        config: GeminiOptions(
+          tools: [
+            {
+              'googleMaps': {'enableWidget': true},
+            },
+          ],
+          retrievalConfig: GeminiRetrievalConfig(
+            latLng: GeminiLatLng(latitude: 43.0896, longitude: -79.0849),
+          ),
+        ),
+      );
+      return response.text;
+    },
+  );
+
+  // The same on a model pinned to generateContent (toolConfig.retrievalConfig).
+  ai.defineFlow(
+    name: 'mapsGroundingGenerateContent',
+    inputSchema: .string(defaultValue: 'Describe some sights near me'),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-3.1-pro-preview'),
+        prompt: prompt,
+        config: GeminiOptions(
+          tools: [
+            {'googleMaps': <String, dynamic>{}},
+          ],
+          retrievalConfig: GeminiRetrievalConfig(
+            latLng: GeminiLatLng(latitude: 43.0896, longitude: -79.0849),
+          ),
+        ),
+      );
+      return response.text;
+    },
+  );
+
+  ai.defineFlow(
+    name: 'urlContext',
+    inputSchema: .string(
+      defaultValue:
+          'Compare the ingredients and cooking times from the recipes at '
+          'https://www.foodnetwork.com/recipes/ina-garten/perfect-roast-chicken-recipe-1940592 '
+          'and https://www.allrecipes.com/recipe/70679/simple-whole-roasted-chicken/',
+    ),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        prompt: prompt,
+        config: GeminiOptions(urlContext: GeminiUrlContext()),
+      );
+      return response.text;
+    },
+  );
+
+  // --- Image generation settings ---
+
+  // Interactions model: imageConfig goes in the response_format image entry.
+  ai.defineFlow(
+    name: 'imageConfig',
+    inputSchema: .string(
+      defaultValue: 'A picture of a sunset in the mountains by a lake',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiImage('gemini-nano-banana-2.1'),
+        prompt: prompt,
+        config: GeminiImageOptions(
+          imageConfig: GeminiImageConfig(aspectRatio: '9:16', imageSize: '1K'),
+        ),
+      );
+      return response.media ?? (throw Exception('No image generated'));
+    },
+  );
+
+  // generateContent model: imageConfig goes in generationConfig.
+  ai.defineFlow(
+    name: 'imageConfigGenerateContent',
+    inputSchema: .string(
+      defaultValue: 'A picture of a sunset in the mountains by a lake',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiImage('gemini-3-pro-image'),
+        prompt: prompt,
+        config: GeminiImageOptions(
+          imageConfig: GeminiImageConfig(aspectRatio: '3:4', imageSize: '1K'),
+        ),
+      );
+      return response.media ?? (throw Exception('No image generated'));
+    },
+  );
+
+  // --- TTS audio format ---
+
+  // Streamed with audioFormat audio/wav: the final response is one playable
+  // WAV file (no wrapping needed).
+  ai.defineFlow(
+    name: 'ttsStreamingWav',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    streamSchema: .string(),
+    fn: (_, ctx) async {
+      var chunkCount = 0;
+      final response = await ai.generate(
+        model: googleAI.geminiTts('gemini-3.8-flash-lite-tts'),
+        prompt: 'Have a wonderful day!',
+        config: GeminiTtsOptions(
+          speechConfig: _voice('Kore'),
+          audioFormat: GeminiAudioFormat(mimeType: 'audio/wav'),
+        ),
+        onChunk: (chunk) {
+          chunkCount++;
+          ctx.sendChunk('chunk $chunkCount: ${chunk.media?.contentType}');
+        },
+      );
+      final media = response.media ?? (throw Exception('No audio generated'));
+      return {'chunkCount': chunkCount, 'media': media.toJson()};
+    },
+  );
+
+  // --- Video generation (Gemini Omni) ---
+
+  // ai.generate() returns the video directly, as an inline MP4 (a data URL)
+  // that plays in the Dev UI. 360p keeps it fast.
+  ai.defineFlow(
+    name: 'omniTextToVideo',
+    inputSchema: .string(
+      defaultValue:
+          'A paper boat floating down a rain-filled gutter, continuous '
+          'shot, with the sound of rain.',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiVideo('gemini-omni-1.1-flash'),
+        prompt: prompt,
+        config: GeminiVideoOptions(
+          videoFormat: GeminiVideoFormat(
+            aspectRatio: '9:16',
+            resolution: '360p',
+          ),
+          // Optional: the model infers the task from the prompt if not set.
+          videoConfig: GeminiVideoConfig(task: 'text_to_video'),
+        ),
+      );
+      return response.media ?? (throw Exception('No video generated'));
+    },
+  );
+
+  // --- Music generation (Lyria) ---
+
+  ai.defineFlow(
+    name: 'lyriaClip',
+    inputSchema: .string(
+      defaultValue:
+          'Create a 30-second cheerful acoustic folk song with guitar and '
+          'harmonica.',
+    ),
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.lyria('lyria-3-clip-preview'),
+        prompt: prompt,
+      );
+      final media = response.media ?? (throw Exception('No music generated'));
+      // The lyrics or a caption come back as text, next to the audio.
+      return {'text': response.text, 'media': media.toJson()};
+    },
+  );
+
+  ai.defineFlow(
+    name: 'lyriaInstrumental',
+    inputSchema: .string(
+      defaultValue:
+          'A bright chiptune melody in C Major, retro 8-bit video game style. '
+          'Instrumental only, no vocals.',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.lyria('lyria-3-clip-preview'),
+        prompt: prompt,
+        config: LyriaOptions(responseModalities: ['AUDIO']),
+      );
+      return response.media ?? (throw Exception('No music generated'));
+    },
+  );
+
+  // --- Antigravity agent ---
+
+  ai.defineFlow(
+    name: 'antigravity',
+    inputSchema: .string(
+      defaultValue: 'Read Hacker News, summarize the top 10 stories.',
+    ),
+    outputSchema: Message.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.antigravity('antigravity-preview-09-2026'),
+        prompt: prompt,
+        // Without tools, the agent uses all its default tools.
+        config: AntigravityOptions(environment: 'remote'),
+      );
+      return response.message!;
+    },
+  );
+
+  // Two turns: the second continues the stored interaction, in the same
+  // sandbox, because it passes the first response's messages.
+  ai.defineFlow(
+    name: 'antigravityMultiTurn',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (_, _) async {
+      final turn1 = await ai.generate(
+        model: googleAI.antigravity('antigravity-preview-09-2026'),
+        prompt: 'Create a simple python script to print hello world.',
+        config: AntigravityOptions(environment: 'remote'),
+      );
+      final turn2 = await ai.generate(
+        model: googleAI.antigravity('antigravity-preview-09-2026'),
+        messages: turn1.messages,
+        prompt: 'Now modify the script to print it backwards and run it.',
+      );
+      return {
+        'turn1': turn1.text,
+        'turn1Metadata': turn1.message?.metadata,
+        'turn2': turn2.text,
+      };
+    },
+  );
+
+  // Antigravity calling one of your own tools, on a chosen Gemini model.
+  ai.defineFlow(
+    name: 'antigravityFunctionTools',
+    inputSchema: .string(
+      defaultValue:
+          'Use the getWeather tool to get the weather in Tokyo, then tell me '
+          'in one sentence.',
+    ),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.antigravity('antigravity-preview-09-2026'),
+        prompt: prompt,
+        toolNames: ['getWeather'],
+        config: AntigravityOptions(
+          environment: 'remote',
+          model: 'gemini-3.5-flash-lite',
+        ),
+      );
+      return response.text;
+    },
+  );
+
   ai.defineFlow(
     name: 'embedding',
     inputSchema: .string(defaultValue: 'Hello Genkit'),
@@ -398,3 +819,80 @@ void main(List<String> args) async {
     },
   );
 }
+
+GeminiSpeechConfig _voice(String voiceName) => GeminiSpeechConfig(
+  voiceConfig: GeminiVoiceConfig(
+    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(voiceName: voiceName),
+  ),
+);
+
+final _joeAndJaneVoices = GeminiSpeechConfig(
+  multiSpeakerVoiceConfig: GeminiMultiSpeakerVoiceConfig(
+    speakerVoiceConfigs: [
+      GeminiSpeakerVoiceConfig(
+        speaker: 'Joe',
+        voiceConfig: _voice('Puck').voiceConfig!,
+      ),
+      GeminiSpeakerVoiceConfig(
+        speaker: 'Jane',
+        voiceConfig: _voice('Kore').voiceConfig!,
+      ),
+    ],
+  ),
+);
+
+/// Wraps raw PCM audio (16-bit little-endian, mono) in a WAV header so it can
+/// be played; WAV media is returned as is. The sample rate comes from the
+/// content type (`rate=...`), else 24000 Hz (the Gemini TTS models' rate).
+/// Like `pcmMediaToWav` in packages/genkit_google_genai/example.
+Media _pcmToWav(Media media) {
+  final contentType = media.contentType ?? '';
+  if (contentType.toLowerCase().startsWith('audio/wav')) return media;
+
+  final pcm = base64Decode(media.url.substring(media.url.indexOf(',') + 1));
+  final rate = RegExp(r'rate=(\d+)').firstMatch(contentType);
+  final sampleRate = rate == null ? 24000 : int.parse(rate.group(1)!);
+
+  final header = ByteData(44);
+  void ascii4(int offset, String s) {
+    for (var i = 0; i < 4; i++) {
+      header.setUint8(offset + i, s.codeUnitAt(i));
+    }
+  }
+
+  ascii4(0, 'RIFF');
+  header.setUint32(4, 36 + pcm.length, Endian.little);
+  ascii4(8, 'WAVE');
+  ascii4(12, 'fmt ');
+  header
+    ..setUint32(16, 16, Endian.little) // fmt chunk size for PCM
+    ..setUint16(20, 1, Endian.little) // PCM
+    ..setUint16(22, 1, Endian.little) // mono
+    ..setUint32(24, sampleRate, Endian.little)
+    ..setUint32(28, sampleRate * 2, Endian.little) // bytes per second
+    ..setUint16(32, 2, Endian.little) // bytes per sample
+    ..setUint16(34, 16, Endian.little); // bits per sample
+  ascii4(36, 'data');
+  header.setUint32(40, pcm.length, Endian.little);
+
+  final wav = Uint8List.fromList([...header.buffer.asUint8List(), ...pcm]);
+  return Media(
+    url: 'data:audio/wav;base64,${base64Encode(wav)}',
+    contentType: 'audio/wav',
+  );
+}
+
+List<Part> _joeAndJane({String? janeStyle}) => [
+  TextPart(
+    text: "How's it going today, Jane?",
+    metadata: {
+      'speechMetadata': {'speaker': 'Joe'},
+    },
+  ),
+  TextPart(
+    text: 'Not too bad, how about you?',
+    metadata: {
+      'speechMetadata': {'speaker': 'Jane', 'style': ?janeStyle},
+    },
+  ),
+];
