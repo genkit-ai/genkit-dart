@@ -24,10 +24,15 @@ const _schema = {
   },
 };
 
+// These tests cover the generateContent request, so they use models pinned
+// to generateContent (other names use the Interactions API).
+const _textModel = 'gemini-3.1-flash-lite';
+const _ttsModel = 'gemini-3.1-flash-tts-preview';
+
 Future<Map<String, dynamic>> _generationConfigOnTheWire({
   OutputConfig? output,
   Map<String, dynamic>? config,
-  String model = 'gemini-2.0-flash',
+  String model = _textModel,
 }) async {
   final captured = <Map<String, dynamic>>[];
   final plugin = WirePlugin(captured);
@@ -95,7 +100,7 @@ void main() {
     test('TTS model text-mode request with an output schema sends no '
         'responseJsonSchema', () async {
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-3.8-flash-tts',
+        model: _ttsModel,
         output: OutputConfig(
           format: 'text',
           schema: _schema,
@@ -108,7 +113,7 @@ void main() {
     test('TTS model JSON-mode unconstrained request sends no '
         'responseJsonSchema', () async {
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-3.8-flash-tts',
+        model: _ttsModel,
         output: OutputConfig(
           format: 'json',
           schema: _schema,
@@ -126,7 +131,7 @@ void main() {
       // schema in the prompt add the `simulateConstrainedGeneration`
       // middleware.
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-3.8-flash-tts',
+        model: _ttsModel,
         output: OutputConfig(
           format: 'json',
           schema: _schema,
@@ -166,7 +171,7 @@ void main() {
 
     test('TTS model seed in config reaches the wire', () async {
       final config = await _generationConfigOnTheWire(
-        model: 'gemini-3.8-flash-tts',
+        model: _ttsModel,
         config: {'seed': 42},
       );
       expect(config['seed'], 42);
@@ -182,7 +187,7 @@ void main() {
       );
       addTearDown(ai.shutdown);
       final response = await ai.generate(
-        model: modelRef('googleai/gemini-2.0-flash'),
+        model: modelRef('googleai/$_textModel'),
         prompt: 'hello',
         outputSchema: .string(),
       );
