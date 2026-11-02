@@ -37,10 +37,13 @@ void main() {
       for (final field in ['temperature', 'topP', 'topK']) {
         expect(description(schema, field), contains('ignore'), reason: field);
       }
-      for (final field in ['presencePenalty', 'frequencyPenalty']) {
-        expect(description(schema, field), contains('400'), reason: field);
-      }
     }
-    expect(description(options, 'candidateCount'), contains('ignore'));
+    for (final field in ['presencePenalty', 'frequencyPenalty']) {
+      expect(description(options, field), contains('400'), reason: field);
+      // A rejected Live setup closes the socket, so there is no 400.
+      expect(description(live, field), contains('Gemini 3'), reason: field);
+      expect(description(live, field), isNot(contains('400')), reason: field);
+    }
+    expect(description(options, 'candidateCount'), contains('parallel'));
   });
 }

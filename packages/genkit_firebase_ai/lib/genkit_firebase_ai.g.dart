@@ -94,10 +94,12 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get temperature {
     return (_json['temperature'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set temperature(double? value) {
     if (value == null) {
       _json.remove('temperature');
@@ -106,10 +108,12 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get topP {
     return (_json['topP'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topP(double? value) {
     if (value == null) {
       _json.remove('topP');
@@ -118,10 +122,12 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   int? get topK {
     return (_json['topK'] as num?)?.toInt();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topK(int? value) {
     if (value == null) {
       _json.remove('topK');
@@ -130,10 +136,14 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   double? get presencePenalty {
     return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   set presencePenalty(double? value) {
     if (value == null) {
       _json.remove('presencePenalty');
@@ -142,10 +152,14 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   double? get frequencyPenalty {
     return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   set frequencyPenalty(double? value) {
     if (value == null) {
       _json.remove('frequencyPenalty');
@@ -218,10 +232,14 @@ base class GeminiOptions {
     }
   }
 
+  /// Not supported on Gemini 3 and newer models. Make parallel requests
+  /// instead.
   int? get candidateCount {
     return (_json['candidateCount'] as num?)?.toInt();
   }
 
+  /// Not supported on Gemini 3 and newer models. Make parallel requests
+  /// instead.
   set candidateCount(int? value) {
     if (value == null) {
       _json.remove('candidateCount');
@@ -306,12 +324,12 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'presencePenalty': <String, Object?>{
           'type': 'number',
           'description':
-              'Gemini 3 and newer models reject requests that set this with a 400 error.',
+              'Gemini 3 and newer models may reject requests that set this with a 400 error.',
         },
         'frequencyPenalty': <String, Object?>{
           'type': 'number',
           'description':
-              'Gemini 3 and newer models reject requests that set this with a 400 error.',
+              'Gemini 3 and newer models may reject requests that set this with a 400 error.',
         },
         'responseModalities': <String, Object?>{
           'type': 'array',
@@ -334,7 +352,7 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'candidateCount': <String, Object?>{
           'type': 'integer',
           'description':
-              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+              'Not supported on Gemini 3 and newer models. Make parallel requests instead.',
         },
         'codeExecution': <String, Object?>{'type': 'boolean'},
         'functionCallingConfig': <String, Object?>{
@@ -805,10 +823,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get temperature {
     return (_json['temperature'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set temperature(double? value) {
     if (value == null) {
       _json.remove('temperature');
@@ -817,10 +837,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get topP {
     return (_json['topP'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topP(double? value) {
     if (value == null) {
       _json.remove('topP');
@@ -829,10 +851,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   int? get topK {
     return (_json['topK'] as num?)?.toInt();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topK(int? value) {
     if (value == null) {
       _json.remove('topK');
@@ -841,10 +865,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models may not support this.
   double? get presencePenalty {
     return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may not support this.
   set presencePenalty(double? value) {
     if (value == null) {
       _json.remove('presencePenalty');
@@ -853,10 +879,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models may not support this.
   double? get frequencyPenalty {
     return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may not support this.
   set frequencyPenalty(double? value) {
     if (value == null) {
       _json.remove('frequencyPenalty');
@@ -919,12 +947,12 @@ base class _LiveGenerationConfigTypeFactory
         'presencePenalty': <String, Object?>{
           'type': 'number',
           'description':
-              'Gemini 3 and newer models reject requests that set this with a 400 error.',
+              'Gemini 3 and newer models may not support this.',
         },
         'frequencyPenalty': <String, Object?>{
           'type': 'number',
           'description':
-              'Gemini 3 and newer models reject requests that set this with a 400 error.',
+              'Gemini 3 and newer models may not support this.',
         },
       },
     },

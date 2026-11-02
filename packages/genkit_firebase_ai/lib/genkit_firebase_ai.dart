@@ -60,21 +60,34 @@ final firebaseAiModelInfo = ModelInfo(
 const _ignoredByGemini3 =
     'Gemini 3 and newer models ignore this and manage sampling themselves.';
 const _rejectedByGemini3 =
-    'Gemini 3 and newer models reject requests that set this with a 400 '
+    'Gemini 3 and newer models may reject requests that set this with a 400 '
     'error.';
+const _notForGemini3 =
+    'Not supported on Gemini 3 and newer models. Make parallel requests '
+    'instead.';
+// Live sends its config in the WebSocket setup message, so a rejected field
+// closes the socket rather than returning a 400.
+const _liveNotForGemini3 = 'Gemini 3 and newer models may not support this.';
 
 @Schema()
 abstract class $GeminiOptions {
   List<String>? get stopSequences;
   int? get maxOutputTokens;
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   @Field(description: _ignoredByGemini3)
   double? get temperature;
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   @Field(description: _ignoredByGemini3)
   double? get topP;
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   @Field(description: _ignoredByGemini3)
   int? get topK;
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   @Field(description: _rejectedByGemini3)
   double? get presencePenalty;
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   @Field(description: _rejectedByGemini3)
   double? get frequencyPenalty;
   List<String>? get responseModalities;
@@ -95,7 +108,9 @@ abstract class $GeminiOptions {
   )
   Map<String, dynamic>? get responseJsonSchema;
   $ThinkingConfig? get thinkingConfig;
-  @Field(description: _ignoredByGemini3)
+  /// Not supported on Gemini 3 and newer models. Make parallel requests
+  /// instead.
+  @Field(description: _notForGemini3)
   int? get candidateCount;
   bool? get codeExecution;
   $FunctionCallingConfig? get functionCallingConfig;
@@ -143,15 +158,20 @@ abstract class $LiveGenerationConfig {
   $SpeechConfig? get speechConfig;
   List<String>? get stopSequences;
   int? get maxOutputTokens;
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   @Field(description: _ignoredByGemini3)
   double? get temperature;
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   @Field(description: _ignoredByGemini3)
   double? get topP;
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   @Field(description: _ignoredByGemini3)
   int? get topK;
-  @Field(description: _rejectedByGemini3)
+  /// Gemini 3 and newer models may not support this.
+  @Field(description: _liveNotForGemini3)
   double? get presencePenalty;
-  @Field(description: _rejectedByGemini3)
+  /// Gemini 3 and newer models may not support this.
+  @Field(description: _liveNotForGemini3)
   double? get frequencyPenalty;
 }
 
