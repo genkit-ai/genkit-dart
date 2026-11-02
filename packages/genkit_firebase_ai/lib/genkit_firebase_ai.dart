@@ -834,8 +834,20 @@ List<fai.Tool>? toGeminiTools(
 }
 
 fai.Tool _toGeminiTool(ToolDefinition tool) => fai.Tool.functionDeclarations([
-  _JsonSchemaFunctionDeclaration(tool.name, tool.description, tool.inputSchema),
+  _JsonSchemaFunctionDeclaration(
+    tool.name,
+    tool.description,
+    _constrainsInput(tool.inputSchema) ? tool.inputSchema : null,
+  ),
 ]);
+
+/// Whether [schema] says anything about the input. A schema with only
+/// `$schema` or `description`, such as the one `dynamicSchema()` produces,
+/// accepts any value, and Gemini expects `parametersJsonSchema` to describe
+/// an object, so it is left out, as the JS and Go plugins do.
+bool _constrainsInput(Map<String, dynamic>? schema) =>
+    schema != null &&
+    schema.keys.any((k) => k != r'$schema' && k != 'description');
 
 /// A function declaration that sends the tool's input schema to Gemini
 /// unchanged as `parametersJsonSchema`, as `genkit_google_genai` does.

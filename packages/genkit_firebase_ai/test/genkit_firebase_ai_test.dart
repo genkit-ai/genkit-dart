@@ -134,6 +134,25 @@ void main() {
         ],
       });
     });
+
+    test('a tool whose schema accepts any input sends no parameters', () {
+      final mTools = toGeminiTools([
+        ToolDefinition(
+          name: 'myTool',
+          description: 'desc',
+          inputSchema: {
+            r'$schema': 'http://json-schema.org/draft-07/schema#',
+            'description': 'anything',
+          },
+        ),
+      ]);
+
+      expect(mTools!.single.toJson(), {
+        'functionDeclarations': [
+          {'name': 'myTool', 'description': 'desc'},
+        ],
+      });
+    });
   });
 
   group('Part Conversion', () {

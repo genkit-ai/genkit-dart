@@ -21,7 +21,6 @@ import 'wire_harness.dart';
 
 /// Every keyword the old conversion dropped or changed.
 const _inputSchema = <String, Object?>{
-  r'$schema': 'https://json-schema.org/draft/2020-12/schema',
   r'$ref': r'#/$defs/Order',
   r'$defs': {
     'Order': {
