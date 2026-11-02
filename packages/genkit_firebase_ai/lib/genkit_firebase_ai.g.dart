@@ -946,13 +946,11 @@ base class _LiveGenerationConfigTypeFactory
         },
         'presencePenalty': <String, Object?>{
           'type': 'number',
-          'description':
-              'Gemini 3 and newer models may not support this.',
+          'description': 'Gemini 3 and newer models may not support this.',
         },
         'frequencyPenalty': <String, Object?>{
           'type': 'number',
-          'description':
-              'Gemini 3 and newer models may not support this.',
+          'description': 'Gemini 3 and newer models may not support this.',
         },
       },
     },
