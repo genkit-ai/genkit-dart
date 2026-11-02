@@ -298,8 +298,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             // firebase_ai drops each candidate's `index`, so streamed chunks
             // could not be told apart and would be merged (#656).
             throw GenkitException(
-              'Streaming with candidateCount > 1 is not supported; use a '
-              'non-streaming request.',
+              'Streaming with candidateCount > 1 is not supported. A '
+              'non-streaming request returns only the first candidate in '
+              'text and message; the rest are in raw.',
               status: StatusCode.invalidArgument,
             );
           }

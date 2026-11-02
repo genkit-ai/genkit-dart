@@ -264,6 +264,17 @@ void main() {
     expect(client.requests, isEmpty);
   });
 
+  test('streaming with candidateCount: 1 is sent', () async {
+    final client = WireClient();
+
+    await wireModel(client)(
+      userRequest('hello', config: {'candidateCount': 1}),
+      onChunk: (_) {},
+    );
+
+    expect(client.requests, hasLength(1));
+  });
+
   test('generate with candidateCount > 1 is still sent', () async {
     final client = WireClient();
 
