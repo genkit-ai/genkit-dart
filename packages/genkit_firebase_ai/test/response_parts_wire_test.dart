@@ -330,4 +330,35 @@ void main() {
     );
     expect(client.requests, isEmpty);
   });
+
+  test('user-authored custom part is not streamed to the API', () async {
+    final client = WireClient(streamChunks: [partsResponse([])]);
+    final model = wireModel(client);
+
+    await expectLater(
+      model(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [
+                CustomPart(
+                  custom: {
+                    'futurePart': {'value': 42},
+                  },
+                ),
+              ],
+            ),
+          ],
+        ),
+        onChunk: (_) {},
+      ),
+      throwsA(
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.invalidArgument)
+            .having((e) => e.message, 'message', contains('futurePart')),
+      ),
+    );
+    expect(client.requests, isEmpty);
+  });
 }
