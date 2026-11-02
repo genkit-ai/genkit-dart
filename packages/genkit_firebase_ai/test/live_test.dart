@@ -197,7 +197,10 @@ void main() {
     final session = model.streamBidi(
       init: ModelRequest(
         messages: [
-          Message(role: Role.system, content: [TextPart(text: 'Be brief')]),
+          Message(
+            role: Role.system,
+            content: [TextPart(text: 'Be brief')],
+          ),
           Message(
             role: Role.system,
             content: [
