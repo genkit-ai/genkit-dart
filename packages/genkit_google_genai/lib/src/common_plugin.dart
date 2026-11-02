@@ -713,7 +713,8 @@ Part fromGeminiPart(gcl.Part p) {
       toolRequest: ToolRequest(
         ref: p.functionCall!.id == '' ? null : p.functionCall!.id,
         name: _fromGeminiToolName(p.functionCall!.name ?? ''),
-        input: p.functionCall!.args,
+        // Gemini omits `args` when calling a tool that takes no arguments.
+        input: p.functionCall!.args ?? {},
       ),
       metadata: metadata,
     );
