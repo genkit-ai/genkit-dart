@@ -267,6 +267,14 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
+        final nonSystem = req.messages
+            .where((m) => m.role != Role.system)
+            .toList();
+        // Gemini rejects empty `contents`, so a system-only request keeps its
+        // text as the user turn, as it did before systemInstruction was sent.
+        final systemOnly = nonSystem.isEmpty;
+        final contents = toGeminiContent(systemOnly ? req.messages : nonSystem);
+
         final transport = _StatusRecordingClient(_httpClient);
         final model = _firebaseAI.generativeModel(
           model: modelName,
@@ -282,6 +290,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           ),
+          systemInstruction: systemOnly
+              ? null
+              : toGeminiSystemInstruction(req.messages),
           httpClient: transport,
         );
         GenkitException mapError(Object e, StackTrace stack) =>
@@ -295,7 +306,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
         if (ctx.streamingRequested) {
           final stream = model
-              .generateContentStream(toGeminiContent(req.messages))
+              .generateContentStream(contents)
               .handleError((Object e, StackTrace s) => throw mapError(e, s));
           final chunks = <fai.GenerateContentResponse>[];
           await for (final chunk in stream) {
@@ -327,9 +338,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         } else {
           final fai.GenerateContentResponse response;
           try {
-            response = await model.generateContent(
-              toGeminiContent(req.messages),
-            );
+            response = await model.generateContent(contents);
           } catch (e, stack) {
             throw mapError(e, stack);
           }
@@ -561,6 +570,29 @@ String toGeminiRole(Role role) {
   if (role == Role.model) return 'model';
   // user, tool and anything else map to 'user'.
   return 'user';
+}
+
+/// The parts of every system message in [messages], in order, as one
+/// `systemInstruction`, or null when there are none.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a part
+/// other than text, since Gemini's `systemInstruction` takes text only.
+@visibleForTesting
+fai.Content? toGeminiSystemInstruction(List<Message> messages) {
+  final parts = [
+    for (final m in messages)
+      if (m.role == Role.system)
+        for (final part in m.content)
+          if (part.isText)
+            toGeminiPart(part)
+          else
+            throw GenkitException(
+              'System messages can only contain text; Gemini rejects other '
+              'parts in systemInstruction.',
+              status: StatusCode.invalidArgument,
+            ),
+  ];
+  return parts.isEmpty ? null : fai.Content('system', parts);
 }
 
 @visibleForTesting
