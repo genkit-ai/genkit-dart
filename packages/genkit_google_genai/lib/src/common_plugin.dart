@@ -693,7 +693,11 @@ gcl.Part toGeminiPart(Part p) {
     );
   }
   final kind = p.toJson().keys.where((key) => key != 'metadata').join(', ');
-  throw UnimplementedError('Unsupported part type: $kind');
+  // INVALID_ARGUMENT, not INTERNAL: retrying the same request cannot help.
+  throw GenkitException(
+    'Part type $kind is not supported by the Google AI plugin.',
+    status: StatusCode.invalidArgument,
+  );
 }
 
 @visibleForTesting

@@ -30,8 +30,9 @@ void main() {
       expect(
         () => toGeminiPart(part),
         throwsA(
-          isA<UnimplementedError>()
-              .having((e) => e.message, 'kind', 'Unsupported part type: data')
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
+              .having((e) => e.message, 'kind', contains('Part type data'))
               .having(
                 (e) => e.toString(),
                 'payload absent',
