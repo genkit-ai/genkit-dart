@@ -14,6 +14,7 @@
 
 import 'dart:convert';
 
+import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
 /// Safely casts [value] to a `Map<String, dynamic>`.
@@ -80,6 +81,69 @@ dynamic processToolResult(Map<String, dynamic> result) {
   }
   if (content.length == 1) return content.first;
   return result;
+}
+
+/// Converts an MCP tool result into a multipart Genkit [ToolResult].
+///
+/// A port of `processMultipartResult` in the Genkit JS MCP plugin:
+///
+/// * The output is `structuredContent` when present. Otherwise it is the text
+///   content (with any embedded text resources appended), decoded as JSON
+///   when it looks like JSON, or `null` when there is no text.
+/// * `image` and `audio` content and embedded blob resources become
+///   [MediaPart]s, and `resource_link` content becomes [ResourcePart]s, in the
+///   response `parts`.
+/// * Error results become `{'error': '<text>'}`.
+ToolResult<dynamic> processMultipartToolResult(Map<String, dynamic> result) {
+  final content = asListOfMaps(result['content']);
+  final meta = result['_meta'];
+  final metadata = meta is Map ? asMap(meta) : null;
+  if (result['isError'] == true) {
+    return .response({'error': _toText(content)}, metadata: metadata);
+  }
+
+  final parts = <Part>[];
+  var textOutput = '';
+  MediaPart media(Object? data, Object? mimeType) => MediaPart(
+    media: Media(url: 'data:$mimeType;base64,$data', contentType: '$mimeType'),
+  );
+  for (final block in content) {
+    switch (block['type']) {
+      case 'text':
+        textOutput += block['text'] as String? ?? '';
+      case 'image' || 'audio' when block['data'] is String:
+        parts.add(media(block['data'], block['mimeType']));
+      case 'resource_link' when block['uri'] is String:
+        parts.add(ResourcePart(resource: {'uri': block['uri']}));
+      case 'resource':
+        final resource = asMap(block['resource']);
+        if (resource['text'] case final String text when text.isNotEmpty) {
+          textOutput +=
+              '${textOutput.isEmpty ? '' : '\n\n'}'
+              'Resource (${resource['uri']}):\n$text';
+        } else if (resource['blob'] case final String blob
+            when blob.isNotEmpty) {
+          parts.add(media(blob, resource['mimeType']));
+        }
+    }
+  }
+
+  Object? output = result['structuredContent'];
+  if (!result.containsKey('structuredContent') && textOutput.isNotEmpty) {
+    output = textOutput;
+    final trimmed = textOutput.trimLeft();
+    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+      try {
+        output = jsonDecode(textOutput);
+      } catch (_) {}
+    }
+  }
+
+  return .response(
+    output,
+    parts: parts.isEmpty ? null : parts,
+    metadata: metadata,
+  );
 }
 
 /// Concatenates text parts from a list of MCP content blocks.
