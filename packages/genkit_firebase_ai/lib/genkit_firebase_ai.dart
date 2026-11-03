@@ -447,6 +447,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         if (sender.failure case (final e, final stack)) {
           throw toGenkitException(e, stack);
         }
+        // A cancel closes the session through the sender, which ends the
+        // receive loop as if the session finished normally.
+        ctx.cancel?.throwIfCancelled();
 
         return ModelResponse(finishReason: FinishReason.stop);
       },
