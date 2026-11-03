@@ -607,6 +607,94 @@ void main() {
       },
     );
 
+    group('restarted tool response', () {
+      /// Interrupts on the first call, then restarts the tool so it returns
+      /// [restarted]. Returns the tool response part the model saw on resume.
+      Future<ToolResponsePart?> restartWith(
+        ToolResult<dynamic> restarted,
+      ) async {
+        ToolResponsePart? observed;
+        var toolCallCount = 0;
+
+        genkit.defineModel(
+          name: 'restartResponseModel',
+          fn: (request, context) async {
+            if (request.messages.last.role == Role.tool) {
+              observed = request.messages.last.content.first.toolResponsePart;
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'done')],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(name: 'restartTool', input: {}),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool(
+          name: 'restartTool',
+          description: 'Interrupts once, then returns the given result',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (input, context) async {
+            toolCallCount++;
+            if (toolCallCount == 1) return .interrupt();
+            return restarted;
+          },
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef('restartResponseModel'),
+          prompt: 'go',
+          toolNames: ['restartTool'],
+        );
+        expect(response1.finishReason, FinishReason.interrupted);
+
+        final response2 = await genkit.generate(
+          model: modelRef('restartResponseModel'),
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'go')],
+            ),
+            response1.message!,
+          ],
+          toolNames: ['restartTool'],
+          interruptRestart: [response1.message!.content.first.toolRequestPart!],
+        );
+        expect(response2.finishReason, FinishReason.stop);
+        expect(response2.text, 'done');
+        return observed;
+      }
+
+      test('carries parts and metadata', () async {
+        final observed = await restartWith(
+          .response(
+            'ok',
+            parts: [TextPart(text: 'extra')],
+            metadata: {'source': 'restart'},
+          ),
+        );
+
+        expect(observed?.toolResponse.output, 'ok');
+        expect(observed?.toolResponse.content, [
+          TextPart(text: 'extra').toJson(),
+        ]);
+        expect(observed?.metadata, {'source': 'restart'});
+      });
+    });
+
     test('should access metadata in tool', () async {
       const modelName = 'metaModel';
       const toolName = 'metaTool';

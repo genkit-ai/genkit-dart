@@ -684,7 +684,7 @@ Future<GenerateResult> _runGenerateLoop(
   }
 
   final ({
-    List<Part> toolResponses,
+    List<ToolResponsePart> toolResponses,
     bool interrupted,
     Map<String, _ToolStatus> toolStatus,
   })
@@ -859,7 +859,7 @@ Future<GenerateResult> _runGenerateAction(
 
     if (resumeRestart.isNotEmpty) {
       final ({
-        List<Part> toolResponses,
+        List<ToolResponsePart> toolResponses,
         bool interrupted,
         Map<String, _ToolStatus> toolStatus,
       })
@@ -921,28 +921,10 @@ Future<GenerateResult> _runGenerateAction(
         );
       }
 
-      // Map outputs back to respondents
-      final respond = opts.resume?.respond?.toList() ?? [];
-      for (final entry in toolStatus.entries) {
-        if (!entry.value.interrupted &&
-            (entry.value.output != null || entry.value.content != null)) {
-          final reqPart = resumeRestart.firstWhere((p) {
-            final t = p.toolRequest;
-            return (t.ref ?? t.name) == entry.key;
-          });
-          respond.add(
-            ToolResponsePart(
-              toolResponse: ToolResponse(
-                ref: reqPart.toolRequest.ref,
-                name: reqPart.toolRequest.name,
-                output: entry.value.output,
-                content: entry.value.content,
-              ),
-              metadata: entry.value.metadata,
-            ),
-          );
-        }
-      }
+      // Restarted tools become responses for the next pass. `_executeTools`
+      // already built them (ref/name, output, parts, metadata), so reuse them
+      // as-is rather than rebuilding from `toolStatus`.
+      final respond = [...?opts.resume?.respond, ...execution.toolResponses];
       opts = GenerateActionOptions(
         model: opts.model,
         messages: opts.messages,
@@ -1419,7 +1401,7 @@ void _recordResumedMetadata(Map<String, dynamic>? runOptionsMetadata) {
 
 Future<
   ({
-    List<Part> toolResponses,
+    List<ToolResponsePart> toolResponses,
     bool interrupted,
     Map<String, _ToolStatus> toolStatus,
   })
