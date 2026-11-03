@@ -271,21 +271,20 @@ Part fromMcpResourceContent(Map<String, dynamic> content) {
 /// media remains. Error results are processed by [processToolResult]
 /// unchanged.
 ToolResult<dynamic> toToolResult(Map<String, dynamic> result) {
-  if (result['isError'] == true) return .response(processToolResult(result));
   bool isMedia(Map<String, dynamic> block) =>
       block['type'] == 'image' || block['type'] == 'audio';
   final content = asListOfMaps(result['content']);
   final media = content.where(isMedia).toList();
-  if (media.isEmpty) return .response(processToolResult(result));
+  if (result['isError'] == true || media.isEmpty) {
+    return .response(processToolResult(result));
+  }
   final rest = content.where((block) => !isMedia(block)).toList();
   final output = rest.isEmpty && !result.containsKey('structuredContent')
       ? null
       : processToolResult({...result, 'content': rest});
   return .response(
     output,
-    parts: [
-      for (final block in media) _fromMcpContentBlock(block) as MediaPart,
-    ],
+    parts: [for (final block in media) _fromMcpContentBlock(block)],
   );
 }
 

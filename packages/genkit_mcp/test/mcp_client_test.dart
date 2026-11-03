@@ -789,6 +789,7 @@ void main() {
         mcpServer: McpServerConfig(transport: transport),
       ),
     );
+    addTearDown(client.close);
     await client.ready();
     final tools = await client.getActiveTools(Genkit());
     return await tools.first.call({}) as ToolResponseResult<dynamic>;
@@ -797,30 +798,26 @@ void main() {
   test('client returns MCP image content as tool response parts', () async {
     final result = await callToolReturning({
       'content': [
-        {'type': 'image', 'data': 'iVBORw0KGgo=', 'mimeType': 'image/png'},
+        {'type': 'image', 'data': 'AAAA', 'mimeType': 'image/png'},
       ],
     });
 
     expect(result.output, isNull);
-    expect(result.parts, hasLength(1));
     final media = result.parts!.single.media!;
     expect(media.contentType, 'image/png');
-    expect(media.url, 'data:image/png;base64,iVBORw0KGgo=');
+    expect(media.url, 'data:image/png;base64,AAAA');
   });
 
   test('client splits mixed MCP content into output and media parts', () async {
     final result = await callToolReturning({
       'content': [
         {'type': 'text', 'text': 'Captured 1 screenshot.'},
-        {'type': 'image', 'data': 'iVBORw0KGgo=', 'mimeType': 'image/png'},
+        {'type': 'image', 'data': 'AAAA', 'mimeType': 'image/png'},
       ],
     });
 
     expect(result.output, 'Captured 1 screenshot.');
-    expect(
-      result.parts!.single.media!.url,
-      'data:image/png;base64,iVBORw0KGgo=',
-    );
+    expect(result.parts!.single.media!.url, 'data:image/png;base64,AAAA');
   });
 
   test('client keeps structured content as output alongside media', () async {
