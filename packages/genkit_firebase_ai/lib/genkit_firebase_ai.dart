@@ -879,31 +879,43 @@ List<fai.Tool>? toGeminiTools(
   ];
 }
 
-fai.Tool _toGeminiTool(ToolDefinition tool) {
-  final rawSchema = tool.inputSchema;
+fai.Tool _toGeminiTool(ToolDefinition tool) => fai.Tool.functionDeclarations([
+  _JsonSchemaFunctionDeclaration(
+    tool.name,
+    tool.description,
+    _constrainsInput(tool.inputSchema) ? tool.inputSchema : null,
+  ),
+]);
 
-  final flattened = rawSchema?.flatten() ?? <String, dynamic>{};
+/// Whether [schema] says anything about the input. A schema with only
+/// `$schema` or `description`, such as the one `dynamicSchema()` produces,
+/// accepts any value, and Gemini expects `parametersJsonSchema` to describe
+/// an object, so it is left out, as the JS and Go plugins do.
+bool _constrainsInput(Map<String, dynamic>? schema) =>
+    schema != null &&
+    schema.keys.any((k) => k != r'$schema' && k != 'description');
 
-  final propertiesMap = flattened['properties'] as Map<String, dynamic>? ?? {};
-  final requiredList =
-      (flattened['required'] as List<dynamic>?)?.cast<String>() ?? [];
+/// A function declaration that sends the tool's input schema to Gemini
+/// unchanged as `parametersJsonSchema`, as `genkit_google_genai` does.
+///
+/// `firebase_ai` builds `parametersJsonSchema` only from its typed
+/// [fai.JSONSchema], which cannot carry `additionalProperties`, `pattern`,
+/// `oneOf` or a top-level `$defs`, so converting would lose them.
+final class _JsonSchemaFunctionDeclaration extends fai.FunctionDeclaration {
+  _JsonSchemaFunctionDeclaration(
+    super.name,
+    super.description,
+    this.parametersJsonSchema,
+  ) : super(parameters: const {});
 
-  final parameters = propertiesMap.map((key, value) {
-    return MapEntry(key, toGeminiSchema(value as Map<String, dynamic>));
-  });
+  final Map<String, dynamic>? parametersJsonSchema;
 
-  final optionalParameters = propertiesMap.keys
-      .where((k) => !requiredList.contains(k))
-      .toList();
-
-  return fai.Tool.functionDeclarations([
-    fai.FunctionDeclaration(
-      tool.name,
-      tool.description,
-      parameters: parameters,
-      optionalParameters: optionalParameters,
-    ),
-  ]);
+  @override
+  Map<String, Object?> toJson() => {
+    'name': name,
+    'description': description,
+    'parametersJsonSchema': ?parametersJsonSchema,
+  };
 }
 
 @visibleForTesting
