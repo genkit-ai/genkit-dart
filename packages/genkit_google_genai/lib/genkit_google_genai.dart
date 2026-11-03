@@ -24,8 +24,14 @@ const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
 class GoogleGenAiPluginHandle {
   const GoogleGenAiPluginHandle();
 
-  GenkitPlugin call({String? apiKey}) {
-    return GoogleGenAiPluginImpl(apiKey: apiKey);
+  /// Creates the plugin.
+  ///
+  /// [baseUrl] replaces the Gemini API root
+  /// (`https://generativelanguage.googleapis.com/`), for example to send
+  /// requests through a proxy that speaks the same REST API. Requests go to
+  /// `<baseUrl>/v1beta/models/<model>:generateContent`.
+  GenkitPlugin call({String? apiKey, String? baseUrl}) {
+    return GoogleGenAiPluginImpl(apiKey: apiKey, baseUrl: baseUrl);
   }
 
   ModelRef<GeminiOptions> gemini(String name) {
