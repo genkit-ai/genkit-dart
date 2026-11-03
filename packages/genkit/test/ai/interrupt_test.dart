@@ -244,6 +244,198 @@ void main() {
       expect(response.interrupts.first.toolRequest.name, toolInterrupt);
     });
 
+    group('null tool output', () {
+      // A tool that legitimately answers `null` must still count as answered
+      // when resuming; only a missing response is "unresolved".
+
+      /// Model that requests [toolNames] in parallel, then answers 'done' once
+      /// it sees tool responses, recording them in [observed].
+      void defineParallelModel(
+        String name,
+        List<String> toolNames,
+        List<ToolResponse> observed,
+      ) {
+        genkit.defineModel(
+          name: name,
+          fn: (request, context) async {
+            if (request.messages.last.role == Role.tool) {
+              observed.addAll(
+                request.messages.last.content.map((p) => p.toolResponse!),
+              );
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'done')],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  for (final t in toolNames)
+                    ToolRequestPart(
+                      toolRequest: ToolRequest(name: t, input: {}),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      }
+
+      Future<GenerateResult<Object?>> resume(
+        String model,
+        List<String> toolNames,
+        GenerateResult<Object?> interrupted, {
+        List<InterruptResponse>? respond,
+      }) => genkit.generate(
+        model: modelRef(model),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'go')],
+          ),
+          interrupted.message!,
+        ],
+        toolNames: toolNames,
+        interruptRespond: respond,
+      );
+
+      // `generate(interruptRespond: ...)` maps a null output to a restart, so
+      // a null reply is only expressible through the action-level `respond`
+      // (Dev UI, remote callers).
+      test('resume.respond with a null output resumes', () async {
+        final observed = <ToolResponse>[];
+        defineParallelModel('nullRespondModel', ['askTool'], observed);
+        genkit.defineTool(
+          name: 'askTool',
+          description: 'Interrupts',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (_, _) async => .interrupt(),
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef('nullRespondModel'),
+          prompt: 'go',
+          toolNames: ['askTool'],
+        );
+        expect(response1.finishReason, FinishReason.interrupted);
+        final toolRequest = response1.interrupts.single.toolRequest;
+
+        final response2 = await runGenerateAction(
+          genkit.registry,
+          GenerateActionOptions(
+            model: 'nullRespondModel',
+            messages: [
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'go')],
+              ),
+              response1.message!,
+            ],
+            tools: ['askTool'],
+            resume: GenerateResumeOptions(
+              respond: [
+                ToolResponsePart(
+                  toolResponse: ToolResponse(
+                    ref: toolRequest.ref,
+                    name: toolRequest.name,
+                    output: null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ActionFnArg(),
+        );
+
+        expect(response2.finishReason, FinishReason.stop);
+        expect(response2.text, 'done');
+        expect(observed.single.name, 'askTool');
+        expect(observed.single.output, isNull);
+      });
+
+      test('a sibling tool that returned null is kept as pending', () async {
+        final observed = <ToolResponse>[];
+        defineParallelModel('nullPendingModel', [
+          'voidTool',
+          'askTool',
+        ], observed);
+        var voidToolCalls = 0;
+        genkit.defineTool(
+          name: 'voidTool',
+          description: 'Returns null',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (_, _) async {
+            voidToolCalls++;
+            return .response(null);
+          },
+        );
+        genkit.defineTool(
+          name: 'askTool',
+          description: 'Interrupts',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (_, _) async => .interrupt(),
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef('nullPendingModel'),
+          prompt: 'go',
+          toolNames: ['voidTool', 'askTool'],
+        );
+        expect(response1.finishReason, FinishReason.interrupted);
+        final voidPart = response1.message!.content.firstWhere(
+          (p) => p.toolRequestPart?.toolRequest.name == 'voidTool',
+        );
+        expect(voidPart.metadata, containsPair('pendingOutput', null));
+
+        final response2 = await resume(
+          'nullPendingModel',
+          ['voidTool', 'askTool'],
+          response1,
+          respond: [InterruptResponse(response1.interrupts.single, 'ok')],
+        );
+
+        expect(response2.finishReason, FinishReason.stop);
+        expect(voidToolCalls, 1, reason: 'pending output is not re-run');
+        expect(
+          {for (final r in observed) r.name: r.output},
+          {'voidTool': null, 'askTool': 'ok'},
+        );
+      });
+
+      test('a missing response is still unresolved', () async {
+        final observed = <ToolResponse>[];
+        defineParallelModel('missingRespondModel', ['askTool'], observed);
+        genkit.defineTool(
+          name: 'askTool',
+          description: 'Interrupts',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (_, _) async => .interrupt(),
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef('missingRespondModel'),
+          prompt: 'go',
+          toolNames: ['askTool'],
+        );
+
+        final response2 = await resume(
+          'missingRespondModel',
+          ['askTool'],
+          response1,
+          respond: [],
+        );
+
+        expect(response2.finishReason, FinishReason.failed);
+        expect(response2.finishMessage, contains('Unresolved tool request'));
+        expect(observed, isEmpty);
+      });
+    });
+
     test('runGenerateAction should correctly resume using respond', () async {
       const modelName = 'actionResumeModel';
       const toolName = 'interruptTool';
@@ -677,6 +869,13 @@ void main() {
         expect(response2.text, 'done');
         return observed;
       }
+
+      test('counts a null output as answered', () async {
+        final observed = await restartWith(.response(null));
+
+        expect(observed?.toolResponse.name, 'restartTool');
+        expect(observed?.toolResponse.output, isNull);
+      });
 
       test('carries parts and metadata', () async {
         final observed = await restartWith(

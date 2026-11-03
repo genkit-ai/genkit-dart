@@ -1261,31 +1261,31 @@ _resolveResume(
     // Resolve output plus any multipart content/metadata that was preserved
     // from the tool that completed before the turn was interrupted (see
     // `_buildInterruptedResponse`), so the response reaching the model matches
-    // the straight-through path.
+    // the straight-through path. Presence, not nullness, decides whether a
+    // request is answered: `null` is a valid tool output.
+    final hasPending = meta.containsKey('pendingOutput');
     dynamic output = meta['pendingOutput'];
     var content = (meta['pendingContent'] as List?)?.toList();
     var responseMetadata = (meta['pendingMetadata'] as Map?)
         ?.cast<String, dynamic>();
 
-    if (output == null) {
-      final match = resumeRespond.firstWhere(
-        (r) => r.toolResponse.ref == req.ref && r.toolResponse.name == req.name,
-        orElse: () => ToolResponsePart(
-          toolResponse: ToolResponse(ref: '', name: '', output: null),
-        ),
-      );
-      if (match.toolResponse.name.isNotEmpty) {
-        output = match.toolResponse.output;
-        content ??= match.toolResponse.content?.toList();
-        responseMetadata ??= match.metadata;
+    if (!hasPending) {
+      final match = resumeRespond
+          .where(
+            (r) =>
+                r.toolResponse.ref == req.ref &&
+                r.toolResponse.name == req.name,
+          )
+          .firstOrNull;
+      if (match == null) {
+        throw GenkitException(
+          'Unresolved tool request ${req.name}. You must supply replies or restarts for all interrupted tool requests.',
+          status: StatusCode.invalidArgument,
+        );
       }
-    }
-
-    if (output == null) {
-      throw GenkitException(
-        'Unresolved tool request ${req.name}. You must supply replies or restarts for all interrupted tool requests.',
-        status: StatusCode.invalidArgument,
-      );
+      output = match.toolResponse.output;
+      content ??= match.toolResponse.content?.toList();
+      responseMetadata ??= match.metadata;
     }
 
     toolResponses.add(
@@ -1354,11 +1354,12 @@ ModelResponse _buildInterruptedResponse(
 
       if (status?.interrupted ?? false) {
         meta['interrupt'] = status!.interruptData;
-      } else if (status?.output != null) {
-        // Preserve the completed tool's output plus any multipart content and
-        // metadata so that, on resume, the tool response reaching the model is
-        // identical to the straight-through path (see `_resolveResume`).
-        meta['pendingOutput'] = status!.output;
+      } else if (status != null) {
+        // Preserve the completed tool's output (even `null`) plus any
+        // multipart content and metadata so that, on resume, the tool response
+        // reaching the model is identical to the straight-through path (see
+        // `_resolveResume`).
+        meta['pendingOutput'] = status.output;
         if (status.content != null) meta['pendingContent'] = status.content;
         if (status.metadata != null) meta['pendingMetadata'] = status.metadata;
       }
