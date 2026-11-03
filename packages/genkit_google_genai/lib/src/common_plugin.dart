@@ -763,11 +763,21 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
       gcl.FunctionDeclaration(
         name: _toGeminiToolName(tool.name),
         description: tool.description,
-        parametersJsonSchema: tool.inputSchema,
+        parametersJsonSchema: _constrainsInput(tool.inputSchema)
+            ? tool.inputSchema
+            : null,
       ),
     ],
   );
 }
+
+/// Whether [schema] says anything about the input. A schema with only
+/// `$schema` or `description`, such as the one `dynamicSchema()` produces,
+/// accepts any value, and Gemini expects `parametersJsonSchema` to describe
+/// an object, so it is left out, as the JS and Go plugins do.
+bool _constrainsInput(Map<String, dynamic>? schema) =>
+    schema != null &&
+    schema.keys.any((k) => k != r'$schema' && k != 'description');
 
 @visibleForTesting
 GenerationUsage? extractUsage(gcl.UsageMetadata? metadata) {
