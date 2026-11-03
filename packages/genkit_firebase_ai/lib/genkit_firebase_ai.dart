@@ -16,6 +16,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:firebase_core/firebase_core.dart' as fcore;
@@ -701,22 +702,32 @@ fai.Part toGeminiPart(Part p) {
   if (p.isMedia) {
     final media = p.media!;
     if (media.url.startsWith('data:')) {
-      final uri = Uri.parse(media.url);
-      if (uri.data != null) {
-        final mimeType = media.contentType ?? _dataUriMimeType(uri.data!);
+      final Uint8List? bytes;
+      final String? dataMimeType;
+      try {
+        final data = Uri.parse(media.url).data;
+        bytes = data?.contentAsBytes();
+        dataMimeType = data == null ? null : _dataUriMimeType(data);
+      } on FormatException catch (e) {
+        // INVALID_ARGUMENT, not INTERNAL: retrying the same request cannot
+        // help.
+        throw GenkitException(
+          'Media part has a malformed data: URL: ${e.message}',
+          status: StatusCode.invalidArgument,
+          cause: e,
+        );
+      }
+      if (bytes != null) {
+        final mimeType = media.contentType ?? dataMimeType!;
         try {
           return fai.InlineDataPart.forTest(
             mimeType,
-            uri.data!.contentAsBytes(),
+            bytes,
             isThought: isThought,
             thoughtSignature: thoughtSignature,
           );
         } catch (_) {
-          return fai.InlineDataPart(
-            mimeType,
-            uri.data!.contentAsBytes(),
-            isThought: isThought,
-          );
+          return fai.InlineDataPart(mimeType, bytes, isThought: isThought);
         }
       }
     }
