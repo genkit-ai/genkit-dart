@@ -101,8 +101,24 @@ void main() {
 
     final usage = response.usage!;
     expect(usage.inputTokens, 3);
+    expect(usage.outputTokens, isNull);
+    expect(usage.totalTokens, 3);
     expect(usage.thoughtsTokens, isNull);
     expect(usage.cachedContentTokens, isNull);
     expect(usage.custom, isNull);
+  });
+
+  test('usage with only a candidates count leaves the others unset', () async {
+    final client = WireClient(
+      response: {
+        ...textResponse('hi'),
+        'usageMetadata': {'candidatesTokenCount': 2},
+      },
+    );
+
+    final usage = (await wireModel(client)(userRequest('hello'))).usage!;
+    expect(usage.inputTokens, isNull);
+    expect(usage.outputTokens, 2);
+    expect(usage.totalTokens, isNull);
   });
 }
