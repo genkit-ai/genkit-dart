@@ -236,6 +236,42 @@ void main() {
       expect(tools, hasLength(1));
       expect(tools.first.googleSearch, isNotNull);
     });
+
+    test('returns no tools for null or empty tool lists', () {
+      expect(toGeminiTools(null), isEmpty);
+      expect(toGeminiTools([]), isEmpty);
+    });
+
+    // Vertex AI (Gemini 2.5) rejects multiple function-declaration Tools.
+    test('groups all function declarations into a single Tool', () {
+      final tools = toGeminiTools([
+        ToolDefinition(
+          name: 'toolA',
+          description: 'First tool',
+          inputSchema: {'type': 'object'},
+        ),
+        ToolDefinition(name: 'ns/toolB', description: 'Second tool'),
+      ]);
+
+      expect(tools, hasLength(1));
+      final declarations = tools.single.functionDeclarations!;
+      expect(declarations.map((d) => d.name), ['toolA', 'ns__toolB']);
+      expect(declarations.first.description, 'First tool');
+      expect(declarations.first.parametersJsonSchema, {'type': 'object'});
+    });
+
+    test('keeps built-in tools as separate entries after functions', () {
+      final tools = toGeminiTools(
+        [ToolDefinition(name: 'toolA', description: 'First tool')],
+        codeExecution: true,
+        googleSearch: GeminiGoogleSearch(),
+      );
+
+      expect(tools, hasLength(3));
+      expect(tools[0].functionDeclarations, hasLength(1));
+      expect(tools[1].codeExecution, isNotNull);
+      expect(tools[2].googleSearch, isNotNull);
+    });
   });
 
   group('toGeminiToolConfig', () {

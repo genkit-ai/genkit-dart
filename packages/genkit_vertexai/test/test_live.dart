@@ -44,7 +44,7 @@ void main() {
         plugin: vertexAI(projectId: projectId, location: location),
         gemini: vertexAI.gemini,
         textEmbedding: vertexAI.textEmbedding,
-        modelName: 'gemini-flash-latest',
+        modelName: 'gemini-3.8-flash',
         embedderName: 'gemini-embedding-001',
       ),
   ];
@@ -134,7 +134,36 @@ void main() {
           tools: [tool],
         );
 
-        expect(response.text, contains('56088')); // 123*456 = 56088
+        // Newer models format numbers with digit grouping ("56,088").
+        expect(response.text.replaceAll(',', ''), contains('56088'));
+      });
+
+      // Regression for #637: Vertex rejected multiple function tools on
+      // Gemini 2.5 when each was sent as its own Tool entry.
+      test('should use multiple tools', () async {
+        final multiply = ai.defineTool(
+          name: 'multiply',
+          description: 'Multiplies two numbers',
+          inputSchema: CalculatorInput.$schema,
+          outputSchema: .integer(),
+          fn: (CalculatorInput input, _) async => .response(input.a * input.b),
+        );
+        final add = ai.defineTool(
+          name: 'add',
+          description: 'Adds two numbers',
+          inputSchema: CalculatorInput.$schema,
+          outputSchema: .integer(),
+          fn: (CalculatorInput input, _) async => .response(input.a + input.b),
+        );
+
+        final response = await ai.generate(
+          model: config.gemini(config.modelName),
+          prompt: 'What is 123 * 456? Use the tools.',
+          tools: [multiply, add],
+        );
+
+        expect(response.finishReason, FinishReason.stop);
+        expect(response.text.replaceAll(',', ''), contains('56088'));
       });
 
       test('should embed text', () async {
