@@ -169,14 +169,36 @@ void main() {
       await expectLater(
         receiveLiveSession(session, (_) {}, closedByPlugin: () => false),
         throwsA(
-          isA<GenkitException>().having(
-            (e) => e.message,
-            'message',
-            contains('API key not valid'),
-          ),
+          isA<GenkitException>()
+              .having(
+                (e) => e.message,
+                'message',
+                contains('API key not valid'),
+              )
+              // A rejected setup is not retried.
+              .having((e) => e.status, 'status', StatusCode.invalidArgument),
         ),
       );
       expect(session.receiveCalls, 2);
+    });
+
+    test('a server close for another reason stays INTERNAL', () async {
+      final session = _ReceivingLiveSession(
+        [],
+        closedWith:
+            'WebSocket Closed, closeCode: 1011, closeReason: Internal error.',
+      );
+
+      await expectLater(
+        receiveLiveSession(session, (_) {}, closedByPlugin: () => false),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.internal,
+          ),
+        ),
+      );
     });
 
     test('a receive error is reported, not swallowed', () async {

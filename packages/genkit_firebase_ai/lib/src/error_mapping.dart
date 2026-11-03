@@ -46,6 +46,9 @@ GenkitException toGenkitException(
   final status = switch (e) {
     _ when usable(fromBody) => fromBody!,
     _ when usable(fromHttp) => fromHttp!,
+    // The server closes a Live socket with 1007 when it rejects the session
+    // setup (an unsupported config or model), which a retry would not fix.
+    _ when _liveCloseCode(e) == 1007 => StatusCode.invalidArgument,
     fai.QuotaExceeded() => StatusCode.resourceExhausted,
     fai.InvalidApiKey() => StatusCode.invalidArgument,
     fai.ServiceApiNotEnabled() => StatusCode.permissionDenied,
@@ -93,6 +96,15 @@ int? _handshakeStatus(Object e) => switch (e) {
 };
 
 final _handshakeHttpStatus = RegExp(r'HTTP status code: (\d+)');
+
+/// The close code of a Live session the server closed, if [e] is one.
+///
+/// firebase_ai doesn't export its `LiveWebSocketClosedException`, so this
+/// reads the code from the message.
+int? _liveCloseCode(Object e) =>
+    int.tryParse(_liveClosed.firstMatch('$e')?[1] ?? '');
+
+final _liveClosed = RegExp(r'WebSocket Closed, closeCode: (\d+)');
 
 /// The live URI carries the API key as a query parameter.
 final _apiKeyParam = RegExp(r'([?&]key=)[\w-]+');
