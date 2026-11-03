@@ -32,10 +32,6 @@ class McpHostOptions {
   /// When `true`, tool results are returned as raw MCP maps.
   final bool rawToolResponses;
 
-  /// When `true`, MCP media content in tool results is returned as tool
-  /// response parts. See [McpClientOptions.multipart].
-  final bool multipart;
-
   /// Roots advertised to all servers unless overridden per-server.
   final List<McpRoot>? roots;
 
@@ -44,7 +40,6 @@ class McpHostOptions {
     this.version,
     this.mcpServers,
     this.rawToolResponses = false,
-    this.multipart = false,
     this.roots,
   });
 }
@@ -65,7 +60,6 @@ class McpHostOptionsWithCache extends McpHostOptions {
     super.version,
     super.mcpServers,
     super.rawToolResponses,
-    super.multipart,
     super.roots,
   });
 }
@@ -76,7 +70,6 @@ class GenkitMcpHost {
   final String name;
   final String? version;
   final bool rawToolResponses;
-  final bool multipart;
   final List<McpRoot>? roots;
   final McpHostOptions options;
 
@@ -89,7 +82,6 @@ class GenkitMcpHost {
     : name = options.name ?? 'genkit-mcp',
       version = options.version,
       rawToolResponses = options.rawToolResponses,
-      multipart = options.multipart,
       roots = options.roots {
     checkCacheTtl(cacheTtl);
     if (options.mcpServers != null) {
@@ -132,7 +124,6 @@ class GenkitMcpHost {
           serverName: serverName,
           version: version,
           rawToolResponses: rawToolResponses,
-          multipart: multipart,
           cacheTtl: cacheTtl,
           mcpServer: McpServerConfig(
             transport: config.transport,

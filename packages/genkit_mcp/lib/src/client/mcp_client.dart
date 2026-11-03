@@ -89,11 +89,6 @@ class McpClientOptions {
 
   /// When `true`, tool results are returned as raw MCP maps.
   final bool rawToolResponses;
-
-  /// When `true`, MCP media content in tool results is returned as tool
-  /// response parts instead of in the output, matching the Genkit JS MCP
-  /// plugin's `multipart` option. Ignored when [rawToolResponses] is `true`.
-  final bool multipart;
   final McpServerConfig mcpServer;
   final McpSamplingHandler? samplingHandler;
   final McpElicitationHandler? elicitationHandler;
@@ -112,7 +107,6 @@ class McpClientOptions {
     this.serverName,
     this.version,
     this.rawToolResponses = false,
-    this.multipart = false,
     this.samplingHandler,
     this.elicitationHandler,
     this.notificationHandler,
@@ -1092,13 +1086,6 @@ class GenkitMcpClient {
     if (name is! String) return null;
     final description = tool['description']?.toString() ?? '';
     final meta = extractMcpMeta(tool);
-    if (options.multipart && options.rawToolResponses) {
-      mcpLogger.warning(
-        "[MCP] Tool '$serverName/$name' is configured with both multipart and "
-        'rawToolResponses. Genkit will return the raw MCP result in the '
-        'output, and media parts will not be parsed.',
-      );
-    }
     return Tool<Map<String, dynamic>, dynamic>(
       name: '$serverName/$name',
       description: description,
@@ -1114,8 +1101,7 @@ class GenkitMcpClient {
           meta: extractMcpMeta(ctx.context),
         );
         if (options.rawToolResponses) return .response(result);
-        if (options.multipart) return processMultipartToolResult(result);
-        return .response(processToolResult(result));
+        return processToolResult(result);
       },
     );
   }

@@ -53,39 +53,10 @@ dynamic extractMcpMeta(Object? source) {
   return null;
 }
 
-/// Processes a raw MCP tool result into a more usable form.
+/// Converts an MCP tool result into a Genkit [ToolResult].
 ///
-/// Attempts to parse JSON text, return structured content, or return the
-/// original result as-is depending on the content type.
-dynamic processToolResult(Map<String, dynamic> result) {
-  final content = asListOfMaps(result['content']);
-  if (result['isError'] == true) {
-    return {'error': _toText(content)};
-  }
-  if (result.containsKey('structuredContent')) {
-    return result['structuredContent'];
-  }
-  if (content.isEmpty) return result;
-  final allText = content.every((c) => c['text'] is String);
-  if (allText) {
-    final text = _toText(content);
-    final trimmed = text.trimLeft();
-    if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
-      try {
-        return jsonDecode(text);
-      } catch (_) {
-        return text;
-      }
-    }
-    return text;
-  }
-  if (content.length == 1) return content.first;
-  return result;
-}
-
-/// Converts an MCP tool result into a multipart Genkit [ToolResult].
-///
-/// A port of `processMultipartResult` in the Genkit JS MCP plugin:
+/// Uses the same mapping as `processMultipartResult` in the Genkit JS MCP
+/// plugin:
 ///
 /// * The output is `structuredContent` when present. Otherwise it is the text
 ///   content (with any embedded text resources appended), decoded as JSON
@@ -94,7 +65,7 @@ dynamic processToolResult(Map<String, dynamic> result) {
 ///   [MediaPart]s, and `resource_link` content becomes [ResourcePart]s, in the
 ///   response `parts`.
 /// * Error results become `{'error': '<text>'}`.
-ToolResult<dynamic> processMultipartToolResult(Map<String, dynamic> result) {
+ToolResult<dynamic> processToolResult(Map<String, dynamic> result) {
   final content = asListOfMaps(result['content']);
   final meta = result['_meta'];
   final metadata = meta is Map ? asMap(meta) : null;

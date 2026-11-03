@@ -137,7 +137,6 @@ void main() async {
 - **`version`**: (optional) Version string for this host.
 - **`mcpServers`**: (optional) A map where each key is a namespace for an MCP server, and the value is its `McpServerConfig`.
 - **`rawToolResponses`**: (optional) When `true`, tool responses are returned in their raw MCP format.
-- **`multipart`**: (optional) When `true`, media content in tool responses is returned as response `parts`. See [Multipart tool responses](#multipart-tool-responses).
 - **`roots`**: (optional) Roots to advertise to servers that request `roots/list`.
 
 ---
@@ -187,7 +186,6 @@ void main() async {
 - **`serverName`**: (optional) Overrides the name used when prefixing tools, prompts, and resources returned by `getActiveTools()`, `getActivePrompts()`, and `getActiveResources()`.
 - **`version`**: (optional) Version string for this client.
 - **`rawToolResponses`**: (optional) When `true`, tool responses are returned in their raw MCP format. Defaults to `false`.
-- **`multipart`**: (optional) When `true`, media content in tool responses is returned as response `parts`. See [Multipart tool responses](#multipart-tool-responses). Defaults to `false`.
 - **`mcpServer`**: (required) A `McpServerConfig` with one of the following:
   - **`command`** + **`args`**: Launch a local server process via stdio transport.
   - **`url`**: Connect to a remote server via Streamable HTTP transport.
@@ -295,31 +293,17 @@ Actions can be namespaced to avoid conflicts (behavior depends on whether you us
 ## Tool Responses
 
 MCP tools return a `content` array and can also return `structuredContent`. The
-plugin processes results in this order:
-
-1. If the result contains `isError: true`, the processed value is returned as `{'error': '<text>'}`.
-2. If `structuredContent` is present, its JSON value is returned directly, including an explicit `null`.
-3. If **all** `content` parts are text, they are concatenated into a single string.
-   - If the concatenated text *looks like JSON* (starts with `{` or `[` after left-trimming), the client tries `jsonDecode(...)` and returns the decoded object/list on success.
-   - Otherwise the concatenated text is returned as a `String`.
-4. If `content` has exactly one **non-text** part, that part map is returned (e.g. an image/audio block).
-5. If `content` has multiple or mixed parts, the raw MCP result map is returned.
-
-Set `rawToolResponses: true` in client options to skip this processing and receive raw MCP responses.
-
-### Multipart tool responses
-
-With the default processing above, image and audio content ends up in the tool
-output as base64 data, which models receive as text. Set `multipart: true` in
-client or host options to return it as response `parts` instead, which models
-that support multipart tool responses receive as media. This matches the
-Genkit JS MCP plugin's `multipart` option:
+plugin maps each result to a tool response `output` and `parts`, the same way as
+the Genkit JS MCP plugin's multipart mode:
 
 1. If the result contains `isError: true`, the output is `{'error': '<text>'}`.
-2. `image` and `audio` content, and embedded resources with a `blob`, become `MediaPart`s with `data:<mimeType>;base64,<data>` URLs. `resource_link` content becomes a `ResourcePart`.
-3. The output is `structuredContent` if present. Otherwise it is the concatenated text content, with embedded text resources appended, decoded as JSON if it looks like JSON, or `null` if there is no text.
+2. `image` and `audio` content, and embedded resources with a `blob`, become `MediaPart`s in `parts`, with `data:<mimeType>;base64,<data>` URLs. Models that support multipart tool responses receive these as media. `resource_link` content becomes a `ResourcePart`.
+3. The output is `structuredContent` if present, including an explicit `null`. Otherwise it is the concatenated text content, with embedded text resources appended:
+   - If the text *looks like JSON* (starts with `{` or `[` after left-trimming), the client tries `jsonDecode(...)` and returns the decoded object/list on success.
+   - Otherwise the text is returned as a `String`.
+   - If there is no text, the output is `null`.
 
-`rawToolResponses: true` takes precedence over `multipart`.
+Set `rawToolResponses: true` in client options to skip this processing and receive raw MCP responses.
 
 ---
 

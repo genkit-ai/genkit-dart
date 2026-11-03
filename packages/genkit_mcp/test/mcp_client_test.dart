@@ -771,7 +771,7 @@ void main() {
     expect(content['text'], '{"answer":42}');
   });
 
-  group('multipart tool results', () {
+  group('tool results', () {
     Future<ToolResponseResult<dynamic>> callToolReturning(
       Map<String, dynamic> callToolResult,
     ) async {
@@ -787,7 +787,6 @@ void main() {
       final client = GenkitMcpClient(
         McpClientOptions(
           name: 'media-client',
-          multipart: true,
           mcpServer: McpServerConfig(transport: transport),
         ),
       );
@@ -854,10 +853,9 @@ void main() {
       expect(result.parts, isNull);
     });
 
-    test('prefer structured content as the output', () async {
+    test('keep structured content as the output alongside media', () async {
       final result = await callToolReturning({
         'content': [
-          {'type': 'text', 'text': 'width 2'},
           {'type': 'image', 'data': 'AAAA', 'mimeType': 'image/png'},
         ],
         'structuredContent': {'width': 2},
