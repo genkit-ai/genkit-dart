@@ -111,7 +111,16 @@ class FilesystemMiddleware extends GenerateMiddleware {
   // Resolved lazily (and once) so a root that doesn't exist yet still works,
   // and so a root that is itself a symlink (e.g. macOS /tmp) compares equal to
   // the real paths of its children.
-  late final String _realRoot = _realPath(_lexicalRoot) ?? _throwAccessDenied();
+  //
+  // A root whose own link chain can't be resolved is a configuration error, so
+  // it gets its own message instead of blaming the path the model asked for.
+  late final String _realRoot =
+      _realPath(_lexicalRoot) ??
+      (throw GenkitException(
+        'filesystem middleware: rootDirectory could not be resolved (too many '
+        'symbolic links): $rootDirectory',
+        status: StatusCode.failedPrecondition,
+      ));
 
   /// Resolves [relativePath] against [rootDirectory] and returns the real
   /// (symlink-free) path, or throws if it points outside the root.
@@ -125,13 +134,17 @@ class FilesystemMiddleware extends GenerateMiddleware {
 
   /// Like [_resolvePath], but returns null instead of throwing.
   String? _resolvePathOrNull(String relativePath) {
+    // Resolve the root first, so a misconfigured root is reported as such even
+    // when the path under it can't be resolved either.
+    final realRoot = _realRoot;
+
     // Lexical check first: cheap, and rejects `..` and absolute paths early.
     final lexical = p.canonicalize(p.join(_lexicalRoot, relativePath));
     if (!_isWithinOrEqual(_lexicalRoot, lexical)) return null;
 
     // Then follow symlinks, so a link inside the root can't point outside it.
     final real = _realPath(lexical);
-    if (real == null || !_isWithinOrEqual(_realRoot, real)) return null;
+    if (real == null || !_isWithinOrEqual(realRoot, real)) return null;
     return real;
   }
 
