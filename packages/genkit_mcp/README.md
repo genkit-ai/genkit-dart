@@ -296,12 +296,13 @@ MCP tools return a `content` array and can also return `structuredContent`. The
 plugin processes results in this order:
 
 1. If the result contains `isError: true`, the processed value is returned as `{'error': '<text>'}`.
-2. If `structuredContent` is present, its JSON value is returned directly, including an explicit `null`.
-3. If **all** `content` parts are text, they are concatenated into a single string.
+2. Media content (`image` and `audio` blocks) is returned as `MediaPart`s in the tool response `parts`, using `data:<mimeType>;base64,<data>` URLs. Models that support multipart tool responses receive these as media rather than as base64 text. The remaining steps apply to the rest of the result; if only media content remains (and there is no `structuredContent`), the output is `null`.
+3. If `structuredContent` is present, its JSON value is returned directly, including an explicit `null`.
+4. If **all** `content` parts are text, they are concatenated into a single string.
    - If the concatenated text *looks like JSON* (starts with `{` or `[` after left-trimming), the client tries `jsonDecode(...)` and returns the decoded object/list on success.
    - Otherwise the concatenated text is returned as a `String`.
-4. If `content` has exactly one **non-text** part, that part map is returned (e.g. an image/audio block).
-5. If `content` has multiple or mixed parts, the raw MCP result map is returned.
+5. If `content` has exactly one other **non-text** part, that part map is returned (e.g. a resource).
+6. If `content` has multiple or mixed parts, the raw MCP result map (without the media content) is returned.
 
 Set `rawToolResponses: true` in client options to skip this processing and receive raw MCP responses.
 

@@ -1100,9 +1100,8 @@ class GenkitMcpClient {
           arguments: input,
           meta: extractMcpMeta(ctx.context),
         );
-        // Behavior unchanged; only wrapped in .response() for the new signature.
         if (options.rawToolResponses) return .response(result);
-        return .response(processToolResult(result));
+        return toToolResult(result);
       },
     );
   }
