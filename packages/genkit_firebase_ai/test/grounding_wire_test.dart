@@ -46,8 +46,6 @@ const _groundingMetadata = {
       'groundingChunkIndices': [0, 1],
     },
   ],
-  // firebase_ai matches this against List<String>, which decoded JSON never is,
-  // so it always parses as empty.
   'webSearchQueries': ['weather today'],
 };
 
@@ -75,10 +73,12 @@ Map<String, dynamic> _grounded(String text, {String? finishReason = 'STOP'}) {
   };
 }
 
-final _expectedGrounding = {
-  ..._groundingMetadata,
-  'webSearchQueries': <String>[],
-};
+final _expectedGrounding = anyOf(
+  _groundingMetadata,
+  // Before 5.1, firebase_ai matched this against List<String>, which decoded
+  // JSON never is, so it always parsed as empty.
+  {..._groundingMetadata, 'webSearchQueries': <String>[]},
+);
 
 void main() {
   setUpAll(setUpFirebaseApp);
