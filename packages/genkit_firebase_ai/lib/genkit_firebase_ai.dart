@@ -755,7 +755,11 @@ fai.Part toGeminiPart(Part p) {
       });
     }
   }
-  throw UnimplementedError('Part type $p not supported yet');
+  // INVALID_ARGUMENT, not INTERNAL: retrying the same request cannot help.
+  throw GenkitException(
+    'Part type $p is not supported by the Firebase AI plugin.',
+    status: StatusCode.invalidArgument,
+  );
 }
 
 @visibleForTesting
