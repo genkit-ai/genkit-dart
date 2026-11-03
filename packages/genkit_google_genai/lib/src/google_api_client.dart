@@ -26,8 +26,9 @@ import 'model.dart';
 class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   String? apiKey;
 
-  /// Root URL of the Gemini API. Defaults to
-  /// `https://generativelanguage.googleapis.com/`.
+  /// Root URL of the Gemini API.
+  ///
+  /// Defaults to `https://generativelanguage.googleapis.com/`.
   final String? baseUrl;
 
   /// Test-only HTTP transport. When set it replaces the API-key client for
