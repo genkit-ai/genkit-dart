@@ -652,10 +652,11 @@ void main() {
       // pin this: a compat backend is withheld the curated catalog, so that
       // call passes on the core actions even if the plugin contributes none.
       //
-      // Costs ~7s: discovery is a GET, so the SDK retries the refused
-      // connection three times with exponential backoff before list() gives
-      // up. Accepted deliberately - do not "speed it up" by dropping it.
+      // Discovery does not retry a refused connection, so this returns at once
+      // rather than after the SDK's default ~7s of backoff.
+      final stopwatch = Stopwatch()..start();
       expect(modelNames(await plugin.list()), {'groq/llama-3.3-70b-versatile'});
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 3)));
 
       // INTERNAL, not UNAVAILABLE: a refused socket never becomes an
       // ApiException, so there is no HTTP status to map and the generic
