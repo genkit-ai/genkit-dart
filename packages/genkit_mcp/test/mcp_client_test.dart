@@ -37,6 +37,7 @@ class FakeClientTransport implements McpClientTransport {
   bool hangRepeatedDiscovery = false;
   bool requireUrlElicitation = false;
   bool acknowledgeSubscriptions = true;
+  bool rejectSubscriptions = false;
   final bool closeInboundOnClose;
   int latestListTtlMs = 0;
   bool failSends = false;
@@ -121,6 +122,10 @@ class FakeClientTransport implements McpClientTransport {
       final notifications = (params['notifications'] as Map)
           .cast<String, dynamic>();
       subscriptionFilters.add(Map<String, dynamic>.from(notifications));
+      if (rejectSubscriptions) {
+        _respondError(message['id'], -32601, 'Method not found');
+        return;
+      }
       if (!acknowledgeSubscriptions) return;
       final subscriptionId = message['id'];
       _inboundController.add({
@@ -913,6 +918,64 @@ void main() {
         'resourceSubscriptions': ['file:///project/b.json'],
       },
     ]);
+    await client.close();
+  });
+
+  test(
+    'client connects when the server rejects list change subscriptions',
+    () async {
+      final transport = FakeClientTransport(supportsDiscovery: true)
+        ..rejectSubscriptions = true
+        ..capabilities = {
+          'tools': {'listChanged': true},
+        }
+        ..tools = [
+          {
+            'name': 'myTool',
+            'inputSchema': {'type': 'object'},
+          },
+        ];
+      final client = GenkitMcpClient(
+        McpClientOptions(
+          name: 'test-client',
+          mcpServer: McpServerConfig(transport: transport),
+        ),
+      );
+
+      await client.ready();
+
+      expect(client.protocolVersion, '2026-07-28');
+      expect(transport.subscriptionFilters, [
+        {'toolsListChanged': true},
+      ]);
+      expect(
+        (await client.getActiveTools(Genkit())).single.name,
+        'fake-server/myTool',
+      );
+      await client.close();
+    },
+  );
+
+  test('a rejected resource subscription does not leak an error', () async {
+    final transport = FakeClientTransport(supportsDiscovery: true)
+      ..rejectSubscriptions = true
+      ..capabilities = {
+        'resources': {'subscribe': true},
+      };
+    final client = GenkitMcpClient(
+      McpClientOptions(
+        name: 'test-client',
+        mcpServer: McpServerConfig(transport: transport),
+      ),
+    );
+    await client.ready();
+
+    await expectLater(
+      client.subscribeResource(uri: 'file:///project/config.json'),
+      throwsA(isA<Object>()),
+    );
+    // Lets a stray error on the subscription's done future surface.
+    await Future<void>.delayed(Duration.zero);
     await client.close();
   });
 
