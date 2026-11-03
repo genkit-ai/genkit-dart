@@ -159,6 +159,19 @@ void main() {
       expect(media.contentType, 'audio/mp3');
       expect(media.url, 'data:audio/mp3;base64,SGVsbG8=');
     });
+
+    test('converts a functionCall without args to an empty input', () {
+      // Gemini omits `args` when it calls a tool that takes no arguments.
+      final part = gcl.Part.fromJson({
+        'functionCall': {'name': 'noArgTool'},
+      });
+      final genkitPart = fromGeminiPart(part);
+      expect(genkitPart, isA<ToolRequestPart>());
+      final toolRequest = (genkitPart as ToolRequestPart).toolRequest;
+      expect(toolRequest.name, 'noArgTool');
+      expect(toolRequest.input, isNotNull);
+      expect(toolRequest.input, isEmpty);
+    });
   });
 
   group('thought handling', () {
