@@ -702,12 +702,13 @@ fai.Part toGeminiPart(Part p) {
   if (p.isMedia) {
     final media = p.media!;
     if (media.url.startsWith('data:')) {
-      final Uint8List? bytes;
-      final String? dataMimeType;
+      final Uint8List bytes;
+      final String mimeType;
       try {
-        final data = Uri.parse(media.url).data;
-        bytes = data?.contentAsBytes();
-        dataMimeType = data == null ? null : _dataUriMimeType(data);
+        // `Uri.data` is never null for a `data:` URL; a malformed one throws.
+        final data = Uri.parse(media.url).data!;
+        bytes = data.contentAsBytes();
+        mimeType = media.contentType ?? _dataUriMimeType(data);
       } on FormatException catch (e) {
         // INVALID_ARGUMENT, not INTERNAL: retrying the same request cannot
         // help.
@@ -717,18 +718,15 @@ fai.Part toGeminiPart(Part p) {
           cause: e,
         );
       }
-      if (bytes != null) {
-        final mimeType = media.contentType ?? dataMimeType!;
-        try {
-          return fai.InlineDataPart.forTest(
-            mimeType,
-            bytes,
-            isThought: isThought,
-            thoughtSignature: thoughtSignature,
-          );
-        } catch (_) {
-          return fai.InlineDataPart(mimeType, bytes, isThought: isThought);
-        }
+      try {
+        return fai.InlineDataPart.forTest(
+          mimeType,
+          bytes,
+          isThought: isThought,
+          thoughtSignature: thoughtSignature,
+        );
+      } catch (_) {
+        return fai.InlineDataPart(mimeType, bytes, isThought: isThought);
       }
     }
     // Assume HTTP/S or other URLs are File URIs
