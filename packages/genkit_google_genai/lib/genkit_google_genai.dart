@@ -29,7 +29,8 @@ class GoogleGenAiPluginHandle {
   /// [baseUrl] replaces the Gemini API root
   /// (`https://generativelanguage.googleapis.com/`), for example to send
   /// requests through a proxy that speaks the same REST API. Requests go to
-  /// `<baseUrl>/v1beta/models/<model>:generateContent`.
+  /// `<baseUrl>/v1beta/models/<model>:generateContent`, still authenticated
+  /// with [apiKey] in the `x-goog-api-key` header.
   GenkitPlugin call({String? apiKey, String? baseUrl}) {
     return GoogleGenAiPluginImpl(apiKey: apiKey, baseUrl: baseUrl);
   }
