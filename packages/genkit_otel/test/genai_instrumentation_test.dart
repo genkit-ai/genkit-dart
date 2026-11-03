@@ -344,6 +344,21 @@ void main() {
     expect(attr(span, GenkitAttr.actionName), 'weather');
   });
 
+  test('keeps the action name when a span has a custom display name', () async {
+    final instr = GenAiInstrumentation();
+    await instr.runInNewSpan(
+      SpanMetadata(
+        name: 'summarize',
+        actionType: ActionType.util.value,
+        attributes: const {'genkit:name': 'generate'},
+      ),
+      ([span]) async => 'ok',
+    );
+    final span = harness.spans.findSpanByName('summarize')!;
+    expect(attr(span, GenkitAttr.actionType), ActionType.util.value);
+    expect(attr(span, GenkitAttr.actionName), 'generate');
+  });
+
   test('stamps genkit action type/name on model spans', () async {
     final instr = GenAiInstrumentation();
     await runModel(
