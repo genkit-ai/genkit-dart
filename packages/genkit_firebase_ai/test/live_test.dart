@@ -12,10 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// firebase_ai 5 deprecates the sampling parameters for Gemini 3.x, but the
-// plugin still forwards them (#596), and these tests check that it does.
-// ignore_for_file: deprecated_member_use
-
 import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/experimental.dart' show BidiModel;
@@ -29,7 +25,7 @@ void main() {
 
       expect(config.responseModalities, isNull);
       expect(config.speechConfig, isNull);
-      expect(config.temperature, isNull);
+      expect(config.toJson(), isNot(contains('temperature')));
     });
 
     test('does not throw when speechConfig has no voiceConfig', () {
@@ -58,11 +54,18 @@ void main() {
       expect(config.responseModalities, [fai.ResponseModalities.audio]);
       expect(config.speechConfig!.voiceName, 'Kore');
       expect(config.maxOutputTokens, 256);
-      expect(config.temperature, 1.0);
-      expect(config.topP, 0.9);
-      expect(config.topK, 40);
-      expect(config.presencePenalty, 0.1);
-      expect(config.frequencyPenalty, 0.2);
+      // The sampling getters are deprecated from firebase_ai 5 (#596), so
+      // check the wire form instead.
+      expect(
+        config.toJson(),
+        allOf(
+          containsPair('temperature', 1.0),
+          containsPair('topP', 0.9),
+          containsPair('topK', 40),
+          containsPair('presencePenalty', 0.1),
+          containsPair('frequencyPenalty', 0.2),
+        ),
+      );
     });
 
     test('reports a field of the wrong type as an invalid argument', () {

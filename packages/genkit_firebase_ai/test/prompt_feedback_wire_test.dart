@@ -39,13 +39,23 @@ final _blockedWithoutRatings = {
   'promptFeedback': {'blockReason': 'PROHIBITED_CONTENT'},
 };
 
-final _isBlockedWithoutRatingsException = isA<GenkitException>()
-    .having((e) => e.status, 'status', StatusCode.failedPrecondition)
-    .having(
-      (e) => e.message,
-      'message',
-      'Prompt was blocked (PROHIBITED_CONTENT).',
-    );
+final _isBlockedWithoutRatingsException = anyOf(
+  isA<GenkitException>()
+      .having((e) => e.status, 'status', StatusCode.failedPrecondition)
+      .having(
+        (e) => e.message,
+        'message',
+        'Prompt was blocked (PROHIBITED_CONTENT).',
+      ),
+  // Before 5.1, firebase_ai required safetyRatings and failed to parse it.
+  isA<GenkitException>()
+      .having((e) => e.status, 'status', StatusCode.unknown)
+      .having(
+        (e) => e.message,
+        'message',
+        contains('Unhandled format for PromptFeedback'),
+      ),
+);
 
 /// A part firebase_ai still cannot parse (firebase/flutterfire#18881).
 final _unparseable = {
