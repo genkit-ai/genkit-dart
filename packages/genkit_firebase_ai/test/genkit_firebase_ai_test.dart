@@ -222,12 +222,19 @@ void main() {
       );
       final settings = toGeminiSettings(options, null, false);
 
-      expect(settings.temperature, 0.7);
-      expect(settings.candidateCount, 2);
-      expect(settings.maxOutputTokens, 100);
-      expect(settings.topK, 10);
-      expect(settings.topP, 0.9);
-      expect(settings.responseMimeType, 'text/plain');
+      // The sampling getters are deprecated from firebase_ai 5 (#596), so
+      // check the wire form instead.
+      expect(
+        settings.toJson(),
+        allOf(
+          containsPair('temperature', 0.7),
+          containsPair('candidateCount', 2),
+          containsPair('maxOutputTokens', 100),
+          containsPair('topK', 10),
+          containsPair('topP', 0.9),
+          containsPair('responseMimeType', 'text/plain'),
+        ),
+      );
     });
 
     test('toGeminiSettings overrides mimeType for JSON mode', () {

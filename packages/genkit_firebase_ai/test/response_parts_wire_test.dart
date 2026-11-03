@@ -105,8 +105,8 @@ void main() {
     );
   });
 
-  test('camelCase fileData part becomes a custom part (pins upstream '
-      'firebase_ai limitation: only snake_case file_data is parsed)', () async {
+  test('camelCase fileData part becomes a media part (a custom part before '
+      'firebase_ai 5.1)', () async {
     final client = WireClient(
       response: partsResponse([
         {
@@ -119,10 +119,15 @@ void main() {
     final response = await model(userRequest('show me'));
 
     final part = response.message!.content.single;
-    expect(part.media, isNull);
-    expect(part.custom, {
-      'fileData': {'fileUri': 'gs://b/f.png', 'mimeType': 'image/png'},
-    });
+    if (part.media == null) {
+      // Before 5.1, firebase_ai only parsed snake_case file_data.
+      expect(part.custom, {
+        'fileData': {'fileUri': 'gs://b/f.png', 'mimeType': 'image/png'},
+      });
+    } else {
+      expect(part.media!.url, 'gs://b/f.png');
+      expect(part.media!.contentType, 'image/png');
+    }
   });
 
   test('codeExecutionResult without output fails in firebase_ai parsing '
