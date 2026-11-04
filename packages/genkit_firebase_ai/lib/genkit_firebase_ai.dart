@@ -32,17 +32,20 @@ import 'package:schemantic/schemantic.dart';
 import 'src/aggregation.dart';
 import 'src/error_mapping.dart';
 import 'src/finish_reason.dart';
+import 'src/known_models.dart';
 
 part 'genkit_firebase_ai.g.dart';
 
 final _logger = Logger('genkit_firebase_ai');
 
-/// Capabilities every model this plugin serves has.
+/// The capabilities of a Gemini text model.
 ///
-/// The plugin serves Gemini through the Firebase AI SDK and resolves any model
-/// name on demand, so there is no per-model catalog to key this off; these are
-/// the Gemini family's capabilities, matching `genkit_google_genai`'s
-/// `commonModelInfo`.
+/// Each model now advertises its own label, stage and capabilities in its
+/// `metadata['model']`, and image, TTS and Live models differ from these.
+@Deprecated(
+  "Read a model's capabilities from its metadata['model'] instead. Image, "
+  'TTS and Live models differ from these.',
+)
 final firebaseAiModelInfo = ModelInfo(
   supports: {
     'multiturn': true,
@@ -54,14 +57,46 @@ final firebaseAiModelInfo = ModelInfo(
   },
 );
 
+// firebase_ai 5 deprecates these for Gemini 3.x, but they still work on
+// older models and are portable Genkit options, so they stay through 1.0
+// (#596).
+const _ignoredByGemini3 =
+    'Gemini 3 and newer models ignore this and manage sampling themselves.';
+const _rejectedByGemini3 =
+    'Gemini 3 and newer models may reject requests that set this with a 400 '
+    'error.';
+const _notForGemini3 =
+    'Not supported on Gemini 3 and newer models. Make parallel requests '
+    'instead.';
+// Live sends its config in the WebSocket setup message, so a rejected field
+// closes the socket rather than returning a 400.
+const _liveNotForGemini3 = 'Gemini 3 and newer models may not support this.';
+
 @Schema()
 abstract class $GeminiOptions {
   List<String>? get stopSequences;
   int? get maxOutputTokens;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get temperature;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get topP;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   int? get topK;
+
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
+  @Field(description: _rejectedByGemini3)
   double? get presencePenalty;
+
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
+  @Field(description: _rejectedByGemini3)
   double? get frequencyPenalty;
   List<String>? get responseModalities;
   String? get responseMimeType;
@@ -81,9 +116,58 @@ abstract class $GeminiOptions {
   )
   Map<String, dynamic>? get responseJsonSchema;
   $ThinkingConfig? get thinkingConfig;
+
+  /// Not supported on Gemini 3 and newer models. Make parallel requests
+  /// instead.
+  @Field(description: _notForGemini3)
   int? get candidateCount;
   bool? get codeExecution;
   $FunctionCallingConfig? get functionCallingConfig;
+  @Field(
+    description:
+        'Per-category thresholds for blocking harmful content. Each entry '
+        'needs a category and a threshold.',
+  )
+  List<$GeminiSafetySettings>? get safetySettings;
+}
+
+@Schema()
+abstract class $GeminiSafetySettings {
+  @StringField(
+    description:
+        'The HARM_CATEGORY_IMAGE_* categories are Agent Platform only; the '
+        'Gemini Developer API rejects them.',
+    enumValues: [
+      'HARM_CATEGORY_HARASSMENT',
+      'HARM_CATEGORY_HATE_SPEECH',
+      'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'HARM_CATEGORY_DANGEROUS_CONTENT',
+      'HARM_CATEGORY_IMAGE_HATE',
+      'HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT',
+      'HARM_CATEGORY_IMAGE_HARASSMENT',
+      'HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT',
+    ],
+  )
+  String? get category;
+
+  @StringField(
+    enumValues: [
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+      'OFF',
+    ],
+  )
+  String? get threshold;
+
+  @StringField(
+    enumValues: ['SEVERITY', 'PROBABILITY'],
+    description:
+        'Whether the threshold applies to the probability or the severity '
+        'score. Agent Platform only; the Gemini Developer API rejects it.',
+  )
+  String? get method;
 }
 
 @Schema()
@@ -128,10 +212,25 @@ abstract class $LiveGenerationConfig {
   $SpeechConfig? get speechConfig;
   List<String>? get stopSequences;
   int? get maxOutputTokens;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get temperature;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get topP;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   int? get topK;
+
+  /// Gemini 3 and newer models may not support this.
+  @Field(description: _liveNotForGemini3)
   double? get presencePenalty;
+
+  /// Gemini 3 and newer models may not support this.
+  @Field(description: _liveNotForGemini3)
   double? get frequencyPenalty;
 }
 
@@ -238,12 +337,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   @override
   Future<List<Action>> init() async {
     // Pre-registered so they show up in the Developer UI; any other model name
-    // still resolves on demand (see [resolve]). The live (bidi) entry is the
-    // native-audio model line, which has its own naming.
+    // still resolves on demand (see [resolve]).
+    final agentPlatform = provider is _AgentPlatformProvider;
     return [
-      _createModel('gemini-flash-latest'),
-      _createModel('gemini-3.1-pro-preview'),
-      _createBidiModel('gemini-2.5-flash-native-audio-preview-12-2025'),
+      for (final model in KnownFirebaseAiModel.values)
+        if (model.servedOn(agentPlatform: agentPlatform))
+          model.live ? _createBidiModel(model.id) : _createModel(model.id),
     ];
   }
 
@@ -257,7 +356,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   Model _createModel(String modelName) {
     return Model(
       name: 'firebaseai/$modelName',
-      metadata: {'model': firebaseAiModelInfo.toJson()},
+      metadata: {'model': modelInfoFor(modelName).toJson()},
+      customOptions: GeminiOptions.$schema,
       fn: (req, ctx) async {
         final isJsonMode =
             req.output?.format == 'json' ||
@@ -267,9 +367,21 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             ? GeminiOptions()
             : GeminiOptions.$schema.parse(req.config!);
 
+        final nonSystem = req.messages
+            .where((m) => m.role != Role.system)
+            .toList();
+        // Gemini rejects empty `contents`, so a system-only request keeps its
+        // text as the user turn, as it did before systemInstruction was sent.
+        final systemOnly = nonSystem.isEmpty;
+        final contents = toGeminiContent(systemOnly ? req.messages : nonSystem);
+
         final transport = _StatusRecordingClient(_httpClient);
         final model = _firebaseAI.generativeModel(
           model: modelName,
+          safetySettings: toGeminiSafetySettings(
+            options,
+            developerApi: provider is _GoogleAIProvider,
+          ),
           generationConfig: toGeminiSettings(
             options,
             req.output?.schema,
@@ -282,6 +394,9 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             toolChoice: req.toolChoice,
             hasFunctionTools: req.tools?.isNotEmpty ?? false,
           ),
+          systemInstruction: systemOnly
+              ? null
+              : toGeminiSystemInstruction(req.messages),
           httpClient: transport,
         );
         GenkitException mapError(Object e, StackTrace stack) =>
@@ -294,8 +409,18 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             );
 
         if (ctx.streamingRequested) {
+          if ((options.candidateCount ?? 1) > 1) {
+            // firebase_ai drops each candidate's `index`, so streamed chunks
+            // could not be told apart and would be merged (#656).
+            throw GenkitException(
+              'Streaming with candidateCount > 1 is not supported. A '
+              'non-streaming request returns only the first candidate in '
+              'text and message; the rest are in raw.',
+              status: StatusCode.invalidArgument,
+            );
+          }
           final stream = model
-              .generateContentStream(toGeminiContent(req.messages))
+              .generateContentStream(contents)
               .handleError((Object e, StackTrace s) => throw mapError(e, s));
           final chunks = <fai.GenerateContentResponse>[];
           await for (final chunk in stream) {
@@ -327,9 +452,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         } else {
           final fai.GenerateContentResponse response;
           try {
-            response = await model.generateContent(
-              toGeminiContent(req.messages),
-            );
+            response = await model.generateContent(contents);
           } catch (e, stack) {
             throw mapError(e, stack);
           }
@@ -358,18 +481,13 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   BidiModel _createBidiModel(String modelName) {
     return BidiModel(
       name: 'firebaseai/$modelName',
+      metadata: {'model': modelInfoFor(modelName, live: true).toJson()},
       customOptions: LiveGenerationConfig.$schema,
       fn: (stream, ctx) async {
         final tools = toGeminiTools(ctx.init?.tools);
-        final systemMessage = ctx.init?.messages
-            .where((m) => m.role == Role.system)
-            .firstOrNull;
-        final systemInstruction = systemMessage != null
-            ? fai.Content(
-                'system',
-                systemMessage.content.map(toGeminiPart).toList(),
-              )
-            : null;
+        final systemInstruction = toGeminiSystemInstruction(
+          ctx.init?.messages ?? const [],
+        );
 
         final liveConfig = toLiveGenerationConfig(ctx.init?.config);
 
@@ -659,6 +777,29 @@ String toGeminiRole(Role role) {
   return 'user';
 }
 
+/// The parts of every system message in [messages], in order, as one
+/// `systemInstruction`, or null when there are none.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a part
+/// other than text, since Gemini's `systemInstruction` takes text only.
+@visibleForTesting
+fai.Content? toGeminiSystemInstruction(List<Message> messages) {
+  final parts = [
+    for (final m in messages)
+      if (m.role == Role.system)
+        for (final part in m.content)
+          if (part.isText)
+            toGeminiPart(part)
+          else
+            throw GenkitException(
+              'System messages can only contain text; Gemini rejects other '
+              'parts in systemInstruction.',
+              status: StatusCode.invalidArgument,
+            ),
+  ];
+  return parts.isEmpty ? null : fai.Content('system', parts);
+}
+
 @visibleForTesting
 Iterable<fai.Content> toGeminiContent(List<Message> messages) {
   return messages.map(
@@ -809,7 +950,11 @@ fai.Part toGeminiPart(Part p) {
       });
     }
   }
-  throw UnimplementedError('Part type $p not supported yet');
+  // INVALID_ARGUMENT, not INTERNAL: retrying the same request cannot help.
+  throw GenkitException(
+    'Part type $p is not supported by the Firebase AI plugin.',
+    status: StatusCode.invalidArgument,
+  );
 }
 
 @visibleForTesting
@@ -916,6 +1061,119 @@ ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
   return ModelResponseChunk(index: 0, content: parts);
 }
 
+/// Converts the safety settings in [options] to `firebase_ai` ones.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a missing,
+/// unknown or wrongly typed category or threshold, or, on the Gemini Developer
+/// API ([developerApi]), for an image category or a `method`, which it
+/// rejects.
+@visibleForTesting
+List<fai.SafetySetting>? toGeminiSafetySettings(
+  GeminiOptions options, {
+  required bool developerApi,
+}) {
+  try {
+    return _toGeminiSafetySettings(
+      options.safetySettings,
+      developerApi: developerApi,
+    );
+  } on GenkitException {
+    rethrow;
+  } catch (e) {
+    // A wrongly typed list or field fails in the generated getters.
+    throw GenkitException(
+      'Invalid safetySettings: $e',
+      status: StatusCode.invalidArgument,
+    );
+  }
+}
+
+List<fai.SafetySetting>? _toGeminiSafetySettings(
+  List<GeminiSafetySettings>? settings, {
+  required bool developerApi,
+}) {
+  if (settings == null) return null;
+  return [
+    for (final s in settings)
+      fai.SafetySetting(
+        switch (_wireValue(
+          'category',
+          s.category,
+          _harmCategories,
+          expected: developerApi
+              ? _harmCategories.keys.where(
+                  (c) => !_imageCategories.contains(_harmCategories[c]),
+                )
+              : null,
+        )) {
+          final category
+              when developerApi && _imageCategories.contains(category) =>
+            throw GenkitException(
+              'safetySettings category ${s.category} is not supported by the '
+              'Gemini Developer API; use FirebaseAiProvider.agentPlatform() or '
+              'remove it.',
+              status: StatusCode.invalidArgument,
+            ),
+          final category => category,
+        },
+        _wireValue('threshold', s.threshold, _harmBlockThresholds),
+        switch (s.method) {
+          null => null,
+          _ when developerApi => throw GenkitException(
+            'safetySettings method is not supported by the Gemini Developer '
+            'API; use FirebaseAiProvider.agentPlatform() or remove it.',
+            status: StatusCode.invalidArgument,
+          ),
+          final method => _wireValue('method', method, _harmBlockMethods),
+        },
+      ),
+  ];
+}
+
+final _harmCategories = {
+  for (final c in fai.HarmCategory.values)
+    if (c != fai.HarmCategory.unknown) c.toJson(): c,
+};
+
+/// Image categories, which the Gemini Developer API rejects.
+const _imageCategories = {
+  fai.HarmCategory.imageHate,
+  fai.HarmCategory.imageDangerousContent,
+  fai.HarmCategory.imageHarassment,
+  fai.HarmCategory.imageSexuallyExplicit,
+};
+
+final _harmBlockThresholds = {
+  for (final t in fai.HarmBlockThreshold.values) t.toJson() as String: t,
+};
+
+final _harmBlockMethods = {
+  for (final m in [
+    fai.HarmBlockMethod.severity,
+    fai.HarmBlockMethod.probability,
+  ])
+    m.toJson() as String: m,
+};
+
+/// The enum value of safety setting [field] whose wire name is [value].
+///
+/// The error for an unknown [value] lists [expected], or every wire name.
+T _wireValue<T>(
+  String field,
+  String? value,
+  Map<String, T> byWireName, {
+  Iterable<String>? expected,
+}) {
+  if (byWireName[value] case final match?) return match;
+  throw GenkitException(
+    value == null
+        ? 'safetySettings entries need a $field.'
+        : 'Unknown safetySettings $field "$value"; expected one of '
+              '${(expected ?? byWireName.keys).join(', ')}.',
+    status: StatusCode.invalidArgument,
+  );
+}
+
 @visibleForTesting
 List<fai.Tool>? toGeminiTools(
   List<ToolDefinition>? tools, {
@@ -929,31 +1187,43 @@ List<fai.Tool>? toGeminiTools(
   ];
 }
 
-fai.Tool _toGeminiTool(ToolDefinition tool) {
-  final rawSchema = tool.inputSchema;
+fai.Tool _toGeminiTool(ToolDefinition tool) => fai.Tool.functionDeclarations([
+  _JsonSchemaFunctionDeclaration(
+    tool.name,
+    tool.description,
+    _constrainsInput(tool.inputSchema) ? tool.inputSchema : null,
+  ),
+]);
 
-  final flattened = rawSchema?.flatten() ?? <String, dynamic>{};
+/// Whether [schema] says anything about the input. A schema with only
+/// `$schema` or `description`, such as the one `dynamicSchema()` produces,
+/// accepts any value, and Gemini expects `parametersJsonSchema` to describe
+/// an object, so it is left out, as the JS and Go plugins do.
+bool _constrainsInput(Map<String, dynamic>? schema) =>
+    schema != null &&
+    schema.keys.any((k) => k != r'$schema' && k != 'description');
 
-  final propertiesMap = flattened['properties'] as Map<String, dynamic>? ?? {};
-  final requiredList =
-      (flattened['required'] as List<dynamic>?)?.cast<String>() ?? [];
+/// A function declaration that sends the tool's input schema to Gemini
+/// unchanged as `parametersJsonSchema`, as `genkit_google_genai` does.
+///
+/// `firebase_ai` builds `parametersJsonSchema` only from its typed
+/// [fai.JSONSchema], which cannot carry `additionalProperties`, `pattern`,
+/// `oneOf` or a top-level `$defs`, so converting would lose them.
+final class _JsonSchemaFunctionDeclaration extends fai.FunctionDeclaration {
+  _JsonSchemaFunctionDeclaration(
+    super.name,
+    super.description,
+    this.parametersJsonSchema,
+  ) : super(parameters: const {});
 
-  final parameters = propertiesMap.map((key, value) {
-    return MapEntry(key, toGeminiSchema(value as Map<String, dynamic>));
-  });
+  final Map<String, dynamic>? parametersJsonSchema;
 
-  final optionalParameters = propertiesMap.keys
-      .where((k) => !requiredList.contains(k))
-      .toList();
-
-  return fai.Tool.functionDeclarations([
-    fai.FunctionDeclaration(
-      tool.name,
-      tool.description,
-      parameters: parameters,
-      optionalParameters: optionalParameters,
-    ),
-  ]);
+  @override
+  Map<String, Object?> toJson() => {
+    'name': name,
+    'description': description,
+    'parametersJsonSchema': ?parametersJsonSchema,
+  };
 }
 
 @visibleForTesting
@@ -1162,9 +1432,10 @@ fai.ToolConfig? toGeminiToolConfig(
 GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
   if (metadata == null) return null;
   return GenerationUsage(
-    inputTokens: metadata.promptTokenCount ?? 0,
-    outputTokens: metadata.candidatesTokenCount ?? 0,
-    totalTokens: metadata.totalTokenCount ?? 0,
+    // A count the API leaves out stays null, not 0, as in genkit_google_genai.
+    inputTokens: metadata.promptTokenCount,
+    outputTokens: metadata.candidatesTokenCount,
+    totalTokens: metadata.totalTokenCount,
     thoughtsTokens: metadata.thoughtsTokenCount,
     cachedContentTokens: metadata.cachedContentTokenCount,
     custom: switch (metadata.toolUsePromptTokenCount) {

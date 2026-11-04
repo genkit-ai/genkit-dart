@@ -24,4 +24,45 @@ void main() {
     expect(properties, isNot(contains('responseLogprobs')));
     expect(properties, isNot(contains('logprobs')));
   });
+
+  test('sampling options say how Gemini 3 treats them', () {
+    String? description(Map<String, Object?> schema, String field) =>
+        ((schema['properties']! as Map<String, Object?>)[field]!
+                as Map<String, Object?>)['description']
+            as String?;
+    final options = GeminiOptions.$schema.jsonSchema();
+    final live = LiveGenerationConfig.$schema.jsonSchema();
+
+    for (final schema in [options, live]) {
+      for (final field in ['temperature', 'topP', 'topK']) {
+        expect(description(schema, field), contains('ignore'), reason: field);
+      }
+    }
+    for (final field in ['presencePenalty', 'frequencyPenalty']) {
+      expect(description(options, field), contains('400'), reason: field);
+      // A rejected Live setup closes the socket, so there is no 400.
+      expect(description(live, field), contains('Gemini 3'), reason: field);
+      expect(description(live, field), isNot(contains('400')), reason: field);
+    }
+    expect(description(options, 'candidateCount'), contains('parallel'));
+  });
+
+  test('GeminiOptions schema declares safetySettings with enums', () {
+    final options =
+        GeminiOptions.$schema.jsonSchema()['properties']!
+            as Map<String, Object?>;
+    final setting =
+        GeminiSafetySettings.$schema.jsonSchema()['properties']!
+            as Map<String, Object?>;
+
+    expect(options, contains('safetySettings'));
+    expect(
+      (setting['threshold']! as Map<String, Object?>)['enum'],
+      contains('OFF'),
+    );
+    expect((setting['method']! as Map<String, Object?>)['enum'], [
+      'SEVERITY',
+      'PROBABILITY',
+    ]);
+  });
 }

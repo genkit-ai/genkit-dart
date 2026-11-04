@@ -44,6 +44,7 @@ base class GeminiOptions {
     int? candidateCount,
     bool? codeExecution,
     FunctionCallingConfig? functionCallingConfig,
+    List<GeminiSafetySettings>? safetySettings,
   }) {
     _json = {
       'stopSequences': ?stopSequences,
@@ -61,6 +62,7 @@ base class GeminiOptions {
       'candidateCount': ?candidateCount,
       'codeExecution': ?codeExecution,
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
+      'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
     };
   }
 
@@ -94,10 +96,12 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get temperature {
     return (_json['temperature'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set temperature(double? value) {
     if (value == null) {
       _json.remove('temperature');
@@ -106,10 +110,12 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get topP {
     return (_json['topP'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topP(double? value) {
     if (value == null) {
       _json.remove('topP');
@@ -118,10 +124,12 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   int? get topK {
     return (_json['topK'] as num?)?.toInt();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topK(int? value) {
     if (value == null) {
       _json.remove('topK');
@@ -130,10 +138,14 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   double? get presencePenalty {
     return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   set presencePenalty(double? value) {
     if (value == null) {
       _json.remove('presencePenalty');
@@ -142,10 +154,14 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   double? get frequencyPenalty {
     return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   set frequencyPenalty(double? value) {
     if (value == null) {
       _json.remove('frequencyPenalty');
@@ -218,10 +234,14 @@ base class GeminiOptions {
     }
   }
 
+  /// Not supported on Gemini 3 and newer models. Make parallel requests
+  /// instead.
   int? get candidateCount {
     return (_json['candidateCount'] as num?)?.toInt();
   }
 
+  /// Not supported on Gemini 3 and newer models. Make parallel requests
+  /// instead.
   set candidateCount(int? value) {
     if (value == null) {
       _json.remove('candidateCount');
@@ -258,6 +278,20 @@ base class GeminiOptions {
     }
   }
 
+  List<GeminiSafetySettings>? get safetySettings {
+    return (_json['safetySettings'] as List?)
+        ?.map((e) => GeminiSafetySettings.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set safetySettings(List<GeminiSafetySettings>? value) {
+    if (value == null) {
+      _json.remove('safetySettings');
+    } else {
+      _json['safetySettings'] = value.map((e) => e.toJson()).toList();
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -288,11 +322,31 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
           'items': <String, Object?>{'type': 'string'},
         },
         'maxOutputTokens': <String, Object?>{'type': 'integer'},
-        'temperature': <String, Object?>{'type': 'number'},
-        'topP': <String, Object?>{'type': 'number'},
-        'topK': <String, Object?>{'type': 'integer'},
-        'presencePenalty': <String, Object?>{'type': 'number'},
-        'frequencyPenalty': <String, Object?>{'type': 'number'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topK': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'presencePenalty': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models may reject requests that set this with a 400 error.',
+        },
+        'frequencyPenalty': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models may reject requests that set this with a 400 error.',
+        },
         'responseModalities': <String, Object?>{
           'type': 'array',
           'items': <String, Object?>{'type': 'string'},
@@ -311,14 +365,144 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
           'additionalProperties': <String, Object?>{},
         },
         'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
-        'candidateCount': <String, Object?>{'type': 'integer'},
+        'candidateCount': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Not supported on Gemini 3 and newer models. Make parallel requests instead.',
+        },
         'codeExecution': <String, Object?>{'type': 'boolean'},
         'functionCallingConfig': <String, Object?>{
           r'$ref': r'#/$defs/FunctionCallingConfig',
         },
+        'safetySettings': <String, Object?>{
+          'type': 'array',
+          'description':
+              'Per-category thresholds for blocking harmful content. Each entry needs a category and a threshold.',
+          'items': <String, Object?>{r'$ref': r'#/$defs/GeminiSafetySettings'},
+        },
       },
     },
-    dependencies: [ThinkingConfig.$schema, FunctionCallingConfig.$schema],
+    dependencies: [
+      ThinkingConfig.$schema,
+      FunctionCallingConfig.$schema,
+      GeminiSafetySettings.$schema,
+    ],
+  );
+}
+
+base class GeminiSafetySettings {
+  /// Creates a [GeminiSafetySettings] from a JSON map.
+  factory GeminiSafetySettings.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiSafetySettings._(this._json);
+
+  GeminiSafetySettings({String? category, String? threshold, String? method}) {
+    _json = {'category': ?category, 'threshold': ?threshold, 'method': ?method};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiSafetySettings].
+  static const SchemanticType<GeminiSafetySettings> $schema =
+      _GeminiSafetySettingsTypeFactory();
+
+  String? get category {
+    return _json['category'] as String?;
+  }
+
+  set category(String? value) {
+    if (value == null) {
+      _json.remove('category');
+    } else {
+      _json['category'] = value;
+    }
+  }
+
+  String? get threshold {
+    return _json['threshold'] as String?;
+  }
+
+  set threshold(String? value) {
+    if (value == null) {
+      _json.remove('threshold');
+    } else {
+      _json['threshold'] = value;
+    }
+  }
+
+  String? get method {
+    return _json['method'] as String?;
+  }
+
+  set method(String? value) {
+    if (value == null) {
+      _json.remove('method');
+    } else {
+      _json['method'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiSafetySettings] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiSafetySettingsTypeFactory
+    extends SchemanticType<GeminiSafetySettings> {
+  const _GeminiSafetySettingsTypeFactory();
+
+  @override
+  GeminiSafetySettings parse(Object? json) {
+    return GeminiSafetySettings._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiSafetySettings',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'category': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The HARM_CATEGORY_IMAGE_* categories are Agent Platform only; the Gemini Developer API rejects them.',
+          'enum': [
+            'HARM_CATEGORY_HARASSMENT',
+            'HARM_CATEGORY_HATE_SPEECH',
+            'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'HARM_CATEGORY_DANGEROUS_CONTENT',
+            'HARM_CATEGORY_IMAGE_HATE',
+            'HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT',
+            'HARM_CATEGORY_IMAGE_HARASSMENT',
+            'HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT',
+          ],
+        },
+        'threshold': <String, Object?>{
+          'type': 'string',
+          'enum': [
+            'BLOCK_LOW_AND_ABOVE',
+            'BLOCK_MEDIUM_AND_ABOVE',
+            'BLOCK_ONLY_HIGH',
+            'BLOCK_NONE',
+            'OFF',
+          ],
+        },
+        'method': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Whether the threshold applies to the probability or the severity score. Agent Platform only; the Gemini Developer API rejects it.',
+          'enum': ['SEVERITY', 'PROBABILITY'],
+        },
+      },
+    },
+    dependencies: [],
   );
 }
 
@@ -781,10 +965,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get temperature {
     return (_json['temperature'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set temperature(double? value) {
     if (value == null) {
       _json.remove('temperature');
@@ -793,10 +979,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get topP {
     return (_json['topP'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topP(double? value) {
     if (value == null) {
       _json.remove('topP');
@@ -805,10 +993,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   int? get topK {
     return (_json['topK'] as num?)?.toInt();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topK(int? value) {
     if (value == null) {
       _json.remove('topK');
@@ -817,10 +1007,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models may not support this.
   double? get presencePenalty {
     return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may not support this.
   set presencePenalty(double? value) {
     if (value == null) {
       _json.remove('presencePenalty');
@@ -829,10 +1021,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models may not support this.
   double? get frequencyPenalty {
     return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may not support this.
   set frequencyPenalty(double? value) {
     if (value == null) {
       _json.remove('frequencyPenalty');
@@ -877,11 +1071,29 @@ base class _LiveGenerationConfigTypeFactory
           'items': <String, Object?>{'type': 'string'},
         },
         'maxOutputTokens': <String, Object?>{'type': 'integer'},
-        'temperature': <String, Object?>{'type': 'number'},
-        'topP': <String, Object?>{'type': 'number'},
-        'topK': <String, Object?>{'type': 'integer'},
-        'presencePenalty': <String, Object?>{'type': 'number'},
-        'frequencyPenalty': <String, Object?>{'type': 'number'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topK': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'presencePenalty': <String, Object?>{
+          'type': 'number',
+          'description': 'Gemini 3 and newer models may not support this.',
+        },
+        'frequencyPenalty': <String, Object?>{
+          'type': 'number',
+          'description': 'Gemini 3 and newer models may not support this.',
+        },
       },
     },
     dependencies: [SpeechConfig.$schema],

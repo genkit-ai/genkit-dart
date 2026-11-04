@@ -713,7 +713,8 @@ Part fromGeminiPart(gcl.Part p) {
       toolRequest: ToolRequest(
         ref: p.functionCall!.id == '' ? null : p.functionCall!.id,
         name: _fromGeminiToolName(p.functionCall!.name ?? ''),
-        input: p.functionCall!.args,
+        // Gemini omits `args` when calling a tool that takes no arguments.
+        input: p.functionCall!.args ?? {},
       ),
       metadata: metadata,
     );
@@ -750,6 +751,13 @@ Part fromGeminiPart(gcl.Part p) {
       );
     }
   }
+  // Thinking models can send a thought signature in a part of its own, with
+  // no content. Keep it, so it goes back to the model on the next turn.
+  if (p.thoughtSignature != null) {
+    return p.thought == true
+        ? ReasoningPart(reasoning: '', metadata: metadata)
+        : TextPart(text: '', metadata: metadata);
+  }
   throw UnimplementedError('Unsupported part type: ${p.toJson()}');
 }
 
@@ -763,11 +771,21 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
       gcl.FunctionDeclaration(
         name: _toGeminiToolName(tool.name),
         description: tool.description,
-        parametersJsonSchema: tool.inputSchema,
+        parametersJsonSchema: _constrainsInput(tool.inputSchema)
+            ? tool.inputSchema
+            : null,
       ),
     ],
   );
 }
+
+/// Whether [schema] says anything about the input. A schema with only
+/// `$schema` or `description`, such as the one `dynamicSchema()` produces,
+/// accepts any value, and Gemini expects `parametersJsonSchema` to describe
+/// an object, so it is left out, as the JS and Go plugins do.
+bool _constrainsInput(Map<String, dynamic>? schema) =>
+    schema != null &&
+    schema.keys.any((k) => k != r'$schema' && k != 'description');
 
 @visibleForTesting
 GenerationUsage? extractUsage(gcl.UsageMetadata? metadata) {
