@@ -9,10 +9,11 @@ environment:
   sdk: ^3.12.0
 
 dependencies:
-  # Floor is 8.0.0, not the workspace-wide >=2.1.0: this plugin now builds
-  # thinking blocks with ThinkingInputBlock / RedactedThinkingInputBlock, which
-  # 8.0.0 introduced. Resolving anything older would not compile.
-  anthropic_sdk_dart: ^8.0.0
+  # Floor is 9.0.1, not the workspace-wide >=2.1.0: this plugin builds thinking
+  # blocks with ThinkingInputBlock / RedactedThinkingInputBlock, which 8.0.0
+  # introduced, and 9.0.1 stops responses with an empty or unknown
+  # `usage.service_tier` from failing to deserialize.
+  anthropic_sdk_dart: ^9.0.1
   genkit: ^1.0.1
   http: ^1.6.0
   logging: ^1.3.0

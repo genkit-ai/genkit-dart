@@ -33,17 +33,20 @@ import 'src/aggregation.dart';
 import 'src/error_mapping.dart';
 import 'src/finish_reason.dart';
 import 'src/grounding.dart';
+import 'src/known_models.dart';
 
 part 'genkit_firebase_ai.g.dart';
 
 final _logger = Logger('genkit_firebase_ai');
 
-/// Capabilities every model this plugin serves has.
+/// The capabilities of a Gemini text model.
 ///
-/// The plugin serves Gemini through the Firebase AI SDK and resolves any model
-/// name on demand, so there is no per-model catalog to key this off; these are
-/// the Gemini family's capabilities, matching `genkit_google_genai`'s
-/// `commonModelInfo`.
+/// Each model now advertises its own label, stage and capabilities in its
+/// `metadata['model']`, and image, TTS and Live models differ from these.
+@Deprecated(
+  "Read a model's capabilities from its metadata['model'] instead. Image, "
+  'TTS and Live models differ from these.',
+)
 final firebaseAiModelInfo = ModelInfo(
   supports: {
     'multiturn': true,
@@ -368,12 +371,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   @override
   Future<List<Action>> init() async {
     // Pre-registered so they show up in the Developer UI; any other model name
-    // still resolves on demand (see [resolve]). The live (bidi) entry is the
-    // native-audio model line, which has its own naming.
+    // still resolves on demand (see [resolve]).
+    final agentPlatform = provider is _AgentPlatformProvider;
     return [
-      _createModel('gemini-flash-latest'),
-      _createModel('gemini-3.1-pro-preview'),
-      _createBidiModel('gemini-2.5-flash-native-audio-preview-12-2025'),
+      for (final model in KnownFirebaseAiModel.values)
+        if (model.servedOn(agentPlatform: agentPlatform))
+          model.live ? _createBidiModel(model.id) : _createModel(model.id),
     ];
   }
 
@@ -387,7 +390,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   Model _createModel(String modelName) {
     return Model(
       name: 'firebaseai/$modelName',
-      metadata: {'model': firebaseAiModelInfo.toJson()},
+      metadata: {'model': modelInfoFor(modelName).toJson()},
+      customOptions: GeminiOptions.$schema,
       fn: (req, ctx) async {
         final isJsonMode =
             req.output?.format == 'json' ||
@@ -409,7 +413,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         final model = _firebaseAI.generativeModel(
           model: modelName,
           safetySettings: toGeminiSafetySettings(
-            options.safetySettings,
+            options,
             developerApi: provider is _GoogleAIProvider,
           ),
           generationConfig: toGeminiSettings(
@@ -522,6 +526,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   BidiModel _createBidiModel(String modelName) {
     return BidiModel(
       name: 'firebaseai/$modelName',
+      metadata: {'model': modelInfoFor(modelName, live: true).toJson()},
       customOptions: LiveGenerationConfig.$schema,
       fn: (stream, ctx) async {
         final tools = toGeminiTools(ctx.init?.tools);
@@ -1013,7 +1018,7 @@ ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
   return ModelResponseChunk(index: 0, content: parts);
 }
 
-/// Converts [settings] to `firebase_ai` safety settings.
+/// Converts the safety settings in [options] to `firebase_ai` ones.
 ///
 /// Throws a [GenkitException] with [StatusCode.invalidArgument] for a missing,
 /// unknown or wrongly typed category or threshold, or, on the Gemini Developer
@@ -1021,15 +1026,18 @@ ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
 /// rejects.
 @visibleForTesting
 List<fai.SafetySetting>? toGeminiSafetySettings(
-  List<GeminiSafetySettings>? settings, {
+  GeminiOptions options, {
   required bool developerApi,
 }) {
   try {
-    return _toGeminiSafetySettings(settings, developerApi: developerApi);
+    return _toGeminiSafetySettings(
+      options.safetySettings,
+      developerApi: developerApi,
+    );
   } on GenkitException {
     rethrow;
   } catch (e) {
-    // A wrongly typed field fails in the generated getter.
+    // A wrongly typed list or field fails in the generated getters.
     throw GenkitException(
       'Invalid safetySettings: $e',
       status: StatusCode.invalidArgument,
@@ -1045,7 +1053,16 @@ List<fai.SafetySetting>? _toGeminiSafetySettings(
   return [
     for (final s in settings)
       fai.SafetySetting(
-        switch (_wireValue('category', s.category, _harmCategories)) {
+        switch (_wireValue(
+          'category',
+          s.category,
+          _harmCategories,
+          expected: developerApi
+              ? _harmCategories.keys.where(
+                  (c) => !_imageCategories.contains(_harmCategories[c]),
+                )
+              : null,
+        )) {
           final category
               when developerApi && _imageCategories.contains(category) =>
             throw GenkitException(
@@ -1096,13 +1113,20 @@ final _harmBlockMethods = {
 };
 
 /// The enum value of safety setting [field] whose wire name is [value].
-T _wireValue<T>(String field, String? value, Map<String, T> byWireName) {
+///
+/// The error for an unknown [value] lists [expected], or every wire name.
+T _wireValue<T>(
+  String field,
+  String? value,
+  Map<String, T> byWireName, {
+  Iterable<String>? expected,
+}) {
   if (byWireName[value] case final match?) return match;
   throw GenkitException(
     value == null
         ? 'safetySettings entries need a $field.'
         : 'Unknown safetySettings $field "$value"; expected one of '
-              '${byWireName.keys.join(', ')}.',
+              '${(expected ?? byWireName.keys).join(', ')}.',
     status: StatusCode.invalidArgument,
   );
 }
