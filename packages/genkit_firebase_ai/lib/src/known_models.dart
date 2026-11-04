@@ -120,19 +120,18 @@ enum ModelBackend {
 
 /// Models Firebase AI Logic serves, registered when the plugin starts.
 enum KnownFirebaseAiModel {
-  geminiFlashLatest('gemini-flash-latest', 'Gemini Flash Latest'),
+  geminiFlashLatest(
+    'gemini-flash-latest',
+    'Gemini Flash Latest',
+    backend: .developerApi,
+  ),
   gemini4Argon('gemini-4-argon', 'Gemini 4 Argon'),
   gemini38Flash('gemini-3.8-flash', 'Gemini 3.8 Flash'),
-  gemini37Flash('gemini-3.7-flash', 'Gemini 3.7 Flash'),
-  gemini36Flash('gemini-3.6-flash', 'Gemini 3.6 Flash'),
+  gemini37Flash('gemini-3.7-flash', 'Gemini 3.7 Flash', backend: .developerApi),
+  gemini36Flash('gemini-3.6-flash', 'Gemini 3.6 Flash', backend: .developerApi),
   gemini35Flash('gemini-3.5-flash', 'Gemini 3.5 Flash'),
   gemini35FlashLite('gemini-3.5-flash-lite', 'Gemini 3.5 Flash Lite'),
   gemini31FlashLite('gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite'),
-  gemini3FlashPreview(
-    'gemini-3-flash-preview',
-    'Gemini 3 Flash Preview',
-    preview: true,
-  ),
   gemini31ProPreview(
     'gemini-3.1-pro-preview',
     'Gemini 3.1 Pro Preview',
@@ -154,26 +153,20 @@ enum KnownFirebaseAiModel {
     family: .image,
   ),
   gemini3ProImage('gemini-3-pro-image', 'Gemini 3 Pro Image', family: .image),
-  gemini31FlashTtsPreview(
-    'gemini-3.1-flash-tts-preview',
-    'Gemini 3.1 Flash TTS Preview',
+  // The 3.8 TTS and Live models replace previews the Gemini API shuts down on
+  // 2026-11-17 (https://aistudio.google.com/docs/deprecations). Firebase
+  // serves them on both backends but doesn't list them yet.
+  gemini38FlashTts(
+    'gemini-3.8-flash-tts',
+    'Gemini 3.8 Flash TTS',
     family: .tts,
-    preview: true,
   ),
-  gemini31FlashLivePreview(
-    'gemini-3.1-flash-live-preview',
-    'Gemini 3.1 Flash Live Preview',
-    family: .live,
-    preview: true,
-    backend: .developerApi,
+  gemini38FlashLiteTts(
+    'gemini-3.8-flash-lite-tts',
+    'Gemini 3.8 Flash Lite TTS',
+    family: .tts,
   ),
-  gemini25FlashNativeAudioPreview(
-    'gemini-2.5-flash-native-audio-preview-12-2025',
-    'Gemini 2.5 Flash Native Audio Preview',
-    family: .live,
-    preview: true,
-    backend: .developerApi,
-  ),
+  gemini38Live('gemini-3.8-live', 'Gemini 3.8 Live', family: .live),
   geminiLive25FlashNativeAudio(
     'gemini-live-2.5-flash-native-audio',
     'Gemini Live 2.5 Flash Native Audio',
