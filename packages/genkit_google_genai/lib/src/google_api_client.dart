@@ -26,12 +26,17 @@ import 'model.dart';
 class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   String? apiKey;
 
+  /// Root URL of the Gemini API.
+  ///
+  /// Defaults to `https://generativelanguage.googleapis.com/`.
+  final String? baseUrl;
+
   /// Test-only HTTP transport. When set it replaces the API-key client for
   /// every request (any per-request `apiKey` option is ignored) and is never
   /// closed by the plugin; the caller owns its lifecycle.
   final http.Client? httpClient;
 
-  GoogleGenAiPluginImpl({this.apiKey, this.httpClient});
+  GoogleGenAiPluginImpl({this.apiKey, this.baseUrl, this.httpClient});
 
   @override
   String get name => 'googleai';
@@ -44,8 +49,9 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
     String? requestApiKey,
   ]) async {
     final injected = httpClient;
+    final url = baseUrl ?? 'https://generativelanguage.googleapis.com/';
     return GenerativeLanguageBaseClient(
-      baseUrl: 'https://generativelanguage.googleapis.com/',
+      baseUrl: url.endsWith('/') ? url : '$url/',
       client: injected != null
           ? NonClosingClient(injected)
           : httpClientFromApiKey(requestApiKey ?? apiKey),
