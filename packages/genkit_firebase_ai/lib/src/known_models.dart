@@ -12,8 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// The catalog only decides which models are registered up front so they show
-// in the Developer UI; any other name still resolves on demand. Entries follow
+// The catalog decides which models are registered up front so they show in
+// the Developer UI, and gives each its label, stage and capabilities. Any other
+// name still resolves on demand, with its family's capabilities. Entries follow
 // https://firebase.google.com/docs/ai-logic/models and change with it in any
 // release, so the enum is not exported.
 
@@ -34,9 +35,11 @@ enum ModelFamily {
   live;
 
   /// The family of a bare model name outside the catalog. [live] is true for
-  /// a model resolved as a bidi model.
+  /// a model resolved as a bidi model. Any other name outside the `gemini-`
+  /// namespace is text, as in genkit_google_genai's `GeminiModelFamily`.
   static ModelFamily of(String modelName, {bool live = false}) {
     if (live) return ModelFamily.live;
+    if (!modelName.startsWith('gemini-')) return text;
     if (modelName.contains('-tts')) return tts;
     if (modelName.contains('-image') || modelName.contains('nano-banana')) {
       return image;
@@ -86,7 +89,9 @@ final _ttsSupports = Map<String, dynamic>.unmodifiable({
   'output': List<String>.unmodifiable(['media']),
 });
 
-/// Live models stream text and audio both ways and can call tools.
+/// Live models take text and media and can call tools. The ones Firebase
+/// serves answer in audio only, and the plugin doesn't map output
+/// transcriptions yet (#597), so their output is media.
 final _liveSupports = Map<String, dynamic>.unmodifiable({
   'multiturn': true,
   'media': true,
@@ -94,7 +99,7 @@ final _liveSupports = Map<String, dynamic>.unmodifiable({
   'toolChoice': false,
   'systemRole': true,
   'constrained': false,
-  'output': List<String>.unmodifiable(['text', 'media']),
+  'output': List<String>.unmodifiable(['media']),
 });
 
 /// The [ModelInfo] for [modelName]: its catalog entry's, or one built from

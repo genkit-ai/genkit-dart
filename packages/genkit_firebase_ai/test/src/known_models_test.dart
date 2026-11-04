@@ -122,6 +122,8 @@ void main() {
       final live = modelMetadata(actions['firebaseai/gemini-3.8-live']!);
       expect(live['stage'], 'stable');
       expect(live['supports'], containsPair('constrained', false));
+      // Audio only until output transcriptions are mapped (#597).
+      expect(live['supports'], containsPair('output', ['media']));
     },
   );
 
@@ -132,7 +134,13 @@ void main() {
       'text',
       'media',
     ]);
+    expect(modelInfoFor('gemini-nano-banana-9').supports?['output'], [
+      'text',
+      'media',
+    ]);
     expect(modelInfoFor('gemini-9-flash-tts').supports?['output'], ['media']);
+    // Only gemini- names carry a family marker.
+    expect(modelInfoFor('gemma-3-27b-it-tts').supports?['tools'], isTrue);
     expect(
       modelInfoFor('gemini-9-flash', live: true).supports?['constrained'],
       isFalse,

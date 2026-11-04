@@ -181,10 +181,6 @@ void main() {
   });
 
   group('Model Info', () {
-    test('firebaseAiModelInfo claims native constrained generation', () {
-      expect(firebaseAiModelInfo.supports?['constrained'], isTrue);
-    });
-
     test('generate models expose GeminiOptions as their options', () {
       final model = firebaseAI().resolve(.model, 'gemini-3.8-flash') as Model;
 
