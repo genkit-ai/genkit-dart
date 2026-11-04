@@ -396,42 +396,62 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         }
         _logger.info('Connected to model: $modelName');
 
-        final sender = LiveSender(session)
-          ..add(
-            ctx.init?.messages.where((m) => m.role != Role.system) ?? const [],
-          );
-        await sender.flush();
-        final sub = stream.listen(
-          (chunk) => sender.add(chunk.messages),
-          onError: (e) {
-            _logger.severe('InputStream error', e);
-          },
-          onDone: () async {
-            _logger.info('InputStream done');
-            // Let messages already queued go out before closing.
-            await sender.flush();
-            await sender.close();
-          },
+        await runLiveSession(
+          session,
+          history:
+              ctx.init?.messages.where((m) => m.role != Role.system) ??
+              const [],
+          input: stream,
+          onChunk: ctx.sendChunk,
         );
-
-        try {
-          await receiveLiveSession(
-            session,
-            ctx.sendChunk,
-            closedByPlugin: () => sender.closed,
-          );
-        } finally {
-          await sub.cancel();
-          _logger.fine('Closing session');
-          await sender.close();
-        }
-        if (sender.failure case (final e, final stack)) {
-          throw toGenkitException(e, stack);
-        }
 
         return ModelResponse(finishReason: FinishReason.stop);
       },
     );
+  }
+}
+
+/// Runs a connected Live [session] until it ends: sends [history], then
+/// the messages of each [input] request in order, and forwards what the
+/// session returns to [onChunk].
+///
+/// Throws a [GenkitException] when sending or receiving fails, or when the
+/// server closed the session.
+@visibleForTesting
+Future<void> runLiveSession(
+  fai.LiveSession session, {
+  required Iterable<Message> history,
+  required Stream<ModelRequest> input,
+  required void Function(ModelResponseChunk) onChunk,
+}) async {
+  final sender = LiveSender(session)..add(history);
+  await sender.flush();
+  final sub = input.listen(
+    (request) => sender.add(request.messages),
+    onError: (e) {
+      _logger.severe('InputStream error', e);
+    },
+    onDone: () async {
+      _logger.info('InputStream done');
+      // Let messages already queued go out before closing.
+      await sender.flush();
+      await sender.close();
+    },
+  );
+
+  try {
+    await receiveLiveSession(
+      session,
+      onChunk,
+      closedByPlugin: () => sender.closed,
+    );
+  } finally {
+    await sub.cancel();
+    _logger.fine('Closing session');
+    await sender.close();
+  }
+  if (sender.failure case (final e, final stack)) {
+    throw toGenkitException(e, stack);
   }
 }
 
@@ -497,7 +517,8 @@ class LiveSender {
   Future<void> _pending = Future.value();
 
   /// The first failure to send, which ended the session.
-  (Object, StackTrace)? failure;
+  (Object, StackTrace)? get failure => _failure;
+  (Object, StackTrace)? _failure;
 
   /// Whether the plugin closed the session.
   bool get closed => _closed;
@@ -525,7 +546,8 @@ class LiveSender {
       try {
         await sendToLiveSession(_session, msg);
       } catch (e, stack) {
-        failure ??= (e, stack);
+        // A write cut short by close() fails too, but that is not an error.
+        if (!_closed) _failure ??= (e, stack);
         await close();
         return;
       }

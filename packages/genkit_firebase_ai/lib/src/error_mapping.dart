@@ -49,6 +49,10 @@ GenkitException toGenkitException(
     // The server closes a Live socket with 1007 when it rejects the session
     // setup (an unsupported config or model), which a retry would not fix.
     _ when _liveCloseCode(e) == 1007 => StatusCode.invalidArgument,
+    // For these two close reasons firebase_ai replaces the whole message,
+    // close code included, with its own text.
+    _ when '$e'.contains(_liveSessionExpired) => StatusCode.deadlineExceeded,
+    _ when '$e'.contains(_liveSessionLimit) => StatusCode.resourceExhausted,
     fai.QuotaExceeded() => StatusCode.resourceExhausted,
     fai.InvalidApiKey() => StatusCode.invalidArgument,
     fai.ServiceApiNotEnabled() => StatusCode.permissionDenied,
@@ -105,6 +109,12 @@ int? _liveCloseCode(Object e) =>
     int.tryParse(_liveClosed.firstMatch('$e')?[1] ?? '');
 
 final _liveClosed = RegExp(r'WebSocket Closed, closeCode: (\d+)');
+
+/// What firebase_ai reports for a close reason with DEADLINE_EXCEEDED.
+const _liveSessionExpired = 'The current live session has expired.';
+
+/// What firebase_ai reports for a close reason with RESOURCE_EXHAUSTED.
+const _liveSessionLimit = 'maximum number of concurrent sessions';
 
 /// The live URI carries the API key as a query parameter.
 final _apiKeyParam = RegExp(r'([?&]key=)[\w-]+');
