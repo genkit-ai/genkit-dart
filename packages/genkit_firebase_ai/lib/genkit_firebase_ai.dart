@@ -38,12 +38,14 @@ part 'genkit_firebase_ai.g.dart';
 
 final _logger = Logger('genkit_firebase_ai');
 
-/// Capabilities every model this plugin serves has.
+/// The capabilities of a Gemini text model.
 ///
-/// The plugin serves Gemini through the Firebase AI SDK and resolves any model
-/// name on demand, so there is no per-model catalog to key this off; these are
-/// the Gemini family's capabilities, matching `genkit_google_genai`'s
-/// `commonModelInfo`.
+/// Each model now advertises its own label, stage and capabilities in its
+/// `metadata['model']`, and image, TTS and Live models differ from these.
+@Deprecated(
+  "Read a model's capabilities from its metadata['model'] instead. Image, "
+  'TTS and Live models differ from these.',
+)
 final firebaseAiModelInfo = ModelInfo(
   supports: {
     'multiturn': true,
@@ -354,7 +356,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   Model _createModel(String modelName) {
     return Model(
       name: 'firebaseai/$modelName',
-      metadata: {'model': firebaseAiModelInfo.toJson()},
+      metadata: {'model': modelInfoFor(modelName).toJson()},
       customOptions: GeminiOptions.$schema,
       fn: (req, ctx) async {
         final isJsonMode =
@@ -479,6 +481,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   BidiModel _createBidiModel(String modelName) {
     return BidiModel(
       name: 'firebaseai/$modelName',
+      metadata: {'model': modelInfoFor(modelName, live: true).toJson()},
       customOptions: LiveGenerationConfig.$schema,
       fn: (stream, ctx) async {
         final tools = toGeminiTools(ctx.init?.tools);
