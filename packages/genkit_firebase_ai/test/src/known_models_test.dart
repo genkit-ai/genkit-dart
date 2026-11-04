@@ -25,43 +25,64 @@ Future<Map<String, Action>> registered(FirebaseAiProvider provider) async {
   return {for (final a in actions) a.name: a};
 }
 
+// Written out rather than read from the enum, so a wrong backend fails here.
+const _servedOnBoth = [
+  'gemini-4-argon',
+  'gemini-3.8-flash',
+  'gemini-3.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-3.1-flash-lite',
+  'gemini-3.1-pro-preview',
+  'gemini-nano-banana-2.1',
+  'gemini-3.1-flash-image',
+  'gemini-3.1-flash-lite-image',
+  'gemini-3-pro-image',
+  'gemini-3.8-flash-tts',
+  'gemini-3.8-flash-lite-tts',
+];
+
 void main() {
   test('model ids are unique', () {
     final ids = KnownFirebaseAiModel.values.map((m) => m.id);
     expect(ids.toSet(), hasLength(ids.length));
   });
 
-  test('the Gemini Developer API registers every model it serves', () async {
-    final actions = await registered(const FirebaseAiProvider.googleAI());
+  for (final (provider, name, models, liveModels) in [
+    (
+      const FirebaseAiProvider.googleAI(),
+      'the Gemini Developer API',
+      [
+        ..._servedOnBoth,
+        'gemini-flash-latest',
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+      ],
+      ['gemini-3.8-live'],
+    ),
+    (
+      const FirebaseAiProvider.agentPlatform(),
+      'Agent Platform',
+      _servedOnBoth,
+      ['gemini-3.8-live', 'gemini-live-2.5-flash-native-audio'],
+    ),
+  ]) {
+    test('$name registers exactly the models it serves', () async {
+      final actions = await registered(provider);
 
-    for (final model in KnownFirebaseAiModel.values) {
-      final action = actions['firebaseai/${model.id}'];
-      if (model.backend == .agentPlatform) {
-        expect(action, isNull, reason: model.id);
-      } else {
-        expect(
-          action,
-          model.live ? isA<BidiModel>() : isA<Model>(),
-          reason: model.id,
-        );
+      expect(
+        actions.keys,
+        unorderedEquals([
+          for (final m in [...models, ...liveModels]) 'firebaseai/$m',
+        ]),
+      );
+      for (final m in models) {
+        expect(actions['firebaseai/$m'], isA<Model>(), reason: m);
       }
-    }
-    expect(actions, contains('firebaseai/gemini-3.1-flash-live-preview'));
-  });
-
-  test('Agent Platform registers its own Live model only', () async {
-    final actions = await registered(const FirebaseAiProvider.agentPlatform());
-
-    expect(
-      actions['firebaseai/gemini-live-2.5-flash-native-audio'],
-      isA<BidiModel>(),
-    );
-    expect(
-      actions,
-      isNot(contains('firebaseai/gemini-3.1-flash-live-preview')),
-    );
-    expect(actions['firebaseai/gemini-3.8-flash'], isA<Model>());
-  });
+      for (final m in liveModels) {
+        expect(actions['firebaseai/$m'], isA<BidiModel>(), reason: m);
+      }
+    });
+  }
 
   test('a model outside the catalog still resolves', () {
     final model = firebaseAI().resolve(.model, 'gemini-9-flash');

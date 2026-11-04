@@ -262,7 +262,7 @@ class _LiveChatScreenState extends State<LiveChatScreen> {
       });
 
       final newSession = await _ai.generateBidi(
-        model: 'firebaseai/gemini-2.5-flash-native-audio-preview-12-2025',
+        model: 'firebaseai/gemini-3.8-live',
         config: LiveGenerationConfig(
           responseModalities: ['AUDIO'],
           speechConfig: SpeechConfig(

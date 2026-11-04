@@ -31,31 +31,25 @@ enum ModelBackend {
 
 /// Models Firebase AI Logic serves, registered when the plugin starts.
 enum KnownFirebaseAiModel {
-  geminiFlashLatest('gemini-flash-latest'),
+  geminiFlashLatest('gemini-flash-latest', backend: .developerApi),
   gemini4Argon('gemini-4-argon'),
   gemini38Flash('gemini-3.8-flash'),
-  gemini37Flash('gemini-3.7-flash'),
-  gemini36Flash('gemini-3.6-flash'),
+  gemini37Flash('gemini-3.7-flash', backend: .developerApi),
+  gemini36Flash('gemini-3.6-flash', backend: .developerApi),
   gemini35Flash('gemini-3.5-flash'),
   gemini35FlashLite('gemini-3.5-flash-lite'),
   gemini31FlashLite('gemini-3.1-flash-lite'),
-  gemini3FlashPreview('gemini-3-flash-preview'),
   gemini31ProPreview('gemini-3.1-pro-preview'),
   geminiNanoBanana21('gemini-nano-banana-2.1'),
   gemini31FlashImage('gemini-3.1-flash-image'),
   gemini31FlashLiteImage('gemini-3.1-flash-lite-image'),
   gemini3ProImage('gemini-3-pro-image'),
-  gemini31FlashTtsPreview('gemini-3.1-flash-tts-preview'),
-  gemini31FlashLivePreview(
-    'gemini-3.1-flash-live-preview',
-    live: true,
-    backend: .developerApi,
-  ),
-  gemini25FlashNativeAudioPreview(
-    'gemini-2.5-flash-native-audio-preview-12-2025',
-    live: true,
-    backend: .developerApi,
-  ),
+  // The 3.8 TTS and Live models replace previews the Gemini API shuts down on
+  // 2026-11-17 (https://aistudio.google.com/docs/deprecations). Firebase
+  // serves them on both backends but doesn't list them yet.
+  gemini38FlashTts('gemini-3.8-flash-tts'),
+  gemini38FlashLiteTts('gemini-3.8-flash-lite-tts'),
+  gemini38Live('gemini-3.8-live', live: true),
   geminiLive25FlashNativeAudio(
     'gemini-live-2.5-flash-native-audio',
     live: true,
