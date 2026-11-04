@@ -96,84 +96,60 @@ void main() {
   });
 
   group('Tool Conversion', () {
-    test('converts tool definition', () {
-      final toolDef = ToolDefinition(
-        name: 'myTool',
-        description: 'desc',
-        inputSchema: {
-          'type': 'object',
-          'properties': {
-            'a': {'type': 'string'},
-          },
+    test('sends the tool input schema as parametersJsonSchema', () {
+      final inputSchema = {
+        'type': 'object',
+        'properties': {
+          'a': {'type': 'string'},
         },
-        outputSchema: {'type': 'string'},
-      );
-      final mTools = toGeminiTools([toolDef]);
-      expect(mTools, isNotNull);
-      expect(mTools!.length, 1);
-      final mTool = mTools.first;
-      expect(mTool, isA<m.Tool>());
-      expect(mTool.toJson(), {
+      };
+      final mTools = toGeminiTools([
+        ToolDefinition(
+          name: 'myTool',
+          description: 'desc',
+          inputSchema: inputSchema,
+          outputSchema: {'type': 'string'},
+        ),
+      ]);
+
+      expect(mTools!.single.toJson(), {
         'functionDeclarations': [
           {
             'name': 'myTool',
             'description': 'desc',
-            'parameters': {
-              'type': 'OBJECT',
-              'properties': {
-                'a': {'type': 'STRING', 'nullable': false},
-              },
-              'required': [],
-            },
+            'parametersJsonSchema': inputSchema,
           },
         ],
       });
     });
 
-    test('flattens schema', () {
-      final toolDef = ToolDefinition(
-        name: 'myTool',
-        description: 'desc',
-        inputSchema: {
-          '\$ref': '#/\$defs/WeatherToolInput',
-          '\$defs': {
-            'WeatherToolInput': {
-              'type': 'object',
-              'properties': {
-                'city': {
-                  'type': 'string',
-                  'description': 'The city to get the weather for',
-                },
-              },
-              'required': ['city'],
-            },
-          },
-          '\$schema': 'http://json-schema.org/draft-07/schema#',
-        },
-        outputSchema: {'type': 'string'},
-      );
-      final mTools = toGeminiTools([toolDef]);
-      expect(mTools, isNotNull);
-      expect(mTools!.length, 1);
-      final mTool = mTools.first;
-      expect(mTool, isA<m.Tool>());
-      expect(mTool.toJson(), {
+    test('a tool without an input schema sends no parameters', () {
+      final mTools = toGeminiTools([
+        ToolDefinition(name: 'myTool', description: 'desc'),
+      ]);
+
+      expect(mTools!.single.toJson(), {
         'functionDeclarations': [
-          {
-            'name': 'myTool',
-            'description': 'desc',
-            'parameters': {
-              'type': 'OBJECT',
-              'properties': {
-                'city': {
-                  'type': 'STRING',
-                  'description': 'The city to get the weather for',
-                  'nullable': false,
-                },
-              },
-              'required': ['city'],
-            },
+          {'name': 'myTool', 'description': 'desc'},
+        ],
+      });
+    });
+
+    test('a tool whose schema accepts any input sends no parameters', () {
+      final mTools = toGeminiTools([
+        ToolDefinition(
+          name: 'myTool',
+          description: 'desc',
+          inputSchema: {
+            r'$schema': 'http://json-schema.org/draft-07/schema#',
+            'description': 'anything',
           },
+        ),
+      ]);
+
+      expect(mTools!.single.toJson(), {
+        'functionDeclarations': [
+          {'name': 'myTool', 'description': 'desc'},
         ],
       });
     });
@@ -208,6 +184,16 @@ void main() {
     test('firebaseAiModelInfo claims native constrained generation', () {
       expect(firebaseAiModelInfo.supports?['constrained'], isTrue);
     });
+
+    test('generate models expose GeminiOptions as their options', () {
+      final model = firebaseAI().resolve(.model, 'gemini-3.8-flash') as Model;
+
+      expect(model.customOptions, same(GeminiOptions.$schema));
+      expect(
+        (model.metadata['model'] as Map<String, dynamic>)['customOptions'],
+        isA<Map<String, dynamic>>(),
+      );
+    });
   });
 
   group('Configuration Mapping', () {
@@ -222,12 +208,19 @@ void main() {
       );
       final settings = toGeminiSettings(options, null, false);
 
-      expect(settings.temperature, 0.7);
-      expect(settings.candidateCount, 2);
-      expect(settings.maxOutputTokens, 100);
-      expect(settings.topK, 10);
-      expect(settings.topP, 0.9);
-      expect(settings.responseMimeType, 'text/plain');
+      // The sampling getters are deprecated from firebase_ai 5 (#596), so
+      // check the wire form instead.
+      expect(
+        settings.toJson(),
+        allOf(
+          containsPair('temperature', 0.7),
+          containsPair('candidateCount', 2),
+          containsPair('maxOutputTokens', 100),
+          containsPair('topK', 10),
+          containsPair('topP', 0.9),
+          containsPair('responseMimeType', 'text/plain'),
+        ),
+      );
     });
 
     test('toGeminiSettings overrides mimeType for JSON mode', () {

@@ -25,7 +25,7 @@ void main() {
 
       expect(config.responseModalities, isNull);
       expect(config.speechConfig, isNull);
-      expect(config.temperature, isNull);
+      expect(config.toJson(), isNot(contains('temperature')));
     });
 
     test('does not throw when speechConfig has no voiceConfig', () {
@@ -54,11 +54,18 @@ void main() {
       expect(config.responseModalities, [fai.ResponseModalities.audio]);
       expect(config.speechConfig!.voiceName, 'Kore');
       expect(config.maxOutputTokens, 256);
-      expect(config.temperature, 1.0);
-      expect(config.topP, 0.9);
-      expect(config.topK, 40);
-      expect(config.presencePenalty, 0.1);
-      expect(config.frequencyPenalty, 0.2);
+      // The sampling getters are deprecated from firebase_ai 5 (#596), so
+      // check the wire form instead.
+      expect(
+        config.toJson(),
+        allOf(
+          containsPair('temperature', 1.0),
+          containsPair('topP', 0.9),
+          containsPair('topK', 40),
+          containsPair('presencePenalty', 0.1),
+          containsPair('frequencyPenalty', 0.2),
+        ),
+      );
     });
 
     test('reports a field of the wrong type as an invalid argument', () {
@@ -183,6 +190,46 @@ void main() {
 
       expect(calls, ['toolResponses(2)']);
     });
+  });
+
+  test('a Live system message with a non-text part fails before '
+      'connecting', () async {
+    final model =
+        firebaseAI().resolve(
+              ActionType.bidiModel,
+              'gemini-3.1-flash-live-preview',
+            )
+            as BidiModel;
+
+    final session = model.streamBidi(
+      init: ModelRequest(
+        messages: [
+          Message(
+            role: Role.system,
+            content: [TextPart(text: 'Be brief')],
+          ),
+          Message(
+            role: Role.system,
+            content: [
+              MediaPart(
+                media: Media(url: 'gs://b/f.png', contentType: 'image/png'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+
+    await expectLater(
+      session,
+      emitsError(
+        isA<GenkitException>().having(
+          (e) => e.status,
+          'status',
+          StatusCode.invalidArgument,
+        ),
+      ),
+    );
   });
 
   test('live models expose LiveGenerationConfig as their options', () {
