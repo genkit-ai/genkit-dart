@@ -135,6 +135,84 @@ void main() {
     ]);
   });
 
+  test('the Gemini Developer API does not suggest image categories', () async {
+    final client = WireClient();
+
+    await expectLater(
+      wireModel(client)(
+        userRequest(
+          'hello',
+          config: {
+            'safetySettings': [
+              {
+                'category': 'HARM_CATEGORY_HATE',
+                'threshold': 'BLOCK_ONLY_HIGH',
+              },
+            ],
+          },
+        ),
+      ),
+      throwsA(
+        isA<GenkitException>().having(
+          (e) => e.message,
+          'message',
+          allOf(
+            contains('HARM_CATEGORY_HATE_SPEECH'),
+            isNot(contains('IMAGE')),
+          ),
+        ),
+      ),
+    );
+  });
+
+  test('Agent Platform suggests image categories', () async {
+    final client = WireClient();
+
+    await expectLater(
+      wireModel(client, provider: FirebaseAiProvider.agentPlatform())(
+        userRequest(
+          'hello',
+          config: {
+            'safetySettings': [
+              {
+                'category': 'HARM_CATEGORY_HATE',
+                'threshold': 'BLOCK_ONLY_HIGH',
+              },
+            ],
+          },
+        ),
+      ),
+      throwsA(
+        isA<GenkitException>().having(
+          (e) => e.message,
+          'message',
+          contains('HARM_CATEGORY_IMAGE_HATE'),
+        ),
+      ),
+    );
+  });
+
+  for (final MapEntry(key: name, value: safetySettings) in {
+    'a map': {
+      'category': 'HARM_CATEGORY_HATE_SPEECH',
+      'threshold': 'BLOCK_ONLY_HIGH',
+    },
+    'a list of strings': ['BLOCK_NONE'],
+  }.entries) {
+    test('safetySettings as $name throws invalidArgument and sends '
+        'nothing', () async {
+      final client = WireClient();
+
+      await expectLater(
+        wireModel(client)(
+          userRequest('hello', config: {'safetySettings': safetySettings}),
+        ),
+        _throwsInvalidArgument,
+      );
+      expect(client.requests, isEmpty);
+    });
+  }
+
   final invalid = {
     'a method on the Gemini Developer API': {
       'category': 'HARM_CATEGORY_HATE_SPEECH',
