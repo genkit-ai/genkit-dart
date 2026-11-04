@@ -63,7 +63,8 @@ dynamic extractMcpMeta(Object? source) {
 ///   when it looks like JSON, or `null` when there is no text.
 /// * `image` and `audio` content and embedded blob resources become
 ///   [MediaPart]s, and `resource_link` content becomes [ResourcePart]s, in the
-///   response `parts`.
+///   response `parts`. Media without a `mimeType` uses
+///   `application/octet-stream`.
 /// * Error results become `{'error': '<text>'}`.
 ToolResult<dynamic> processToolResult(Map<String, dynamic> result) {
   final content = asListOfMaps(result['content']);
@@ -75,15 +76,23 @@ ToolResult<dynamic> processToolResult(Map<String, dynamic> result) {
 
   final parts = <Part>[];
   var textOutput = '';
-  MediaPart media(Object? data, Object? mimeType) => MediaPart(
-    media: Media(url: 'data:$mimeType;base64,$data', contentType: '$mimeType'),
-  );
+  // `mimeType` is optional on embedded resources; without a fallback the URL
+  // would be `data:null;...`, which providers can't interpret.
+  MediaPart media(String data, Object? mimeType) {
+    final type = mimeType is String && mimeType.isNotEmpty
+        ? mimeType
+        : 'application/octet-stream';
+    return MediaPart(
+      media: Media(url: 'data:$type;base64,$data', contentType: type),
+    );
+  }
+
   for (final block in content) {
     switch (block['type']) {
       case 'text':
         textOutput += block['text'] as String? ?? '';
       case 'image' || 'audio' when block['data'] is String:
-        parts.add(media(block['data'], block['mimeType']));
+        parts.add(media(block['data'] as String, block['mimeType']));
       case 'resource_link' when block['uri'] is String:
         parts.add(ResourcePart(resource: {'uri': block['uri']}));
       case 'resource':

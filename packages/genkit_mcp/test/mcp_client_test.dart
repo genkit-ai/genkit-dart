@@ -842,6 +842,21 @@ void main() {
       expect(result.parts!.last.resource, {'uri': 'file:///log.txt'});
     });
 
+    test('default media without a mimeType to octet-stream', () async {
+      final result = await callToolReturning({
+        'content': [
+          {
+            'type': 'resource',
+            'resource': {'uri': 'file:///blob.bin', 'blob': 'DDDD'},
+          },
+        ],
+      });
+
+      final media = result.parts!.single.media!;
+      expect(media.url, 'data:application/octet-stream;base64,DDDD');
+      expect(media.contentType, 'application/octet-stream');
+    });
+
     test('decode JSON text output', () async {
       final result = await callToolReturning({
         'content': [

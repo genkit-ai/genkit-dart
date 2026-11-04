@@ -297,7 +297,7 @@ plugin maps each result to a tool response `output` and `parts`, the same way as
 the Genkit JS MCP plugin's multipart mode:
 
 1. If the result contains `isError: true`, the output is `{'error': '<text>'}`.
-2. `image` and `audio` content, and embedded resources with a `blob`, become `MediaPart`s in `parts`, with `data:<mimeType>;base64,<data>` URLs. Models that support multipart tool responses receive these as media. `resource_link` content becomes a `ResourcePart`.
+2. `image` and `audio` content, and embedded resources with a `blob`, become `MediaPart`s in `parts`, with `data:<mimeType>;base64,<data>` URLs (`application/octet-stream` if the block has no `mimeType`). Models that support multipart tool responses receive these as media. `resource_link` content becomes a `ResourcePart`.
 3. The output is `structuredContent` if present, including an explicit `null`. Otherwise it is the concatenated text content, with embedded text resources appended:
    - If the text *looks like JSON* (starts with `{` or `[` after left-trimming), the client tries `jsonDecode(...)` and returns the decoded object/list on success.
    - Otherwise the text is returned as a `String`.
