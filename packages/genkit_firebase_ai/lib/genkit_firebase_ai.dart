@@ -375,7 +375,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         final model = _firebaseAI.generativeModel(
           model: modelName,
           safetySettings: toGeminiSafetySettings(
-            options.safetySettings,
+            options,
             developerApi: provider is _GoogleAIProvider,
           ),
           generationConfig: toGeminiSettings(
@@ -960,7 +960,7 @@ ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
   return ModelResponseChunk(index: 0, content: parts);
 }
 
-/// Converts [settings] to `firebase_ai` safety settings.
+/// Converts the safety settings in [options] to `firebase_ai` ones.
 ///
 /// Throws a [GenkitException] with [StatusCode.invalidArgument] for a missing,
 /// unknown or wrongly typed category or threshold, or, on the Gemini Developer
@@ -968,15 +968,18 @@ ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
 /// rejects.
 @visibleForTesting
 List<fai.SafetySetting>? toGeminiSafetySettings(
-  List<GeminiSafetySettings>? settings, {
+  GeminiOptions options, {
   required bool developerApi,
 }) {
   try {
-    return _toGeminiSafetySettings(settings, developerApi: developerApi);
+    return _toGeminiSafetySettings(
+      options.safetySettings,
+      developerApi: developerApi,
+    );
   } on GenkitException {
     rethrow;
   } catch (e) {
-    // A wrongly typed field fails in the generated getter.
+    // A wrongly typed list or field fails in the generated getters.
     throw GenkitException(
       'Invalid safetySettings: $e',
       status: StatusCode.invalidArgument,
@@ -992,7 +995,16 @@ List<fai.SafetySetting>? _toGeminiSafetySettings(
   return [
     for (final s in settings)
       fai.SafetySetting(
-        switch (_wireValue('category', s.category, _harmCategories)) {
+        switch (_wireValue(
+          'category',
+          s.category,
+          _harmCategories,
+          expected: developerApi
+              ? _harmCategories.keys.where(
+                  (c) => !_imageCategories.contains(_harmCategories[c]),
+                )
+              : null,
+        )) {
           final category
               when developerApi && _imageCategories.contains(category) =>
             throw GenkitException(
@@ -1043,13 +1055,20 @@ final _harmBlockMethods = {
 };
 
 /// The enum value of safety setting [field] whose wire name is [value].
-T _wireValue<T>(String field, String? value, Map<String, T> byWireName) {
+///
+/// The error for an unknown [value] lists [expected], or every wire name.
+T _wireValue<T>(
+  String field,
+  String? value,
+  Map<String, T> byWireName, {
+  Iterable<String>? expected,
+}) {
   if (byWireName[value] case final match?) return match;
   throw GenkitException(
     value == null
         ? 'safetySettings entries need a $field.'
         : 'Unknown safetySettings $field "$value"; expected one of '
-              '${byWireName.keys.join(', ')}.',
+              '${(expected ?? byWireName.keys).join(', ')}.',
     status: StatusCode.invalidArgument,
   );
 }
