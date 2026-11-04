@@ -408,53 +408,77 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
           throw toGenkitException(e, stack);
         }
         _logger.info('Connected to model: $modelName');
-        final sender = LiveSender(session);
-        // Closing through the sender marks the close as the plugin's, so it
-        // is not reported as the server ending the session. A cancel during
-        // connect() closes the session at once; stop here rather than send
-        // history to it.
-        final disposeCancel = ctx.cancel?.onCancel(sender.close);
-        ctx.cancel?.throwIfCancelled();
-        sender.add(
-          ctx.init?.messages.where((m) => m.role != Role.system) ?? const [],
-        );
-        await sender.flush();
-        final sub = stream.listen(
-          (chunk) => sender.add(chunk.messages),
-          onError: (e) {
-            _logger.severe('InputStream error', e);
-          },
-          onDone: () async {
-            _logger.info('InputStream done');
-            // Let messages already queued go out before closing.
-            await sender.flush();
-            await sender.close();
-          },
-        );
 
-        try {
-          await receiveLiveSession(
-            session,
-            ctx.sendChunk,
-            closedByPlugin: () => sender.closed,
-          );
-        } finally {
-          disposeCancel?.call();
-          await sub.cancel();
-          _logger.fine('Closing session');
-          await sender.close();
-        }
-        if (sender.failure case (final e, final stack)) {
-          throw toGenkitException(e, stack);
-        }
-        // A cancel closes the session through the sender, which ends the
-        // receive loop as if the session finished normally.
-        ctx.cancel?.throwIfCancelled();
+        await runLiveSession(
+          session,
+          history:
+              ctx.init?.messages.where((m) => m.role != Role.system) ??
+              const [],
+          input: stream,
+          onChunk: ctx.sendChunk,
+          cancel: ctx.cancel,
+        );
 
         return ModelResponse(finishReason: FinishReason.stop);
       },
     );
   }
+}
+
+/// Runs a connected Live [session] until it ends: sends [history], then
+/// the messages of each [input] request in order, and forwards what the
+/// session returns to [onChunk].
+///
+/// Throws a [GenkitException] when sending or receiving fails, or when the
+/// server closed the session, and a [CancelledException] once [cancel] is
+/// cancelled.
+@visibleForTesting
+Future<void> runLiveSession(
+  fai.LiveSession session, {
+  required Iterable<Message> history,
+  required Stream<ModelRequest> input,
+  required void Function(ModelResponseChunk) onChunk,
+  CancellationToken? cancel,
+}) async {
+  final sender = LiveSender(session);
+  // Closing through the sender marks the close as the plugin's, so it is not
+  // reported as the server ending the session. A cancel during connect()
+  // closes the session at once; stop here rather than send history to it.
+  final disposeCancel = cancel?.onCancel(sender.close);
+  cancel?.throwIfCancelled();
+  sender.add(history);
+  await sender.flush();
+  final sub = input.listen(
+    (request) => sender.add(request.messages),
+    onError: (e) {
+      _logger.severe('InputStream error', e);
+    },
+    onDone: () async {
+      _logger.info('InputStream done');
+      // Let messages already queued go out before closing.
+      await sender.flush();
+      await sender.close();
+    },
+  );
+
+  try {
+    await receiveLiveSession(
+      session,
+      onChunk,
+      closedByPlugin: () => sender.closed,
+    );
+  } finally {
+    disposeCancel?.call();
+    await sub.cancel();
+    _logger.fine('Closing session');
+    await sender.close();
+  }
+  if (sender.failure case (final e, final stack)) {
+    throw toGenkitException(e, stack);
+  }
+  // A cancel closes the session through the sender, which ends the receive
+  // loop as if the session finished normally.
+  cancel?.throwIfCancelled();
 }
 
 /// Builds the Firebase AI Live config from a request's `config`, read through
@@ -519,7 +543,8 @@ class LiveSender {
   Future<void> _pending = Future.value();
 
   /// The first failure to send, which ended the session.
-  (Object, StackTrace)? failure;
+  (Object, StackTrace)? get failure => _failure;
+  (Object, StackTrace)? _failure;
 
   /// Whether the plugin closed the session.
   bool get closed => _closed;
@@ -547,7 +572,8 @@ class LiveSender {
       try {
         await sendToLiveSession(_session, msg);
       } catch (e, stack) {
-        failure ??= (e, stack);
+        // A write cut short by close() fails too, but that is not an error.
+        if (!_closed) _failure ??= (e, stack);
         await close();
         return;
       }

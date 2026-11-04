@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
+
 import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/experimental.dart' show BidiModel;
@@ -127,6 +129,18 @@ void main() {
       expect(session.closeCalls, 1);
     });
 
+    test('a write cut short by close is not a failure', () async {
+      final session = _SlowLiveSession();
+      final sender = LiveSender(session)..add([text('cut short')]);
+
+      await session.writing.future;
+      await sender.close();
+      await sender.flush();
+
+      expect(session.sent, isEmpty);
+      expect(sender.failure, isNull);
+    });
+
     test('nothing is sent after close', () async {
       final session = _SlowLiveSession();
       final sender = LiveSender(session);
@@ -201,6 +215,30 @@ void main() {
       );
     });
 
+    // firebase_ai replaces the whole close message for these two reasons.
+    for (final (reason, status) in [
+      (
+        'The current live session has expired. Please start a new session.',
+        StatusCode.deadlineExceeded,
+      ),
+      (
+        'You have exceeded the maximum number of concurrent sessions. '
+            'Please close other sessions and try again later.',
+        StatusCode.resourceExhausted,
+      ),
+    ]) {
+      test('a server close reported as "$reason" is ${status.name}', () async {
+        final session = _ReceivingLiveSession([], closedWith: reason);
+
+        await expectLater(
+          receiveLiveSession(session, (_) {}, closedByPlugin: () => false),
+          throwsA(
+            isA<GenkitException>().having((e) => e.status, 'status', status),
+          ),
+        );
+      });
+    }
+
     test('a receive error is reported, not swallowed', () async {
       final session = _ReceivingLiveSession([], error: StateError('boom'));
 
@@ -208,6 +246,95 @@ void main() {
         receiveLiveSession(session, (_) {}, closedByPlugin: () => true),
         throwsA(isA<GenkitException>()),
       );
+    });
+  });
+
+  group('runLiveSession', () {
+    Message text(String t) => Message(
+      role: Role.user,
+      content: [TextPart(text: t)],
+    );
+
+    test('sends the history, then the input, before closing', () async {
+      final session = _SlowLiveSession();
+      final input = StreamController<ModelRequest>()
+        ..add(ModelRequest(messages: [text('last')]));
+      unawaited(input.close());
+
+      await runLiveSession(
+        session,
+        history: [text('first')],
+        input: input.stream,
+        onChunk: (_) {},
+      );
+
+      expect(session.sent, ['first', 'last']);
+      expect(session.closeCalls, 1);
+    });
+
+    test('a send failure ends the session with that error', () async {
+      final session = _SlowLiveSession(failOn: 'bad');
+      final input = StreamController<ModelRequest>()
+        ..add(ModelRequest(messages: [text('bad')]));
+
+      await expectLater(
+        runLiveSession(
+          session,
+          history: const [],
+          input: input.stream,
+          onChunk: (_) {},
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.cause,
+            'cause',
+            isA<StateError>(),
+          ),
+        ),
+      );
+      expect(session.closeCalls, 1);
+      await input.close();
+    });
+
+    test(
+      'cancelling closes the session and throws CancelledException',
+      () async {
+        final session = _SlowLiveSession();
+        final input = StreamController<ModelRequest>();
+        final controller = CancellationController();
+
+        final run = runLiveSession(
+          session,
+          history: [text('hi')],
+          input: input.stream,
+          onChunk: (_) {},
+          cancel: controller.token,
+        );
+        await session.writing.future;
+        controller.cancel('user pressed stop');
+
+        await expectLater(run, throwsA(isA<CancelledException>()));
+        expect(session.closeCalls, 1);
+        await input.close();
+      },
+    );
+
+    test('an already-cancelled token sends nothing', () async {
+      final session = _SlowLiveSession();
+      final controller = CancellationController()..cancel();
+
+      await expectLater(
+        runLiveSession(
+          session,
+          history: [text('hi')],
+          input: const Stream.empty(),
+          onChunk: (_) {},
+          cancel: controller.token,
+        ),
+        throwsA(isA<CancelledException>()),
+      );
+      expect(session.sent, isEmpty);
+      expect(session.closeCalls, 1);
     });
   });
 
@@ -407,24 +534,41 @@ class _ReceivingLiveSession implements fai.LiveSession {
 }
 
 /// Records sent turn text, yielding between sends as a real socket write
-/// can, and throws a [StateError] for the text [failOn].
+/// can, and throws a [StateError] for the text [failOn] or for a write the
+/// session was closed during. Its `receive()` ends once it is closed.
 class _SlowLiveSession implements fai.LiveSession {
   _SlowLiveSession({this.failOn});
 
   final String? failOn;
   final sent = <String>[];
   int closeCalls = 0;
+  final _closed = Completer<void>();
+
+  /// Completes when the first write starts.
+  final writing = Completer<void>();
 
   @override
   Future<void> send({fai.Content? input, bool turnComplete = false}) async {
+    if (!writing.isCompleted) writing.complete();
     await Future<void>.delayed(Duration.zero);
+    if (closeCalls > 0) {
+      throw StateError('Cannot add event after closing.');
+    }
     final text = (input!.parts.single as fai.TextPart).text;
     if (text == failOn) throw StateError('socket closed');
     sent.add(text);
   }
 
   @override
-  Future<void> close() async => closeCalls++;
+  Stream<fai.LiveServerResponse> receive() async* {
+    await _closed.future;
+  }
+
+  @override
+  Future<void> close() async {
+    closeCalls++;
+    if (!_closed.isCompleted) _closed.complete();
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
