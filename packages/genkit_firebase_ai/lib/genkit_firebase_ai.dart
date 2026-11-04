@@ -309,6 +309,7 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
     return Model(
       name: 'firebaseai/$modelName',
       metadata: {'model': firebaseAiModelInfo.toJson()},
+      customOptions: GeminiOptions.$schema,
       fn: (req, ctx) async {
         final isJsonMode =
             req.output?.format == 'json' ||
