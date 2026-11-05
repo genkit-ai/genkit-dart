@@ -313,6 +313,57 @@ void main() {
         expect(sources(streamed), [later, goodBlock, later]);
       },
     );
+    group('in a response with several blocks', () {
+      const create = '''surface("s")
+root = Card(col)
+col = Column([title])
+title = Text("Hi")''';
+      // An update to the surface the block above creates, with the label
+      // mistake. An update block must define every variable it uses, so it
+      // redefines `title` too.
+      const badUpdate = '''surface("s")
+col = Column([title, go])
+title = Text("Hi")
+go = Button("Go", "primary", Event("go"))''';
+      const goodUpdate = '''surface("s")
+col = Column([title, go])
+title = Text("Hi")
+goLabel = Text("Go")
+go = Button(goLabel, "primary", Event("go"))''';
+
+      test('accepts a repaired update to a surface created earlier', () async {
+        defineModel(
+          '<a2ui>\n$create\n</a2ui>\n<a2ui>\n$badUpdate\n</a2ui>\n',
+          '<a2ui>\n$goodUpdate\n</a2ui>',
+        );
+        final res = await run();
+
+        expect(prompts, hasLength(2), reason: 'one turn plus one repair');
+        final sources = [
+          for (final p in res.message!.content.where(isA2uiPart))
+            p.metadata?[a2uiExpressMetadataKey],
+        ];
+        expect(sources, [create, goodUpdate]);
+      });
+
+      test('a block that failed only because of an earlier one costs no '
+          'repair', () async {
+        // The update fails only because the broken block never created `w`.
+        const updateW = 'surface("w")\n\$/k = "v"';
+        defineModel(
+          '<a2ui>\n$badBlock\n</a2ui>\n<a2ui>\n$updateW\n</a2ui>\n',
+          goodRepair,
+        );
+        final res = await run();
+
+        expect(prompts, hasLength(2), reason: 'one turn plus one repair');
+        final sources = [
+          for (final p in res.message!.content.where(isA2uiPart))
+            p.metadata?[a2uiExpressMetadataKey],
+        ];
+        expect(sources, [goodBlock, updateW]);
+      });
+    });
 
     test(
       're-sends what a re-sent part drags along on other surfaces',

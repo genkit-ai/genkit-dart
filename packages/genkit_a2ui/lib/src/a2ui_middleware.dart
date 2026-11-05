@@ -38,7 +38,6 @@ import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'catalog.dart';
-import 'express.dart';
 import 'loader.dart';
 import 'parser.dart';
 import 'part.dart';
@@ -386,41 +385,52 @@ class A2uiMiddleware extends GenerateMiddleware {
     CancellationToken? cancel,
     Future<String?> Function(String prompt, CancellationToken cancel) ask,
   ) async {
-    // Probe with rejection suppressed, so a failing block is recorded rather
-    // than thrown. Validation still runs, so a block that would be rejected
-    // under the configured mode is caught here.
-    final probe = A2uiStreamParser(
-      catalog: catalog,
-      validate: _validate == A2uiValidateMode.off
-          ? A2uiValidateMode.off
-          : A2uiValidateMode.warn,
-      // The final parse reports what stays broken.
-      quiet: true,
-      history: history,
-    );
-    // Fed exactly like the final parse (a non-text part ends a run of text),
-    // so the failed blocks are keyed by the sources it will see.
-    for (final part in message.content) {
-      final text = part.text;
-      if (part.isText && text != null && text.isNotEmpty) {
-        probe.push(text);
-      } else {
-        probe.flush();
+    // Parses the whole message with [repairs] applied, without throwing, and
+    // returns the blocks that still fail. Each block is checked against the
+    // history plus every block before it, repaired or not, so a repaired block
+    // may update a surface an earlier block of the same response created.
+    List<FailedBlock> probe(Map<String, String> repairs) {
+      final parser = A2uiStreamParser(
+        catalog: catalog,
+        validate: _validate == A2uiValidateMode.off
+            ? A2uiValidateMode.off
+            : A2uiValidateMode.warn,
+        history: history,
+        repairs: repairs,
+        // The final parse reports what stays broken.
+        quiet: true,
+      );
+      // Fed exactly like the final parse (a non-text part ends a run of
+      // text), so the failed blocks are keyed by the sources it will see.
+      for (final part in message.content) {
+        final text = part.text;
+        if (part.isText && text != null && text.isNotEmpty) {
+          parser.push(text);
+        } else {
+          parser.flush();
+        }
       }
+      parser.flush();
+      return parser.failedBlocks;
     }
-    probe.flush();
 
-    final repairs = <String, String>{};
+    var repairs = <String, String>{};
     // Repaired sources are keyed by block text, so one attempt covers every
-    // copy of a block repeated in the same response.
+    // copy of a block repeated in the same response. One block at a time, in
+    // order: a block that failed only because an earlier one did passes once
+    // that one is repaired, and costs no call of its own.
     final attempted = <String>{};
     final budget = CancellationController();
     final unlink = cancel?.link(budget);
     final timer = Timer(_repairBudget, () => budget.cancel('repair budget'));
     var calls = 0;
     try {
-      for (final block in probe.failedBlocks) {
-        if (!attempted.add(block.source)) continue;
+      while (true) {
+        final block = probe(
+          repairs,
+        ).where((b) => !attempted.contains(b.source)).firstOrNull;
+        if (block == null) break;
+        attempted.add(block.source);
         if (!block.isModelFixable) {
           _logger.info(
             'skipping repair, not fixable by rewriting: ${block.error}',
@@ -444,15 +454,26 @@ class A2uiMiddleware extends GenerateMiddleware {
         }
         calls++;
         _noteFirstRepair();
-        final repaired = await _repairOne(
+        final repaired = await _askForRepair(
           block,
           catalog,
           ask,
           budget.token,
           cancel,
-          history,
         );
-        if (repaired != null) repairs[block.source] = repaired;
+        if (repaired == null) continue;
+        // Only accept a repair that holds up in place, under the configured
+        // mode.
+        final candidate = {...repairs, block.source: repaired};
+        final still = probe(
+          candidate,
+        ).where((b) => b.source == block.source).firstOrNull;
+        if (still != null) {
+          _logger.warning('repair failed for "${block.error}": ${still.error}');
+          continue;
+        }
+        repairs = candidate;
+        _logger.info('repaired an A2UI block after: ${block.error}');
       }
     } finally {
       timer.cancel();
@@ -461,14 +482,13 @@ class A2uiMiddleware extends GenerateMiddleware {
     return repairs;
   }
 
-  /// Asks for one repair; returns it if it holds up, otherwise null.
-  Future<String?> _repairOne(
+  /// Asks for one repair; returns the repaired source, or null.
+  Future<String?> _askForRepair(
     FailedBlock block,
     A2uiCatalog catalog,
     Future<String?> Function(String prompt, CancellationToken cancel) ask,
     CancellationToken budget,
     CancellationToken? cancel,
-    List<A2uiEnvelope> history,
   ) async {
     try {
       // Raced against the budget too: not every model plugin honours its
@@ -498,18 +518,6 @@ class A2uiMiddleware extends GenerateMiddleware {
         );
         return null;
       }
-      // Only accept a repair that compiles under the configured mode, checked
-      // against the same surfaces the original block was.
-      if (_validate == A2uiValidateMode.off) {
-        ExpressEngine.of(catalog).compile(repaired);
-      } else {
-        // Strict throws on rejection.
-        A2uiStreamParser(
-          catalog: catalog,
-          history: history,
-        ).push('<a2ui>\n$repaired\n</a2ui>');
-      }
-      _logger.info('repaired an A2UI block after: ${block.error}');
       return repaired;
     } catch (e) {
       // The caller's cancellation aborts the turn; only the repair's own
