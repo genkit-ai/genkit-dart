@@ -15,10 +15,12 @@
 import 'package:firebase_ai/firebase_ai.dart' as fai;
 
 // `firebase_ai` parses grounding and URL context metadata but neither exports
-// their types nor gives them a `toJson`, so these rebuild the wire form from
-// the candidate.
+// their types nor gives them a `toJson`, so these rebuild JSON from the
+// candidate. It follows the wire form but is not identical to it: absent lists
+// come back empty, missing segment fields as 0 or '', and `retrievedUrl` is
+// normalized by `Uri.parse`.
 
-/// The wire JSON of [candidate]'s `groundingMetadata`, or null.
+/// JSON rebuilt from [candidate]'s `groundingMetadata`, or null.
 Map<String, Object?>? groundingMetadataJson(fai.Candidate candidate) {
   final m = candidate.groundingMetadata;
   if (m == null) return null;
@@ -58,7 +60,7 @@ Map<String, Object?>? groundingMetadataJson(fai.Candidate candidate) {
   };
 }
 
-/// The wire JSON of [candidate]'s `urlContextMetadata`, or null.
+/// JSON rebuilt from [candidate]'s `urlContextMetadata`, or null.
 Map<String, Object?>? urlContextMetadataJson(fai.Candidate candidate) {
   final m = candidate.urlContextMetadata;
   if (m == null) return null;
