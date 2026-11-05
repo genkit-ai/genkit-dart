@@ -375,117 +375,131 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         final systemOnly = nonSystem.isEmpty;
         final contents = toGeminiContent(systemOnly ? req.messages : nonSystem);
 
-        ctx.cancel?.throwIfCancelled();
-        final transport = _StatusRecordingClient(
-          _httpClient,
-          abortTrigger: ctx.cancel?.whenCancelled,
-        );
-        final model = _firebaseAI.generativeModel(
-          model: modelName,
-          safetySettings: toGeminiSafetySettings(
-            options,
-            developerApi: provider is _GoogleAIProvider,
-          ),
-          generationConfig: toGeminiSettings(
-            options,
-            req.output?.schema,
-            isJsonMode,
-            constrained: req.output?.constrained ?? false,
-          ),
-          tools: toGeminiTools(req.tools, codeExecution: options.codeExecution),
-          toolConfig: toGeminiToolConfig(
-            options.functionCallingConfig,
-            toolChoice: req.toolChoice,
-            hasFunctionTools: req.tools?.isNotEmpty ?? false,
-          ),
-          systemInstruction: systemOnly
-              ? null
-              : toGeminiSystemInstruction(req.messages),
-          httpClient: transport,
-        );
-        GenkitException mapError(Object e, StackTrace stack) {
-          // An aborted request surfaces as a transport error; report the
-          // cancellation instead.
-          if (ctx.cancel case final cancel? when cancel.isCancelled) {
-            return CancelledException(reason: cancel.reason, token: cancel);
-          }
-          return toGenkitException(
-            e,
-            stack,
-            httpStatus: transport.lastStatusCode,
-            errorStatus: transport.lastError?.status,
-            errorMessage: transport.lastError?.message,
+        // Per request, because `IOClient` keeps its listeners on the trigger
+        // until it completes, and a reused token's `whenCancelled` may never.
+        final abort = Completer<void>();
+        final disposeCancel = ctx.cancel?.onCancel(abort.complete);
+        try {
+          ctx.cancel?.throwIfCancelled();
+          final transport = _StatusRecordingClient(
+            _httpClient,
+            abortTrigger: ctx.cancel == null ? null : abort.future,
           );
-        }
-
-        if (ctx.streamingRequested) {
-          if ((options.candidateCount ?? 1) > 1) {
-            // firebase_ai drops each candidate's `index`, so streamed chunks
-            // could not be told apart and would be merged (#656).
-            throw GenkitException(
-              'Streaming with candidateCount > 1 is not supported. A '
-              'non-streaming request returns only the first candidate in '
-              'text and message; the rest are in raw.',
-              status: StatusCode.invalidArgument,
+          final model = _firebaseAI.generativeModel(
+            model: modelName,
+            safetySettings: toGeminiSafetySettings(
+              options,
+              developerApi: provider is _GoogleAIProvider,
+            ),
+            generationConfig: toGeminiSettings(
+              options,
+              req.output?.schema,
+              isJsonMode,
+              constrained: req.output?.constrained ?? false,
+            ),
+            tools: toGeminiTools(
+              req.tools,
+              codeExecution: options.codeExecution,
+            ),
+            toolConfig: toGeminiToolConfig(
+              options.functionCallingConfig,
+              toolChoice: req.toolChoice,
+              hasFunctionTools: req.tools?.isNotEmpty ?? false,
+            ),
+            systemInstruction: systemOnly
+                ? null
+                : toGeminiSystemInstruction(req.messages),
+            httpClient: transport,
+          );
+          GenkitException mapError(Object e, StackTrace stack) {
+            // An aborted request surfaces as a transport error; report the
+            // cancellation instead.
+            if ((e, ctx.cancel) case (
+              http.RequestAbortedException(),
+              final cancel?,
+            )) {
+              return CancelledException(reason: cancel.reason, token: cancel);
+            }
+            return toGenkitException(
+              e,
+              stack,
+              httpStatus: transport.lastStatusCode,
+              errorStatus: transport.lastError?.status,
+              errorMessage: transport.lastError?.message,
             );
           }
-          final stream = model
-              .generateContentStream(contents)
-              .handleError((Object e, StackTrace s) => throw mapError(e, s));
-          final chunks = <fai.GenerateContentResponse>[];
-          await for (final chunk in stream) {
-            ctx.cancel?.throwIfCancelled();
-            chunks.add(chunk);
-            if (chunk.candidates.isNotEmpty) {
-              final (message, finishReason) = fromGeminiCandidate(
-                chunk.candidates.first,
-              );
-              ctx.sendChunk(
-                ModelResponseChunk(index: 0, content: message.content),
+
+          if (ctx.streamingRequested) {
+            if ((options.candidateCount ?? 1) > 1) {
+              // firebase_ai drops each candidate's `index`, so streamed chunks
+              // could not be told apart and would be merged (#656).
+              throw GenkitException(
+                'Streaming with candidateCount > 1 is not supported. A '
+                'non-streaming request returns only the first candidate in '
+                'text and message; the rest are in raw.',
+                status: StatusCode.invalidArgument,
               );
             }
-          }
-          ctx.cancel?.throwIfCancelled();
-          final aggregated = aggregateResponses(chunks);
-          if (aggregated.candidates.isEmpty) {
-            throw _noCandidatesException(aggregated.promptFeedback);
-          }
-          final (message, finishReason) = fromGeminiCandidate(
-            aggregated.candidates.first,
-          );
-          return ModelResponse(
-            finishReason: finishReason,
-            finishMessage: aggregated.candidates.first.finishMessage,
-            custom: _finishCustom(aggregated.candidates.first),
-            message: message,
-            raw: _rawResponse(aggregated),
-            usage: extractUsage(aggregated.usageMetadata),
-          );
-        } else {
-          final fai.GenerateContentResponse response;
-          try {
-            response = await model.generateContent(contents);
-          } catch (e, stack) {
-            throw mapError(e, stack);
-          }
-          ctx.cancel?.throwIfCancelled();
+            final stream = model
+                .generateContentStream(contents)
+                .handleError((Object e, StackTrace s) => throw mapError(e, s));
+            final chunks = <fai.GenerateContentResponse>[];
+            await for (final chunk in stream) {
+              ctx.cancel?.throwIfCancelled();
+              chunks.add(chunk);
+              if (chunk.candidates.isNotEmpty) {
+                final (message, finishReason) = fromGeminiCandidate(
+                  chunk.candidates.first,
+                );
+                ctx.sendChunk(
+                  ModelResponseChunk(index: 0, content: message.content),
+                );
+              }
+            }
+            ctx.cancel?.throwIfCancelled();
+            final aggregated = aggregateResponses(chunks);
+            if (aggregated.candidates.isEmpty) {
+              throw _noCandidatesException(aggregated.promptFeedback);
+            }
+            final (message, finishReason) = fromGeminiCandidate(
+              aggregated.candidates.first,
+            );
+            return ModelResponse(
+              finishReason: finishReason,
+              finishMessage: aggregated.candidates.first.finishMessage,
+              custom: _finishCustom(aggregated.candidates.first),
+              message: message,
+              raw: _rawResponse(aggregated),
+              usage: extractUsage(aggregated.usageMetadata),
+            );
+          } else {
+            final fai.GenerateContentResponse response;
+            try {
+              response = await model.generateContent(contents);
+            } catch (e, stack) {
+              throw mapError(e, stack);
+            }
+            ctx.cancel?.throwIfCancelled();
 
-          if (response.candidates.isEmpty) {
-            throw _noCandidatesException(response.promptFeedback);
+            if (response.candidates.isEmpty) {
+              throw _noCandidatesException(response.promptFeedback);
+            }
+
+            final (message, finishReason) = fromGeminiCandidate(
+              response.candidates.first,
+            );
+
+            return ModelResponse(
+              finishReason: finishReason,
+              finishMessage: response.candidates.first.finishMessage,
+              custom: _finishCustom(response.candidates.first),
+              message: message,
+              raw: _rawResponse(response),
+              usage: extractUsage(response.usageMetadata),
+            );
           }
-
-          final (message, finishReason) = fromGeminiCandidate(
-            response.candidates.first,
-          );
-
-          return ModelResponse(
-            finishReason: finishReason,
-            finishMessage: response.candidates.first.finishMessage,
-            custom: _finishCustom(response.candidates.first),
-            message: message,
-            raw: _rawResponse(response),
-            usage: extractUsage(response.usageMetadata),
-          );
+        } finally {
+          disposeCancel?.call();
         }
       },
     );
@@ -560,12 +574,10 @@ Future<void> runLiveSession(
 }) async {
   final sender = LiveSender(session);
   // Closing through the sender marks the close as the plugin's, so it is not
-  // reported as the server ending the session. A cancel during connect()
-  // closes the session at once; stop here rather than send history to it.
+  // reported as the server ending the session.
   final disposeCancel = cancel?.onCancel(sender.close);
-  cancel?.throwIfCancelled();
-  sender.add(history);
-  await sender.flush();
+  // Listen before anything can throw: closing a bidi stream waits for its
+  // input to be listened to and cancelled.
   final sub = input.listen(
     (request) => sender.add(request.messages),
     onError: (e) {
@@ -580,6 +592,11 @@ Future<void> runLiveSession(
   );
 
   try {
+    // A cancel during connect() closes the session at once; stop here rather
+    // than send history to it.
+    cancel?.throwIfCancelled();
+    sender.add(history);
+    await sender.flush();
     await receiveLiveSession(
       session,
       onChunk,
