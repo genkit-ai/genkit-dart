@@ -788,13 +788,18 @@ Future<GenerateResult> runGenerateAction(
   if (skipTelemetry) {
     return _runGenerateAction(registry, options, ctx, middleware: middleware);
   }
+  // `stepName` is the span's display name. `genkit:name` stays `generate` so
+  // the Developer UI still recognizes the span as the generate utility action.
+  final stepName = options.stepName;
+  final hasStepName = stepName != null && stepName.isNotEmpty;
   return runInNewSpan(
-    'generate',
+    hasStepName ? stepName : 'generate',
     (telemetryContext) {
       return _runGenerateAction(registry, options, ctx, middleware: middleware);
     },
     input: options,
     actionType: ActionType.util.value,
+    attributes: hasStepName ? const {'genkit:name': 'generate'} : null,
   );
 }
 

@@ -325,7 +325,10 @@ class GenAiInstrumentation implements Instrumentation {
   Map<String, Object> _actionAttributes(SpanMetadata metadata) => {
     if (metadata.actionType != null)
       GenkitAttr.actionType: metadata.actionType!,
-    GenkitAttr.actionName: metadata.name,
+    // A span may display a custom name (e.g. a generate call's `stepName`)
+    // while the action it belongs to keeps its own, passed as `genkit:name`.
+    GenkitAttr.actionName:
+        (metadata.attributes['genkit:name'] as String?) ?? metadata.name,
   };
 
   /// Records raw Genkit input/output on [span] as `genkit.*` JSON attributes
