@@ -20,6 +20,8 @@
 library;
 
 import 'package:a2ui_agent/a2ui_agent.dart';
+import 'package:a2ui_core/a2ui_core.dart'
+    show A2uiError, A2uiProtocolVersion, AgentToRendererMessage;
 
 import 'catalog_types.dart';
 import 'types.dart';
@@ -51,30 +53,68 @@ final class ExpressEngine {
   late final String promptSnippet = _processor.promptSnippet;
 
   /// Compiles one Express block (without its `<a2ui>` tags) into v0.9
-  /// envelopes.
-  ///
-  /// With [validate], the messages are also checked the way a renderer would
-  /// check them: every reference resolves, every surface has a `root`, and
-  /// nothing is orphaned. Without it only the compiler's own checks run
-  /// (syntax, catalog membership, property schemas).
+  /// envelopes, running only the compiler's own checks (syntax, catalog
+  /// membership, property schemas). [SurfaceMirror.apply] checks the result
+  /// the way a renderer would.
   ///
   /// Throws an `A2uiError` from `a2ui_core` when the block is rejected:
   /// `A2uiParseError` for a syntax error, `A2uiValidationError` for something
-  /// the catalog does not allow, `A2uiIntegrityError` for a broken component
-  /// graph.
-  List<A2uiEnvelope> compile(String block, {bool validate = true}) {
-    final messages = validate
-        // The processor only takes a whole response, so the block is wrapped
-        // back in its tags. Its tag scanner skips string literals, so a
-        // `</a2ui>` inside a Text value does not end the block early.
-        ? [
-            for (final part
-                in _processor
-                    .parseResponse('<a2ui>\n$block\n</a2ui>')
-                    .whereType<A2uiPart>())
-              ...part.a2ui,
-          ]
-        : _parser.compile(block);
-    return [for (final m in messages) m.toJson()];
+  /// the catalog does not allow.
+  List<A2uiEnvelope> compile(String block) => [
+    for (final m in _parser.compile(block)) m.toJson(),
+  ];
+
+  /// A mirror of the surfaces a renderer holds after receiving [history].
+  ///
+  /// History is applied message by message and a message the mirror rejects
+  /// is skipped, so one bad message from an earlier turn (or from before this
+  /// package compiled Express) does not hide the surfaces that did render.
+  SurfaceMirror mirror(Iterable<A2uiEnvelope> history) {
+    final mirror = SurfaceMirror._(_processor.createState());
+    for (final envelope in history) {
+      try {
+        // History written by a client may leave out the version.
+        mirror._state.apply(
+          SurfaceMirror._parse([
+            {'version': a2uiVersion, ...envelope},
+          ]),
+        );
+      } on A2uiError {
+        // Skipped; see above.
+      }
+    }
+    return mirror;
   }
+}
+
+/// The agent-side mirror of a renderer's surfaces, which messages are checked
+/// against before they are sent.
+///
+/// Built from the conversation's history, so a block can update a surface an
+/// earlier turn rendered (a block without `root` targets an existing surface),
+/// and a component reference resolves against what the renderer already holds.
+final class SurfaceMirror {
+  SurfaceMirror._(this._state);
+
+  final RendererState _state;
+
+  /// Applies [envelopes] as one unit, checking them the way a renderer would:
+  /// every update targets a live surface, every reference resolves, every
+  /// touched surface has a `root`, and nothing new is orphaned.
+  ///
+  /// Throws an `A2uiError` (typically `A2uiValidationError` or
+  /// `A2uiIntegrityError`) and leaves the mirror unchanged if any check fails.
+  void apply(List<A2uiEnvelope> envelopes) {
+    if (envelopes.isEmpty) return;
+    _state.transaction(() {
+      final touched = _state.apply(_parse(envelopes));
+      // Deleted surfaces are skipped by the tree check.
+      if (touched.isNotEmpty) _state.checkTopology(touched);
+    });
+  }
+
+  static List<AgentToRendererMessage> _parse(List<A2uiEnvelope> envelopes) =>
+      AgentToRendererMessage.parseAll([
+        for (final e in envelopes) e.cast<String, Object?>(),
+      ], protocolVersion: A2uiProtocolVersion.v0_9).messages;
 }

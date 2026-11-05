@@ -228,8 +228,21 @@ should treat a `deleteSurface` for an unknown id as a no-op too.
 A block that omits `surface()` targets `default_surface`, so such blocks replace
 each other.
 
+A block without `root` **updates** a live surface instead: it carries only what
+changed, as `updateComponents` / `updateDataModel` messages for that surface.
+
+```text
+surface("tokyo-weather")
+$/temp = "21°C"
+```
+
+Every block is checked against the surfaces the conversation's history left on
+the client, so an update must target a live surface and leave its component
+tree valid. Send a2ui parts back with the history (as `remoteAgent` and session
+stores do) for this to work.
+
 In a chat UI, key each rendered surface by its id. A replaced surface then
-re-renders where it first appeared.
+re-renders where it first appeared, and an updated one changes in place.
 
 ### Self-repair
 

@@ -518,9 +518,11 @@ You may still write normal prose before or after it.
 - Start every <a2ui> block with surface("<id>"). For a new surface, choose a
   new, short, descriptive id (e.g. "tokyo-weather").
 - To change a surface you already rendered (e.g. after the user presses one of
-  its buttons), reuse its id and render it again in full, with a `root`. It
-  replaces the old one. Never emit a fragment expecting the old surface's
-  components to still exist.
+  its buttons), reuse its id. Either render it again in full, with a `root`,
+  which replaces it, or, for a small change, leave out `root` and write only
+  what changed: data paths (`\$/temp = "21°C"`) and components redefined
+  under their existing variable names. Everything the block does not mention
+  stays as it was.
 - User actions arrive as lines like
   `[UI action "refresh" on surface tokyo-weather context={"city":"Tokyo"}]`.$formsSection${_renderStyleTips(has)}${_renderExample(catalog, has)}
 

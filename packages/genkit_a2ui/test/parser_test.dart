@@ -46,7 +46,29 @@ List<List<A2uiEnvelope>> batchesOf(List<ParseSegment> segments) =>
 
 A2uiStreamParser newParser({
   A2uiValidateMode validate = A2uiValidateMode.strict,
-}) => A2uiStreamParser(catalog: basicCatalog, validate: validate);
+  Iterable<String> live = const [],
+}) => A2uiStreamParser(
+  catalog: basicCatalog,
+  validate: validate,
+  history: [for (final id in live) ...renderedSurface(id)],
+);
+
+/// The messages that rendered a minimal surface [id], as history.
+List<A2uiEnvelope> renderedSurface(String id) => [
+  {
+    'version': a2uiVersion,
+    'createSurface': {'surfaceId': id, 'catalogId': basicCatalogId},
+  },
+  {
+    'version': a2uiVersion,
+    'updateComponents': {
+      'surfaceId': id,
+      'components': [
+        {'id': 'root', 'component': 'Text', 'text': 'old'},
+      ],
+    },
+  },
+];
 
 const weatherSource = '''
 surface("tokyo")
@@ -325,6 +347,56 @@ void main() {
           collect(newParser(), ['<a2ui>\ndeleteSurface("tokyo")\n</a2ui>\n']),
         );
         expect(kinds(batches.single), ['deleteSurface']);
+      });
+    });
+
+    group('updating a surface the client already holds', () {
+      test('a block without root updates it in place', () {
+        final batch = batchesOf(
+          collect(newParser(live: ['tokyo']), [
+            '<a2ui>\nsurface("tokyo")\nroot = Column([note])\n'
+                'note = Text("Windy")\n</a2ui>',
+            '<a2ui>\nsurface("tokyo")\nnote = Text("Calm")\n</a2ui>',
+          ]),
+        );
+        expect(kinds(batch.last), ['updateComponents']);
+      });
+
+      test('a data-only block updates its data model', () {
+        final batch = batchesOf(
+          collect(newParser(live: ['tokyo']), [
+            '<a2ui>\nsurface("tokyo")\n\$/temp = "21°C"\n</a2ui>',
+          ]),
+        ).single;
+        expect(kinds(batch), ['updateDataModel']);
+      });
+
+      test('an update must still leave a valid tree', () {
+        // `extra` references a component the surface does not hold.
+        expect(
+          () => collect(newParser(live: ['tokyo']), [
+            '<a2ui>\nsurface("tokyo")\nroot = Column([extra])\n</a2ui>',
+          ]),
+          throwsA(isA<StateError>()),
+        );
+      });
+
+      test('a rejected block does not change what later blocks see', () {
+        final parser = newParser(
+          live: ['tokyo'],
+          validate: A2uiValidateMode.warn,
+        );
+        final batches = batchesOf(
+          collect(parser, [
+            // Rejected: `extra` is missing, so the delete never happens.
+            '<a2ui>\ndeleteSurface("tokyo")\nsurface("x")\n'
+                'root = Column([extra])\n</a2ui>',
+            '<a2ui>\nsurface("tokyo")\n\$/temp = "21°C"\n</a2ui>',
+          ]),
+        );
+        expect(batches.map(kinds), [
+          ['updateDataModel'],
+        ]);
       });
     });
 

@@ -832,6 +832,62 @@ root = Text("new")
       );
     });
 
+    test(
+      'a block without root updates a surface from an earlier turn',
+      () async {
+        defineReplyModel('m_partial', '''Updated.
+<a2ui>
+surface("s1")
+\$/temp = "21°C"
+note = Text("Windy")
+</a2ui>''');
+
+        final res = await genkit.generate(
+          model: modelRef('m_partial'),
+          messages: [
+            Message(
+              role: Role.model,
+              content: [
+                a2uiPart([
+                  {
+                    'createSurface': {
+                      'surfaceId': 's1',
+                      'catalogId': basicCatalog.id,
+                    },
+                  },
+                  {
+                    'updateComponents': {
+                      'surfaceId': 's1',
+                      'components': [
+                        {
+                          'id': 'root',
+                          'component': 'Column',
+                          'children': ['note'],
+                        },
+                        {'id': 'note', 'component': 'Text', 'text': 'Calm'},
+                      ],
+                    },
+                  },
+                ]),
+              ],
+            ),
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'update it')],
+            ),
+          ],
+          // Strict: a block the earlier turn's surface did not satisfy throws.
+          use: [a2ui(validate: 'strict')],
+        );
+
+        final envelopes = a2uiEnvelopesFromParts(res.message!.content);
+        expect(envelopes.map((e) => e.keys.firstWhere((k) => k != 'version')), [
+          'updateComponents',
+          'updateDataModel',
+        ]);
+      },
+    );
+
     test('a surface the model deleted is created again', () async {
       defineReplyModel('m_recreate', '''<a2ui>
 surface("s1")

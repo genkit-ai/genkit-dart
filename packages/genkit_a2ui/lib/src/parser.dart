@@ -227,6 +227,10 @@ class A2uiStreamParser {
 
   final ExpressEngine _engine;
 
+  /// The renderer's surfaces as of this point of the response, which each
+  /// block is checked against. Null when [validate] is off.
+  final SurfaceMirror? _mirror;
+
   /// Surfaces this response created so far, to flag a model that renders the
   /// same id twice in one response.
   final Set<String> _createdHere = {};
@@ -255,12 +259,20 @@ class A2uiStreamParser {
   String _proseSoFar = '';
 
   /// Creates an [A2uiStreamParser].
+  ///
+  /// [history] is every A2UI message the client already received, in order.
+  /// Blocks are checked against the surfaces it leaves live, so a block may
+  /// update one of them (a block without `root` targets an existing surface).
   A2uiStreamParser({
     required this.catalog,
     this.validate = A2uiValidateMode.strict,
+    Iterable<A2uiEnvelope> history = const [],
     this.quiet = false,
     this.repairs = const {},
-  }) : _engine = ExpressEngine.of(catalog);
+  }) : _engine = ExpressEngine.of(catalog),
+       _mirror = validate == A2uiValidateMode.off
+           ? null
+           : ExpressEngine.of(catalog).mirror(history);
 
   /// Feeds a chunk of model text, returning prose + any completed blocks.
   ParseResult push(String text) {
@@ -385,12 +397,10 @@ class A2uiStreamParser {
     // segment keeps the source that actually compiled, so history replays the
     // working block rather than the broken one.
     final effective = repairs[source] ?? source;
-    final List<A2uiEnvelope> compiled;
+    final List<A2uiEnvelope> envelopes;
     try {
-      compiled = _engine.compile(
-        effective,
-        validate: validate != A2uiValidateMode.off,
-      );
+      envelopes = _withReplacements(_engine.compile(effective));
+      _mirror?.apply(envelopes);
     } on A2uiError catch (e) {
       failedBlocks.add(
         FailedBlock(
@@ -401,8 +411,8 @@ class A2uiStreamParser {
       );
       return _reject('failed to compile A2UI Express block: ${e.message}');
     }
-    if (compiled.isEmpty) return null;
-    return EnvelopeSegment(_withReplacements(compiled), effective);
+    if (envelopes.isEmpty) return null;
+    return EnvelopeSegment(envelopes, effective);
   }
 
   /// Puts a `deleteSurface` in front of every `createSurface`, so a re-render

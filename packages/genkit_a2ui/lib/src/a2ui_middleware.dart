@@ -217,6 +217,13 @@ class A2uiMiddleware extends GenerateMiddleware {
 
     _warnOnPreSpecClient(request);
 
+    // Every A2UI message the client already holds. Blocks are checked against
+    // the surfaces it leaves live, so one may update or replace them (see
+    // A2uiStreamParser).
+    final history = [
+      for (final m in request.messages) ...a2uiEnvelopesFromParts(m.content),
+    ];
+
     // 0) Sanitize any inbound a2ui data parts (e.g. a surface action sent back
     //    as the next turn, or replayed history) into model-readable text, so
     //    the underlying model's converter never sees the a2ui mime type.
@@ -251,6 +258,7 @@ class A2uiMiddleware extends GenerateMiddleware {
             : A2uiValidateMode.warn,
         // The final parse sees these blocks again and reports them.
         quiet: true,
+        history: history,
       );
       wrappedCtx = ctx.copyWith(
         sendChunk: (chunk) {
@@ -291,6 +299,7 @@ class A2uiMiddleware extends GenerateMiddleware {
         ? await _repairFailedBlocks(
             message,
             catalog,
+            history,
             ctx.cancel,
             // Repair reuses the model this hook already wraps, by calling
             // `next` with a one-shot request. That needs no extra
@@ -339,6 +348,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       response,
       message,
       catalog,
+      history,
       repairs,
       extraUsage: repairUsage,
     );
@@ -372,6 +382,7 @@ class A2uiMiddleware extends GenerateMiddleware {
   Future<Map<String, String>> _repairFailedBlocks(
     Message message,
     A2uiCatalog catalog,
+    List<A2uiEnvelope> history,
     CancellationToken? cancel,
     Future<String?> Function(String prompt, CancellationToken cancel) ask,
   ) async {
@@ -385,6 +396,7 @@ class A2uiMiddleware extends GenerateMiddleware {
           : A2uiValidateMode.warn,
       // The final parse reports what stays broken.
       quiet: true,
+      history: history,
     );
     // Fed exactly like the final parse (a non-text part ends a run of text),
     // so the failed blocks are keyed by the sources it will see.
@@ -438,6 +450,7 @@ class A2uiMiddleware extends GenerateMiddleware {
           ask,
           budget.token,
           cancel,
+          history,
         );
         if (repaired != null) repairs[block.source] = repaired;
       }
@@ -455,6 +468,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     Future<String?> Function(String prompt, CancellationToken cancel) ask,
     CancellationToken budget,
     CancellationToken? cancel,
+    List<A2uiEnvelope> history,
   ) async {
     try {
       // Raced against the budget too: not every model plugin honours its
@@ -484,10 +498,17 @@ class A2uiMiddleware extends GenerateMiddleware {
         );
         return null;
       }
-      // Only accept a repair that compiles under the configured mode.
-      ExpressEngine.of(
-        catalog,
-      ).compile(repaired, validate: _validate != A2uiValidateMode.off);
+      // Only accept a repair that compiles under the configured mode, checked
+      // against the same surfaces the original block was.
+      if (_validate == A2uiValidateMode.off) {
+        ExpressEngine.of(catalog).compile(repaired);
+      } else {
+        // Strict throws on rejection.
+        A2uiStreamParser(
+          catalog: catalog,
+          history: history,
+        ).push('<a2ui>\n$repaired\n</a2ui>');
+      }
       _logger.info('repaired an A2UI block after: ${block.error}');
       return repaired;
     } catch (e) {
@@ -575,12 +596,14 @@ class A2uiMiddleware extends GenerateMiddleware {
     ModelResponse response,
     Message message,
     A2uiCatalog catalog,
+    List<A2uiEnvelope> history,
     Map<String, String> repairs, {
     GenerationUsage? extraUsage,
   }) {
     final parser = A2uiStreamParser(
       catalog: catalog,
       validate: _validate,
+      history: history,
       repairs: repairs,
     );
     final newContent = <Part>[];
