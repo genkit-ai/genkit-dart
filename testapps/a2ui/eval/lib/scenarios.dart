@@ -129,7 +129,11 @@ final scenarios = <Scenario>[
     ),
     Expect.newSurfaces(1),
     const Say('Thanks! Which of those is usually the rainiest?'),
-    const Say('Good to know. Any packing tips for a rainy city?'),
+    // An interactive packing checklist is a fair answer to "packing tips", so
+    // the no-UI check uses an opinion question instead.
+    const Say(
+      'Good to know. Which one would you pick for a first trip, and why?',
+    ),
     Expect.noUi(),
     const Say('What about museums in Paris, any must-sees?'),
     const Say('Great. One more: is the metro easy to use in Rome?'),
