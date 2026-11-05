@@ -28,18 +28,19 @@ middleware: add `a2ui()` to an agent's `use` list and nothing else changes.
 
 ## Installation
 
-Add the plugin to your project:
+Add the plugin to the package that runs your agent (it is server-side only):
 
 ```bash
 dart pub add genkit_a2ui
 ```
 
-To render surfaces you also need a renderer. The Dart examples below use
+The client does not depend on `genkit_a2ui`. To render surfaces it needs
+`package:genkit` and a renderer. The Dart examples below use
 [`genui`](https://pub.dev/packages/genui), the Flutter renderer for A2UI
-surfaces. Add it to your client (Flutter) app:
+surfaces, which takes messages typed by `a2ui_core`:
 
 ```bash
-flutter pub add genui
+flutter pub add genkit genui a2ui_core
 ```
 
 ## Quickstart
@@ -110,24 +111,37 @@ Iterable<Map<String, dynamic>> a2uiMessagesFrom(List<Part>? parts) sync* {
   }
 }
 
-/// Turns a genui surface submission (e.g. a button press) into the next
-/// agent input. genui already emits a spec-shaped `{version, action}` envelope,
-/// so it is forwarded untouched.
-Message a2uiSubmitToMessage(ChatMessage submit) => Message(
-  role: Role.user,
-  content: [
-    DataPart(
-      data: {
-        'messages': [
-          for (final part in submit.parts)
-            if (part.asUiInteractionPart case final ui?)
-              jsonDecode(ui.interaction),
-        ],
-      },
-      metadata: {'mimeType': a2uiMimeType},
-    ),
-  ],
-);
+/// Turns a genui surface submission (e.g. a button press) into the next agent
+/// input, or null when it carries no user action: genui also reports renderer
+/// errors through `onSubmit`, and those are not turns. genui already emits
+/// spec-shaped `{version, action}` messages, so they are forwarded untouched.
+Message? a2uiSubmitToMessage(ChatMessage submit) {
+  final actions = <Map<String, dynamic>>[
+    for (final part in submit.parts)
+      if (part.asUiInteractionPart case final ui?)
+        if (_decodeJson(ui.interaction) case final Map<String, dynamic> m
+            when m.containsKey('action'))
+          m,
+  ];
+  if (actions.isEmpty) return null;
+  return Message(
+    role: Role.user,
+    content: [
+      DataPart(
+        data: {'messages': actions},
+        metadata: {'mimeType': a2uiMimeType},
+      ),
+    ],
+  );
+}
+
+Object? _decodeJson(String source) {
+  try {
+    return jsonDecode(source);
+  } on FormatException {
+    return null;
+  }
+}
 ```
 
 Then consume the agent with `remoteAgent` and feed each message to
@@ -156,17 +170,22 @@ Future<void> runTurn(AgentTurn turn) async {
   }
 }
 
-await runTurn(chat.sendStream(text: 'weather in Tokyo'));
+// A surface action (e.g. a button press) becomes the next turn. Listen before
+// the first turn: onSubmit is a broadcast stream, so a press with no listener
+// is lost. A real app should also keep turns from overlapping (the sample
+// ignores presses while a turn is running).
+surfaceController.onSubmit.listen((submit) {
+  if (a2uiSubmitToMessage(submit) case final message?) {
+    runTurn(chat.sendStream(message: message));
+  }
+});
 
-// A surface action (e.g. a button press) becomes the next turn.
-surfaceController.onSubmit.listen(
-  (submit) => runTurn(chat.sendStream(message: a2uiSubmitToMessage(submit))),
-);
+await runTurn(chat.sendStream(text: 'weather in Tokyo'));
 ```
 
 > See
 > [`testapps/a2ui`](https://github.com/genkit-ai/genkit-dart/tree/main/testapps/a2ui)
-> for a complete, runnable sample: a shelf server hosting the agent, plus a
+> for a complete, runnable sample: a `dart:io` server hosting the agent, plus a
 > Flutter client that renders surfaces with `genui`.
 
 ## Options

@@ -42,30 +42,41 @@ Iterable<Map<String, dynamic>> a2uiMessagesFrom(List<Part>? parts) sync* {
   }
 }
 
-/// Turns a genui surface submission (e.g. a button press) into the next
-/// agent input. genui already emits a spec-shaped `{version, action}` envelope,
-/// so it is forwarded untouched.
-Message a2uiSubmitToMessage(ChatMessage submit) => Message(
-  role: Role.user,
-  content: [
-    DataPart(
-      data: {
-        'messages': [
-          for (final part in submit.parts)
-            if (part.asUiInteractionPart case final ui?)
-              jsonDecode(ui.interaction),
-        ],
-      },
-      metadata: {'mimeType': a2uiMimeType},
-    ),
-  ],
-);
+/// Turns a genui surface submission (e.g. a button press) into the next agent
+/// input, or null when it carries no user action: genui also reports renderer
+/// errors through `onSubmit`, and those are not turns. genui already emits
+/// spec-shaped `{version, action}` messages, so they are forwarded untouched.
+Message? a2uiSubmitToMessage(ChatMessage submit) {
+  final actions = <Map<String, dynamic>>[
+    for (final part in submit.parts)
+      if (part.asUiInteractionPart case final ui?)
+        if (_decodeJson(ui.interaction) case final Map<String, dynamic> m
+            when m.containsKey('action'))
+          m,
+  ];
+  if (actions.isEmpty) return null;
+  return Message(
+    role: Role.user,
+    content: [
+      DataPart(
+        data: {'messages': actions},
+        metadata: {'mimeType': a2uiMimeType},
+      ),
+    ],
+  );
+}
+
+Object? _decodeJson(String source) {
+  try {
+    return jsonDecode(source);
+  } on FormatException {
+    return null;
+  }
+}
 
 /// The action names in a message built by [a2uiSubmitToMessage], for display.
 ///
-/// Not part of the README helpers: the sample uses it to label the chat log and
-/// to ignore submissions that carry no action (genui also reports renderer
-/// errors through `onSubmit`).
+/// Not part of the README helpers: the sample uses it to label the chat log.
 List<String> a2uiActionNames(Message message) => [
   for (final m in a2uiMessagesFrom(message.content))
     if (m['action'] case {'name': final String name}) name,

@@ -172,11 +172,11 @@ class _ChatPageState extends State<ChatPage> {
     // start a second concurrent turn, interleaving the streams and letting one
     // turn's completion flip `_busy` off while the other is still running.
     if (_busy) return;
-    final message = a2uiSubmitToMessage(submit);
-    final names = a2uiActionNames(message);
     // genui also reports renderer errors through onSubmit; only actions start
     // a turn.
-    if (names.isEmpty) return;
+    final message = a2uiSubmitToMessage(submit);
+    if (message == null) return;
+    final names = a2uiActionNames(message);
     setState(() {
       _entries.add(_TextEntry(true, '> ${names.join(', ')}'));
       _busy = true;

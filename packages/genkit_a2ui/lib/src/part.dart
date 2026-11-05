@@ -17,8 +17,7 @@
 ///
 /// The A2UI extension spec puts the message list directly in `data`, but a
 /// Genkit `DataPart.data` must be an object, so the list is wrapped in the
-/// spec's `{messages: [...]}` payload wrapper (which a2ui_core's
-/// `AgentToRendererMessagePayload.fromJson` reads as-is).
+/// spec's own `{messages: [...]}` payload wrapper.
 library;
 
 import 'package:genkit/plugin.dart';
