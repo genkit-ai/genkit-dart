@@ -33,8 +33,10 @@ const a2uiMimeType = 'application/a2ui+json';
 Iterable<Map<String, dynamic>> a2uiMessagesFrom(List<Part>? parts) sync* {
   for (final part in parts ?? const <Part>[]) {
     if (part.metadata?['mimeType'] != a2uiMimeType) continue;
-    // Skip malformed payloads rather than throwing mid-stream.
-    if (part.data?['messages'] case final List messages) {
+    // `envelopes` is the pre-spec key, still written by older agents. Malformed
+    // payloads are skipped rather than throwing mid-stream.
+    final data = part.data;
+    if ((data?['messages'] ?? data?['envelopes']) case final List messages) {
       yield* messages.whereType<Map>().map((m) => m.cast<String, dynamic>());
     }
   }
