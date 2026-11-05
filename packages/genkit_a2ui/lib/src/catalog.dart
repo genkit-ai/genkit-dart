@@ -452,9 +452,13 @@ temp = Text($/temp)
 refresh = Button(Text("Refresh"), "primary", Event("refresh", {city: "Tokyo"}))
 </a2ui>''';
   }
-  final rootComponent = catalog.components.isNotEmpty
-      ? catalog.components.keys.first
-      : 'Text';
+  // `Name()` only compiles for a component with no required properties; with
+  // none such, no example beats one that teaches a compile error.
+  final rootComponent = catalog.components.values
+      .where((c) => !_hasRequiredProps(c))
+      .firstOrNull
+      ?.name;
+  if (rootComponent == null) return '';
   return '''
 
 
@@ -466,6 +470,14 @@ surface("example")
 root = $rootComponent()
 </a2ui>''';
 }
+
+/// Whether [c] requires a property besides its `component` discriminator.
+bool _hasRequiredProps(A2uiCatalogComponent c) =>
+    [c.schema, ...?(c.schema['allOf'] as List?)].any(
+      (part) =>
+          part is Map &&
+          (part['required'] as List? ?? const []).any((r) => r != 'component'),
+    );
 
 /// Renders a catalog into model-facing instructions: when and how to render
 /// UI, then the A2UI Express contract and the catalog's signatures (from

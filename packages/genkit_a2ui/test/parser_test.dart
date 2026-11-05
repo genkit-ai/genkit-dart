@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit_a2ui/a2ui.dart';
+import 'package:genkit_a2ui/src/parser.dart' show liveSurfaceIds;
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
@@ -169,6 +170,33 @@ void main() {
       final components =
           (batch.last['updateComponents'] as Map)['components'] as List;
       expect((components.single as Map)['text'], 'Use `dart run` to start.');
+    });
+
+    group('tag variants', () {
+      const body = 'surface("s")\nroot = Text("hi")';
+
+      for (final (label, open, close) in [
+        ('a space before >', '<a2ui >', '</a2ui >'),
+        ('attributes', '<a2ui version="0.9">', '</a2ui>'),
+        ('wrapping backticks', '`<a2ui>`', '`</a2ui>`'),
+      ]) {
+        test('accepts $label, whole or split across chunks', () {
+          final text = 'Before. $open\n$body\n$close\nAfter.';
+          for (final chunks in [
+            [text],
+            [
+              for (var i = 0; i < text.length; i += 3)
+                text.substring(i, i + 3 > text.length ? text.length : i + 3),
+            ],
+          ]) {
+            final segments = collect(newParser(), chunks);
+            expect(batchesOf(segments), hasLength(1));
+            expect(proseOf(segments), 'Before. After.');
+            final block = segments.whereType<EnvelopeSegment>().single;
+            expect(block.source, body);
+          }
+        });
+      }
     });
 
     group('re-rendering a surface the client already holds', () {

@@ -473,7 +473,7 @@ later for free.
 On each model call inside the agent's tool loop, `a2ui()`:
 
 1. Injects the catalog and the
-   [A2UI Express](https://a2ui.org/) contract into the system prompt so the
+   [A2UI Express](https://a2ui.org/specification/proposals/express/a2ui_express/) contract into the system prompt so the
    model knows what UI it may render (unless `instructions: 'none'`).
 2. Intercepts the model's output, both the streamed chunks and the final
    aggregated message.

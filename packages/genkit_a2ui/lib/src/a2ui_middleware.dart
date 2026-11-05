@@ -225,6 +225,8 @@ class A2uiMiddleware extends GenerateMiddleware {
         validate: _validate == A2uiValidateMode.off
             ? A2uiValidateMode.off
             : A2uiValidateMode.warn,
+        // The final parse sees these blocks again and reports them.
+        quiet: true,
         liveSurfaceIds: liveSurfaces,
       );
       wrappedCtx = ctx.copyWith(
@@ -389,7 +391,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       for (final part in message.content) {
         if (isA2uiPart(part)) {
           msgChanged = true;
-          final text = _summarizeA2uiPart(part);
+          final text = _summarizeA2uiPart(part, message.role);
           if (text.isNotEmpty) content.add(TextPart(text: text));
         } else {
           content.add(part);
@@ -450,9 +452,13 @@ List<Part> _partsFromSegments(List<ParseSegment> segments) {
 ///
 /// Unknown message shapes are dropped; the caller keeps the message non-empty
 /// when everything drops.
-String _summarizeA2uiPart(Part part) {
-  if (part.metadata?[a2uiExpressMetadataKey] case final String source) {
-    return '<a2ui>\n$source\n</a2ui>';
+String _summarizeA2uiPart(Part part, Role role) {
+  // Only the model's own parts are replayed as blocks it wrote; anywhere else
+  // the metadata is summarized like any other part.
+  if (role == Role.model) {
+    if (part.metadata?[a2uiExpressMetadataKey] case final String source) {
+      return '<a2ui>\n$source\n</a2ui>';
+    }
   }
 
   final out = <String>[];
@@ -467,13 +473,22 @@ String _summarizeA2uiPart(Part part) {
     final action = env['action'];
     if (action is Map) {
       flushSurfaces();
-      final name = action['name'];
-      final surfaceId = action['surfaceId'];
+      // Client-supplied values are JSON-encoded, so a name holding `]` or a
+      // newline cannot reshape the line. A plain name reads as before.
+      final name = switch (action['name']) {
+        final String n => jsonEncode(n),
+        _ => '(unnamed)',
+      };
+      final surfaceId = switch (action['surfaceId']) {
+        final String id when RegExp(r'^[\w.:-]+$').hasMatch(id) => id,
+        final String id => jsonEncode(id),
+        _ => '(unknown)',
+      };
       final context = action['context'];
       final ctx = (context is Map && context.isNotEmpty)
           ? ' context=${jsonEncode(context)}'
           : '';
-      out.add('[UI action "$name" on surface $surfaceId$ctx]');
+      out.add('[UI action $name on surface $surfaceId$ctx]');
       continue;
     }
     for (final kind in const [

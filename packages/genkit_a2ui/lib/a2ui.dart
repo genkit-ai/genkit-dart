@@ -46,8 +46,7 @@ export 'src/parser.dart'
         EnvelopeSegment,
         ParseResult,
         ParseSegment,
-        ProseSegment,
-        liveSurfaceIds;
+        ProseSegment;
 export 'src/part.dart' show a2uiEnvelopesFromParts, a2uiPart, isA2uiPart;
 export 'src/types.dart'
     show

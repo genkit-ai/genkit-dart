@@ -117,4 +117,81 @@ void main() {
       expect(text, contains('A widget.'));
     });
   });
+
+  group('renderCatalogInstructions fallback example', () {
+    /// The `<a2ui>` example block in [text], compiled strictly.
+    List<ParseSegment> compileExample(A2uiCatalog catalog, String text) {
+      final example = RegExp(
+        r'A minimal surface:\n(<a2ui>[\s\S]*?</a2ui>)',
+      ).firstMatch(text)!.group(1)!;
+      final parser = A2uiStreamParser(catalog: catalog);
+      return [...parser.push(example).segments, ...parser.flush().segments];
+    }
+
+    test('compiles', () {
+      final catalog = A2uiCatalog(
+        id: 'c',
+        components: [
+          A2uiCatalogComponent.simple(
+            name: 'Widget',
+            params: [const A2uiParam.dynamicValue('label')],
+          ),
+        ],
+      );
+      final segments = compileExample(
+        catalog,
+        renderCatalogInstructions(catalog),
+      );
+      expect(segments.whereType<EnvelopeSegment>(), hasLength(1));
+    });
+
+    test('skips components with required properties', () {
+      final catalog = A2uiCatalog(
+        id: 'c',
+        components: [
+          A2uiCatalogComponent.simple(
+            name: 'Gauge',
+            params: [
+              const A2uiParam.dynamicValue(
+                'value',
+                required: true,
+                type: .number,
+              ),
+            ],
+          ),
+          A2uiCatalogComponent.simple(name: 'Spacer', params: []),
+        ],
+      );
+      final text = renderCatalogInstructions(catalog);
+      expect(text, contains('root = Spacer()'));
+      expect(compileExample(catalog, text), isNotEmpty);
+    });
+
+    test('is left out when no component can be written bare', () {
+      final catalog = A2uiCatalog(
+        id: 'c',
+        components: [
+          A2uiCatalogComponent.simple(
+            name: 'Gauge',
+            params: [
+              const A2uiParam.dynamicValue(
+                'value',
+                required: true,
+                type: .number,
+              ),
+            ],
+          ),
+        ],
+      );
+      expect(renderCatalogInstructions(catalog), isNot(contains('## Example')));
+    });
+
+    test('an empty catalog renders without an example', () {
+      final text = renderCatalogInstructions(
+        A2uiCatalog(id: 'empty', components: []),
+      );
+      expect(text, contains('Rendering UI with A2UI'));
+      expect(text, isNot(contains('## Example')));
+    });
+  });
 }

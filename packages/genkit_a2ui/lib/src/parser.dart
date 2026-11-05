@@ -44,17 +44,35 @@ enum A2uiValidateMode {
   off,
 }
 
-/// Opening tag, matched case-insensitively.
-final _openTagRe = RegExp(r'<a2ui>[ \t]*\r?\n?', caseSensitive: false);
+/// Opening tag, as loosely as `a2ui_agent` reads it (attributes, any case),
+/// plus the backticks a model sometimes wraps it in.
+final _openTagRe = RegExp(
+  r'`?<a2ui(?:\s[^>]*)?>`?[ \t]*\r?\n?',
+  caseSensitive: false,
+);
 
-/// The longest prefix of an opening tag, held back so a tag split across
-/// chunks never leaks into prose.
-const _maxPartialTag = 6; // '<a2ui>'.length
+/// Closing tag, as loosely as `a2ui_agent` reads it, plus wrapping backticks.
+/// A literal `</a2ui>` inside an Express string would end the block early;
+/// that is accepted as a model error rather than worth a string-aware scanner
+/// here.
+final _closeTagRe = RegExp(r'`?</a2ui\s*>`?', caseSensitive: false);
 
-/// Closing tag. A literal `</a2ui>` inside an Express string would end the
-/// block early; that is accepted as a model error rather than worth a
-/// string-aware scanner here.
-final _closeTagRe = RegExp(r'</a2ui>', caseSensitive: false);
+/// Where the tail of [text] that could still grow into an opening tag starts,
+/// or `text.length` if none could. Held back from the prose so a tag split
+/// across chunks never leaks into it.
+int _partialOpenTagStart(String text) {
+  final lt = text.lastIndexOf('<');
+  if (lt >= 0) {
+    final tail = text.substring(lt).toLowerCase();
+    final couldBeTag =
+        '<a2ui'.startsWith(tail) ||
+        (tail.startsWith('<a2ui') &&
+            !tail.contains('>') &&
+            (tail.length == 5 || tail[5].trim().isEmpty));
+    if (couldBeTag) return lt > 0 && text[lt - 1] == '`' ? lt - 1 : lt;
+  }
+  return text.endsWith('`') ? text.length - 1 : text.length;
+}
 
 /// An optional newline right after the closing tag.
 final _trailingNewlineRe = RegExp(r'^[ \t]*\r?\n');
@@ -62,6 +80,8 @@ final _trailingNewlineRe = RegExp(r'^[ \t]*\r?\n');
 /// Markdown fences some models wrap around the block content.
 final _leadingFenceRe = RegExp(r'^```[a-zA-Z-]*\s*');
 final _trailingFenceRe = RegExp(r'\s*```$');
+final _strayBacktickStartRe = RegExp(r'^`(?!`)\s*');
+final _strayBacktickEndRe = RegExp(r'(?<!`)\s*`$');
 
 /// A single ordered piece of parsed output: either a run of prose or one
 /// compiled block. Segments preserve the exact source order, so prose that
@@ -127,6 +147,11 @@ class A2uiStreamParser {
   /// What to do with a block that fails to compile or validate.
   final A2uiValidateMode validate;
 
+  /// Logs rejected blocks at `FINE` instead of `WARNING`, for a pass whose
+  /// rejections another pass reports (the stream parser, whose blocks the
+  /// final parse sees again).
+  final bool quiet;
+
   final ExpressEngine _engine;
 
   /// Surfaces that exist on the client at this point of the response.
@@ -148,6 +173,7 @@ class A2uiStreamParser {
     required this.catalog,
     this.validate = A2uiValidateMode.strict,
     Iterable<String> liveSurfaceIds = const [],
+    this.quiet = false,
   }) : _engine = ExpressEngine.of(catalog),
        _liveSurfaces = {...liveSurfaceIds};
 
@@ -192,12 +218,9 @@ class A2uiStreamParser {
         if (open == null) {
           // No opening tag (yet). Emit prose, but hold back a tail that could
           // be the start of an incomplete opening tag, unless finalizing.
-          final keep = finalPass
-              ? 0
-              : (_maxPartialTag < _buffer.length
-                    ? _maxPartialTag
-                    : _buffer.length);
-          final safeLen = _buffer.length - keep;
+          final safeLen = finalPass
+              ? _buffer.length
+              : _partialOpenTagStart(_buffer);
           proseBuf += _buffer.substring(0, safeLen);
           _buffer = _buffer.substring(safeLen);
           break;
@@ -236,6 +259,10 @@ class A2uiStreamParser {
         .trim()
         .replaceFirst(_leadingFenceRe, '')
         .replaceFirst(_trailingFenceRe, '')
+        // A backtick wrapping a tag that arrived in its own chunk, after the
+        // tag regex already matched without it.
+        .replaceFirst(_strayBacktickStartRe, '')
+        .replaceFirst(_strayBacktickEndRe, '')
         .trim();
     if (source.isEmpty) return null;
 
@@ -283,7 +310,11 @@ class A2uiStreamParser {
         _logger.fine('$full (dropping block)');
         return null;
       case A2uiValidateMode.warn:
-        _logger.warning('$full (dropping block)');
+        if (quiet) {
+          _logger.fine('$full (dropping block)');
+        } else {
+          _logger.warning('$full (dropping block)');
+        }
         return null;
       case A2uiValidateMode.strict:
         throw StateError(full);
