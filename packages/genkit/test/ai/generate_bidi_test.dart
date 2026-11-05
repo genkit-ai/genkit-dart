@@ -38,6 +38,30 @@ void main() {
       await genkit.shutdown();
     });
 
+    test('fails with NOT_FOUND for an unknown tool name', () async {
+      genkit.defineBidiModel(
+        name: 'unusedBidiModel',
+        fn: (input, context) async {
+          await input.drain<void>();
+          return ModelResponse(finishReason: .stop);
+        },
+      );
+
+      await expectLater(
+        genkit.generateBidi(
+          model: 'unusedBidiModel',
+          toolNames: ['noSuchTool'],
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.notFound,
+          ),
+        ),
+      );
+    });
+
     test('should execute tools automatically', () async {
       final toolName = 'weatherTool';
       final modelName = 'weatherBidiModel';

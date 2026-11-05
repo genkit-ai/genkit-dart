@@ -19,7 +19,6 @@ import 'package:schemantic/schemantic.dart';
 
 import '../core/action.dart';
 import '../core/cancellation.dart';
-import '../core/dynamic_action_provider.dart';
 import '../core/registry.dart';
 import '../exception.dart';
 import '../genkit_ai.dart';
@@ -210,38 +209,8 @@ _resolveTools(
     if (requestedTools.any((t) => t.contains(':'))) {
       currentRegistry = Registry.childOf(registry);
     }
-    for (var toolName in requestedTools) {
-      // A DAP reference is either the full Dev UI registry key
-      // (`/dynamic-action-provider/<host>:<type>/<name>`) or the shorthand
-      // (`<host>:tool/<name>`, `<host>:*`, etc.). See parseDapToolRef.
-      final dapRef = parseDapToolRef(toolName);
-      if (dapRef != null) {
-        final dap =
-            await currentRegistry.lookupAction(
-                  .dynamicActionProvider,
-                  dapRef.host,
-                )
-                as DynamicActionProvider?;
-
-        if (dap != null) {
-          for (final action in await resolveDapActions(dap, dapRef)) {
-            currentRegistry.register(action);
-            // Only tools are attached to the model's tool slot; prompts and
-            // resources are registered so they remain resolvable by key.
-            if (action is Tool) addTool(action);
-          }
-          continue;
-        }
-      }
-
-      final tool = await currentRegistry.lookupAction(.tool, toolName) as Tool?;
-      if (tool != null) {
-        addTool(tool);
-      } else {
-        // Preserve the requested name so downstream lookups still surface a
-        // "tool not found" for an unresolved reference.
-        activeToolNames.add(toolName);
-      }
+    for (final toolName in requestedTools) {
+      (await resolveToolReference(currentRegistry, toolName)).forEach(addTool);
     }
   }
 
