@@ -197,8 +197,8 @@ Future<RunRecord> runScenario(
             content: [TextPart(text: text)],
           ),
         );
-      case Press(:final button, :final on):
-        final action = _findAction(renderer, on, button);
+      case Press(:final button, :final or, :final on):
+        final action = _findAction(renderer, on, [button, ...or]);
         if (action.error case final e?) {
           record.abortedAt = 'press "$button" on $on: $e';
           return record;
@@ -254,21 +254,22 @@ String? _proseLeak(String prose) {
 ({Message? message, String? error}) _findAction(
   HeadlessRenderer renderer,
   SurfaceRef ref,
-  String label,
+  List<String> labels,
 ) {
   final snap = ref.resolve([
     for (final s in renderer.surfaces) SurfaceSnapshot(s),
   ]);
   if (snap == null) return (message: null, error: 'no such surface');
   final surface = renderer[snap.id]!;
-  final needle = label.toLowerCase();
+  final needles = [for (final l in labels) l.toLowerCase()];
   final buttons = {
     for (final MapEntry(key: id, value: c) in surface.components.entries)
       if (c['component'] == 'Button') id: c,
   };
-  final match = buttons.entries
-      .where((e) => surface.labelOf(e.key).toLowerCase().contains(needle))
-      .firstOrNull;
+  final match = buttons.entries.where((e) {
+    final label = surface.labelOf(e.key).toLowerCase();
+    return needles.any(label.contains);
+  }).firstOrNull;
   if (match == null) {
     final labels = buttons.keys.map((id) => '"${surface.labelOf(id)}"');
     return (

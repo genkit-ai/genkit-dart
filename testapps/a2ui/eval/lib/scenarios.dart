@@ -116,7 +116,7 @@ final scenarios = <Scenario>[
     Expect.uses('TextField'),
     const Fill('name', 'Ada Lovelace', on: first),
     const Fill('email', 'ada@example.com', on: first),
-    const Press('Submit', on: first),
+    const Press('Submit', or: ['Sign up', 'Register'], on: first),
     Expect.acknowledges('Ada'),
   ], description: 'Values typed into the form reach the agent.'),
 

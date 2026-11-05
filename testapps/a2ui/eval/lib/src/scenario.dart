@@ -38,10 +38,12 @@ final class Say extends Step {
 }
 
 /// The user presses the button whose visible label contains [button] on the
-/// surface [on]. Sends the `action` message genui would.
+/// surface [on] (or any of the [or] alternatives, since the model picks the
+/// wording). Sends the `action` message genui would.
 final class Press extends Step {
-  const Press(this.button, {required this.on});
+  const Press(this.button, {required this.on, this.or = const []});
   final String button;
+  final List<String> or;
   final SurfaceRef on;
 }
 
