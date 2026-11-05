@@ -1,0 +1,35 @@
+name: a2ui_eval
+description: >-
+  Rerunnable multi-turn evaluation of the A2UI sample agent: drives the real
+  agent through scripted conversations, replays the emitted A2UI messages into
+  a headless renderer, and reports per-check pass rates.
+publish_to: none
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  a2ui_server:
+    path: ../server
+  args: ^2.6.0
+  genkit:
+    path: ../../../packages/genkit
+  genkit_a2ui:
+    path: ../../../packages/genkit_a2ui
+  logging: ^1.3.0
+
+# Standalone (not a workspace member), so the local packages the server pulls
+# in are pinned to this checkout.
+dependency_overrides:
+  genkit:
+    path: ../../../packages/genkit
+  genkit_a2ui:
+    path: ../../../packages/genkit_a2ui
+  genkit_google_genai:
+    path: ../../../packages/genkit_google_genai
+  schemantic:
+    path: ../../../packages/schemantic
+
+dev_dependencies:
+  lints: ^6.0.0
+
