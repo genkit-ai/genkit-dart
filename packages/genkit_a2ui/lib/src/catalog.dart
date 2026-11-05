@@ -521,8 +521,9 @@ You may still write normal prose before or after it.
   its buttons), reuse its id. Either render it again in full, with a `root`,
   which replaces it, or, for a small change, leave out `root` and write only
   what changed: data paths (`\$/temp = "21°C"`) and components redefined
-  under their existing variable names. Everything the block does not mention
-  stays as it was.
+  under their existing variable names. Every variable a component uses must
+  be assigned in the same block, so redefining a parent means redefining its
+  children too. Everything the block does not mention stays as it was.
 - User actions arrive as lines like
   `[UI action "refresh" on surface tokyo-weather context={"city":"Tokyo"}]`.$formsSection${_renderStyleTips(has)}${_renderExample(catalog, has)}
 

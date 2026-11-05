@@ -230,6 +230,8 @@ each other.
 
 A block without `root` **updates** a live surface instead: it carries only what
 changed, as `updateComponents` / `updateDataModel` messages for that surface.
+Like any block, it must define every variable it uses, so redefining a parent
+component means redefining its children too.
 
 ```text
 surface("tokyo-weather")
