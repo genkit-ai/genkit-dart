@@ -170,10 +170,16 @@ class OpenAIPlugin extends GenkitPlugin {
   Future<List<String>> _fetchAvailableModels(
     _ResolvedClientConfig resolvedConfig,
   ) async {
-    final client = sdk.OpenAIClient.withApiKey(
-      resolvedConfig.apiKey,
-      baseUrl: resolvedConfig.baseUrl,
-      defaultHeaders: resolvedConfig.headers,
+    // Discovery is best-effort and falls back to the curated catalog, so a
+    // refused connection is not worth the SDK's default three retries (~7s of
+    // backoff), which would stall `listActions` on every Dev UI poll.
+    final client = sdk.OpenAIClient(
+      config: sdk.OpenAIConfig(
+        authProvider: sdk.ApiKeyProvider(resolvedConfig.apiKey),
+        baseUrl: resolvedConfig.baseUrl ?? 'https://api.openai.com/v1',
+        defaultHeaders: resolvedConfig.headers ?? const {},
+        retryPolicy: const sdk.RetryPolicy(maxRetries: 0),
+      ),
       httpClient: httpClient,
     );
 
