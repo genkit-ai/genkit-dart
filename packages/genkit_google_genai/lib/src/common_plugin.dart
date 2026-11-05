@@ -152,9 +152,6 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         try {
           ctx.cancel?.throwIfCancelled();
 
-          final systemMessage = req.messages
-              .where((m) => m.role == Role.system)
-              .firstOrNull;
           final messages = req.messages
               .where((m) => m.role != Role.system)
               .toList();
@@ -167,12 +164,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             safetySettings: safetySettings?.isEmpty ?? true
                 ? null
                 : safetySettings,
-            systemInstruction: systemMessage == null
-                ? null
-                : gcl.Content(
-                    parts: systemMessage.content.map(toGeminiPart).toList(),
-                    role: 'system',
-                  ),
+            systemInstruction: toGeminiSystemInstruction(req.messages),
           );
 
           if (ctx.streamingRequested) {
@@ -764,6 +756,29 @@ Part fromGeminiPart(gcl.Part p) {
 String _toGeminiToolName(String name) => name.replaceAll('/', '__');
 
 String _fromGeminiToolName(String name) => name.replaceAll('__', '/');
+
+/// Merges the parts of every system message, in order, into the request's
+/// `systemInstruction`, or returns null when there is none.
+///
+/// Gemini takes a single system instruction and it is text only, so any other
+/// part is rejected here rather than by a backend 400.
+@visibleForTesting
+gcl.Content? toGeminiSystemInstruction(List<Message> messages) {
+  final parts = [
+    for (final m in messages)
+      if (m.role == Role.system)
+        for (final part in m.content)
+          if (part.isText)
+            toGeminiPart(part)
+          else
+            throw GenkitException(
+              'System messages can only contain text; Gemini rejects other '
+              'parts in systemInstruction.',
+              status: StatusCode.invalidArgument,
+            ),
+  ];
+  return parts.isEmpty ? null : gcl.Content(parts: parts, role: 'system');
+}
 
 gcl.Tool _toGeminiTool(ToolDefinition tool) {
   return gcl.Tool(
