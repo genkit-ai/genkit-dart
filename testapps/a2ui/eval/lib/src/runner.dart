@@ -16,6 +16,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:a2ui_server/agent.dart';
 import 'package:genkit/genkit.dart';
@@ -63,7 +64,15 @@ final class TurnRecord {
   final String input;
   String prose = '';
   final List<String> express = [];
+
+  /// The A2UI messages in the session history (the model messages the turn
+  /// added). What the next turn's middleware will assume the client holds.
   final List<Map<String, dynamic>> messages = [];
+
+  /// The A2UI messages that arrived on the stream: what a client rendering
+  /// from chunks (like the sample) actually received. The renderer applies
+  /// these.
+  final List<Map<String, dynamic>> streamed = [];
   Map<String, SurfaceChange> changes = {};
   List<String> violations = [];
   final List<String> logs = [];
@@ -85,6 +94,7 @@ final class TurnRecord {
     'prose': prose,
     'express': express,
     'messages': messages,
+    'streamed': streamed,
     'changes': {for (final e in changes.entries) e.key: e.value.name},
     'violations': violations,
     'logs': logs,
@@ -140,10 +150,15 @@ Future<RunRecord> runScenario(
     final sw = Stopwatch()..start();
     final sent = chat.messages.length;
     try {
-      final res = await runZoned(
-        () => chat.send(message: message).timeout(turnTimeout),
-        zoneValues: {_turnLogKey: t.logs},
-      );
+      final res = await runZoned(() async {
+        final turn = chat.sendStream(message: message);
+        await for (final chunk in turn.stream) {
+          t.streamed.addAll(
+            a2uiEnvelopesFromParts(chunk.raw.modelChunk?.content),
+          );
+        }
+        return turn.response;
+      }, zoneValues: {_turnLogKey: t.logs}).timeout(turnTimeout);
       if (res.error case final e?) t.error = '${e.status}: ${e.message}';
       // Everything the model produced this turn, including any blocks written
       // alongside a tool call before the final answer.
@@ -168,7 +183,8 @@ Future<RunRecord> runScenario(
     }
     t.duration = sw.elapsed;
 
-    final applied = renderer.applyTurn(t.index, t.messages);
+    // Render what the client received, like a real client would.
+    final applied = renderer.applyTurn(t.index, t.streamed);
     t
       ..changes = applied.changes
       ..violations = applied.violations;
@@ -182,7 +198,16 @@ Future<RunRecord> runScenario(
           t.violations.isEmpty ? null : t.violations.join('; '),
         ),
       )
-      ..add(CheckResult('prose clean', _proseLeak(t.prose)));
+      ..add(CheckResult('prose clean', _proseLeak(t.prose)))
+      ..add(
+        CheckResult(
+          'stream matches history',
+          jsonEncode(t.streamed) == jsonEncode(t.messages)
+              ? null
+              : 'streamed ${t.streamed.length} messages, history has '
+                    '${t.messages.length}',
+        ),
+      );
     last = t;
   }
 
