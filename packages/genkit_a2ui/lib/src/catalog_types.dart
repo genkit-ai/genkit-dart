@@ -298,9 +298,16 @@ class A2uiCatalog {
         for (final MapEntry(:key, :value) in schemas(json['functions']).entries)
           key: A2uiCatalogFunction(name: key, schema: value),
       },
-      defs: (json[r'$defs'] as Map?)?.cast<String, dynamic>() ?? const {},
+      defs: {...?(json[r'$defs'] as Map?)?.cast<String, dynamic>()}
+        ..removeWhere((key, _) => _derivedDefs.contains(key)),
     );
   }
+
+  /// `$defs` entries computed from [components] and [functions]. A published
+  /// catalog lists its own components in them, and `a2ui_core` reads such a
+  /// list as "the document defines only these", so keeping them would make
+  /// [extend] silently drop every component it adds.
+  static const _derivedDefs = {'anyComponent', 'anyFunction'};
 
   /// Convenience for authoring in Dart: builds a catalog from a component list,
   /// keying it by component name.

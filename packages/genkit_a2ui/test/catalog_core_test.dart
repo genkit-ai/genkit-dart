@@ -55,6 +55,23 @@ void main() {
       expect(core.functions, hasLength(14));
     });
 
+    test('keeps components added to a loaded catalog', () {
+      // The published file lists its components in `$defs.anyComponent`; a
+      // stale copy of that list would hide the extension from a2ui_core.
+      final extended = loadSpecCatalog().extend(
+        id: 'https://example.com/extended.json',
+        components: [
+          A2uiCatalogComponent.simple(
+            name: 'Gauge',
+            description: 'A gauge.',
+            params: [const A2uiParam.dynamicValue('value', required: true)],
+          ),
+        ],
+      );
+      expect(extended.toCore().components.keys, contains('Gauge'));
+      expect(extended.toCore().components, hasLength(19));
+    });
+
     test('converts the bundled basic catalog', () {
       expect(
         basicCatalog.toCore().components.keys,
