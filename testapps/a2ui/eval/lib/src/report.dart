@@ -16,6 +16,7 @@
 /// the transcripts of failing runs.
 library;
 
+import 'renderer.dart';
 import 'runner.dart';
 import 'scenario.dart';
 
@@ -39,6 +40,19 @@ final class ScenarioSummary {
     (n, r) => n + r.turns.fold(0, (m, t) => m + t.violations.length),
   );
   int get aborted => runs.where((r) => r.abortedAt != null).length;
+
+  /// How existing surfaces were changed: partial updates vs full re-renders.
+  int _changes(SurfaceChange c) => runs.fold(
+    0,
+    (n, r) =>
+        n +
+        r.turns.fold(
+          0,
+          (m, t) => m + t.changes.values.where((v) => v == c).length,
+        ),
+  );
+  int get updatedInPlace => _changes(SurfaceChange.updated);
+  int get replaced => _changes(SurfaceChange.replaced);
 
   /// `"t<turn> <check>"` to how many runs failed it.
   Map<String, int> get failingChecks {
@@ -67,7 +81,7 @@ String consoleSummary(List<ScenarioSummary> summaries) {
   );
   b.writeln(
     '${'scenario'.padRight(width)}  passed  turn errs  repaired  '
-    'repair fails  renderer errs',
+    'repair fails  renderer errs  updated/replaced',
   );
   for (final s in summaries) {
     b.writeln(
@@ -76,7 +90,8 @@ String consoleSummary(List<ScenarioSummary> summaries) {
       '${'${s.failedTurns}/${s.turns}'.padLeft(9)}  '
       '${'${s.repaired}'.padLeft(8)}  '
       '${'${s.repairFailed}'.padLeft(12)}  '
-      '${'${s.violations}'.padLeft(13)}',
+      '${'${s.violations}'.padLeft(13)}  '
+      '${'${s.updatedInPlace}/${s.replaced}'.padLeft(16)}',
     );
     for (final MapEntry(:key, :value) in s.failingChecks.entries) {
       b.writeln(
@@ -105,14 +120,14 @@ String markdownReport(
     ..writeln()
     ..writeln(
       '| Scenario | Passed | Turn errors | Repaired | Repair fails | '
-      'Renderer errors |',
+      'Renderer errors | Updated / replaced |',
     )
-    ..writeln('|---|---|---|---|---|---|');
+    ..writeln('|---|---|---|---|---|---|---|');
   for (final s in summaries) {
     b.writeln(
       '| ${s.scenario.name} | ${s.passed}/${s.runs.length} | '
       '${s.failedTurns}/${s.turns} | ${s.repaired} | ${s.repairFailed} | '
-      '${s.violations} |',
+      '${s.violations} | ${s.updatedInPlace} / ${s.replaced} |',
     );
   }
 
