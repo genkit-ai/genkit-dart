@@ -302,6 +302,51 @@ void main() {
       expect(session.closeCalls, 1);
       await input.close();
     });
+
+    test(
+      'cancelling closes the session and throws CancelledException',
+      () async {
+        final session = _SlowLiveSession();
+        final input = StreamController<ModelRequest>();
+        final controller = CancellationController();
+
+        final run = runLiveSession(
+          session,
+          history: [text('hi')],
+          input: input.stream,
+          onChunk: (_) {},
+          cancel: controller.token,
+        );
+        await session.writing.future;
+        controller.cancel('user pressed stop');
+
+        await expectLater(run, throwsA(isA<CancelledException>()));
+        expect(session.closeCalls, 1);
+        await input.close();
+      },
+    );
+
+    test('an already-cancelled token sends nothing', () async {
+      final session = _SlowLiveSession();
+      final input = StreamController<ModelRequest>();
+      final controller = CancellationController()..cancel();
+
+      await expectLater(
+        runLiveSession(
+          session,
+          history: [text('hi')],
+          input: input.stream,
+          onChunk: (_) {},
+          cancel: controller.token,
+        ),
+        throwsA(isA<CancelledException>()),
+      );
+      expect(session.sent, isEmpty);
+      expect(session.receiveCalls, 0);
+      expect(session.closeCalls, 1);
+      // Core's BidiActionStream.close() waits on this.
+      await input.close().timeout(const Duration(seconds: 1));
+    });
   });
 
   group('sendToLiveSession', () {
@@ -548,6 +593,7 @@ class _SlowLiveSession implements fai.LiveSession {
   final String? failOn;
   final sent = <String>[];
   int closeCalls = 0;
+  int receiveCalls = 0;
   final _closed = Completer<void>();
 
   /// Completes when the first write starts.
@@ -567,6 +613,7 @@ class _SlowLiveSession implements fai.LiveSession {
 
   @override
   Stream<fai.LiveServerResponse> receive() async* {
+    receiveCalls++;
     await _closed.future;
   }
 
