@@ -20,7 +20,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:a2ui_agent/a2ui_agent.dart';
+import 'package:a2ui_core/a2ui_core.dart' show A2uiValidationError;
 import 'package:genkit_a2ui/a2ui.dart';
+import 'package:genkit_a2ui/src/catalog_types.dart' show A2uiCatalogCore;
 import 'package:test/test.dart';
 
 /// The published v0.9.1 basic catalog, used unmodified.
@@ -70,6 +72,32 @@ void main() {
       );
       expect(extended.toCore().components.keys, contains('Gauge'));
       expect(extended.toCore().components, hasLength(19));
+    });
+
+    test('bundled components take their arguments in the published order', () {
+      // Express is positional: if a bundled component's properties drifted
+      // from the published order, generated arguments would silently bind to
+      // the wrong properties. The bundled catalog may leave properties out
+      // (it is deliberately narrower), but only from the end.
+      // Own properties, whether at the top level (as `.simple` writes them)
+      // or in an `allOf` entry (as the published file does).
+      List<String> order(Map<String, dynamic> schema) => [
+        for (final part in [schema, ...?(schema['allOf'] as List?)])
+          if (part case {'properties': final Map props})
+            for (final key in props.keys)
+              if (key != 'component') key as String,
+      ];
+      final published = loadSpecCatalog();
+      for (final MapEntry(key: name, value: bundled)
+          in basicCatalog.components.entries) {
+        final mine = order(bundled.schema);
+        final theirs = order(published.components[name]!.schema);
+        expect(
+          theirs.take(mine.length),
+          mine,
+          reason: '$name: $mine is not a prefix of the published $theirs',
+        );
+      }
     });
 
     test('converts the bundled basic catalog', () {
@@ -131,7 +159,7 @@ void main() {
             const A2uiParam.dynamicValue(
               'value',
               required: true,
-              ref: 'DynamicNumber',
+              type: .number,
             ),
             const A2uiParam.number('max'),
             const A2uiParam.string('unit', enumValues: ['C', 'F']),
@@ -162,7 +190,7 @@ void main() {
     test('rejects a value outside its enum', () {
       expect(
         () => compile(catalog, 'root = Gauge(1, 2, "K")'),
-        throwsA(anything),
+        throwsA(isA<A2uiValidationError>()),
       );
     });
 
@@ -171,6 +199,72 @@ void main() {
         jsonDecode(jsonEncode(catalog.toJson())) as Map<String, dynamic>,
       );
       expect(restored.toJson(), catalog.toJson());
+    });
+  });
+
+  group('A2uiCatalog', () {
+    A2uiCatalogComponent text(String name, String param) =>
+        A2uiCatalogComponent.simple(
+          name: name,
+          params: [A2uiParam.dynamicValue(param)],
+        );
+
+    test('reads the id from catalogId, then \$id, then id', () {
+      Map<String, dynamic> doc(Map<String, dynamic> ids) => {
+        ...ids,
+        'components': <String, dynamic>{},
+      };
+      expect(
+        A2uiCatalog.fromJson(
+          doc({'catalogId': 'a', r'$id': 'b', 'id': 'c'}),
+        ).id,
+        'a',
+      );
+      expect(A2uiCatalog.fromJson(doc({r'$id': 'b', 'id': 'c'})).id, 'b');
+      expect(A2uiCatalog.fromJson(doc({'id': 'c'})).id, 'c');
+      // A non-string id is skipped rather than thrown on.
+      expect(A2uiCatalog.fromJson(doc({'catalogId': 1, 'id': 'c'})).id, 'c');
+    });
+
+    test('extend replaces a same-named entry in place', () {
+      final base = A2uiCatalog(
+        id: 'base',
+        components: [text('A', 'a'), text('B', 'b'), text('C', 'c')],
+      );
+      final extended = base.extend(
+        id: 'ext',
+        components: [text('B', 'other'), text('D', 'd')],
+      );
+      expect(extended.components.keys, ['A', 'B', 'C', 'D']);
+      expect(
+        (extended.components['B']!.schema['properties'] as Map).keys,
+        contains('other'),
+      );
+      // The base is untouched.
+      expect(base.components.keys, ['A', 'B', 'C']);
+    });
+
+    test('is unmodifiable', () {
+      expect(
+        () => basicCatalog.components.remove('Icon'),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('round-trips instructions and hands them to a2ui_core', () {
+      final catalog = A2uiCatalog.fromJson({
+        'catalogId': 'x',
+        'components': {'Banner': text('Banner', 'title').schema},
+        'instructions': 'Keep banners short.',
+      });
+      expect(catalog.instructions, 'Keep banners short.');
+      expect(catalog.toJson()['instructions'], 'Keep banners short.');
+      expect(catalog.toCore().instructions, 'Keep banners short.');
+      expect(
+        catalog.extend(id: 'y').instructions,
+        'Keep banners short.',
+        reason: 'extend keeps the base instructions unless given new ones',
+      );
     });
   });
 }

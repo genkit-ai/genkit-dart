@@ -20,7 +20,7 @@
 /// authored here stays portable to any other A2UI host.
 ///
 /// Prompting and Express compilation are delegated to `a2ui_agent`, which reads
-/// the catalog through [A2uiCatalog.toCore]. For hand-authored catalogs,
+/// the catalog through [A2uiCatalogCore.toCore]. For hand-authored catalogs,
 /// [A2uiCatalogComponent.simple] builds a conforming schema from a parameter
 /// list so nobody has to write JSON Schema by hand.
 library;
@@ -49,7 +49,7 @@ class A2uiCatalogComponent {
   ///   name: 'Gauge',
   ///   description: 'A circular gauge for a single numeric value.',
   ///   params: [
-  ///     A2uiParam.dynamicValue('value', required: true, ref: 'DynamicNumber'),
+  ///     A2uiParam.dynamicValue('value', required: true, type: .number),
   ///     A2uiParam.number('max', description: 'Range maximum.'),
   ///   ],
   /// );
@@ -57,12 +57,21 @@ class A2uiCatalogComponent {
   ///
   /// [params] order is the Express positional argument order, so put the most
   /// important values first. [checkable] adds the spec's `checks` property.
+  /// Param names must be unique, and `component` and `id` are reserved.
   factory A2uiCatalogComponent.simple({
     required String name,
     String? description,
     required List<A2uiParam> params,
     bool checkable = false,
   }) {
+    assert(
+      params.map((p) => p.name).toSet().length == params.length,
+      'A2uiCatalogComponent.simple($name): duplicate param names',
+    );
+    assert(
+      !params.any((p) => p.name == 'component' || p.name == 'id'),
+      'A2uiCatalogComponent.simple($name): `component` and `id` are reserved',
+    );
     final properties = <String, dynamic>{
       'component': {'const': name},
       for (final p in params) p.name: p._schema(),
@@ -117,6 +126,9 @@ class A2uiParam {
   /// The `common_types.json` definition this param references, if any.
   final String? _ref;
 
+  /// The value type of a [A2uiParam.dynamicValue].
+  final A2uiDynamicType? _dynamicType;
+
   /// Allowed values, for literal-only string params.
   final List<String>? enumValues;
 
@@ -126,18 +138,23 @@ class A2uiParam {
     this.required = false,
     this._type,
     this._ref,
+    this._dynamicType,
     this.enumValues,
   });
 
-  /// A literal or a `$/path` binding. [ref] picks the value type:
-  /// `DynamicString` (the default), `DynamicNumber`, `DynamicBoolean`,
-  /// `DynamicStringList` or `DynamicValue`.
+  /// A literal or a `$/path` binding, of the value [type] (a string unless
+  /// set).
   const A2uiParam.dynamicValue(
     String name, {
     String? description,
     bool required = false,
-    String ref = 'DynamicString',
-  }) : this._(name, description: description, required: required, ref: ref);
+    A2uiDynamicType type = A2uiDynamicType.string,
+  }) : this._(
+         name,
+         description: description,
+         required: required,
+         dynamicType: type,
+       );
 
   /// A literal-only string, optionally restricted to [enumValues].
   const A2uiParam.string(
@@ -216,11 +233,35 @@ class A2uiParam {
        );
 
   Map<String, dynamic> _schema() => {
-    if (_ref != null) r'$ref': '$_commonTypes#/\$defs/$_ref',
+    if (_ref ?? _dynamicType?._ref case final ref?)
+      r'$ref': '$_commonTypes#/\$defs/$ref',
     if (_type != null) 'type': _type,
     'description': ?description,
     'enum': ?enumValues,
   };
+}
+
+/// The value type of an [A2uiParam.dynamicValue], i.e. which of the spec's
+/// `common_types.json` dynamic types it references.
+enum A2uiDynamicType {
+  /// `DynamicString`.
+  string('DynamicString'),
+
+  /// `DynamicNumber`.
+  number('DynamicNumber'),
+
+  /// `DynamicBoolean`.
+  boolean('DynamicBoolean'),
+
+  /// `DynamicStringList`.
+  stringList('DynamicStringList'),
+
+  /// `DynamicValue`: any JSON value.
+  value('DynamicValue');
+
+  const A2uiDynamicType(this._ref);
+
+  final String _ref;
 }
 
 /// A client function's API (`required`, `regex`, `openUrl`, ...), used for
@@ -234,6 +275,12 @@ class A2uiCatalogFunction {
 
   /// Creates an [A2uiCatalogFunction].
   const A2uiCatalogFunction({required this.name, required this.schema});
+
+  /// Builds an [A2uiCatalogFunction] from a `catalog.json` entry.
+  factory A2uiCatalogFunction.fromJson(
+    String name,
+    Map<String, dynamic> schema,
+  ) => A2uiCatalogFunction(name: name, schema: schema);
 
   /// Serializes this function back to its `catalog.json` schema.
   Map<String, dynamic> toJson() => schema;
@@ -259,47 +306,115 @@ class A2uiCatalog {
   /// published catalog still resolve after a round trip.
   final Map<String, dynamic> defs;
 
-  /// Creates an [A2uiCatalog].
-  const A2uiCatalog({
+  /// Catalog-wide guidance for the model (the spec's `instructions`), included
+  /// in the prompt after the component signatures.
+  final String? instructions;
+
+  /// Creates an [A2uiCatalog] from its components and functions, keyed by
+  /// name in the order given (the order the model is prompted with). Names
+  /// must be unique.
+  ///
+  /// The maps are unmodifiable: build a new catalog (see [extend]) rather than
+  /// editing one, since the form `a2ui_agent` reads is derived once per
+  /// instance.
+  A2uiCatalog({
+    required String id,
+    required Iterable<A2uiCatalogComponent> components,
+    Iterable<A2uiCatalogFunction> functions = const [],
+    String? instructions,
+  }) : this._(
+         id: id,
+         components: _byName(components, (c) => c.name),
+         functions: _byName(functions, (f) => f.name),
+         instructions: instructions,
+       );
+
+  A2uiCatalog._({
     required this.id,
-    required this.components,
-    this.functions = const {},
-    this.defs = const {},
-  });
+    required Map<String, A2uiCatalogComponent> components,
+    required Map<String, A2uiCatalogFunction> functions,
+    Map<String, dynamic> defs = const {},
+    this.instructions,
+    Map<String, dynamic> extra = const {},
+  }) : components = Map.unmodifiable(components),
+       functions = Map.unmodifiable(functions),
+       defs = Map.unmodifiable(defs),
+       _extra = Map.unmodifiable(extra);
+
+  /// Top-level `catalog.json` fields this class does not model (such as
+  /// `protocolVersion` or `theme`), kept so a loaded document round-trips
+  /// and reaches `a2ui_core` whole.
+  final Map<String, dynamic> _extra;
+
+  static const _modeled = {
+    'catalogId',
+    r'$id',
+    'id',
+    'components',
+    'functions',
+    r'$defs',
+    'instructions',
+  };
+
+  static Map<String, T> _byName<T>(
+    Iterable<T> items,
+    String Function(T) nameOf,
+  ) {
+    final out = <String, T>{};
+    for (final item in items) {
+      assert(
+        !out.containsKey(nameOf(item)),
+        'duplicate name "${nameOf(item)}"',
+      );
+      out[nameOf(item)] = item;
+    }
+    return out;
+  }
 
   /// Builds an [A2uiCatalog] from a spec `catalog.json` document.
   ///
   /// Accepts the published files verbatim: the id is read from `catalogId`
   /// (falling back to `$id`, then `id`), and `components`/`functions` are
-  /// name-keyed objects of JSON Schema.
+  /// name-keyed objects of JSON Schema. Malformed entries are skipped rather
+  /// than thrown on.
   factory A2uiCatalog.fromJson(Map<String, dynamic> json) {
-    final id =
-        (json['catalogId'] as String?) ??
-        (json[r'$id'] as String?) ??
-        (json['id'] as String?) ??
-        '';
+    final id = [
+      json['catalogId'],
+      json[r'$id'],
+      json['id'],
+    ].whereType<String>().firstOrNull;
 
-    // Skip malformed entries defensively rather than throwing on a bad cast.
     Map<String, Map<String, dynamic>> schemas(Object? raw) => {
       if (raw is Map)
         for (final MapEntry(:key, :value) in raw.entries)
           if (key is String && value is Map) key: value.cast<String, dynamic>(),
     };
 
-    return A2uiCatalog(
-      id: id,
+    return A2uiCatalog._(
+      id: id ?? '',
       components: {
         for (final MapEntry(:key, :value) in schemas(
           json['components'],
         ).entries)
-          key: A2uiCatalogComponent(name: key, schema: value),
+          key: A2uiCatalogComponent.fromJson(key, value),
       },
       functions: {
         for (final MapEntry(:key, :value) in schemas(json['functions']).entries)
-          key: A2uiCatalogFunction(name: key, schema: value),
+          key: A2uiCatalogFunction.fromJson(key, value),
       },
-      defs: {...?(json[r'$defs'] as Map?)?.cast<String, dynamic>()}
-        ..removeWhere((key, _) => _derivedDefs.contains(key)),
+      defs: {
+        if (json[r'$defs'] case final Map defs)
+          for (final MapEntry(:key, :value) in defs.entries)
+            if (key is String && !_derivedDefs.contains(key)) key: value,
+      },
+      instructions: switch (json['instructions']) {
+        final String s => s,
+        _ => null,
+      },
+      extra: {
+        for (final MapEntry(:key, :value) in json.entries)
+          if (!_modeled.contains(key)) key: value,
+      },
     );
   }
 
@@ -309,41 +424,40 @@ class A2uiCatalog {
   /// [extend] silently drop every component it adds.
   static const _derivedDefs = {'anyComponent', 'anyFunction'};
 
-  /// Convenience for authoring in Dart: builds a catalog from a component list,
-  /// keying it by component name.
-  factory A2uiCatalog.of({
-    required String id,
-    required List<A2uiCatalogComponent> components,
-    List<A2uiCatalogFunction> functions = const [],
-  }) => A2uiCatalog(
-    id: id,
-    components: {for (final c in components) c.name: c},
-    functions: {for (final f in functions) f.name: f},
-  );
-
-  /// Returns a copy with [components] and [functions] merged over this
-  /// catalog's, for extending a base catalog with bespoke components.
+  /// Returns a copy under a new [id] with [components] and [functions] added,
+  /// for extending a base catalog with bespoke components.
+  ///
+  /// An entry named like one of this catalog's replaces it in place, keeping
+  /// its position in the prompt; overriding a component changes its Express
+  /// positional signature, so do it deliberately. Names within each argument
+  /// must be unique. [instructions], when given, replaces this catalog's.
   A2uiCatalog extend({
     required String id,
-    List<A2uiCatalogComponent> components = const [],
-    List<A2uiCatalogFunction> functions = const [],
-  }) => A2uiCatalog(
+    Iterable<A2uiCatalogComponent> components = const [],
+    Iterable<A2uiCatalogFunction> functions = const [],
+    String? instructions,
+  }) => A2uiCatalog._(
     id: id,
-    components: {...this.components, for (final c in components) c.name: c},
-    functions: {...this.functions, for (final f in functions) f.name: f},
+    components: {...this.components, ..._byName(components, (c) => c.name)},
+    functions: {...this.functions, ..._byName(functions, (f) => f.name)},
     defs: defs,
+    instructions: instructions ?? this.instructions,
+    extra: _extra,
   );
 
   /// Returns a copy registered under a different [id].
-  A2uiCatalog withId(String id) => A2uiCatalog(
+  A2uiCatalog withId(String id) => A2uiCatalog._(
     id: id,
     components: components,
     functions: functions,
     defs: defs,
+    instructions: instructions,
+    extra: _extra,
   );
 
   /// Serializes this catalog to its `catalog.json` shape.
   Map<String, dynamic> toJson() => {
+    ..._extra,
     'catalogId': id,
     'components': {
       for (final entry in components.entries) entry.key: entry.value.toJson(),
@@ -353,8 +467,13 @@ class A2uiCatalog {
         for (final entry in functions.entries) entry.key: entry.value.toJson(),
       },
     if (defs.isNotEmpty) r'$defs': defs,
+    'instructions': ?instructions,
   };
+}
 
+/// The bridge to `a2ui_core`, kept out of the public API so a breaking
+/// `a2ui_core` release is not a breaking change here.
+extension A2uiCatalogCore on A2uiCatalog {
   /// This catalog as an `a2ui_core` catalog, the form `a2ui_agent` prompts
   /// and compiles against. Parsed once per instance.
   ///
@@ -363,8 +482,6 @@ class A2uiCatalog {
       _coreCatalogs[this] ??= core.Catalog.fromJson(toJson());
 }
 
-// An Expando rather than a `late final` field, which would rule out the const
-// constructor.
 final _coreCatalogs = Expando<core.CatalogApi>();
 
 const String _commonTypes =

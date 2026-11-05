@@ -29,6 +29,7 @@ import 'dart:io';
 import 'package:genkit/genkit.dart';
 
 import 'catalog.dart';
+import 'catalog_types.dart' show A2uiCatalogCore;
 
 /// Registers an A2UI catalog under an [id] so the `a2ui()` middleware can look
 /// it up (via `a2ui(catalog: id)`). Provide either [catalog] or [file].
@@ -57,6 +58,16 @@ Future<A2uiCatalog> loadCatalog(
   // Register under the requested id. Keep the catalog's own `id` (used as the
   // `catalogId` on surfaces) intact if present; otherwise default it to the id.
   final registered = resolved.id.isNotEmpty ? resolved : resolved.withId(id);
+  // Validate now rather than on the first generate call, where the error
+  // would name neither the catalog nor its file.
+  try {
+    registered.toCore();
+  } catch (e) {
+    throw StateError(
+      'loadCatalog(): catalog "$id"${file == null ? '' : ' ($file)'} is not a '
+      'valid A2UI catalog: $e',
+    );
+  }
   ai.registry.registerValue(a2uiCatalogValueType, id, registered);
   return registered;
 }

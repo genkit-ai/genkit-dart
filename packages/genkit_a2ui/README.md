@@ -385,10 +385,13 @@ await loadCatalog(
 );
 ```
 
-The other parameter kinds are `A2uiParam.number`, `A2uiParam.boolean`,
-`A2uiParam.child` (one child component id), `A2uiParam.children` (a list of
-child ids) and `A2uiParam.action` (an event fired on interaction). Pass
-`checkable: true` for inputs that accept validation checks.
+`A2uiParam.dynamicValue` takes a string unless you set its `type`
+(`A2uiDynamicType.number`, `.boolean`, `.stringList` or `.value`). The other
+parameter kinds are `A2uiParam.number`, `A2uiParam.boolean`, `A2uiParam.child`
+(one child component id), `A2uiParam.children` (a list of child ids) and
+`A2uiParam.action` (an event fired on interaction). Pass `checkable: true` for
+inputs that accept validation checks. Catalog-wide guidance for the model goes
+in `instructions`, as in a `catalog.json`.
 
 ### Using a registered catalog
 

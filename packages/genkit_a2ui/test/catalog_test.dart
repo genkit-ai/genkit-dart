@@ -57,7 +57,7 @@ void main() {
   group('renderCatalogInstructions with a custom catalog', () {
     // A catalog with none of the components the styling guidance / example
     // hardcode (Card, Column, Text, Button, inputs, ...).
-    final custom = A2uiCatalog.of(
+    final custom = A2uiCatalog(
       id: 'my-catalog',
       components: [
         A2uiCatalogComponent.simple(
@@ -105,7 +105,7 @@ void main() {
     test(
       'renders without throwing and without a components-driven example',
       () {
-        const empty = A2uiCatalog(id: 'empty', components: {});
+        final empty = A2uiCatalog(id: 'empty', components: []);
         final text = renderCatalogInstructions(empty);
         expect(text, contains('Rendering UI with A2UI'));
         // Falls back to a default root component name.

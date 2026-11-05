@@ -100,7 +100,7 @@ void main() {
       await loadCatalog(
         genkit,
         id: 'my-catalog',
-        catalog: A2uiCatalog.of(
+        catalog: A2uiCatalog(
           id: 'my-catalog',
           components: [
             A2uiCatalogComponent.simple(

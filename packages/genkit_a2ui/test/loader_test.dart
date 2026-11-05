@@ -18,9 +18,10 @@ import 'dart:io';
 import 'package:a2ui_agent/a2ui_agent.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
+import 'package:genkit_a2ui/src/catalog_types.dart' show A2uiCatalogCore;
 import 'package:test/test.dart';
 
-final custom = A2uiCatalog.of(
+final custom = A2uiCatalog(
   id: 'my-catalog',
   components: [
     A2uiCatalogComponent.simple(
@@ -59,7 +60,7 @@ void main() {
         final result = await loadCatalog(
           genkit,
           id: 'anon',
-          catalog: A2uiCatalog(id: '', components: custom.components),
+          catalog: A2uiCatalog(id: '', components: custom.components.values),
         );
         expect(result.id, 'anon');
       },
@@ -156,6 +157,51 @@ void main() {
               (e) => e.message,
               'message',
               contains('not valid JSON'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects the pre-spec components array, naming the shape', () async {
+        final file = File('${dir.path}/array.json');
+        await file.writeAsString(
+          jsonEncode({
+            'id': 'x',
+            'components': [
+              {'name': 'Banner', 'description': 'A banner.', 'props': ''},
+            ],
+          }),
+        );
+        await expectLater(
+          loadCatalog(genkit, id: 'x', file: file.path),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('keyed by component name'),
+            ),
+          ),
+        );
+      });
+
+      test('reports an invalid catalog at load time, naming it', () async {
+        // An unsupported protocol version only fails when a2ui_core parses
+        // the catalog; that must happen here, not on the first generate call.
+        final file = File('${dir.path}/bad-version.json');
+        await file.writeAsString(
+          jsonEncode({
+            'catalogId': 'bad',
+            'protocolVersion': '9.9',
+            'components': <String, dynamic>{},
+          }),
+        );
+        await expectLater(
+          loadCatalog(genkit, id: 'bad', file: file.path),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains('"bad"'), contains(file.path)),
             ),
           ),
         );

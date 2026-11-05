@@ -32,7 +32,12 @@ import 'types.dart';
 // The catalog types live in `catalog_types.dart` (they mirror the spec's
 // `catalog.json`), but this library stays their canonical import site.
 export 'catalog_types.dart'
-    show A2uiCatalog, A2uiCatalogComponent, A2uiCatalogFunction, A2uiParam;
+    show
+        A2uiCatalog,
+        A2uiCatalogComponent,
+        A2uiCatalogFunction,
+        A2uiDynamicType,
+        A2uiParam;
 
 /// The registry value type under which A2UI catalogs are stored, so the
 /// `a2ui()` middleware can look them up by id. Register with
@@ -119,8 +124,15 @@ const List<String> basicIconNames = [
 ///
 /// Declared with [A2uiCatalogComponent.simple], which emits the spec's
 /// `catalog.json` schema shape. Parameter order matches the published catalog,
-/// since it is the positional argument order in A2UI Express.
-final A2uiCatalog basicCatalog = A2uiCatalog.of(
+/// since it is the positional argument order in A2UI Express (a test pins
+/// this).
+///
+/// It is deliberately narrower than the published schema, to steer the model
+/// toward what renders well: components do not take the shared `weight`
+/// property, and `Icon.name` accepts only the [basicIconNames] (not a data
+/// binding or an SVG path). Load the published `catalog.json` with
+/// `loadCatalog(file:)` for the full schema.
+final A2uiCatalog basicCatalog = A2uiCatalog(
   id: basicCatalogId,
   functions: basicFunctions,
   components: [
@@ -354,7 +366,7 @@ final A2uiCatalog basicCatalog = A2uiCatalog.of(
           'value',
           required: true,
           description: 'The current state of the checkbox.',
-          ref: 'DynamicBoolean',
+          type: .boolean,
         ),
       ],
       checkable: true,
@@ -377,7 +389,7 @@ final A2uiCatalog basicCatalog = A2uiCatalog.of(
           'value',
           required: true,
           description: 'The current value.',
-          ref: 'DynamicNumber',
+          type: .number,
         ),
       ],
       checkable: true,

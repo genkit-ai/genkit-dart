@@ -85,7 +85,7 @@ final A2uiCatalog weatherCatalog = basicCatalog.extend(
           'value',
           required: true,
           description: 'The value to display.',
-          ref: 'DynamicNumber',
+          type: .number,
         ),
         const A2uiParam.number('min', description: 'Range minimum, default 0.'),
         const A2uiParam.number(
