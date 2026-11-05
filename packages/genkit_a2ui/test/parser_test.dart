@@ -254,13 +254,15 @@ void main() {
       });
 
       test('strict throws when root is missing', () {
+        // Without `root`, a2ui_agent reads the block as an update to an
+        // existing surface, which a fresh state does not hold.
         expect(
           () => collect(newParser(), [noRoot]),
           throwsA(
             isA<StateError>().having(
               (e) => e.message,
               'message',
-              contains('root'),
+              contains('Surface not found'),
             ),
           ),
         );

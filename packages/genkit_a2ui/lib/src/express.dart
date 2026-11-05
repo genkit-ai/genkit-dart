@@ -14,9 +14,9 @@
 
 /// The one place this package talks to `a2ui_agent`.
 ///
-/// a2ui_agent owns the A2UI Express prompt contract and compiler. It is a
-/// `-wip` package, so its API is kept behind this narrow adapter: if it
-/// changes, only this file should need to.
+/// a2ui_agent owns the A2UI Express prompt contract and compiler. It is
+/// pre-1.0 and still makes breaking changes, so its API is kept behind this
+/// narrow adapter: if it changes, only this file should need to.
 library;
 
 import 'package:a2ui_agent/a2ui_agent.dart';
