@@ -74,6 +74,7 @@ void main() {
           );
           return ModelResponse(
             finishReason: FinishReason.stop,
+            usage: GenerationUsage(inputTokens: 10, outputTokens: 5),
             message: Message(
               role: Role.model,
               content: [TextPart(text: answer)],
@@ -140,6 +141,29 @@ void main() {
       await run(onChunk: (c) => streamed.addAll(c.content));
 
       expect(streamed.where(isA2uiPart), hasLength(1));
+    });
+
+    test('reports the repair call in the turn\'s usage', () async {
+      defineModel(badTurn, goodRepair);
+      final repaired = await run();
+      expect(repaired.usage?.inputTokens, 20);
+      expect(repaired.usage?.outputTokens, 10);
+    });
+
+    test('a valid turn reports only its own usage', () async {
+      defineModel('ok:\n<a2ui>\n$goodBlock\n</a2ui>\n', 'unused');
+      final res = await run();
+      expect(res.usage?.inputTokens, 10);
+    });
+
+    test('discards a repair that renames the surface', () async {
+      defineModel(
+        badTurn,
+        '<a2ui>\n${goodBlock.replaceFirst('surface("w")', 'surface("x")')}\n</a2ui>',
+      );
+      final res = await run();
+      expect(prompts, hasLength(2));
+      expect(res.message!.content.where(isA2uiPart), isEmpty);
     });
 
     test('forwards the request config to the repair call', () async {

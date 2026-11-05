@@ -256,7 +256,10 @@ Repair runs once the model's response is complete, since the streaming callback
 cannot wait for a second model call. The repaired surface is then sent as the
 last chunk of the stream (and is in the final message), so it arrives at the
 end of the turn rather than where the model wrote it. The repair call uses the
-same model config as the turn.
+same model config as the turn (so a per-request API key still applies; an
+option that forces JSON output or a function call can make the repair fail, in
+which case the block is dropped as before), and its token usage is added to the
+turn's.
 
 ## Handling user actions
 

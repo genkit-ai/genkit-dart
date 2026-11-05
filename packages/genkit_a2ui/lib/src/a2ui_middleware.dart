@@ -277,17 +277,24 @@ class A2uiMiddleware extends GenerateMiddleware {
     //    final parse produces the same envelopes the stream did.
     final message = response.message;
     if (message == null) return response;
+    // What the repair calls cost, reported with the turn's own usage.
+    GenerationUsage? repairUsage;
     final repairs = _repair
         ? await _repairFailedBlocks(
             message,
             catalog,
             // Repair reuses the model this hook already wraps, by calling
             // `next` with a one-shot request. That needs no extra
-            // configuration and does not recurse through the middleware chain,
-            // which would re-inject the instructions and re-parse the reply.
-            // Streaming is suppressed: a repair is an internal detail. The
-            // config is forwarded, since it can carry what the call needs to
-            // succeed at all (a per-request API key, for one).
+            // configuration and skips a2ui and anything before it in the
+            // chain, which would re-inject the instructions and re-parse the
+            // reply; middleware after it (retry, say) still applies.
+            // Streaming is suppressed: a repair is an internal detail.
+            //
+            // The config is forwarded because it can carry what the call
+            // needs to succeed at all (a per-request API key, for one). The
+            // tradeoff: an output-shaping option (a JSON response type, a
+            // forced function call) can defeat a plain-text repair, which then
+            // fails, is logged, and leaves the block dropped as before.
             (prompt) async {
               final reply = await next(
                 ModelRequest(
@@ -301,6 +308,7 @@ class A2uiMiddleware extends GenerateMiddleware {
                 ),
                 ctx.copyWith(streamingRequested: false, sendChunk: (_) {}),
               );
+              repairUsage = _sumUsage(repairUsage, reply.usage);
               return reply.message?.content
                       .where((p) => p.isText)
                       .map((p) => p.text ?? '')
@@ -309,16 +317,22 @@ class A2uiMiddleware extends GenerateMiddleware {
             },
           )
         : const <String, String>{};
-    final result = _transformResponse(response, message, catalog, repairs);
+    final result = _transformResponse(
+      response,
+      message,
+      catalog,
+      repairs,
+      extraUsage: repairUsage,
+    );
 
     // 5) A block that failed on the stream and was repaired afterwards exists
     //    only in the final message. Send it (and any block that failed only
     //    because it depended on it) as one last chunk, so clients that render
     //    from the stream get the same surfaces the session history records.
     if (streamParser != null) {
-      final late = _notYetStreamed(result.message?.content ?? [], streamed);
-      if (late.isNotEmpty) {
-        ctx.sendChunk(ModelResponseChunk(role: Role.model, content: late));
+      final unsent = _notYetStreamed(result.message?.content ?? [], streamed);
+      if (unsent.isNotEmpty) {
+        ctx.sendChunk(ModelResponseChunk(role: Role.model, content: unsent));
       }
     }
     return result;
@@ -345,6 +359,8 @@ class A2uiMiddleware extends GenerateMiddleware {
       validate: _validate == A2uiValidateMode.off
           ? A2uiValidateMode.off
           : A2uiValidateMode.warn,
+      // The final parse reports what stays broken.
+      quiet: true,
     );
     for (final part in message.content) {
       final text = part.text;
@@ -376,6 +392,12 @@ class A2uiMiddleware extends GenerateMiddleware {
         );
         if (repaired == null) {
           _logger.warning('repair returned nothing for: ${block.error}');
+          continue;
+        }
+        if (!_keepsSurface(block.source, repaired)) {
+          _logger.warning(
+            'repair changed the surface id, discarding it: ${block.error}',
+          );
           continue;
         }
         // Only accept a repair that compiles under the configured mode.
@@ -457,8 +479,9 @@ class A2uiMiddleware extends GenerateMiddleware {
     ModelResponse response,
     Message message,
     A2uiCatalog catalog,
-    Map<String, String> repairs,
-  ) {
+    Map<String, String> repairs, {
+    GenerationUsage? extraUsage,
+  }) {
     final parser = A2uiStreamParser(
       catalog: catalog,
       validate: _validate,
@@ -509,7 +532,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       finishReason: response.finishReason,
       finishMessage: response.finishMessage,
       latencyMs: response.latencyMs,
-      usage: response.usage,
+      usage: _sumUsage(response.usage, extraUsage),
       custom: response.custom,
       raw: response.raw,
       request: response.request,
@@ -556,8 +579,31 @@ class A2uiMiddleware extends GenerateMiddleware {
   }
 }
 
-/// Turns ordered parse segments into parts, preserving the exact source order
-/// (so prose after a block stays after it).
+/// [a] and [b] summed field by field, or whichever is set.
+GenerationUsage? _sumUsage(GenerationUsage? a, GenerationUsage? b) {
+  if (a == null || b == null) return a ?? b;
+  final x = a.toJson(), y = b.toJson();
+  return GenerationUsage.fromJson({
+    for (final key in {...x.keys, ...y.keys})
+      key: switch ((x[key], y[key])) {
+        (final num p, final num q) => p + q,
+        (final v, final w) => v ?? w,
+      },
+  });
+}
+
+final _surfaceLineRe = RegExp(
+  r'''^\s*surface\(\s*["']([^"']*)["']''',
+  multiLine: true,
+);
+
+/// Whether [repaired] targets the same surface as [original]: the repair
+/// prompt asks to keep the `surface(...)` line, and a repair that renamed the
+/// surface would render under an id the conversation never chose.
+bool _keepsSurface(String original, String repaired) =>
+    _surfaceLineRe.firstMatch(original)?.group(1) ==
+    _surfaceLineRe.firstMatch(repaired)?.group(1);
+
 /// The Express sources of the a2ui parts in [parts], in order.
 Iterable<String> _sourcesOf(List<Part> parts) sync* {
   for (final p in parts.where(isA2uiPart)) {
@@ -584,6 +630,8 @@ List<Part> _notYetStreamed(List<Part> parts, List<String> streamed) {
   return out;
 }
 
+/// Turns ordered parse segments into parts, preserving the exact source order
+/// (so prose after a block stays after it).
 List<Part> _partsFromSegments(List<ParseSegment> segments) {
   final out = <Part>[];
   for (final seg in segments) {
