@@ -241,7 +241,9 @@ $/temp = "21°C"
 Every block is checked against the surfaces the conversation's history left on
 the client, so an update must target a live surface and leave its component
 tree valid. Send a2ui parts back with the history (as `remoteAgent` and session
-stores do) for this to work.
+stores do) for this to work. The check trusts the history: a client that
+dropped messages the server sent can still reject an update the server
+accepted.
 
 In a chat UI, key each rendered surface by its id. A replaced surface then
 re-renders where it first appeared, and an updated one changes in place.
