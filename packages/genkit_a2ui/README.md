@@ -252,9 +252,11 @@ This costs an extra model call **on the failure path only**. Disable it with:
 use: [a2ui(repair: false)]
 ```
 
-Repair runs after the response completes rather than mid-stream, because the
-streaming callback is synchronous and cannot await. A repaired surface therefore
-arrives in the final message instead of incrementally.
+Repair runs once the model's response is complete, since the streaming callback
+cannot wait for a second model call. The repaired surface is then sent as the
+last chunk of the stream (and is in the final message), so it arrives at the
+end of the turn rather than where the model wrote it. The repair call uses the
+same model config as the turn.
 
 ## Handling user actions
 

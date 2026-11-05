@@ -36,10 +36,12 @@ void main() {
   group('repair', () {
     late Genkit genkit;
     late List<String> prompts;
+    late List<Map<String, dynamic>?> configs;
 
     setUp(() {
       genkit = Genkit(isDevEnv: false, plugins: [A2uiPlugin()]);
       prompts = [];
+      configs = [];
     });
 
     tearDown(() async {
@@ -47,12 +49,23 @@ void main() {
     });
 
     /// A model that answers [first] once, then [then] for every later call
-    /// (the repair). Records each prompt it receives.
+    /// (the repair). Records each prompt and config it receives, and streams
+    /// its answer when asked to.
     void defineModel(String first, String then) {
       var calls = 0;
       genkit.defineModel(
         name: 'm',
         fn: (req, ctx) async {
+          configs.add(req.config);
+          final answer = calls++ == 0 ? first : then;
+          if (ctx.streamingRequested) {
+            ctx.sendChunk(
+              ModelResponseChunk(
+                role: Role.model,
+                content: [TextPart(text: answer)],
+              ),
+            );
+          }
           prompts.add(
             req.messages
                 .expand((m) => m.content)
@@ -63,17 +76,23 @@ void main() {
             finishReason: FinishReason.stop,
             message: Message(
               role: Role.model,
-              content: [TextPart(text: calls++ == 0 ? first : then)],
+              content: [TextPart(text: answer)],
             ),
           );
         },
       );
     }
 
-    Future<GenerateResult> run({bool? repair}) => genkit.generate(
+    Future<GenerateResult> run({
+      bool? repair,
+      Map<String, dynamic>? config,
+      void Function(GenerateResponseChunk chunk)? onChunk,
+    }) => genkit.generate(
       model: modelRef('m'),
       prompt: 'weather',
+      config: config,
       use: [a2ui(repair: repair)],
+      onChunk: onChunk,
     );
 
     List<Map<String, dynamic>> componentsOf(GenerateResult res) => [
@@ -97,6 +116,39 @@ void main() {
 
       final part = res.message!.content.firstWhere(isA2uiPart);
       expect(part.metadata?[a2uiExpressMetadataKey], goodBlock);
+    });
+
+    test('sends the repaired surface on the stream too', () async {
+      // Clients that render from the stream would otherwise never get it,
+      // while the session history says they did.
+      defineModel(badTurn, goodRepair);
+      final streamed = <Part>[];
+      final res = await run(onChunk: (c) => streamed.addAll(c.content));
+
+      final parts = streamed.where(isA2uiPart).toList();
+      expect(parts, hasLength(1));
+      expect(parts.single.metadata?[a2uiExpressMetadataKey], goodBlock);
+      expect(
+        a2uiEnvelopesFromParts(parts),
+        a2uiEnvelopesFromParts(res.message!.content),
+      );
+    });
+
+    test('does not resend blocks the stream already carried', () async {
+      defineModel('ok:\n<a2ui>\n$goodBlock\n</a2ui>\n', 'unused');
+      final streamed = <Part>[];
+      await run(onChunk: (c) => streamed.addAll(c.content));
+
+      expect(streamed.where(isA2uiPart), hasLength(1));
+    });
+
+    test('forwards the request config to the repair call', () async {
+      // A per-request API key, say: without it the repair cannot succeed.
+      defineModel(badTurn, goodRepair);
+      await run(config: {'apiKey': 'per-request-key'});
+
+      expect(configs, hasLength(2));
+      expect(configs[1], {'apiKey': 'per-request-key'});
     });
 
     test('the repair prompt carries the error and the failed block', () async {

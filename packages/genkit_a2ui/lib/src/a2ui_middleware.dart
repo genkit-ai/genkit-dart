@@ -230,6 +230,10 @@ class A2uiMiddleware extends GenerateMiddleware {
     //    deltas + whole a2ui parts as blocks complete.
     var wrappedCtx = ctx;
     A2uiStreamParser? streamParser;
+    // Sources of the blocks already sent on the stream, so the parts the final
+    // message adds (a repaired block, or one that depended on it) can be sent
+    // after it.
+    final streamed = <String>[];
     if (ctx.streamingRequested) {
       streamParser = A2uiStreamParser(
         catalog: catalog,
@@ -246,7 +250,10 @@ class A2uiMiddleware extends GenerateMiddleware {
       wrappedCtx = ctx.copyWith(
         sendChunk: (chunk) {
           final transformed = _transformChunk(chunk, streamParser!);
-          if (transformed != null) ctx.sendChunk(transformed);
+          if (transformed != null) {
+            streamed.addAll(_sourcesOf(transformed.content));
+            ctx.sendChunk(transformed);
+          }
         },
       );
     }
@@ -261,6 +268,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     if (streamParser != null) {
       final tail = _partsFromSegments(streamParser.flush().segments);
       if (tail.isNotEmpty) {
+        streamed.addAll(_sourcesOf(tail));
         ctx.sendChunk(ModelResponseChunk(role: Role.model, content: tail));
       }
     }
@@ -277,7 +285,9 @@ class A2uiMiddleware extends GenerateMiddleware {
             // `next` with a one-shot request. That needs no extra
             // configuration and does not recurse through the middleware chain,
             // which would re-inject the instructions and re-parse the reply.
-            // Streaming is suppressed: a repair is an internal detail.
+            // Streaming is suppressed: a repair is an internal detail. The
+            // config is forwarded, since it can carry what the call needs to
+            // succeed at all (a per-request API key, for one).
             (prompt) async {
               final reply = await next(
                 ModelRequest(
@@ -287,6 +297,7 @@ class A2uiMiddleware extends GenerateMiddleware {
                       content: [TextPart(text: prompt)],
                     ),
                   ],
+                  config: request.config,
                 ),
                 ctx.copyWith(streamingRequested: false, sendChunk: (_) {}),
               );
@@ -298,7 +309,19 @@ class A2uiMiddleware extends GenerateMiddleware {
             },
           )
         : const <String, String>{};
-    return _transformResponse(response, message, catalog, repairs);
+    final result = _transformResponse(response, message, catalog, repairs);
+
+    // 5) A block that failed on the stream and was repaired afterwards exists
+    //    only in the final message. Send it (and any block that failed only
+    //    because it depended on it) as one last chunk, so clients that render
+    //    from the stream get the same surfaces the session history records.
+    if (streamParser != null) {
+      final late = _notYetStreamed(result.message?.content ?? [], streamed);
+      if (late.isNotEmpty) {
+        ctx.sendChunk(ModelResponseChunk(role: Role.model, content: late));
+      }
+    }
+    return result;
   }
 
   /// Finds the blocks in [message] that fail to compile and asks the model to
@@ -306,10 +329,9 @@ class A2uiMiddleware extends GenerateMiddleware {
   /// that now compile.
   ///
   /// Repair runs on the final message rather than during streaming because
-  /// `sendChunk` is synchronous and cannot await a model call, so a repaired
-  /// surface lands at the end of the turn instead of mid-stream. One attempt
-  /// per distinct block; a repair that still fails is dropped, so it is never
-  /// worse than no repair.
+  /// the streaming callback cannot await a model call; the caller sends the
+  /// repaired surface as the last chunk. One attempt per distinct block; a
+  /// repair that still fails is dropped, so it is never worse than no repair.
   Future<Map<String, String>> _repairFailedBlocks(
     Message message,
     A2uiCatalog catalog,
@@ -536,6 +558,32 @@ class A2uiMiddleware extends GenerateMiddleware {
 
 /// Turns ordered parse segments into parts, preserving the exact source order
 /// (so prose after a block stays after it).
+/// The Express sources of the a2ui parts in [parts], in order.
+Iterable<String> _sourcesOf(List<Part> parts) sync* {
+  for (final p in parts.where(isA2uiPart)) {
+    if (p.metadata?[a2uiExpressMetadataKey] case final String src) yield src;
+  }
+}
+
+/// The a2ui parts of [parts] whose block was not among [streamed]. Matched by
+/// source, one for one, so a block the model wrote twice is sent twice.
+List<Part> _notYetStreamed(List<Part> parts, List<String> streamed) {
+  final pending = <String, int>{};
+  for (final s in streamed) {
+    pending[s] = (pending[s] ?? 0) + 1;
+  }
+  final out = <Part>[];
+  for (final p in parts.where(isA2uiPart)) {
+    if (p.metadata?[a2uiExpressMetadataKey] case final String src
+        when (pending[src] ?? 0) > 0) {
+      pending[src] = pending[src]! - 1;
+      continue;
+    }
+    out.add(p);
+  }
+  return out;
+}
+
 List<Part> _partsFromSegments(List<ParseSegment> segments) {
   final out = <Part>[];
   for (final seg in segments) {
