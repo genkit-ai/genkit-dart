@@ -42,9 +42,9 @@ const String _baseUrl = String.fromEnvironment(
 /// The client catalog, matching the server's custom `weatherCatalog`.
 ///
 /// The server's catalog is the bundled basic components plus a custom `Gauge`
-/// (see `lib/agent.dart`), advertised under [weatherCatalogId]. Here we mirror
-/// that: start from genui's basic widgets, add the matching [gaugeCatalogItem],
-/// and re-tag the whole thing with the same [weatherCatalogId] so a surface the
+/// (see `../server/lib/agent.dart`), advertised under [weatherCatalogId]. Here
+/// we mirror that: start from genui's basic widgets, add the matching
+/// [gaugeCatalogItem], and re-tag the whole thing with the same [weatherCatalogId] so a surface the
 /// agent creates with that `catalogId` resolves to these widgets. (genui
 /// registers an empty stub for a catalog id it doesn't know, so the ids MUST
 /// match on both sides.)

@@ -1,6 +1,6 @@
 name: a2ui_server
 description: >-
-  A2UI sample server: a shelf server hosting an A2UI-enabled Genkit agent.
+  A2UI sample server: a dart:io server hosting an A2UI-enabled Genkit agent.
   The matching Flutter client lives in ../client.
 publish_to: none
 resolution: workspace

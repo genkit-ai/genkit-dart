@@ -15,9 +15,9 @@
 /// The client-side half of the sample's custom A2UI catalog: a `Gauge` widget.
 ///
 /// The server advertises a `Gauge` component to the model (see
-/// `weatherCatalog` in `lib/agent.dart`). Here we implement the matching
-/// Flutter widget as a genui [CatalogItem]. genui builds a widget for a
-/// component by looking up a [CatalogItem] whose [CatalogItem.name] equals the
+/// `weatherCatalog` in `../server/lib/agent.dart`). Here we implement the
+/// matching Flutter widget as a genui [CatalogItem]. genui builds a widget for
+/// a component by looking up a [CatalogItem] whose [CatalogItem.name] equals the
 /// component's `component` field, so the name here (`'Gauge'`) MUST match the
 /// name the server catalog uses.
 ///
