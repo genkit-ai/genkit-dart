@@ -42,7 +42,10 @@ Scenario('action targets its own surface (2 surfaces)', [
   turn that created them (`SurfaceRef.fromTurn`), or `SurfaceRef.last`, never
   by the id the model picked.
 
-Every turn also gets three implicit checks: the turn did not fail (with
+The harness renders from the stream, like the sample client does, and every
+turn gets four implicit checks: the stream carried the same A2UI messages the
+session history records (a client never misses a surface the next turn will
+assume it has), the turn did not fail (with
 `validate: 'strict'` a block that does not compile even after repair fails
 the turn), the headless renderer accepted every message (no `createSurface`
 for a live id, no updates to unknown surfaces, a `root`, no dangling

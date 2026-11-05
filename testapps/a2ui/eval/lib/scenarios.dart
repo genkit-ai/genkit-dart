@@ -86,6 +86,26 @@ final scenarios = <Scenario>[
     Expect.liveSurfaces(1),
   ]),
 
+  Scenario(
+    'update after removing a component',
+    [
+      const Say(
+        'Show the weather in Tokyo with a temperature gauge, a humidity gauge '
+        'and a Refresh button.',
+      ),
+      Expect.uses('Gauge'),
+      const Say('Remove the humidity gauge from that card.'),
+      Expect.touched(first),
+      Expect.newSurfaces(0),
+      const Press('Refresh', on: first),
+      Expect.touched(first),
+      Expect.newSurfaces(0),
+    ],
+    description:
+        'Updates keep working after an earlier update dropped '
+        'a component.',
+  ),
+
   Scenario('comparison grows in place', [
     const Say('Compare the weather in London, Paris and Rome.'),
     Expect.newSurfaces(1),
