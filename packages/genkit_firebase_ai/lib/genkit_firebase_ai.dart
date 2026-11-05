@@ -397,9 +397,15 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             req.output?.format == 'json' ||
             req.output?.contentType == 'application/json';
 
+        // The JSON round trip types nested maps written as Dart literals (e.g.
+        // an empty `{}`) the way the generated getters expect.
         final options = req.config == null
             ? GeminiOptions()
-            : GeminiOptions.$schema.parse(req.config!);
+            : _readConfig(
+                () => GeminiOptions.$schema.parse(
+                  jsonDecode(jsonEncode(req.config)),
+                ),
+              );
 
         final nonSystem = req.messages
             .where((m) => m.role != Role.system)
@@ -919,7 +925,8 @@ fai.Part toGeminiPart(Part p) {
 ///
 /// It holds the finish reason as `firebase_ai` parsed it, left out when it
 /// parsed none or [fai.FinishReason.unknown], whose original wire value is
-/// lost, and the candidate's grounding and URL context metadata in wire form.
+/// lost, and the candidate's grounding and URL context metadata, rebuilt from
+/// what `firebase_ai` parsed.
 Map<String, dynamic>? _candidateCustom(fai.Candidate candidate) {
   final custom = {
     'finishReason': ?switch (candidate.finishReason) {
@@ -1358,9 +1365,13 @@ fai.ThinkingConfig _toGeminiThinkingConfig(ThinkingConfig config) {
 /// values are ignored.
 ///
 /// [toolChoice] only applies when [hasFunctionTools] is true, i.e. the request
-/// declares Genkit tools. Code execution doesn't count: a function-calling
-/// mode with no function declarations is contradictory (`required` would
-/// demand a call to nothing).
+/// declares Genkit tools. Code execution and the grounding tools don't count: a
+/// function-calling mode with no function declarations is contradictory
+/// (`required` would demand a call to nothing).
+///
+/// [retrievalConfig] goes next to the function calling config. Throws a
+/// [GenkitException] with [StatusCode.invalidArgument] when its `latLng` has
+/// only one coordinate.
 @visibleForTesting
 fai.ToolConfig? toGeminiToolConfig(
   FunctionCallingConfig? functionCallingConfig, {

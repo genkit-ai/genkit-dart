@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
 
@@ -58,7 +59,12 @@ const _urlContextMetadata = {
   ],
 };
 
-Map<String, dynamic> _grounded(String text, {String? finishReason = 'STOP'}) {
+Map<String, dynamic> _grounded(
+  String text, {
+  String? finishReason = 'STOP',
+  Map<String, dynamic> grounding = _groundingMetadata,
+  Map<String, dynamic> urlContext = _urlContextMetadata,
+}) {
   final response = textResponse(text, finishReason: finishReason);
   final candidate = (response['candidates'] as List).single as Map;
   return {
@@ -66,22 +72,33 @@ Map<String, dynamic> _grounded(String text, {String? finishReason = 'STOP'}) {
     'candidates': [
       {
         ...candidate,
-        'groundingMetadata': _groundingMetadata,
-        'urlContextMetadata': _urlContextMetadata,
+        'groundingMetadata': grounding,
+        'urlContextMetadata': urlContext,
       },
     ],
   };
 }
 
-final _expectedGrounding = anyOf(
-  _groundingMetadata,
-  // Before 5.1, firebase_ai matched this against List<String>, which decoded
-  // JSON never is, so it always parsed as empty.
-  {..._groundingMetadata, 'webSearchQueries': <String>[]},
-);
+late final Map<String, dynamic> _expectedGrounding;
 
 void main() {
-  setUpAll(setUpFirebaseApp);
+  setUpAll(() async {
+    await setUpFirebaseApp();
+    // Before 5.1, firebase_ai matched `webSearchQueries` against List<String>,
+    // which decoded JSON never is, so it always parsed as empty. Expect what
+    // the installed version parsed, without the plugin in the way.
+    final parsed = await fai.FirebaseAI.googleAI()
+        .generativeModel(
+          model: 'gemini-2.5-flash',
+          httpClient: WireClient(response: _grounded('hi')),
+        )
+        .generateContent([fai.Content.text('hi')]);
+    _expectedGrounding = {
+      ..._groundingMetadata,
+      'webSearchQueries':
+          parsed.candidates.single.groundingMetadata!.webSearchQueries,
+    };
+  });
 
   test('grounding options add their tools', () async {
     final client = WireClient();
@@ -89,11 +106,7 @@ void main() {
     await wireModel(client)(
       userRequest(
         'hello',
-        config: {
-          'googleSearch': <String, Object?>{},
-          'urlContext': <String, Object?>{},
-          'googleMaps': <String, Object?>{},
-        },
+        config: {'googleSearch': {}, 'urlContext': {}, 'googleMaps': {}},
       ),
     );
 
@@ -165,6 +178,7 @@ void main() {
   for (final MapEntry(key: name, value: config) in {
     'googleSearch: true': {'googleSearch': true},
     'a string retrievalConfig': {'retrievalConfig': 'London'},
+    'a value that is not JSON': {'temperature': DateTime(2026)},
   }.entries) {
     test('$name throws invalidArgument and sends nothing', () async {
       final client = WireClient();
@@ -208,4 +222,27 @@ void main() {
       expect(candidate['urlContextMetadata'], _urlContextMetadata);
     });
   }
+
+  test('streaming keeps the metadata of the last chunk that has any', () async {
+    final client = WireClient(
+      streamChunks: [
+        _grounded(
+          'Hello ',
+          finishReason: null,
+          grounding: {'webSearchQueries': <String>[]},
+          urlContext: {'urlMetadata': <Object>[]},
+        ),
+        _grounded('world', finishReason: null),
+        textResponse('!'),
+      ],
+    );
+
+    final response = await wireModel(client)(
+      userRequest('hello'),
+      onChunk: (_) {},
+    );
+
+    expect(response.custom?['groundingMetadata'], _expectedGrounding);
+    expect(response.custom?['urlContextMetadata'], _urlContextMetadata);
+  });
 }
