@@ -407,8 +407,9 @@ Object? toInteractionSpeechConfig(Object? speechConfig) {
 ///  - `contextCache` (not implemented by this plugin) is dropped;
 ///  - `imageConfig`, `audioFormat` and `videoFormat` are left out: they're
 ///    sent as `response_format` entries (see toInteractionResponseFormat).
-/// Everything else, including keys the user passes through that aren't in
-/// the schema, is forwarded in snake_case.
+/// Everything else is forwarded in snake_case. (This plugin has no config
+/// passthrough: buildInteractionRequest builds [config] from known
+/// GeminiOptions fields only, so unknown keys never reach this function.)
 ///
 /// [config] is the request config, without fields handled elsewhere.
 /// [onDropped] is called with the name of each config field that was dropped.
@@ -447,6 +448,13 @@ ModelGenerationConfig toInteractionGenerationConfig(
         result.json['thinking_summaries'] = value is bool
             ? (value ? 'auto' : 'none')
             : value;
+      } else if ((key == 'thinkingBudget' || key == 'thinking_budget') &&
+          value == 0) {
+        // Its own warning: 0 turned thinking off on generateContent, but
+        // these models can't turn it off, and the lowest level differs per
+        // model (e.g. no 'low' on gemini-3.1-flash-lite-image, 'minimal' is
+        // the default on gemini-3.5-flash-lite), so it isn't mapped to one.
+        onDropped?.call('thinkingConfig.thinkingBudget: 0');
       } else {
         onDropped?.call('thinkingConfig.$key');
       }
@@ -740,8 +748,17 @@ BuiltInToolStep? _toBuiltInToolStep(Part part) {
 }
 
 /// Converts a list of Genkit [Message]s into a list of Interactions [Step]s.
+///
+/// Code execution parts without a `metadata.callId` (a history saved from a
+/// generateContent model, which has no IDs for them) get generated IDs: each
+/// call without one gets the next ID, and the next result without one gets
+/// the same ID, in order (like [ensureToolIds] for tool refs). A result with
+/// no such call gets an orphan ID.
 List<Step> toInteractionSteps(List<Message> messages) {
   final steps = <Step>[];
+  // Generated code execution call IDs not yet taken by a result.
+  final pendingCodeExecutionIds = <String>[];
+  var nextCodeExecutionId = 0;
 
   for (final message in messages) {
     final normalContent = <Content>[];
@@ -788,13 +805,24 @@ List<Step> toInteractionSteps(List<Message> messages) {
       } else if (custom['executableCode'] != null) {
         const what = 'executableCode';
         final execCode = _requireMap(custom['executableCode'], what);
+        var id = _optionalString(part.metadata ?? const {}, 'callId', what);
+        if (_isEmpty(id)) {
+          id = 'genkit-code-execution-id-${nextCodeExecutionId++}';
+          pendingCodeExecutionIds.add(id);
+        }
         steps.add(
           CodeExecutionCallStep(
-            id: _requireString(part.metadata ?? const {}, 'callId', what),
+            id: id!,
             arguments: {
               'code': _requireString(execCode, 'code', what),
+              // The Interactions API takes 'python' or 'bash'; generateContent
+              // parts (e.g. a history saved from it) say 'PYTHON', which it
+              // rejects (400, seen live).
               'language':
-                  _optionalString(execCode, 'language', what) ?? 'PYTHON',
+                  _nonEmpty(
+                    _optionalString(execCode, 'language', what),
+                  )?.toLowerCase() ??
+                  'python',
             },
             signature: _thoughtSignatureOf(part),
           ),
@@ -802,9 +830,15 @@ List<Step> toInteractionSteps(List<Message> messages) {
       } else if (custom['codeExecutionResult'] != null) {
         const what = 'codeExecutionResult';
         final execResult = _requireMap(custom['codeExecutionResult'], what);
+        var callId = _optionalString(part.metadata ?? const {}, 'callId', what);
+        if (_isEmpty(callId)) {
+          callId = pendingCodeExecutionIds.isNotEmpty
+              ? pendingCodeExecutionIds.removeAt(0)
+              : 'genkit-code-execution-orphan-id-${nextCodeExecutionId++}';
+        }
         steps.add(
           CodeExecutionResultStep(
-            callId: _requireString(part.metadata ?? const {}, 'callId', what),
+            callId: callId!,
             result: _requireString(execResult, 'output', what),
             signature: _thoughtSignatureOf(part),
           ),
@@ -1016,7 +1050,7 @@ List<Part> fromInteractionDelta(StepDeltaData delta) {
     case 'video':
       final json = delta.json;
       final data = json['data'] as String?;
-      final mimeType = json['mime_type'] as String?;
+      final mimeType = _mediaMimeType(json, delta.type);
       var url = json['uri'] as String?;
       if (!_isEmpty(data) && !_isEmpty(mimeType)) {
         url = 'data:$mimeType;base64,$data';
@@ -1423,10 +1457,29 @@ Set<String> _getPendingFunctionCallIds(List<Step> steps, String? status) {
   return pendingIds;
 }
 
+/// The MIME type of an Interactions media content or delta [json] of [type].
+///
+/// Audio that comes with `data` but no `mime_type` is raw 16-bit PCM: the
+/// server streams single-voice TTS that way (`{type: audio, data,
+/// sample_rate, channels}`, seen live Nov 2026), while it labels the same
+/// audio `audio/l16; rate=24000; channels=1` in other cases (e.g. two
+/// speakers). That label is built from the `sample_rate` and `channels` it
+/// sends (24000 and 1 when missing), so the audio can be played and joined.
+String? _mediaMimeType(Map<String, Object?> json, String? type) {
+  final mimeType = json['mime_type'] as String?;
+  if (!_isEmpty(mimeType) || type != 'audio' || _isEmpty(json['data'])) {
+    return mimeType;
+  }
+  final sampleRate = json['sample_rate'];
+  final channels = json['channels'];
+  return 'audio/l16; rate=${sampleRate is num ? sampleRate.toInt() : 24000}; '
+      'channels=${channels is num ? channels.toInt() : 1}';
+}
+
 Part _fromMediaContent(Content content) {
   final json = content.json;
   final data = json['data'] as String?;
-  final mimeType = json['mime_type'] as String?;
+  final mimeType = _mediaMimeType(json, content.type);
   var url = json['uri'] as String?;
   if (!_isEmpty(data) && !_isEmpty(mimeType)) {
     url = 'data:$mimeType;base64,$data';
@@ -1623,7 +1676,6 @@ ModelResponse _fromFailedInteraction(GeminiInteraction interaction) {
         content: [],
         metadata: _interactionMessageMetadata(interaction),
       ),
-      custom: interaction.json,
       raw: interaction.json,
       usage: usage == null ? null : _fromInteractionUsage(usage),
     );
@@ -1669,7 +1721,6 @@ ModelResponse fromInteractionSync(GeminiInteraction interaction) {
         content: [TextPart(text: 'Operation cancelled.')],
         metadata: metadata,
       ),
-      custom: interaction.json,
       raw: interaction.json,
       usage: usage,
     );
@@ -1700,7 +1751,8 @@ ModelResponse fromInteractionSync(GeminiInteraction interaction) {
     finishReason: finishReason,
     finishMessage: finishMessage,
     message: Message(role: Role.model, content: content, metadata: metadata),
-    custom: interaction.json,
+    // Only `raw`: the response-level `custom` is deprecated in Genkit JS
+    // (which still fills both); the Dart generateContent path never set it.
     raw: interaction.json,
     usage: usage,
   );
@@ -2247,6 +2299,16 @@ final _warnedDroppedConfigFields = <String>{};
 /// the model and was ignored.
 void warnDroppedConfigField(String model, String field) {
   if (!_warnedDroppedConfigFields.add('$model:$field')) return;
+  if (field == 'thinkingConfig.thinkingBudget: 0') {
+    logger.warning(
+      "thinkingConfig.thinkingBudget: 0 (thinking off) was ignored: '$model' "
+      "can't turn thinking off (the Interactions API has no thinking "
+      'budget). For the least thinking, set thinkingConfig.thinkingLevel to '
+      "the model's lowest level ('LOW', or 'MINIMAL' where the model "
+      'supports it).',
+    );
+    return;
+  }
   logger.warning(
     "$field is not supported by '$model' and was ignored."
     '${_droppedConfigFieldHints[field] ?? ''}',

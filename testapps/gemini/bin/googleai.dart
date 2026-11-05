@@ -346,52 +346,19 @@ void main(List<String> args) async {
   );
 
   // --- Multi Speaker TTS Flow ---
+  // The 3.8 TTS models take each turn as a separate text part that names
+  // one of the configured speakers (speechMetadata), and return a complete
+  // WAV file. ttsInteractionsMultiSpeaker does the same on the lite model.
   ai.defineFlow(
     name: 'multiSpeaker',
-    inputSchema: .string(
-      defaultValue: '''
-    Speaker A: Hello, how are you today?
-    Speaker B: I am doing great, thanks for asking!
-    ''',
-    ),
     outputSchema: Media.$schema,
-    fn: (prompt, _) async {
+    fn: (_, _) async {
       final response = await ai.generate(
-        // 3.1 TTS (called through generateContent) takes the speakers from
-        // the transcript. For the 3.8 TTS models (Interactions API), see
-        // ttsInteractionsMultiSpeaker: each turn names its speaker.
-        model: googleAI.geminiTts('gemini-3.1-flash-tts-preview'),
-        prompt: prompt,
-        config: GeminiTtsOptions(
-          responseModalities: ['AUDIO'],
-          speechConfig: GeminiSpeechConfig(
-            multiSpeakerVoiceConfig: GeminiMultiSpeakerVoiceConfig(
-              speakerVoiceConfigs: [
-                GeminiSpeakerVoiceConfig(
-                  speaker: 'Speaker A',
-                  voiceConfig: GeminiVoiceConfig(
-                    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
-                      voiceName: 'Puck',
-                    ),
-                  ),
-                ),
-                GeminiSpeakerVoiceConfig(
-                  speaker: 'Speaker B',
-                  voiceConfig: GeminiVoiceConfig(
-                    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
-                      voiceName: 'Kore',
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
+        model: googleAI.geminiTts('gemini-3.8-flash-tts'),
+        promptParts: _joeAndJane(),
+        config: GeminiTtsOptions(speechConfig: _joeAndJaneVoices),
       );
-      if (response.media != null) {
-        return response.media!;
-      }
-      throw Exception('No audio generated');
+      return response.media ?? (throw Exception('No audio generated'));
     },
   );
 
@@ -416,6 +383,39 @@ void main(List<String> args) async {
         messages: turn1.messages,
         prompt: 'What was my secret code?',
         config: GeminiOptions(store: true),
+      );
+      return {
+        'turn1Answer': turn1.text,
+        'turn2Answer': turn2.text,
+        'turn1InteractionId': turn1.message?.metadata?['interactionId'],
+        'turn2InteractionId': turn2.message?.metadata?['interactionId'],
+      };
+    },
+  );
+
+  // Plugin-wide store: googleAI(store: true) stores every Interactions
+  // request that doesn't set `store` itself, so the second turn continues
+  // the first without any per-request option. A separate Genkit instance
+  // keeps the setting away from the other flows; isDevEnv: false so it
+  // doesn't start a second reflection server (its generate calls still
+  // show up in this flow's trace).
+  final storingAi = Genkit(
+    plugins: [googleAI(store: true)],
+    isDevEnv: false,
+    promptDir: null,
+  );
+  ai.defineFlow(
+    name: 'multiTurnPluginStore',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (_, _) async {
+      final turn1 = await storingAi.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        prompt: 'My secret code is RED-MANGO-17. Remember this secret code.',
+      );
+      final turn2 = await storingAi.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        messages: turn1.messages,
+        prompt: 'What was my secret code?',
       );
       return {
         'turn1Answer': turn1.text,
@@ -535,6 +535,38 @@ void main(List<String> args) async {
     },
   );
 
+  // Streamed TTS with one voice. The server sends these audio chunks without
+  // a MIME type (only data, sample_rate and channels); the plugin labels
+  // them audio/l16 so they can be played and joined. The final response is
+  // one audio/l16 part, wrapped in a WAV header here so it can be played.
+  ai.defineFlow(
+    name: 'ttsStreamingSingleVoice',
+    inputSchema: .string(
+      defaultValue: 'Say that Genkit is an amazing AI framework',
+    ),
+    outputSchema: .map(.string(), .dynamicSchema()),
+    streamSchema: .string(),
+    fn: (prompt, ctx) async {
+      var chunkCount = 0;
+      final response = await ai.generate(
+        model: googleAI.geminiTts('gemini-3.8-flash-tts'),
+        prompt: prompt,
+        config: GeminiTtsOptions(speechConfig: _voice('Kore')),
+        onChunk: (chunk) {
+          // A real client would play chunk.media here; report progress only.
+          chunkCount++;
+          ctx.sendChunk('chunk $chunkCount: ${chunk.media?.contentType}');
+        },
+      );
+      final media = response.media ?? (throw Exception('No audio generated'));
+      return {
+        'chunkCount': chunkCount,
+        'streamedContentType': media.contentType,
+        'media': _pcmToWav(media).toJson(),
+      };
+    },
+  );
+
   ai.defineFlow(
     name: 'embedding',
     inputSchema: .string(defaultValue: 'Hello Genkit'),
@@ -575,7 +607,6 @@ final _joeAndJaneVoices = GeminiSpeechConfig(
 /// Wraps raw PCM audio (16-bit little-endian, mono) in a WAV header so it can
 /// be played; WAV media is returned as is. The sample rate comes from the
 /// content type (`rate=...`), else 24000 Hz (the Gemini TTS models' rate).
-/// Like `pcmMediaToWav` in packages/genkit_google_genai/example.
 Media _pcmToWav(Media media) {
   final contentType = media.contentType ?? '';
   if (contentType.toLowerCase().startsWith('audio/wav')) return media;

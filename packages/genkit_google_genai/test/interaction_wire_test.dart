@@ -146,6 +146,90 @@ void _requestTests() {
       expect(body, isNot(contains('stream')));
     });
 
+    test('gives tool requests and responses without a ref generated IDs '
+        '(the Interactions API rejects empty ones)', () async {
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        messages: [
+          ..._hello,
+          Message(
+            role: Role.model,
+            content: [
+              ToolRequestPart(
+                toolRequest: ToolRequest(
+                  name: 'getWeather',
+                  input: {'city': 'Paris'},
+                ),
+              ),
+            ],
+          ),
+          Message(
+            role: Role.tool,
+            content: [
+              ToolResponsePart(
+                toolResponse: ToolResponse(name: 'getWeather', output: 'sunny'),
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final input = plugin.lastBody['input'] as List;
+      expect(input.skip(1), [
+        {
+          'type': 'function_call',
+          'name': 'getWeather',
+          'arguments': {'city': 'Paris'},
+          'id': 'genkit-auto-id-0',
+        },
+        {
+          'type': 'function_result',
+          'name': 'getWeather',
+          'result': 'sunny',
+          'call_id': 'genkit-auto-id-0',
+        },
+      ]);
+    });
+
+    test('keeps the refs a history already has', () async {
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        messages: [
+          ..._hello,
+          Message(
+            role: Role.model,
+            content: [
+              ToolRequestPart(
+                toolRequest: ToolRequest(
+                  ref: 'call_1',
+                  name: 'getWeather',
+                  input: {'city': 'Paris'},
+                ),
+              ),
+            ],
+          ),
+          Message(
+            role: Role.tool,
+            content: [
+              ToolResponsePart(
+                toolResponse: ToolResponse(
+                  ref: 'call_1',
+                  name: 'getWeather',
+                  output: 'sunny',
+                ),
+              ),
+            ],
+          ),
+        ],
+      );
+
+      final input = plugin.lastBody['input'] as List;
+      expect((input[1] as Map)['id'], 'call_1');
+      expect((input[2] as Map)['call_id'], 'call_1');
+    });
+
     test('sends the system message as system_instruction', () async {
       final plugin = InteractionsWirePlugin();
       await _run(
@@ -407,6 +491,27 @@ void _configTests() {
           "thinkingConfig.thinkingLevel ('LOW' | 'MEDIUM' | 'HIGH') instead.",
         ),
       );
+    });
+
+    test('thinkingBudget: 0 is dropped with its own warning (thinking '
+        "can't be turned off; no level is chosen)", () async {
+      final warnings = _captureWarnings();
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        config: {
+          'thinkingConfig': {'thinkingBudget': 0},
+        },
+      );
+
+      expect(plugin.lastBody['generation_config'], <String, Object?>{});
+      expect(warnings, [
+        'thinkingConfig.thinkingBudget: 0 (thinking off) was ignored: '
+            "'gemini-3.8-flash' can't turn thinking off (the Interactions API "
+            'has no thinking budget). For the least thinking, set '
+            "thinkingConfig.thinkingLevel to the model's lowest level ('LOW', "
+            "or 'MINIMAL' where the model supports it).",
+      ]);
     });
 
     test('sends logprobs (they work on gemini-4-argon)', () async {
@@ -860,6 +965,64 @@ void _streamingTests() {
       final media = response.message!.content.single.media!;
       expect(media.contentType, 'audio/l16');
       expect(media.url, 'data:audio/l16;base64,AQIDBA==');
+    });
+
+    test('streams single-voice TTS audio that comes without a mime_type as '
+        'audio/l16, joined in the final response', () async {
+      // The events gemini-3.8-flash-lite-tts sends for one voice and no
+      // audioFormat (captured live, Nov 2026): audio deltas with data,
+      // channels and sample_rate, but no mime_type.
+      final chunks = <ModelResponseChunk>[];
+      const contentType = 'audio/l16; rate=24000; channels=1';
+      final response = await _run(
+        InteractionsWirePlugin(
+          sseEvents: [
+            {
+              'event_type': 'interaction.created',
+              'interaction': {
+                'object': 'interaction',
+                'model': 'gemini-3.8-flash-lite-tts',
+              },
+            },
+            {
+              'event_type': 'interaction.status_update',
+              'status': 'in_progress',
+            },
+            {
+              'event_type': 'step.start',
+              'index': 0,
+              'step': {'type': 'model_output'},
+            },
+            for (final data in ['AQI=', 'AwQ='])
+              {
+                'event_type': 'step.delta',
+                'index': 0,
+                'delta': {
+                  'data': data,
+                  'channels': 1,
+                  'sample_rate': 24000,
+                  'type': 'audio',
+                },
+              },
+            {'event_type': 'step.stop', 'index': 0},
+            {
+              'event_type': 'interaction.completed',
+              'interaction': {'status': 'completed'},
+            },
+          ],
+        ),
+        model: 'gemini-3.8-flash-lite-tts',
+        onChunk: chunks.add,
+      );
+
+      expect(
+        [for (final c in chunks) c.media?.contentType],
+        [contentType, contentType],
+      );
+      expect(chunks.first.media!.url, 'data:$contentType;base64,AQI=');
+      final media = response.message!.content.single.media!;
+      expect(media.contentType, contentType);
+      expect(media.url, 'data:$contentType;base64,AQIDBA==');
     });
   });
 }

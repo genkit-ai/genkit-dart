@@ -77,14 +77,13 @@ Stream<InteractionSseEvent> parseInteractionSse(Stream<String> lines) async* {
 
   final rest = leftover.toString().trim();
   if (rest.isNotEmpty) {
-    Object? error;
+    Map? error;
     try {
-      final decoded = jsonDecode(rest);
-      if (decoded is Map) error = decoded['error'];
+      error = _errorObjectOf(jsonDecode(rest));
     } on FormatException {
       // Not JSON: reported as is below.
     }
-    if (error is Map) {
+    if (error != null) {
       throw GenkitException(
         'Interaction API returned an error: [${error['code']}] '
         '${error['message']}',
@@ -98,6 +97,18 @@ Stream<InteractionSseEvent> parseInteractionSse(Stream<String> lines) async* {
       status: StatusCode.internal,
     );
   }
+}
+
+/// The `error` object of a decoded Google API error body, or null.
+///
+/// The body is usually `{"error": {...}}`, but the Interactions API wraps it
+/// in a list (`[{"error": {...}}]`, e.g. for an invalid API key), so a
+/// single-element list is unwrapped first.
+Map? _errorObjectOf(Object? decoded) {
+  if (decoded is List && decoded.length == 1) decoded = decoded.single;
+  if (decoded is! Map) return null;
+  final error = decoded['error'];
+  return error is Map ? error : null;
 }
 
 class GenerativeLanguageBaseClient {
@@ -283,9 +294,8 @@ class GenerativeLanguageBaseClient {
 
   GenkitException _parseGoogleError(int statusCode, String body) {
     try {
-      final json = jsonDecode(body) as Map<String, dynamic>;
-      if (json['error'] is Map) {
-        final err = json['error'] as Map;
+      final err = _errorObjectOf(jsonDecode(body));
+      if (err != null) {
         final message = err['message'] as String? ?? 'Unknown error';
         final statusStr = err['status'] as String?;
         // Interactions API errors carry a string `code` (e.g.

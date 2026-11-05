@@ -415,7 +415,8 @@ void main() {
       {
         'id': 'c1',
         'type': 'code_execution_call',
-        'arguments': {'code': 'print(1)', 'language': 'PYTHON'},
+        // As the server sends it (live: 'python' or 'bash').
+        'arguments': {'code': 'print(1)', 'language': 'python'},
         'signature': 'sig7',
       },
       {
@@ -530,6 +531,114 @@ void main() {
           'result': '72 and sunny',
         },
       ]);
+    });
+
+    test('gives code execution parts saved from generateContent (no callId) '
+        'matching generated IDs', () {
+      // The parts fromGeminiPart builds on generateContent (genkit 1.0): no
+      // metadata.callId, outcome on the result.
+      final steps = toInteractionSteps([
+        _message(Role.model, [
+          {
+            'custom': {
+              'executableCode': {'language': 'PYTHON', 'code': 'print(1)'},
+            },
+          },
+          {
+            'custom': {
+              'codeExecutionResult': {'outcome': 'OUTCOME_OK', 'output': '1\n'},
+            },
+          },
+          {
+            'custom': {
+              'executableCode': {'language': 'PYTHON', 'code': 'print(2)'},
+            },
+          },
+          {
+            'custom': {
+              'codeExecutionResult': {'outcome': 'OUTCOME_OK', 'output': '2\n'},
+            },
+          },
+          {'text': 'Done.'},
+        ]),
+      ]);
+      expect(_wire(steps), [
+        {
+          'type': 'code_execution_call',
+          'id': 'genkit-code-execution-id-0',
+          // Lower case: the Interactions API rejects 'PYTHON'.
+          'arguments': {'code': 'print(1)', 'language': 'python'},
+        },
+        {
+          'type': 'code_execution_result',
+          'call_id': 'genkit-code-execution-id-0',
+          'result': '1\n',
+        },
+        {
+          'type': 'code_execution_call',
+          'id': 'genkit-code-execution-id-1',
+          'arguments': {'code': 'print(2)', 'language': 'python'},
+        },
+        {
+          'type': 'code_execution_result',
+          'call_id': 'genkit-code-execution-id-1',
+          'result': '2\n',
+        },
+        {
+          'type': 'model_output',
+          'content': [
+            {'type': 'text', 'text': 'Done.'},
+          ],
+        },
+      ]);
+    });
+
+    test('keeps code execution callIds a history already has, and gives a '
+        'result without a call an orphan ID', () {
+      final steps = toInteractionSteps([
+        _message(Role.model, [
+          {
+            'custom': {
+              'executableCode': {'code': 'print(1)'},
+            },
+            'metadata': {'callId': 'c1'},
+          },
+          {
+            'custom': {
+              'codeExecutionResult': {'output': '1'},
+            },
+            'metadata': {'callId': 'c1'},
+          },
+          {
+            'custom': {
+              'codeExecutionResult': {'output': '2'},
+            },
+          },
+        ]),
+      ]);
+      final wire = _wire(steps).cast<Map>();
+      expect(wire[0]['id'], 'c1');
+      // No language: python (the only default the API has).
+      expect(wire[0]['arguments'], {'code': 'print(1)', 'language': 'python'});
+      expect(wire[1]['call_id'], 'c1');
+      expect(wire[2]['call_id'], 'genkit-code-execution-orphan-id-0');
+    });
+
+    test('sends a bash code execution call as bash', () {
+      final steps = toInteractionSteps([
+        _message(Role.model, [
+          {
+            'custom': {
+              'executableCode': {'code': 'pwd', 'language': 'bash'},
+            },
+            'metadata': {'callId': 'c1'},
+          },
+        ]),
+      ]);
+      expect((_wire(steps).single as Map)['arguments'], {
+        'code': 'pwd',
+        'language': 'bash',
+      });
     });
 
     test('wraps a non-object tool output in {result}', () {
@@ -700,6 +809,39 @@ void main() {
       expect(response.raw!['model'], 'gemini-3.8-flash');
     });
 
+    test('labels audio without a mime_type as audio/l16 from its sample rate '
+        'and channels; a given mime_type wins', () {
+      final response = fromInteractionSync(
+        GeminiInteraction.fromJson({
+          'status': 'completed',
+          'steps': [
+            {
+              'type': 'model_output',
+              'content': [
+                {
+                  'type': 'audio',
+                  'data': 'AQI=',
+                  'channels': 1,
+                  'sample_rate': 16000,
+                },
+                // Nothing to describe: no rate or channels sent.
+                {'type': 'audio', 'data': 'AwQ='},
+                {'type': 'audio', 'data': 'BQY=', 'mime_type': 'audio/wav'},
+              ],
+            },
+          ],
+        }),
+      );
+      expect(
+        [for (final p in response.message!.content) p.media?.url],
+        [
+          'data:audio/l16; rate=16000; channels=1;base64,AQI=',
+          'data:audio/l16; rate=24000; channels=1;base64,AwQ=',
+          'data:audio/wav;base64,BQY=',
+        ],
+      );
+    });
+
     test('carries the interaction id for store: true', () {
       final response = fromInteractionSync(
         GeminiInteraction.fromJson({'id': 'v1_abc', 'status': 'completed'}),
@@ -848,6 +990,14 @@ void main() {
         'thinking_summaries': 'auto',
       });
       expect(dropped, ['thinkingConfig.thinkingBudget']);
+
+      // 0 (thinking off on generateContent) has its own field name, so it
+      // gets its own warning.
+      final droppedZero = <String>[];
+      toInteractionGenerationConfig({
+        'thinkingConfig': {'thinkingBudget': 0},
+      }, droppedZero.add);
+      expect(droppedZero, ['thinkingConfig.thinkingBudget: 0']);
     });
 
     test('toInteractionGenerationConfig keeps imageConfig out (sent as a '

@@ -217,6 +217,9 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
                   ),
           );
           if (serviceTier != null && supportsServiceTier) {
+            // The generated request type has no serviceTier field. toJson()
+            // returns its live backing map (extension type), so this adds
+            // the key to the request body.
             generateRequest.toJson()['serviceTier'] = serviceTier;
           }
 

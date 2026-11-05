@@ -104,6 +104,28 @@ void main() {
         ),
       );
     });
+
+    test('throws on a plain JSON error body wrapped in a list', () {
+      expect(
+        parseInteractionSse(
+          _lines(
+            '[{\n'
+            '  "error": {"code": "service_unavailable", "message": "overloaded"}\n'
+            '}]',
+          ),
+        ).toList(),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.unavailable)
+              .having(
+                (e) => e.message,
+                'message',
+                'Interaction API returned an error: [service_unavailable] '
+                    'overloaded',
+              ),
+        ),
+      );
+    });
   });
 
   group('GenerativeLanguageBaseClient interactions', () {
@@ -159,6 +181,48 @@ void main() {
             StatusCode.notFound,
           ),
         ),
+      );
+    });
+
+    // The Interactions API wraps some error bodies in a list (seen in review
+    // with an invalid API key: `[{"error": {...}}]`); the message must be the
+    // error's, not the raw JSON.
+    final listErrorBody = jsonEncode([
+      {
+        'error': {
+          'code': 400,
+          'message': 'API key not valid. Please pass a valid API key.',
+          'status': 'INVALID_ARGUMENT',
+        },
+      },
+    ]);
+    final isInvalidKeyError = isA<GenkitException>()
+        .having((e) => e.status, 'status', StatusCode.invalidArgument)
+        .having(
+          (e) => e.message,
+          'message',
+          'Google AI Error: API key not valid. Please pass a valid API key.',
+        );
+
+    test('createInteraction reads an error body wrapped in a list', () {
+      final client = clientFor(http.Response(listErrorBody, 400));
+      expect(
+        client.createInteraction(
+          CreateInteractionRequest(model: 'gemini-3.8-flash', input: 'Hi'),
+        ),
+        throwsA(isInvalidKeyError),
+      );
+    });
+
+    test('createInteractionStream reads an error body wrapped in a list', () {
+      final client = clientFor(http.Response(listErrorBody, 400));
+      expect(
+        client
+            .createInteractionStream(
+              CreateInteractionRequest(model: 'gemini-3.8-flash', input: 'Hi'),
+            )
+            .toList(),
+        throwsA(isInvalidKeyError),
       );
     });
 

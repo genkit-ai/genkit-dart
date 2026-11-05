@@ -305,7 +305,11 @@ CreateInteractionRequest _withGenerationConfig(
     model: modelName,
     tools: parts.tools.isEmpty ? null : parts.tools,
     generationConfig: generationConfig,
-    input: toInteractionSteps(messages),
+    // Tool requests and responses without a `ref` (e.g. a history saved from
+    // generateContent, or built by hand) get generated IDs: the Interactions
+    // API rejects an empty `id` / `call_id` with INVALID_ARGUMENT, while
+    // generateContent accepted them.
+    input: toInteractionSteps(ensureToolIds(messages)),
     serviceTier: serviceTier == null ? null : ServiceTier(serviceTier),
     store: store,
   );

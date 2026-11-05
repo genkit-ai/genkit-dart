@@ -144,7 +144,10 @@ If your code reads the provider payload in `response.raw`, it differs:
 2. **Options the Interactions API doesn't use:** `topK`, `presencePenalty`,
    `frequencyPenalty`, `responseMimeType` (other than `application/json`)
    and `thinkingConfig.thinkingBudget` (use `thinkingLevel`) are not sent;
-   each is logged once per model as a warning. `candidateCount` above 1 is
+   each is logged once per model as a warning. This includes
+   `thinkingBudget: 0`: these models can't turn thinking off, so for the
+   least thinking set `thinkingLevel` to the model's lowest level (`LOW`,
+   or `MINIMAL` where the model supports it). `candidateCount` above 1 is
    warned about too: one candidate is returned. `temperature` and `topP`
    are still sent, although newer models ignore them.
    `responseMimeType: 'application/json'` asks for JSON output, as on
