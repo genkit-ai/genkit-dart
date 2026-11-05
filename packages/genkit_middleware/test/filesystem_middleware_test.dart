@@ -217,6 +217,40 @@ void main() {
       );
     });
 
+    test('reports an unresolvable root, not the path, when the root has a '
+        'link cycle', () async {
+      final a = p.join(tempDir.path, 'a');
+      final b = p.join(tempDir.path, 'b');
+      await Link(a).create(b);
+      await Link(b).create(a);
+      final mw = FilesystemMiddleware(a);
+
+      final unresolvable = throwsA(
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.failedPrecondition)
+            .having(
+              (e) => e.message,
+              'message',
+              allOf(
+                contains('rootDirectory could not be resolved'),
+                contains(a),
+              ),
+            ),
+      );
+      expect(
+        () => mw.tools.firstWhere((t) => t.name == 'read_file').runRaw({
+          'filePath': 'file.txt',
+        }),
+        unresolvable,
+      );
+      expect(
+        () => mw.tools.firstWhere((t) => t.name == 'list_files').runRaw({
+          'dirPath': '.',
+        }),
+        unresolvable,
+      );
+    });
+
     group('symlinks', () {
       // Layout: tempDir/root is the sandbox, tempDir/outside is not.
       late Directory root;
