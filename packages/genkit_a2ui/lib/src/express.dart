@@ -83,6 +83,10 @@ final class ExpressEngine {
         // Skipped; see above.
       }
     }
+    // The renderer already holds all of this, so none of it is judged again:
+    // without this, a component an earlier update orphaned would count as new
+    // and fail the reachability check of every later update to its surface.
+    mirror._state.markChecked(mirror._state.surfaceIds);
     return mirror;
   }
 }

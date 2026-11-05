@@ -381,6 +381,52 @@ void main() {
         );
       });
 
+      test('a component an earlier update orphaned does not block updates', () {
+        // Turn 2 dropped `b` from the tree; the renderer still holds it, so a
+        // later update must not be judged on it.
+        final parser = A2uiStreamParser(
+          catalog: basicCatalog,
+          history: [
+            {
+              'version': a2uiVersion,
+              'createSurface': {'surfaceId': 's', 'catalogId': basicCatalogId},
+            },
+            {
+              'version': a2uiVersion,
+              'updateComponents': {
+                'surfaceId': 's',
+                'components': [
+                  {
+                    'id': 'root',
+                    'component': 'Column',
+                    'children': ['a', 'b'],
+                  },
+                  {'id': 'a', 'component': 'Text', 'text': 'A'},
+                  {'id': 'b', 'component': 'Text', 'text': 'B'},
+                ],
+              },
+            },
+            {
+              'version': a2uiVersion,
+              'updateComponents': {
+                'surfaceId': 's',
+                'components': [
+                  {
+                    'id': 'root',
+                    'component': 'Column',
+                    'children': ['a'],
+                  },
+                ],
+              },
+            },
+          ],
+        );
+        final batch = batchesOf(
+          collect(parser, ['<a2ui>\nsurface("s")\n\$/k = "v"\n</a2ui>']),
+        ).single;
+        expect(kinds(batch), ['updateDataModel']);
+      });
+
       test('a rejected block does not change what later blocks see', () {
         final parser = newParser(
           live: ['tokyo'],
