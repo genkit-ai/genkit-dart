@@ -352,13 +352,13 @@ class A2uiCatalog {
   /// and compiles against. Parsed once per instance.
   ///
   /// Throws `A2uiCatalogError` if the catalog is not a valid catalog document.
-  core.SchemaCatalog toCore() =>
+  core.CatalogApi toCore() =>
       _coreCatalogs[this] ??= core.Catalog.fromJson(toJson());
 }
 
 // An Expando rather than a `late final` field, which would rule out the const
 // constructor.
-final _coreCatalogs = Expando<core.SchemaCatalog>();
+final _coreCatalogs = Expando<core.CatalogApi>();
 
 const String _commonTypes =
     'https://a2ui.org/specification/v0_9/common_types.json';
