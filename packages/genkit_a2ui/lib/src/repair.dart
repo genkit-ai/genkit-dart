@@ -49,7 +49,10 @@ $source
 </a2ui>
 
 Fix the error and return ONLY the corrected block, wrapped in <a2ui> tags.
-Keep its surface(...) line unchanged. Do not explain the change.''';
+Make the smallest change that fixes it: keep every component, value and data
+path the block already has, and if the block looks cut off, complete it rather
+than dropping the unfinished part. Keep its surface(...) line unchanged. Do
+not explain the change.''';
 
 /// Extracts the Express source from a repair reply, tolerating a model that
 /// omits the tags or wraps the block in a Markdown fence.
