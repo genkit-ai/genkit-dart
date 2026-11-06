@@ -50,6 +50,10 @@ class _CandidateState {
   String? finalFinishMessage;
   final Map<m.HarmCategory, m.SafetyRating> safetyRatings = {};
   m.CitationMetadata? citationMetadata;
+  // firebase_ai does not export the metadata types, so the latest chunk that
+  // carried each one is kept instead.
+  m.Candidate? groundingSource;
+  m.Candidate? urlContextSource;
   String role = 'model';
   List<m.Part> parts = [];
 
@@ -70,6 +74,9 @@ class _CandidateState {
     if (chunk.citationMetadata != null) {
       citationMetadata = chunk.citationMetadata;
     }
+    // Gemini sends grounding metadata whole, usually on the last chunk.
+    if (chunk.groundingMetadata != null) groundingSource = chunk;
+    if (chunk.urlContextMetadata != null) urlContextSource = chunk;
     if (chunk.content.role != null) {
       role = chunk.content.role!;
     }
@@ -137,6 +144,8 @@ class _CandidateState {
       citationMetadata,
       finalFinishReason,
       finalFinishMessage,
+      groundingMetadata: groundingSource?.groundingMetadata,
+      urlContextMetadata: urlContextSource?.urlContextMetadata,
     );
   }
 }

@@ -32,17 +32,21 @@ import 'package:schemantic/schemantic.dart';
 import 'src/aggregation.dart';
 import 'src/error_mapping.dart';
 import 'src/finish_reason.dart';
+import 'src/grounding.dart';
+import 'src/known_models.dart';
 
 part 'genkit_firebase_ai.g.dart';
 
 final _logger = Logger('genkit_firebase_ai');
 
-/// Capabilities every model this plugin serves has.
+/// The capabilities of a Gemini text model.
 ///
-/// The plugin serves Gemini through the Firebase AI SDK and resolves any model
-/// name on demand, so there is no per-model catalog to key this off; these are
-/// the Gemini family's capabilities, matching `genkit_google_genai`'s
-/// `commonModelInfo`.
+/// Each model now advertises its own label, stage and capabilities in its
+/// `metadata['model']`, and image, TTS and Live models differ from these.
+@Deprecated(
+  "Read a model's capabilities from its metadata['model'] instead. Image, "
+  'TTS and Live models differ from these.',
+)
 final firebaseAiModelInfo = ModelInfo(
   supports: {
     'multiturn': true,
@@ -54,14 +58,46 @@ final firebaseAiModelInfo = ModelInfo(
   },
 );
 
+// firebase_ai 5 deprecates these for Gemini 3.x, but they still work on
+// older models and are portable Genkit options, so they stay through 1.0
+// (#596).
+const _ignoredByGemini3 =
+    'Gemini 3 and newer models ignore this and manage sampling themselves.';
+const _rejectedByGemini3 =
+    'Gemini 3 and newer models may reject requests that set this with a 400 '
+    'error.';
+const _notForGemini3 =
+    'Not supported on Gemini 3 and newer models. Make parallel requests '
+    'instead.';
+// Live sends its config in the WebSocket setup message, so a rejected field
+// closes the socket rather than returning a 400.
+const _liveNotForGemini3 = 'Gemini 3 and newer models may not support this.';
+
 @Schema()
 abstract class $GeminiOptions {
   List<String>? get stopSequences;
   int? get maxOutputTokens;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get temperature;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get topP;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   int? get topK;
+
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
+  @Field(description: _rejectedByGemini3)
   double? get presencePenalty;
+
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
+  @Field(description: _rejectedByGemini3)
   double? get frequencyPenalty;
   List<String>? get responseModalities;
   String? get responseMimeType;
@@ -81,9 +117,133 @@ abstract class $GeminiOptions {
   )
   Map<String, dynamic>? get responseJsonSchema;
   $ThinkingConfig? get thinkingConfig;
+
+  /// Not supported on Gemini 3 and newer models. Make parallel requests
+  /// instead.
+  @Field(description: _notForGemini3)
   int? get candidateCount;
   bool? get codeExecution;
   $FunctionCallingConfig? get functionCallingConfig;
+  @Field(
+    description:
+        'Per-category thresholds for blocking harmful content. Each entry '
+        'needs a category and a threshold.',
+  )
+  List<$GeminiSafetySettings>? get safetySettings;
+  @Field(description: 'Grounds responses in Google Search results.')
+  $GeminiGoogleSearch? get googleSearch;
+  @Field(description: 'Lets the model read the URLs given in the prompt.')
+  $GeminiUrlContext? get urlContext;
+  @Field(
+    description:
+        'Grounds responses in Google Maps data. Pass the user location in '
+        'retrievalConfig.',
+  )
+  $GeminiGoogleMaps? get googleMaps;
+  @Field(description: 'Location and language for Google Maps grounding.')
+  $GeminiRetrievalConfig? get retrievalConfig;
+  @Field(description: 'Voice and language for text-to-speech models.')
+  $SpeechConfig? get speechConfig;
+  @Field(description: 'Aspect ratio and size for image generation models.')
+  $GeminiImageConfig? get imageConfig;
+  @StringField(
+    enumValues: [
+      'MEDIA_RESOLUTION_LOW',
+      'MEDIA_RESOLUTION_MEDIUM',
+      'MEDIA_RESOLUTION_HIGH',
+    ],
+    description:
+        'Resolution for media inputs. A media part can set its own in '
+        'metadata.mediaResolution, which also takes '
+        'MEDIA_RESOLUTION_ULTRA_HIGH.',
+  )
+  String? get mediaResolution;
+}
+
+@Schema()
+abstract class $GeminiImageConfig {
+  @StringField(
+    enumValues: [
+      '1:1',
+      '9:16',
+      '16:9',
+      '3:4',
+      '4:3',
+      '2:3',
+      '3:2',
+      '4:5',
+      '5:4',
+      '1:4',
+      '4:1',
+      '1:8',
+      '8:1',
+      '21:9',
+    ],
+  )
+  String? get aspectRatio;
+
+  @StringField(enumValues: ['512', '1K', '2K', '4K'])
+  String? get imageSize;
+}
+
+@Schema()
+abstract class $GeminiGoogleSearch {}
+
+@Schema()
+abstract class $GeminiUrlContext {}
+
+@Schema()
+abstract class $GeminiGoogleMaps {}
+
+@Schema()
+abstract class $GeminiRetrievalConfig {
+  $GeminiLatLng? get latLng;
+  String? get languageCode;
+}
+
+@Schema()
+abstract class $GeminiLatLng {
+  double? get latitude;
+  double? get longitude;
+}
+
+@Schema()
+abstract class $GeminiSafetySettings {
+  @StringField(
+    description:
+        'The HARM_CATEGORY_IMAGE_* categories are Agent Platform only; the '
+        'Gemini Developer API rejects them.',
+    enumValues: [
+      'HARM_CATEGORY_HARASSMENT',
+      'HARM_CATEGORY_HATE_SPEECH',
+      'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'HARM_CATEGORY_DANGEROUS_CONTENT',
+      'HARM_CATEGORY_IMAGE_HATE',
+      'HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT',
+      'HARM_CATEGORY_IMAGE_HARASSMENT',
+      'HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT',
+    ],
+  )
+  String? get category;
+
+  @StringField(
+    enumValues: [
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+      'OFF',
+    ],
+  )
+  String? get threshold;
+
+  @StringField(
+    enumValues: ['SEVERITY', 'PROBABILITY'],
+    description:
+        'Whether the threshold applies to the probability or the severity '
+        'score. Agent Platform only; the Gemini Developer API rejects it.',
+  )
+  String? get method;
 }
 
 @Schema()
@@ -120,6 +280,26 @@ abstract class $VoiceConfig {
 @Schema()
 abstract class $SpeechConfig {
   $VoiceConfig? get voiceConfig;
+  @Field(
+    description:
+        'Voices for a multi-speaker conversation, with exactly two '
+        'speakers. Cannot be set together with voiceConfig.',
+  )
+  $MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig;
+  @Field(description: 'BCP-47 language code, for example en-US.')
+  String? get languageCode;
+}
+
+@Schema()
+abstract class $MultiSpeakerVoiceConfig {
+  List<$SpeakerVoiceConfig>? get speakerVoiceConfigs;
+}
+
+@Schema()
+abstract class $SpeakerVoiceConfig {
+  @Field(description: 'The speaker name used in the prompt.')
+  String? get speaker;
+  $VoiceConfig? get voiceConfig;
 }
 
 @Schema()
@@ -128,10 +308,25 @@ abstract class $LiveGenerationConfig {
   $SpeechConfig? get speechConfig;
   List<String>? get stopSequences;
   int? get maxOutputTokens;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get temperature;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get topP;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   int? get topK;
+
+  /// Gemini 3 and newer models may not support this.
+  @Field(description: _liveNotForGemini3)
   double? get presencePenalty;
+
+  /// Gemini 3 and newer models may not support this.
+  @Field(description: _liveNotForGemini3)
   double? get frequencyPenalty;
 }
 
@@ -238,12 +433,12 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   @override
   Future<List<Action>> init() async {
     // Pre-registered so they show up in the Developer UI; any other model name
-    // still resolves on demand (see [resolve]). The live (bidi) entry is the
-    // native-audio model line, which has its own naming.
+    // still resolves on demand (see [resolve]).
+    final agentPlatform = provider is _AgentPlatformProvider;
     return [
-      _createModel('gemini-flash-latest'),
-      _createModel('gemini-3.1-pro-preview'),
-      _createBidiModel('gemini-2.5-flash-native-audio-preview-12-2025'),
+      for (final model in KnownFirebaseAiModel.values)
+        if (model.servedOn(agentPlatform: agentPlatform))
+          model.live ? _createBidiModel(model.id) : _createModel(model.id),
     ];
   }
 
@@ -257,99 +452,164 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   Model _createModel(String modelName) {
     return Model(
       name: 'firebaseai/$modelName',
-      metadata: {'model': firebaseAiModelInfo.toJson()},
+      metadata: {'model': modelInfoFor(modelName).toJson()},
+      customOptions: GeminiOptions.$schema,
       fn: (req, ctx) async {
         final isJsonMode =
             req.output?.format == 'json' ||
             req.output?.contentType == 'application/json';
 
+        // The JSON round trip types nested maps written as Dart literals (e.g.
+        // an empty `{}`) the way the generated getters expect.
         final options = req.config == null
             ? GeminiOptions()
-            : GeminiOptions.$schema.parse(req.config!);
+            : _readConfig(
+                () => GeminiOptions.$schema.parse(
+                  jsonDecode(jsonEncode(req.config)),
+                ),
+              );
 
-        final transport = _StatusRecordingClient(_httpClient);
-        final model = _firebaseAI.generativeModel(
-          model: modelName,
-          generationConfig: toGeminiSettings(
-            options,
-            req.output?.schema,
-            isJsonMode,
-            constrained: req.output?.constrained ?? false,
-          ),
-          tools: toGeminiTools(req.tools, codeExecution: options.codeExecution),
-          toolConfig: toGeminiToolConfig(
-            options.functionCallingConfig,
-            toolChoice: req.toolChoice,
-            hasFunctionTools: req.tools?.isNotEmpty ?? false,
-          ),
-          httpClient: transport,
-        );
-        GenkitException mapError(Object e, StackTrace stack) =>
-            toGenkitException(
+        final nonSystem = req.messages
+            .where((m) => m.role != Role.system)
+            .toList();
+        // Gemini rejects empty `contents`, so a system-only request keeps its
+        // text as the user turn, as it did before systemInstruction was sent.
+        final systemOnly = nonSystem.isEmpty;
+        final contents = toGeminiContent(systemOnly ? req.messages : nonSystem);
+
+        // Per request, because `IOClient` keeps its listeners on the trigger
+        // until it completes, and a reused token's `whenCancelled` may never.
+        final abort = Completer<void>();
+        final disposeCancel = ctx.cancel?.onCancel(abort.complete);
+        try {
+          ctx.cancel?.throwIfCancelled();
+          final transport = _StatusRecordingClient(
+            _httpClient,
+            abortTrigger: ctx.cancel == null ? null : abort.future,
+          );
+          final model = _firebaseAI.generativeModel(
+            model: modelName,
+            safetySettings: toGeminiSafetySettings(
+              options,
+              developerApi: provider is _GoogleAIProvider,
+            ),
+            generationConfig: toGeminiSettings(
+              options,
+              req.output?.schema,
+              isJsonMode,
+              constrained: req.output?.constrained ?? false,
+            ),
+            tools: _readConfig(
+              () => toGeminiTools(
+                req.tools,
+                codeExecution: options.codeExecution,
+                googleSearch: options.googleSearch != null,
+                urlContext: options.urlContext != null,
+                googleMaps: options.googleMaps != null,
+              ),
+            ),
+            toolConfig: _readConfig(
+              () => toGeminiToolConfig(
+                options.functionCallingConfig,
+                toolChoice: req.toolChoice,
+                hasFunctionTools: req.tools?.isNotEmpty ?? false,
+                retrievalConfig: options.retrievalConfig,
+              ),
+            ),
+            systemInstruction: systemOnly
+                ? null
+                : toGeminiSystemInstruction(req.messages),
+            httpClient: transport,
+          );
+          GenkitException mapError(Object e, StackTrace stack) {
+            // An aborted request surfaces as a transport error; report the
+            // cancellation instead.
+            if ((e, ctx.cancel) case (
+              http.RequestAbortedException(),
+              final cancel?,
+            )) {
+              return CancelledException(reason: cancel.reason, token: cancel);
+            }
+            return toGenkitException(
               e,
               stack,
               httpStatus: transport.lastStatusCode,
               errorStatus: transport.lastError?.status,
               errorMessage: transport.lastError?.message,
             );
+          }
 
-        if (ctx.streamingRequested) {
-          final stream = model
-              .generateContentStream(toGeminiContent(req.messages))
-              .handleError((Object e, StackTrace s) => throw mapError(e, s));
-          final chunks = <fai.GenerateContentResponse>[];
-          await for (final chunk in stream) {
-            chunks.add(chunk);
-            if (chunk.candidates.isNotEmpty) {
-              final (message, finishReason) = fromGeminiCandidate(
-                chunk.candidates.first,
-              );
-              ctx.sendChunk(
-                ModelResponseChunk(index: 0, content: message.content),
+          if (ctx.streamingRequested) {
+            if ((options.candidateCount ?? 1) > 1) {
+              // firebase_ai drops each candidate's `index`, so streamed chunks
+              // could not be told apart and would be merged (#656).
+              throw GenkitException(
+                'Streaming with candidateCount > 1 is not supported. A '
+                'non-streaming request returns only the first candidate in '
+                'text and message; the rest are in raw.',
+                status: StatusCode.invalidArgument,
               );
             }
-          }
-          final aggregated = aggregateResponses(chunks);
-          if (aggregated.candidates.isEmpty) {
-            throw _noCandidatesException(aggregated.promptFeedback);
-          }
-          final (message, finishReason) = fromGeminiCandidate(
-            aggregated.candidates.first,
-          );
-          return ModelResponse(
-            finishReason: finishReason,
-            finishMessage: aggregated.candidates.first.finishMessage,
-            custom: _finishCustom(aggregated.candidates.first),
-            message: message,
-            raw: _rawResponse(aggregated),
-            usage: extractUsage(aggregated.usageMetadata),
-          );
-        } else {
-          final fai.GenerateContentResponse response;
-          try {
-            response = await model.generateContent(
-              toGeminiContent(req.messages),
+            final stream = model
+                .generateContentStream(contents)
+                .handleError((Object e, StackTrace s) => throw mapError(e, s));
+            final chunks = <fai.GenerateContentResponse>[];
+            await for (final chunk in stream) {
+              ctx.cancel?.throwIfCancelled();
+              chunks.add(chunk);
+              if (chunk.candidates.isNotEmpty) {
+                final (message, finishReason) = fromGeminiCandidate(
+                  chunk.candidates.first,
+                );
+                ctx.sendChunk(
+                  ModelResponseChunk(index: 0, content: message.content),
+                );
+              }
+            }
+            ctx.cancel?.throwIfCancelled();
+            final aggregated = aggregateResponses(chunks);
+            if (aggregated.candidates.isEmpty) {
+              throw _noCandidatesException(aggregated.promptFeedback);
+            }
+            final (message, finishReason) = fromGeminiCandidate(
+              aggregated.candidates.first,
             );
-          } catch (e, stack) {
-            throw mapError(e, stack);
+            return ModelResponse(
+              finishReason: finishReason,
+              finishMessage: aggregated.candidates.first.finishMessage,
+              custom: _candidateCustom(aggregated.candidates.first),
+              message: message,
+              raw: _rawResponse(aggregated),
+              usage: extractUsage(aggregated.usageMetadata),
+            );
+          } else {
+            final fai.GenerateContentResponse response;
+            try {
+              response = await model.generateContent(contents);
+            } catch (e, stack) {
+              throw mapError(e, stack);
+            }
+            ctx.cancel?.throwIfCancelled();
+
+            if (response.candidates.isEmpty) {
+              throw _noCandidatesException(response.promptFeedback);
+            }
+
+            final (message, finishReason) = fromGeminiCandidate(
+              response.candidates.first,
+            );
+
+            return ModelResponse(
+              finishReason: finishReason,
+              finishMessage: response.candidates.first.finishMessage,
+              custom: _candidateCustom(response.candidates.first),
+              message: message,
+              raw: _rawResponse(response),
+              usage: extractUsage(response.usageMetadata),
+            );
           }
-
-          if (response.candidates.isEmpty) {
-            throw _noCandidatesException(response.promptFeedback);
-          }
-
-          final (message, finishReason) = fromGeminiCandidate(
-            response.candidates.first,
-          );
-
-          return ModelResponse(
-            finishReason: finishReason,
-            finishMessage: response.candidates.first.finishMessage,
-            custom: _finishCustom(response.candidates.first),
-            message: message,
-            raw: _rawResponse(response),
-            usage: extractUsage(response.usageMetadata),
-          );
+        } finally {
+          disposeCancel?.call();
         }
       },
     );
@@ -358,18 +618,13 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   BidiModel _createBidiModel(String modelName) {
     return BidiModel(
       name: 'firebaseai/$modelName',
+      metadata: {'model': modelInfoFor(modelName, live: true).toJson()},
       customOptions: LiveGenerationConfig.$schema,
       fn: (stream, ctx) async {
         final tools = toGeminiTools(ctx.init?.tools);
-        final systemMessage = ctx.init?.messages
-            .where((m) => m.role == Role.system)
-            .firstOrNull;
-        final systemInstruction = systemMessage != null
-            ? fai.Content(
-                'system',
-                systemMessage.content.map(toGeminiPart).toList(),
-              )
-            : null;
+        final systemInstruction = toGeminiSystemInstruction(
+          ctx.init?.messages ?? const [],
+        );
 
         final liveConfig = toLiveGenerationConfig(ctx.init?.config);
 
@@ -396,55 +651,79 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
         }
         _logger.info('Connected to model: $modelName');
 
-        // Send initial history
-        final initialMessages =
-            ctx.init?.messages.where((m) => m.role != Role.system).toList() ??
-            [];
-        for (final msg in initialMessages) {
-          await sendToLiveSession(session, msg);
-        }
-
-        final sub = stream.listen(
-          (chunk) async {
-            for (final msg in chunk.messages) {
-              await sendToLiveSession(session, msg);
-            }
-          },
-          onError: (e) {
-            _logger.severe('InputStream error', e);
-          },
-          onDone: () {
-            _logger.info('InputStream done');
-            session.close();
-          },
+        await runLiveSession(
+          session,
+          history:
+              ctx.init?.messages.where((m) => m.role != Role.system) ??
+              const [],
+          input: stream,
+          onChunk: ctx.sendChunk,
+          cancel: ctx.cancel,
         );
-
-        final receiveFuture = () async {
-          try {
-            await for (final event in session.receive()) {
-              _logger.fine('Session receive loop: $event');
-              final chunk = _fromGeminiLiveEvent(event);
-              if (chunk != null) ctx.sendChunk(chunk);
-            }
-            _logger.fine('Session receive loop finished naturally');
-          } catch (e, s) {
-            _logger.warning('Error in Live session receive loop', e, s);
-          }
-        }();
-
-        await receiveFuture;
-        await sub.cancel();
-        _logger.fine('Closing session');
-        session.close();
-        // Session closed in receiveFuture usually, but ensure it here?
-        // Actually session.close() is called on inputStream done.
-        // If receive loop finishes, we might want to stop input stream?
-        // Usually Bidi sessions end when input ends OR model ends.
 
         return ModelResponse(finishReason: FinishReason.stop);
       },
     );
   }
+}
+
+/// Runs a connected Live [session] until it ends: sends [history], then
+/// the messages of each [input] request in order, and forwards what the
+/// session returns to [onChunk].
+///
+/// Throws a [GenkitException] when sending or receiving fails, or when the
+/// server closed the session, and a [CancelledException] once [cancel] is
+/// cancelled.
+@visibleForTesting
+Future<void> runLiveSession(
+  fai.LiveSession session, {
+  required Iterable<Message> history,
+  required Stream<ModelRequest> input,
+  required void Function(ModelResponseChunk) onChunk,
+  CancellationToken? cancel,
+}) async {
+  final sender = LiveSender(session);
+  // Closing through the sender marks the close as the plugin's, so it is not
+  // reported as the server ending the session.
+  final disposeCancel = cancel?.onCancel(sender.close);
+  // Listen before anything can throw: closing a bidi stream waits for its
+  // input to be listened to and cancelled.
+  final sub = input.listen(
+    (request) => sender.add(request.messages),
+    onError: (e) {
+      _logger.severe('InputStream error', e);
+    },
+    onDone: () async {
+      _logger.info('InputStream done');
+      // Let messages already queued go out before closing.
+      await sender.flush();
+      await sender.close();
+    },
+  );
+
+  try {
+    // A cancel during connect() closes the session at once; stop here rather
+    // than send history to it.
+    cancel?.throwIfCancelled();
+    sender.add(history);
+    await sender.flush();
+    await receiveLiveSession(
+      session,
+      onChunk,
+      closedByPlugin: () => sender.closed,
+    );
+  } finally {
+    disposeCancel?.call();
+    await sub.cancel();
+    _logger.fine('Closing session');
+    await sender.close();
+  }
+  if (sender.failure case (final e, final stack)) {
+    throw toGenkitException(e, stack);
+  }
+  // A cancel closes the session through the sender, which ends the receive
+  // loop as if the session finished normally.
+  cancel?.throwIfCancelled();
 }
 
 /// Builds the Firebase AI Live config from a request's `config`, read through
@@ -456,6 +735,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 fai.LiveGenerationConfig toLiveGenerationConfig(Map<String, dynamic>? config) {
   try {
     return _toLiveGenerationConfig(config);
+  } on GenkitException {
+    rethrow;
   } catch (e) {
     throw GenkitException(
       'Invalid Live model config: $e',
@@ -481,11 +762,7 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
     responseModalities: options.responseModalities
         ?.map((e) => fai.ResponseModalities.values.byName(e.toLowerCase()))
         .toList(),
-    speechConfig: speechConfig == null
-        ? null
-        : fai.SpeechConfig(
-            voiceName: speechConfig.voiceConfig?.prebuiltVoiceConfig?.voiceName,
-          ),
+    speechConfig: toGeminiSpeechConfig(speechConfig),
     maxOutputTokens: options.maxOutputTokens,
     temperature: options.temperature,
     topP: options.topP,
@@ -493,6 +770,83 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
   );
+}
+
+/// Sends messages to a Live session one at a time, in the order they were
+/// added.
+///
+/// Input chunks arrive faster than they are sent, so without the queue their
+/// parts could interleave on the socket. The first failure closes the session
+/// and is kept in [failure]; nothing is sent after it, or after [close].
+@visibleForTesting
+class LiveSender {
+  LiveSender(this._session);
+
+  final fai.LiveSession _session;
+  Future<void> _pending = Future.value();
+
+  /// The first failure to send, which ended the session.
+  (Object, StackTrace)? get failure => _failure;
+  (Object, StackTrace)? _failure;
+
+  /// Whether the plugin closed the session.
+  bool get closed => _closed;
+  bool _closed = false;
+
+  /// Queues [messages] after everything added before.
+  void add(Iterable<Message> messages) {
+    final batch = messages.toList();
+    _pending = _pending.then((_) => _send(batch));
+  }
+
+  /// Completes once every message added so far has been sent or dropped.
+  Future<void> flush() => _pending;
+
+  /// Closes the session. Messages still queued are dropped.
+  Future<void> close() async {
+    if (_closed) return;
+    _closed = true;
+    await _session.close();
+  }
+
+  Future<void> _send(List<Message> messages) async {
+    for (final msg in messages) {
+      if (_closed) return;
+      try {
+        await sendToLiveSession(_session, msg);
+      } catch (e, stack) {
+        // A write cut short by close() fails too, but that is not an error.
+        if (!_closed) _failure ??= (e, stack);
+        await close();
+        return;
+      }
+    }
+  }
+}
+
+/// Forwards [session]'s events to [onChunk] until it ends.
+///
+/// Throws a [GenkitException] when receiving fails, or when the server closed
+/// the session without the plugin asking ([closedByPlugin] false), for
+/// example after rejecting the API key. `firebase_ai` ends `receive()`
+/// quietly on a server close and reports the reason only on the next call.
+@visibleForTesting
+Future<void> receiveLiveSession(
+  fai.LiveSession session,
+  void Function(ModelResponseChunk) onChunk, {
+  required bool Function() closedByPlugin,
+}) async {
+  try {
+    await for (final event in session.receive()) {
+      _logger.fine('Session receive loop: $event');
+      if (_fromGeminiLiveEvent(event) case final chunk?) onChunk(chunk);
+    }
+    if (!closedByPlugin()) {
+      await session.receive().drain<void>();
+    }
+  } catch (e, stack) {
+    throw toGenkitException(e, stack);
+  }
 }
 
 /// Sends [msg] to a Live [session].
@@ -505,9 +859,23 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
 /// and media in model messages (history), go inside the turn instead. All tool responses go
 /// out together, and the remaining parts as one complete client turn, so the
 /// model does not answer before the whole message is in.
+///
+/// Realtime input has no media resolution, so a `metadata.mediaResolution` on
+/// a part sent that way is dropped, with a warning.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a system
+/// message, which a session takes only in its initial request.
 @visibleForTesting
 Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
   _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
+  if (msg.role == Role.system) {
+    // The system instruction is fixed when the session is set up, and sending
+    // the text as a user turn would change what it means.
+    throw GenkitException(
+      'A Live session takes system messages only in its initial request.',
+      status: StatusCode.invalidArgument,
+    );
+  }
 
   final parts = msg.content.map(toGeminiPart).toList();
   final toolResponses = parts.whereType<fai.FunctionResponse>().toList();
@@ -516,13 +884,24 @@ Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
   final framesOnly = otherParts.every(_isRealtimeMedia);
   final turnParts = <fai.Part>[];
 
+  void warnIfResolutionDropped(fai.InlineDataPart part) {
+    if (part.mediaResolution != null) {
+      _logger.warning(
+        'metadata.mediaResolution is not sent with Live realtime input; '
+        'ignoring it for ${part.mimeType}.',
+      );
+    }
+  }
+
   try {
     for (final part in otherParts) {
       switch (part) {
         case fai.InlineDataPart(:final mimeType)
             when isUser && mimeType.startsWith('audio/'):
+          warnIfResolutionDropped(part);
           await session.sendAudioRealtime(part);
         case fai.InlineDataPart() when isUser && framesOnly:
+          warnIfResolutionDropped(part);
           await session.sendVideoRealtime(part);
         default:
           turnParts.add(part);
@@ -561,6 +940,29 @@ String toGeminiRole(Role role) {
   if (role == Role.model) return 'model';
   // user, tool and anything else map to 'user'.
   return 'user';
+}
+
+/// The parts of every system message in [messages], in order, as one
+/// `systemInstruction`, or null when there are none.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a part
+/// other than text, since Gemini's `systemInstruction` takes text only.
+@visibleForTesting
+fai.Content? toGeminiSystemInstruction(List<Message> messages) {
+  final parts = [
+    for (final m in messages)
+      if (m.role == Role.system)
+        for (final part in m.content)
+          if (part.isText)
+            toGeminiPart(part)
+          else
+            throw GenkitException(
+              'System messages can only contain text; Gemini rejects other '
+              'parts in systemInstruction.',
+              status: StatusCode.invalidArgument,
+            ),
+  ];
+  return parts.isEmpty ? null : fai.Content('system', parts);
 }
 
 @visibleForTesting
@@ -613,6 +1015,17 @@ fai.Part toGeminiPart(Part p) {
   }
   if (p.isMedia) {
     final media = p.media!;
+    final mediaResolution = _toMediaResolution(
+      switch (p.metadata?['mediaResolution']) {
+        null => null,
+        final String value => value,
+        final other => throw GenkitException(
+          'metadata.mediaResolution must be a string, not $other.',
+          status: StatusCode.invalidArgument,
+        ),
+      },
+      perPart: true,
+    );
     if (media.url.startsWith('data:')) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
@@ -621,6 +1034,7 @@ fai.Part toGeminiPart(Part p) {
           return fai.InlineDataPart.forTest(
             mimeType,
             uri.data!.contentAsBytes(),
+            mediaResolution: mediaResolution,
             isThought: isThought,
             thoughtSignature: thoughtSignature,
           );
@@ -628,6 +1042,7 @@ fai.Part toGeminiPart(Part p) {
           return fai.InlineDataPart(
             mimeType,
             uri.data!.contentAsBytes(),
+            mediaResolution: mediaResolution,
             isThought: isThought,
           );
         }
@@ -638,6 +1053,7 @@ fai.Part toGeminiPart(Part p) {
       return fai.FileData.forTest(
         media.contentType ?? 'application/octet-stream',
         media.url,
+        mediaResolution: mediaResolution,
         isThought: isThought,
         thoughtSignature: thoughtSignature,
       );
@@ -645,6 +1061,7 @@ fai.Part toGeminiPart(Part p) {
       return fai.FileData(
         media.contentType ?? 'application/octet-stream',
         media.url,
+        mediaResolution: mediaResolution,
         isThought: isThought,
       );
     }
@@ -713,7 +1130,11 @@ fai.Part toGeminiPart(Part p) {
       });
     }
   }
-  throw UnimplementedError('Part type $p not supported yet');
+  // INVALID_ARGUMENT, not INTERNAL: retrying the same request cannot help.
+  throw GenkitException(
+    'Part type $p is not supported by the Firebase AI plugin.',
+    status: StatusCode.invalidArgument,
+  );
 }
 
 @visibleForTesting
@@ -725,13 +1146,22 @@ fai.Part toGeminiPart(Part p) {
   return (message, finishReasonFromWire(candidate.finishReason?.toJson()));
 }
 
-/// The `custom` map for a response, holding the finish reason as `firebase_ai`
-/// parsed it, or null when it parsed none or [fai.FinishReason.unknown], whose
-/// original wire value is lost.
-Map<String, dynamic>? _finishCustom(fai.Candidate candidate) {
-  final reason = candidate.finishReason;
-  if (reason == null || reason == fai.FinishReason.unknown) return null;
-  return {'finishReason': reason.toJson()};
+/// The `custom` map for a response, or null when it has nothing to hold.
+///
+/// It holds the finish reason as `firebase_ai` parsed it, left out when it
+/// parsed none or [fai.FinishReason.unknown], whose original wire value is
+/// lost, and the candidate's grounding and URL context metadata, rebuilt from
+/// what `firebase_ai` parsed.
+Map<String, dynamic>? _candidateCustom(fai.Candidate candidate) {
+  final custom = {
+    'finishReason': ?switch (candidate.finishReason) {
+      null || fai.FinishReason.unknown => null,
+      final reason => reason.toJson(),
+    },
+    'groundingMetadata': ?groundingMetadataJson(candidate),
+    'urlContextMetadata': ?urlContextMetadataJson(candidate),
+  };
+  return custom.isEmpty ? null : custom;
 }
 
 /// Marks a [CustomPart] built from an unparsed API part, so it can go back.
@@ -820,44 +1250,174 @@ ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
   return ModelResponseChunk(index: 0, content: parts);
 }
 
+/// Converts the safety settings in [options] to `firebase_ai` ones.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a missing,
+/// unknown or wrongly typed category or threshold, or, on the Gemini Developer
+/// API ([developerApi]), for an image category or a `method`, which it
+/// rejects.
+@visibleForTesting
+List<fai.SafetySetting>? toGeminiSafetySettings(
+  GeminiOptions options, {
+  required bool developerApi,
+}) {
+  try {
+    return _toGeminiSafetySettings(
+      options.safetySettings,
+      developerApi: developerApi,
+    );
+  } on GenkitException {
+    rethrow;
+  } catch (e) {
+    // A wrongly typed list or field fails in the generated getters.
+    throw GenkitException(
+      'Invalid safetySettings: $e',
+      status: StatusCode.invalidArgument,
+    );
+  }
+}
+
+List<fai.SafetySetting>? _toGeminiSafetySettings(
+  List<GeminiSafetySettings>? settings, {
+  required bool developerApi,
+}) {
+  if (settings == null) return null;
+  return [
+    for (final s in settings)
+      fai.SafetySetting(
+        switch (_wireValue(
+          'category',
+          s.category,
+          _harmCategories,
+          expected: developerApi
+              ? _harmCategories.keys.where(
+                  (c) => !_imageCategories.contains(_harmCategories[c]),
+                )
+              : null,
+        )) {
+          final category
+              when developerApi && _imageCategories.contains(category) =>
+            throw GenkitException(
+              'safetySettings category ${s.category} is not supported by the '
+              'Gemini Developer API; use FirebaseAiProvider.agentPlatform() or '
+              'remove it.',
+              status: StatusCode.invalidArgument,
+            ),
+          final category => category,
+        },
+        _wireValue('threshold', s.threshold, _harmBlockThresholds),
+        switch (s.method) {
+          null => null,
+          _ when developerApi => throw GenkitException(
+            'safetySettings method is not supported by the Gemini Developer '
+            'API; use FirebaseAiProvider.agentPlatform() or remove it.',
+            status: StatusCode.invalidArgument,
+          ),
+          final method => _wireValue('method', method, _harmBlockMethods),
+        },
+      ),
+  ];
+}
+
+final _harmCategories = {
+  for (final c in fai.HarmCategory.values)
+    if (c != fai.HarmCategory.unknown) c.toJson(): c,
+};
+
+/// Image categories, which the Gemini Developer API rejects.
+const _imageCategories = {
+  fai.HarmCategory.imageHate,
+  fai.HarmCategory.imageDangerousContent,
+  fai.HarmCategory.imageHarassment,
+  fai.HarmCategory.imageSexuallyExplicit,
+};
+
+final _harmBlockThresholds = {
+  for (final t in fai.HarmBlockThreshold.values) t.toJson() as String: t,
+};
+
+final _harmBlockMethods = {
+  for (final m in [
+    fai.HarmBlockMethod.severity,
+    fai.HarmBlockMethod.probability,
+  ])
+    m.toJson() as String: m,
+};
+
+/// The enum value of safety setting [field] whose wire name is [value].
+///
+/// The error for an unknown [value] lists [expected], or every wire name.
+T _wireValue<T>(
+  String field,
+  String? value,
+  Map<String, T> byWireName, {
+  Iterable<String>? expected,
+}) {
+  if (byWireName[value] case final match?) return match;
+  throw GenkitException(
+    value == null
+        ? 'safetySettings entries need a $field.'
+        : 'Unknown safetySettings $field "$value"; expected one of '
+              '${(expected ?? byWireName.keys).join(', ')}.',
+    status: StatusCode.invalidArgument,
+  );
+}
+
 @visibleForTesting
 List<fai.Tool>? toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
+  bool googleSearch = false,
+  bool urlContext = false,
+  bool googleMaps = false,
 }) {
-  if ((tools == null || tools.isEmpty) && codeExecution != true) return null;
-
-  return [
-    if (tools != null) ...(tools.map(_toGeminiTool)),
+  final result = [
+    if (tools != null) ...tools.map(_toGeminiTool),
     if (codeExecution == true) fai.Tool.codeExecution(),
+    if (googleSearch) fai.Tool.googleSearch(),
+    if (urlContext) fai.Tool.urlContext(),
+    if (googleMaps) fai.Tool.googleMaps(),
   ];
+  return result.isEmpty ? null : result;
 }
 
-fai.Tool _toGeminiTool(ToolDefinition tool) {
-  final rawSchema = tool.inputSchema;
+fai.Tool _toGeminiTool(ToolDefinition tool) => fai.Tool.functionDeclarations([
+  _JsonSchemaFunctionDeclaration(
+    tool.name,
+    tool.description,
+    _constrainsInput(tool.inputSchema) ? tool.inputSchema : null,
+  ),
+]);
 
-  final flattened = rawSchema?.flatten() ?? <String, dynamic>{};
+/// Whether [schema] says anything about the input. A schema with only
+/// `$schema` or `description`, such as the one `dynamicSchema()` produces,
+/// accepts any value, and Gemini expects `parametersJsonSchema` to describe
+/// an object, so it is left out, as the JS and Go plugins do.
+bool _constrainsInput(Map<String, dynamic>? schema) =>
+    schema != null &&
+    schema.keys.any((k) => k != r'$schema' && k != 'description');
 
-  final propertiesMap = flattened['properties'] as Map<String, dynamic>? ?? {};
-  final requiredList =
-      (flattened['required'] as List<dynamic>?)?.cast<String>() ?? [];
+/// A function declaration that sends the tool's input schema to Gemini
+/// unchanged as `parametersJsonSchema`, as `genkit_google_genai` does.
+///
+/// `firebase_ai` builds `parametersJsonSchema` only from its typed
+/// [fai.JSONSchema], which cannot carry `additionalProperties`, `pattern`,
+/// `oneOf` or a top-level `$defs`, so converting would lose them.
+final class _JsonSchemaFunctionDeclaration extends fai.FunctionDeclaration {
+  _JsonSchemaFunctionDeclaration(
+    super.name,
+    super.description,
+    this.parametersJsonSchema,
+  ) : super(parameters: const {});
 
-  final parameters = propertiesMap.map((key, value) {
-    return MapEntry(key, toGeminiSchema(value as Map<String, dynamic>));
-  });
+  final Map<String, dynamic>? parametersJsonSchema;
 
-  final optionalParameters = propertiesMap.keys
-      .where((k) => !requiredList.contains(k))
-      .toList();
-
-  return fai.Tool.functionDeclarations([
-    fai.FunctionDeclaration(
-      tool.name,
-      tool.description,
-      parameters: parameters,
-      optionalParameters: optionalParameters,
-    ),
-  ]);
+  @override
+  Map<String, Object?> toJson() => {
+    'name': name,
+    'description': description,
+    'parametersJsonSchema': ?parametersJsonSchema,
+  };
 }
 
 @visibleForTesting
@@ -989,6 +1549,125 @@ fai.GenerationConfig _toGeminiSettings(
     thinkingConfig: options.thinkingConfig == null
         ? null
         : _toGeminiThinkingConfig(options.thinkingConfig!),
+    speechConfig: toGeminiSpeechConfig(options.speechConfig),
+    imageConfig: _toGeminiImageConfig(options.imageConfig),
+    mediaResolution: _toMediaResolution(options.mediaResolution),
+  );
+}
+
+/// Converts [config] to a `firebase_ai` speech config.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] when both a
+/// voice and multiple speakers are set, there are not exactly two speakers, or
+/// a speaker lacks a name or voice.
+@visibleForTesting
+fai.SpeechConfig? toGeminiSpeechConfig(SpeechConfig? config) {
+  if (config == null) return null;
+  final voiceName = config.voiceConfig?.prebuiltVoiceConfig?.voiceName;
+  final multi = config.multiSpeakerVoiceConfig;
+  if (multi == null) {
+    return fai.SpeechConfig(
+      voiceName: voiceName,
+      languageCode: config.languageCode,
+    );
+  }
+  if (config.voiceConfig != null) {
+    throw GenkitException(
+      'speechConfig cannot set both voiceConfig and multiSpeakerVoiceConfig.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  final speakers = multi.speakerVoiceConfigs;
+  // Gemini TTS takes exactly two speakers.
+  if (speakers == null || speakers.length != 2) {
+    throw GenkitException(
+      'multiSpeakerVoiceConfig needs exactly two speakerVoiceConfigs entries, '
+      'not ${speakers?.length ?? 0}.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  return fai.SpeechConfig.multiSpeaker(
+    multiSpeakerVoiceConfig: fai.MultiSpeakerVoiceConfig(
+      speakerVoiceConfigs: [
+        for (final speaker in speakers)
+          switch (speaker) {
+            SpeakerVoiceConfig(
+              speaker: final name?,
+              voiceConfig: VoiceConfig(
+                prebuiltVoiceConfig: PrebuiltVoiceConfig(
+                  voiceName: final voice?,
+                ),
+              ),
+            ) =>
+              fai.SpeakerVoiceConfig(speaker: name, voiceName: voice),
+            _ => throw GenkitException(
+              'Each speakerVoiceConfigs entry needs a speaker and a '
+              'voiceConfig.prebuiltVoiceConfig.voiceName.',
+              status: StatusCode.invalidArgument,
+            ),
+          },
+      ],
+    ),
+    languageCode: config.languageCode,
+  );
+}
+
+fai.ImageConfig? _toGeminiImageConfig(GeminiImageConfig? config) {
+  if (config == null) return null;
+  return fai.ImageConfig(
+    aspectRatio: _byWireName(
+      'imageConfig.aspectRatio',
+      config.aspectRatio,
+      fai.ImageAspectRatio.values,
+      (r) => r.toJson(),
+    ),
+    imageSize: _byWireName(
+      'imageConfig.imageSize',
+      config.imageSize,
+      fai.ImageSize.values,
+      (s) => s.toJson(),
+    ),
+  );
+}
+
+/// The [fai.MediaResolution] named [value]. `ultraHigh` is only valid on a
+/// part ([perPart]); `firebase_ai` asserts against it for a whole request.
+fai.MediaResolution? _toMediaResolution(String? value, {bool perPart = false}) {
+  if (!perPart && value == fai.MediaResolution.ultraHigh.toJson()) {
+    throw GenkitException(
+      '$value is only supported on a media part, in '
+      'metadata.mediaResolution.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  return _byWireName(
+    perPart ? 'metadata.mediaResolution' : 'mediaResolution',
+    value,
+    fai.MediaResolution.values.where(
+      (r) => r != fai.MediaResolution.unspecified,
+    ),
+    (r) => r.toJson(),
+  );
+}
+
+/// The value of [values] whose wire name is [value], or null when [value] is.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for an unknown
+/// [value] in [field].
+T? _byWireName<T>(
+  String field,
+  String? value,
+  Iterable<T> values,
+  String Function(T) wireName,
+) {
+  if (value == null) return null;
+  for (final v in values) {
+    if (wireName(v) == value) return v;
+  }
+  throw GenkitException(
+    'Unknown $field "$value"; expected one of '
+    '${values.map(wireName).join(', ')}.',
+    status: StatusCode.invalidArgument,
   );
 }
 
@@ -1030,35 +1709,87 @@ fai.ThinkingConfig _toGeminiThinkingConfig(ThinkingConfig config) {
 /// values are ignored.
 ///
 /// [toolChoice] only applies when [hasFunctionTools] is true, i.e. the request
-/// declares Genkit tools. Code execution doesn't count: a function-calling
-/// mode with no function declarations is contradictory (`required` would
-/// demand a call to nothing).
+/// declares Genkit tools. Code execution and the grounding tools don't count: a
+/// function-calling mode with no function declarations is contradictory
+/// (`required` would demand a call to nothing).
+///
+/// [retrievalConfig] goes next to the function calling config. Throws a
+/// [GenkitException] with [StatusCode.invalidArgument] when its `latLng` has
+/// only one coordinate.
 @visibleForTesting
 fai.ToolConfig? toGeminiToolConfig(
+  FunctionCallingConfig? functionCallingConfig, {
+  ToolChoice? toolChoice,
+  bool hasFunctionTools = false,
+  GeminiRetrievalConfig? retrievalConfig,
+}) {
+  final calling = _toFunctionCallingConfig(
+    functionCallingConfig,
+    toolChoice: toolChoice,
+    hasFunctionTools: hasFunctionTools,
+  );
+  final retrieval = _toRetrievalConfig(retrievalConfig);
+  if (calling == null && retrieval == null) return null;
+  return fai.ToolConfig(
+    functionCallingConfig: calling,
+    retrievalConfig: retrieval,
+  );
+}
+
+fai.FunctionCallingConfig? _toFunctionCallingConfig(
   FunctionCallingConfig? functionCallingConfig, {
   ToolChoice? toolChoice,
   bool hasFunctionTools = false,
 }) {
   if (functionCallingConfig == null) {
     if (!hasFunctionTools) return null;
-    final fromChoice = switch (toolChoice?.value) {
+    return switch (toolChoice?.value) {
       'auto' => fai.FunctionCallingConfig.auto(),
       'required' => fai.FunctionCallingConfig.any({}),
       'none' => fai.FunctionCallingConfig.none(),
       _ => null,
     };
-    return fromChoice == null
-        ? null
-        : fai.ToolConfig(functionCallingConfig: fromChoice);
   }
-  final mConfig = switch (functionCallingConfig.mode?.toUpperCase()) {
+  return switch (functionCallingConfig.mode?.toUpperCase()) {
     'ANY' => fai.FunctionCallingConfig.any(
       functionCallingConfig.allowedFunctionNames?.toSet() ?? {},
     ),
     'NONE' => fai.FunctionCallingConfig.none(),
     _ => fai.FunctionCallingConfig.auto(),
   };
-  return fai.ToolConfig(functionCallingConfig: mConfig);
+}
+
+/// Runs [read], reporting a wrongly typed config field, which fails in the
+/// generated getter, as [StatusCode.invalidArgument].
+T _readConfig<T>(T Function() read) {
+  try {
+    return read();
+  } on GenkitException {
+    rethrow;
+  } catch (e) {
+    throw GenkitException(
+      'Invalid model config: $e',
+      status: StatusCode.invalidArgument,
+    );
+  }
+}
+
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] when `latLng`
+/// is missing a coordinate.
+fai.RetrievalConfig? _toRetrievalConfig(GeminiRetrievalConfig? config) {
+  if (config == null) return null;
+  final latLng = switch (config.latLng) {
+    null => null,
+    GeminiLatLng(:final latitude?, :final longitude?) => fai.LatLng(
+      latitude: latitude,
+      longitude: longitude,
+    ),
+    _ => throw GenkitException(
+      'retrievalConfig.latLng needs both latitude and longitude.',
+      status: StatusCode.invalidArgument,
+    ),
+  };
+  return fai.RetrievalConfig(latLng: latLng, languageCode: config.languageCode);
 }
 
 /// Converts Firebase AI [fai.UsageMetadata] into Genkit [GenerationUsage].
@@ -1066,9 +1797,10 @@ fai.ToolConfig? toGeminiToolConfig(
 GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
   if (metadata == null) return null;
   return GenerationUsage(
-    inputTokens: metadata.promptTokenCount ?? 0,
-    outputTokens: metadata.candidatesTokenCount ?? 0,
-    totalTokens: metadata.totalTokenCount ?? 0,
+    // A count the API leaves out stays null, not 0, as in genkit_google_genai.
+    inputTokens: metadata.promptTokenCount,
+    outputTokens: metadata.candidatesTokenCount,
+    totalTokens: metadata.totalTokenCount,
     thoughtsTokens: metadata.thoughtsTokenCount,
     cachedContentTokens: metadata.cachedContentTokenCount,
     custom: switch (metadata.toolUsePromptTokenCount) {
@@ -1094,8 +1826,7 @@ GenkitException _noCandidatesException(fai.PromptFeedback? feedback) {
 
 /// Rebuilds the wire JSON of [response] from the fields `firebase_ai` parses.
 ///
-/// Citation, grounding and URL context metadata are left out because the SDK
-/// gives them no serialization.
+/// Citation metadata is left out because the SDK gives it no serialization.
 Map<String, dynamic> _rawResponse(fai.GenerateContentResponse response) => {
   'candidates': [
     for (final c in response.candidates)
@@ -1104,6 +1835,8 @@ Map<String, dynamic> _rawResponse(fai.GenerateContentResponse response) => {
         'finishReason': ?c.finishReason?.toJson(),
         'finishMessage': ?c.finishMessage,
         'safetyRatings': ?c.safetyRatings?.map(_rawSafetyRating).toList(),
+        'groundingMetadata': ?groundingMetadataJson(c),
+        'urlContextMetadata': ?urlContextMetadataJson(c),
       },
   ],
   if (response.promptFeedback case final feedback?)
@@ -1150,10 +1883,37 @@ Map<String, dynamic> _rawSafetyRating(fai.SafetyRating rating) => {
 
 /// Records the HTTP status and the error body's gRPC status of the last
 /// response, which `firebase_ai` drops from the exceptions it throws.
+///
+/// When [abortTrigger] completes, the in-flight request is aborted. That needs
+/// a client that honours [http.Abortable], as `IOClient` and `BrowserClient`
+/// do; with any other client, cancellation lands at the next checkpoint.
 class _StatusRecordingClient extends http.BaseClient {
-  _StatusRecordingClient(this._inner);
+  _StatusRecordingClient(this._inner, {this.abortTrigger});
 
   final http.Client _inner;
+
+  final Future<void>? abortTrigger;
+
+  /// [request] as an [http.AbortableRequest] tied to [abortTrigger].
+  /// `firebase_ai` sends plain [http.Request]s.
+  http.BaseRequest _abortable(http.BaseRequest request) {
+    if ((abortTrigger, request) case (
+      final trigger?,
+      final http.Request plain,
+    ) when plain is! http.Abortable) {
+      return http.AbortableRequest(
+          plain.method,
+          plain.url,
+          abortTrigger: trigger,
+        )
+        ..headers.addAll(plain.headers)
+        ..bodyBytes = plain.bodyBytes
+        ..followRedirects = plain.followRedirects
+        ..maxRedirects = plain.maxRedirects
+        ..persistentConnection = plain.persistentConnection;
+    }
+    return request;
+  }
 
   int? lastStatusCode;
 
@@ -1162,7 +1922,7 @@ class _StatusRecordingClient extends http.BaseClient {
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
-    final response = await _inner.send(request);
+    final response = await _inner.send(_abortable(request));
     lastStatusCode = response.statusCode;
     lastError = null;
     if (response.statusCode != 200) {

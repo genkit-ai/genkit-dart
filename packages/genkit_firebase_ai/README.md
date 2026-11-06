@@ -130,9 +130,10 @@ Migrating from earlier versions:
   (and per location for `agentPlatform`). It only finds services registered
   with `FirebaseAppCheck.instanceFor(app:)` and `FirebaseAuth.instanceFor(app:)`
   (or `.instance` for the default app). So set up App Check and Auth for that
-  app before the first model call. For the same reason,
-  `useLimitedUseAppCheckTokens` has no effect if the app already created a
-  `FirebaseAI` instance for the same Firebase app and location. Instances
+  app before the first model call. Before firebase_ai 5.1, for the same
+  reason, `useLimitedUseAppCheckTokens` has no effect if the app already
+  created a `FirebaseAI` instance for the same Firebase app and location. From
+  5.1 the flag is part of that cache key, so it always applies. Instances
   created for a different app than `app:` are no longer used.
 
 To route requests through your own `http.Client` (a proxy, logging, retries,

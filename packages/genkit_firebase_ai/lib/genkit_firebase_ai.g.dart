@@ -44,6 +44,14 @@ base class GeminiOptions {
     int? candidateCount,
     bool? codeExecution,
     FunctionCallingConfig? functionCallingConfig,
+    List<GeminiSafetySettings>? safetySettings,
+    GeminiGoogleSearch? googleSearch,
+    GeminiUrlContext? urlContext,
+    GeminiGoogleMaps? googleMaps,
+    GeminiRetrievalConfig? retrievalConfig,
+    SpeechConfig? speechConfig,
+    GeminiImageConfig? imageConfig,
+    String? mediaResolution,
   }) {
     _json = {
       'stopSequences': ?stopSequences,
@@ -61,6 +69,14 @@ base class GeminiOptions {
       'candidateCount': ?candidateCount,
       'codeExecution': ?codeExecution,
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
+      'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
+      'googleSearch': ?googleSearch?.toJson(),
+      'urlContext': ?urlContext?.toJson(),
+      'googleMaps': ?googleMaps?.toJson(),
+      'retrievalConfig': ?retrievalConfig?.toJson(),
+      'speechConfig': ?speechConfig?.toJson(),
+      'imageConfig': ?imageConfig?.toJson(),
+      'mediaResolution': ?mediaResolution,
     };
   }
 
@@ -94,10 +110,12 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get temperature {
     return (_json['temperature'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set temperature(double? value) {
     if (value == null) {
       _json.remove('temperature');
@@ -106,10 +124,12 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get topP {
     return (_json['topP'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topP(double? value) {
     if (value == null) {
       _json.remove('topP');
@@ -118,10 +138,12 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   int? get topK {
     return (_json['topK'] as num?)?.toInt();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topK(int? value) {
     if (value == null) {
       _json.remove('topK');
@@ -130,10 +152,14 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   double? get presencePenalty {
     return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   set presencePenalty(double? value) {
     if (value == null) {
       _json.remove('presencePenalty');
@@ -142,10 +168,14 @@ base class GeminiOptions {
     }
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   double? get frequencyPenalty {
     return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
   set frequencyPenalty(double? value) {
     if (value == null) {
       _json.remove('frequencyPenalty');
@@ -218,10 +248,14 @@ base class GeminiOptions {
     }
   }
 
+  /// Not supported on Gemini 3 and newer models. Make parallel requests
+  /// instead.
   int? get candidateCount {
     return (_json['candidateCount'] as num?)?.toInt();
   }
 
+  /// Not supported on Gemini 3 and newer models. Make parallel requests
+  /// instead.
   set candidateCount(int? value) {
     if (value == null) {
       _json.remove('candidateCount');
@@ -258,6 +292,126 @@ base class GeminiOptions {
     }
   }
 
+  List<GeminiSafetySettings>? get safetySettings {
+    return (_json['safetySettings'] as List?)
+        ?.map((e) => GeminiSafetySettings.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set safetySettings(List<GeminiSafetySettings>? value) {
+    if (value == null) {
+      _json.remove('safetySettings');
+    } else {
+      _json['safetySettings'] = value.map((e) => e.toJson()).toList();
+    }
+  }
+
+  GeminiGoogleSearch? get googleSearch {
+    return _json['googleSearch'] == null
+        ? null
+        : GeminiGoogleSearch.fromJson(
+            _json['googleSearch'] as Map<String, dynamic>,
+          );
+  }
+
+  set googleSearch(GeminiGoogleSearch? value) {
+    if (value == null) {
+      _json.remove('googleSearch');
+    } else {
+      _json['googleSearch'] = value.toJson();
+    }
+  }
+
+  GeminiUrlContext? get urlContext {
+    return _json['urlContext'] == null
+        ? null
+        : GeminiUrlContext.fromJson(
+            _json['urlContext'] as Map<String, dynamic>,
+          );
+  }
+
+  set urlContext(GeminiUrlContext? value) {
+    if (value == null) {
+      _json.remove('urlContext');
+    } else {
+      _json['urlContext'] = value.toJson();
+    }
+  }
+
+  GeminiGoogleMaps? get googleMaps {
+    return _json['googleMaps'] == null
+        ? null
+        : GeminiGoogleMaps.fromJson(
+            _json['googleMaps'] as Map<String, dynamic>,
+          );
+  }
+
+  set googleMaps(GeminiGoogleMaps? value) {
+    if (value == null) {
+      _json.remove('googleMaps');
+    } else {
+      _json['googleMaps'] = value.toJson();
+    }
+  }
+
+  GeminiRetrievalConfig? get retrievalConfig {
+    return _json['retrievalConfig'] == null
+        ? null
+        : GeminiRetrievalConfig.fromJson(
+            _json['retrievalConfig'] as Map<String, dynamic>,
+          );
+  }
+
+  set retrievalConfig(GeminiRetrievalConfig? value) {
+    if (value == null) {
+      _json.remove('retrievalConfig');
+    } else {
+      _json['retrievalConfig'] = value.toJson();
+    }
+  }
+
+  SpeechConfig? get speechConfig {
+    return _json['speechConfig'] == null
+        ? null
+        : SpeechConfig.fromJson(_json['speechConfig'] as Map<String, dynamic>);
+  }
+
+  set speechConfig(SpeechConfig? value) {
+    if (value == null) {
+      _json.remove('speechConfig');
+    } else {
+      _json['speechConfig'] = value.toJson();
+    }
+  }
+
+  GeminiImageConfig? get imageConfig {
+    return _json['imageConfig'] == null
+        ? null
+        : GeminiImageConfig.fromJson(
+            _json['imageConfig'] as Map<String, dynamic>,
+          );
+  }
+
+  set imageConfig(GeminiImageConfig? value) {
+    if (value == null) {
+      _json.remove('imageConfig');
+    } else {
+      _json['imageConfig'] = value.toJson();
+    }
+  }
+
+  String? get mediaResolution {
+    return _json['mediaResolution'] as String?;
+  }
+
+  set mediaResolution(String? value) {
+    if (value == null) {
+      _json.remove('mediaResolution');
+    } else {
+      _json['mediaResolution'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -288,11 +442,31 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
           'items': <String, Object?>{'type': 'string'},
         },
         'maxOutputTokens': <String, Object?>{'type': 'integer'},
-        'temperature': <String, Object?>{'type': 'number'},
-        'topP': <String, Object?>{'type': 'number'},
-        'topK': <String, Object?>{'type': 'integer'},
-        'presencePenalty': <String, Object?>{'type': 'number'},
-        'frequencyPenalty': <String, Object?>{'type': 'number'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topK': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'presencePenalty': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models may reject requests that set this with a 400 error.',
+        },
+        'frequencyPenalty': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models may reject requests that set this with a 400 error.',
+        },
         'responseModalities': <String, Object?>{
           'type': 'array',
           'items': <String, Object?>{'type': 'string'},
@@ -311,14 +485,588 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
           'additionalProperties': <String, Object?>{},
         },
         'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},
-        'candidateCount': <String, Object?>{'type': 'integer'},
+        'candidateCount': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Not supported on Gemini 3 and newer models. Make parallel requests instead.',
+        },
         'codeExecution': <String, Object?>{'type': 'boolean'},
         'functionCallingConfig': <String, Object?>{
           r'$ref': r'#/$defs/FunctionCallingConfig',
         },
+        'safetySettings': <String, Object?>{
+          'type': 'array',
+          'description':
+              'Per-category thresholds for blocking harmful content. Each entry needs a category and a threshold.',
+          'items': <String, Object?>{r'$ref': r'#/$defs/GeminiSafetySettings'},
+        },
+        'googleSearch': <String, Object?>{
+          'description': 'Grounds responses in Google Search results.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiGoogleSearch'},
+          ],
+        },
+        'urlContext': <String, Object?>{
+          'description': 'Lets the model read the URLs given in the prompt.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiUrlContext'},
+          ],
+        },
+        'googleMaps': <String, Object?>{
+          'description':
+              'Grounds responses in Google Maps data. Pass the user location in retrievalConfig.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiGoogleMaps'},
+          ],
+        },
+        'retrievalConfig': <String, Object?>{
+          'description': 'Location and language for Google Maps grounding.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiRetrievalConfig'},
+          ],
+        },
+        'speechConfig': <String, Object?>{
+          'description': 'Voice and language for text-to-speech models.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/SpeechConfig'},
+          ],
+        },
+        'imageConfig': <String, Object?>{
+          'description': 'Aspect ratio and size for image generation models.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiImageConfig'},
+          ],
+        },
+        'mediaResolution': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Resolution for media inputs. A media part can set its own in metadata.mediaResolution, which also takes MEDIA_RESOLUTION_ULTRA_HIGH.',
+          'enum': [
+            'MEDIA_RESOLUTION_LOW',
+            'MEDIA_RESOLUTION_MEDIUM',
+            'MEDIA_RESOLUTION_HIGH',
+          ],
+        },
       },
     },
-    dependencies: [ThinkingConfig.$schema, FunctionCallingConfig.$schema],
+    dependencies: [
+      ThinkingConfig.$schema,
+      FunctionCallingConfig.$schema,
+      GeminiSafetySettings.$schema,
+      GeminiGoogleSearch.$schema,
+      GeminiUrlContext.$schema,
+      GeminiGoogleMaps.$schema,
+      GeminiRetrievalConfig.$schema,
+      SpeechConfig.$schema,
+      GeminiImageConfig.$schema,
+    ],
+  );
+}
+
+base class GeminiImageConfig {
+  /// Creates a [GeminiImageConfig] from a JSON map.
+  factory GeminiImageConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiImageConfig._(this._json);
+
+  GeminiImageConfig({String? aspectRatio, String? imageSize}) {
+    _json = {'aspectRatio': ?aspectRatio, 'imageSize': ?imageSize};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiImageConfig].
+  static const SchemanticType<GeminiImageConfig> $schema =
+      _GeminiImageConfigTypeFactory();
+
+  String? get aspectRatio {
+    return _json['aspectRatio'] as String?;
+  }
+
+  set aspectRatio(String? value) {
+    if (value == null) {
+      _json.remove('aspectRatio');
+    } else {
+      _json['aspectRatio'] = value;
+    }
+  }
+
+  String? get imageSize {
+    return _json['imageSize'] as String?;
+  }
+
+  set imageSize(String? value) {
+    if (value == null) {
+      _json.remove('imageSize');
+    } else {
+      _json['imageSize'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiImageConfig] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiImageConfigTypeFactory
+    extends SchemanticType<GeminiImageConfig> {
+  const _GeminiImageConfigTypeFactory();
+
+  @override
+  GeminiImageConfig parse(Object? json) {
+    return GeminiImageConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiImageConfig',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'aspectRatio': <String, Object?>{
+          'type': 'string',
+          'enum': [
+            '1:1',
+            '9:16',
+            '16:9',
+            '3:4',
+            '4:3',
+            '2:3',
+            '3:2',
+            '4:5',
+            '5:4',
+            '1:4',
+            '4:1',
+            '1:8',
+            '8:1',
+            '21:9',
+          ],
+        },
+        'imageSize': <String, Object?>{
+          'type': 'string',
+          'enum': ['512', '1K', '2K', '4K'],
+        },
+      },
+    },
+    dependencies: [],
+  );
+}
+
+base class GeminiGoogleSearch {
+  /// Creates a [GeminiGoogleSearch] from a JSON map.
+  factory GeminiGoogleSearch.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiGoogleSearch._(this._json);
+
+  GeminiGoogleSearch() {
+    _json = {};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiGoogleSearch].
+  static const SchemanticType<GeminiGoogleSearch> $schema =
+      _GeminiGoogleSearchTypeFactory();
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiGoogleSearch] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiGoogleSearchTypeFactory
+    extends SchemanticType<GeminiGoogleSearch> {
+  const _GeminiGoogleSearchTypeFactory();
+
+  @override
+  GeminiGoogleSearch parse(Object? json) {
+    return GeminiGoogleSearch._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiGoogleSearch',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{},
+    },
+    dependencies: [],
+  );
+}
+
+base class GeminiUrlContext {
+  /// Creates a [GeminiUrlContext] from a JSON map.
+  factory GeminiUrlContext.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiUrlContext._(this._json);
+
+  GeminiUrlContext() {
+    _json = {};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiUrlContext].
+  static const SchemanticType<GeminiUrlContext> $schema =
+      _GeminiUrlContextTypeFactory();
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiUrlContext] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiUrlContextTypeFactory
+    extends SchemanticType<GeminiUrlContext> {
+  const _GeminiUrlContextTypeFactory();
+
+  @override
+  GeminiUrlContext parse(Object? json) {
+    return GeminiUrlContext._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiUrlContext',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{},
+    },
+    dependencies: [],
+  );
+}
+
+base class GeminiGoogleMaps {
+  /// Creates a [GeminiGoogleMaps] from a JSON map.
+  factory GeminiGoogleMaps.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiGoogleMaps._(this._json);
+
+  GeminiGoogleMaps() {
+    _json = {};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiGoogleMaps].
+  static const SchemanticType<GeminiGoogleMaps> $schema =
+      _GeminiGoogleMapsTypeFactory();
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiGoogleMaps] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiGoogleMapsTypeFactory
+    extends SchemanticType<GeminiGoogleMaps> {
+  const _GeminiGoogleMapsTypeFactory();
+
+  @override
+  GeminiGoogleMaps parse(Object? json) {
+    return GeminiGoogleMaps._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiGoogleMaps',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{},
+    },
+    dependencies: [],
+  );
+}
+
+base class GeminiRetrievalConfig {
+  /// Creates a [GeminiRetrievalConfig] from a JSON map.
+  factory GeminiRetrievalConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiRetrievalConfig._(this._json);
+
+  GeminiRetrievalConfig({GeminiLatLng? latLng, String? languageCode}) {
+    _json = {'latLng': ?latLng?.toJson(), 'languageCode': ?languageCode};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiRetrievalConfig].
+  static const SchemanticType<GeminiRetrievalConfig> $schema =
+      _GeminiRetrievalConfigTypeFactory();
+
+  GeminiLatLng? get latLng {
+    return _json['latLng'] == null
+        ? null
+        : GeminiLatLng.fromJson(_json['latLng'] as Map<String, dynamic>);
+  }
+
+  set latLng(GeminiLatLng? value) {
+    if (value == null) {
+      _json.remove('latLng');
+    } else {
+      _json['latLng'] = value.toJson();
+    }
+  }
+
+  String? get languageCode {
+    return _json['languageCode'] as String?;
+  }
+
+  set languageCode(String? value) {
+    if (value == null) {
+      _json.remove('languageCode');
+    } else {
+      _json['languageCode'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiRetrievalConfig] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiRetrievalConfigTypeFactory
+    extends SchemanticType<GeminiRetrievalConfig> {
+  const _GeminiRetrievalConfigTypeFactory();
+
+  @override
+  GeminiRetrievalConfig parse(Object? json) {
+    return GeminiRetrievalConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiRetrievalConfig',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'latLng': <String, Object?>{r'$ref': r'#/$defs/GeminiLatLng'},
+        'languageCode': <String, Object?>{'type': 'string'},
+      },
+    },
+    dependencies: [GeminiLatLng.$schema],
+  );
+}
+
+base class GeminiLatLng {
+  /// Creates a [GeminiLatLng] from a JSON map.
+  factory GeminiLatLng.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiLatLng._(this._json);
+
+  GeminiLatLng({double? latitude, double? longitude}) {
+    _json = {'latitude': ?latitude, 'longitude': ?longitude};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiLatLng].
+  static const SchemanticType<GeminiLatLng> $schema =
+      _GeminiLatLngTypeFactory();
+
+  double? get latitude {
+    return (_json['latitude'] as num?)?.toDouble();
+  }
+
+  set latitude(double? value) {
+    if (value == null) {
+      _json.remove('latitude');
+    } else {
+      _json['latitude'] = value;
+    }
+  }
+
+  double? get longitude {
+    return (_json['longitude'] as num?)?.toDouble();
+  }
+
+  set longitude(double? value) {
+    if (value == null) {
+      _json.remove('longitude');
+    } else {
+      _json['longitude'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiLatLng] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiLatLngTypeFactory extends SchemanticType<GeminiLatLng> {
+  const _GeminiLatLngTypeFactory();
+
+  @override
+  GeminiLatLng parse(Object? json) {
+    return GeminiLatLng._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiLatLng',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'latitude': <String, Object?>{'type': 'number'},
+        'longitude': <String, Object?>{'type': 'number'},
+      },
+    },
+    dependencies: [],
+  );
+}
+
+base class GeminiSafetySettings {
+  /// Creates a [GeminiSafetySettings] from a JSON map.
+  factory GeminiSafetySettings.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiSafetySettings._(this._json);
+
+  GeminiSafetySettings({String? category, String? threshold, String? method}) {
+    _json = {'category': ?category, 'threshold': ?threshold, 'method': ?method};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiSafetySettings].
+  static const SchemanticType<GeminiSafetySettings> $schema =
+      _GeminiSafetySettingsTypeFactory();
+
+  String? get category {
+    return _json['category'] as String?;
+  }
+
+  set category(String? value) {
+    if (value == null) {
+      _json.remove('category');
+    } else {
+      _json['category'] = value;
+    }
+  }
+
+  String? get threshold {
+    return _json['threshold'] as String?;
+  }
+
+  set threshold(String? value) {
+    if (value == null) {
+      _json.remove('threshold');
+    } else {
+      _json['threshold'] = value;
+    }
+  }
+
+  String? get method {
+    return _json['method'] as String?;
+  }
+
+  set method(String? value) {
+    if (value == null) {
+      _json.remove('method');
+    } else {
+      _json['method'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiSafetySettings] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiSafetySettingsTypeFactory
+    extends SchemanticType<GeminiSafetySettings> {
+  const _GeminiSafetySettingsTypeFactory();
+
+  @override
+  GeminiSafetySettings parse(Object? json) {
+    return GeminiSafetySettings._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiSafetySettings',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'category': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The HARM_CATEGORY_IMAGE_* categories are Agent Platform only; the Gemini Developer API rejects them.',
+          'enum': [
+            'HARM_CATEGORY_HARASSMENT',
+            'HARM_CATEGORY_HATE_SPEECH',
+            'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+            'HARM_CATEGORY_DANGEROUS_CONTENT',
+            'HARM_CATEGORY_IMAGE_HATE',
+            'HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT',
+            'HARM_CATEGORY_IMAGE_HARASSMENT',
+            'HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT',
+          ],
+        },
+        'threshold': <String, Object?>{
+          'type': 'string',
+          'enum': [
+            'BLOCK_LOW_AND_ABOVE',
+            'BLOCK_MEDIUM_AND_ABOVE',
+            'BLOCK_ONLY_HIGH',
+            'BLOCK_NONE',
+            'OFF',
+          ],
+        },
+        'method': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Whether the threshold applies to the probability or the severity score. Agent Platform only; the Gemini Developer API rejects it.',
+          'enum': ['SEVERITY', 'PROBABILITY'],
+        },
+      },
+    },
+    dependencies: [],
   );
 }
 
@@ -638,8 +1386,16 @@ base class SpeechConfig {
 
   SpeechConfig._(this._json);
 
-  SpeechConfig({VoiceConfig? voiceConfig}) {
-    _json = {'voiceConfig': ?voiceConfig?.toJson()};
+  SpeechConfig({
+    VoiceConfig? voiceConfig,
+    MultiSpeakerVoiceConfig? multiSpeakerVoiceConfig,
+    String? languageCode,
+  }) {
+    _json = {
+      'voiceConfig': ?voiceConfig?.toJson(),
+      'multiSpeakerVoiceConfig': ?multiSpeakerVoiceConfig?.toJson(),
+      'languageCode': ?languageCode,
+    };
   }
 
   late final Map<String, dynamic> _json;
@@ -659,6 +1415,34 @@ base class SpeechConfig {
       _json.remove('voiceConfig');
     } else {
       _json['voiceConfig'] = value.toJson();
+    }
+  }
+
+  MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig {
+    return _json['multiSpeakerVoiceConfig'] == null
+        ? null
+        : MultiSpeakerVoiceConfig.fromJson(
+            _json['multiSpeakerVoiceConfig'] as Map<String, dynamic>,
+          );
+  }
+
+  set multiSpeakerVoiceConfig(MultiSpeakerVoiceConfig? value) {
+    if (value == null) {
+      _json.remove('multiSpeakerVoiceConfig');
+    } else {
+      _json['multiSpeakerVoiceConfig'] = value.toJson();
+    }
+  }
+
+  String? get languageCode {
+    return _json['languageCode'] as String?;
+  }
+
+  set languageCode(String? value) {
+    if (value == null) {
+      _json.remove('languageCode');
+    } else {
+      _json['languageCode'] = value;
     }
   }
 
@@ -687,6 +1471,168 @@ base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
     definition: <String, Object?>{
       'type': 'object',
       'properties': <String, Object?>{
+        'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/VoiceConfig'},
+        'multiSpeakerVoiceConfig': <String, Object?>{
+          'description':
+              'Voices for a multi-speaker conversation, with exactly two speakers. Cannot be set together with voiceConfig.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/MultiSpeakerVoiceConfig'},
+          ],
+        },
+        'languageCode': <String, Object?>{
+          'type': 'string',
+          'description': 'BCP-47 language code, for example en-US.',
+        },
+      },
+    },
+    dependencies: [VoiceConfig.$schema, MultiSpeakerVoiceConfig.$schema],
+  );
+}
+
+base class MultiSpeakerVoiceConfig {
+  /// Creates a [MultiSpeakerVoiceConfig] from a JSON map.
+  factory MultiSpeakerVoiceConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  MultiSpeakerVoiceConfig._(this._json);
+
+  MultiSpeakerVoiceConfig({List<SpeakerVoiceConfig>? speakerVoiceConfigs}) {
+    _json = {
+      'speakerVoiceConfigs': ?speakerVoiceConfigs
+          ?.map((e) => e.toJson())
+          .toList(),
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [MultiSpeakerVoiceConfig].
+  static const SchemanticType<MultiSpeakerVoiceConfig> $schema =
+      _MultiSpeakerVoiceConfigTypeFactory();
+
+  List<SpeakerVoiceConfig>? get speakerVoiceConfigs {
+    return (_json['speakerVoiceConfigs'] as List?)
+        ?.map((e) => SpeakerVoiceConfig.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
+  set speakerVoiceConfigs(List<SpeakerVoiceConfig>? value) {
+    if (value == null) {
+      _json.remove('speakerVoiceConfigs');
+    } else {
+      _json['speakerVoiceConfigs'] = value.map((e) => e.toJson()).toList();
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [MultiSpeakerVoiceConfig] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _MultiSpeakerVoiceConfigTypeFactory
+    extends SchemanticType<MultiSpeakerVoiceConfig> {
+  const _MultiSpeakerVoiceConfigTypeFactory();
+
+  @override
+  MultiSpeakerVoiceConfig parse(Object? json) {
+    return MultiSpeakerVoiceConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'MultiSpeakerVoiceConfig',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'speakerVoiceConfigs': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/SpeakerVoiceConfig'},
+        },
+      },
+    },
+    dependencies: [SpeakerVoiceConfig.$schema],
+  );
+}
+
+base class SpeakerVoiceConfig {
+  /// Creates a [SpeakerVoiceConfig] from a JSON map.
+  factory SpeakerVoiceConfig.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  SpeakerVoiceConfig._(this._json);
+
+  SpeakerVoiceConfig({String? speaker, VoiceConfig? voiceConfig}) {
+    _json = {'speaker': ?speaker, 'voiceConfig': ?voiceConfig?.toJson()};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [SpeakerVoiceConfig].
+  static const SchemanticType<SpeakerVoiceConfig> $schema =
+      _SpeakerVoiceConfigTypeFactory();
+
+  String? get speaker {
+    return _json['speaker'] as String?;
+  }
+
+  set speaker(String? value) {
+    if (value == null) {
+      _json.remove('speaker');
+    } else {
+      _json['speaker'] = value;
+    }
+  }
+
+  VoiceConfig? get voiceConfig {
+    return _json['voiceConfig'] == null
+        ? null
+        : VoiceConfig.fromJson(_json['voiceConfig'] as Map<String, dynamic>);
+  }
+
+  set voiceConfig(VoiceConfig? value) {
+    if (value == null) {
+      _json.remove('voiceConfig');
+    } else {
+      _json['voiceConfig'] = value.toJson();
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [SpeakerVoiceConfig] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _SpeakerVoiceConfigTypeFactory
+    extends SchemanticType<SpeakerVoiceConfig> {
+  const _SpeakerVoiceConfigTypeFactory();
+
+  @override
+  SpeakerVoiceConfig parse(Object? json) {
+    return SpeakerVoiceConfig._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'SpeakerVoiceConfig',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'speaker': <String, Object?>{
+          'type': 'string',
+          'description': 'The speaker name used in the prompt.',
+        },
         'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/VoiceConfig'},
       },
     },
@@ -781,10 +1727,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get temperature {
     return (_json['temperature'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set temperature(double? value) {
     if (value == null) {
       _json.remove('temperature');
@@ -793,10 +1741,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   double? get topP {
     return (_json['topP'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topP(double? value) {
     if (value == null) {
       _json.remove('topP');
@@ -805,10 +1755,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   int? get topK {
     return (_json['topK'] as num?)?.toInt();
   }
 
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
   set topK(int? value) {
     if (value == null) {
       _json.remove('topK');
@@ -817,10 +1769,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models may not support this.
   double? get presencePenalty {
     return (_json['presencePenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may not support this.
   set presencePenalty(double? value) {
     if (value == null) {
       _json.remove('presencePenalty');
@@ -829,10 +1783,12 @@ base class LiveGenerationConfig {
     }
   }
 
+  /// Gemini 3 and newer models may not support this.
   double? get frequencyPenalty {
     return (_json['frequencyPenalty'] as num?)?.toDouble();
   }
 
+  /// Gemini 3 and newer models may not support this.
   set frequencyPenalty(double? value) {
     if (value == null) {
       _json.remove('frequencyPenalty');
@@ -877,11 +1833,29 @@ base class _LiveGenerationConfigTypeFactory
           'items': <String, Object?>{'type': 'string'},
         },
         'maxOutputTokens': <String, Object?>{'type': 'integer'},
-        'temperature': <String, Object?>{'type': 'number'},
-        'topP': <String, Object?>{'type': 'number'},
-        'topK': <String, Object?>{'type': 'integer'},
-        'presencePenalty': <String, Object?>{'type': 'number'},
-        'frequencyPenalty': <String, Object?>{'type': 'number'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'topK': <String, Object?>{
+          'type': 'integer',
+          'description':
+              'Gemini 3 and newer models ignore this and manage sampling themselves.',
+        },
+        'presencePenalty': <String, Object?>{
+          'type': 'number',
+          'description': 'Gemini 3 and newer models may not support this.',
+        },
+        'frequencyPenalty': <String, Object?>{
+          'type': 'number',
+          'description': 'Gemini 3 and newer models may not support this.',
+        },
       },
     },
     dependencies: [SpeechConfig.$schema],
