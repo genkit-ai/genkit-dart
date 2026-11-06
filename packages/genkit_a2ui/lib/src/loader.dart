@@ -29,7 +29,7 @@ import 'dart:io';
 import 'package:genkit/genkit.dart';
 
 import 'catalog.dart';
-import 'catalog_types.dart' show A2uiCatalogCore;
+import 'catalog_types.dart' show A2uiCatalogCore, checkCatalogDocument;
 
 /// Registers an A2UI catalog under an [id] so the `a2ui()` middleware can look
 /// it up (via `a2ui(catalog: id)`). Provide either [catalog] or [file].
@@ -62,10 +62,13 @@ Future<A2uiCatalog> loadCatalog(
   // would name neither the catalog nor its file.
   try {
     registered.toCore();
-  } catch (e) {
-    throw StateError(
-      'loadCatalog(): catalog "$id"${file == null ? '' : ' ($file)'} is not a '
-      'valid A2UI catalog: $e',
+  } catch (e, st) {
+    Error.throwWithStackTrace(
+      StateError(
+        'loadCatalog(): catalog "$id"${file == null ? '' : ' ($file)'} is not '
+        'a valid A2UI catalog: $e',
+      ),
+      st,
     );
   }
   ai.registry.registerValue(a2uiCatalogValueType, id, registered);
@@ -96,7 +99,18 @@ Future<A2uiCatalog> _readCatalogFile(String file) async {
       'keyed by component name (the A2UI catalog.json shape).',
     );
   }
-  return A2uiCatalog.fromJson(json.cast<String, dynamic>());
+  final doc = json.cast<String, dynamic>();
+  // Check the document as written: `fromJson` skips malformed entries, so
+  // checking only its result would hide them.
+  try {
+    checkCatalogDocument(doc);
+  } catch (e, st) {
+    Error.throwWithStackTrace(
+      StateError('loadCatalog(): catalog file "$file" is not valid: $e'),
+      st,
+    );
+  }
+  return A2uiCatalog.fromJson(doc);
 }
 
 /// Resolves a catalog by id from the registry, falling back to the bundled

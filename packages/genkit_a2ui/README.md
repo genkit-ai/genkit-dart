@@ -34,6 +34,12 @@ Add the plugin to the package that runs your agent (it is server-side only):
 dart pub add genkit_a2ui
 ```
 
+Keep it out of a genui app's pubspec: genkit_a2ui depends on `a2ui_core` 0.5
+and genui 0.10.x on `a2ui_core` 0.1, so the two cannot resolve together. Run
+the agent in its own package (a server, as in the sample); an app that hosts
+the agent in-process and renders with genui has to wait for genui to move to
+`a2ui_core` 0.5.
+
 The client does not depend on `genkit_a2ui`. To render surfaces it needs
 `package:genkit` and a renderer. The Dart examples below use
 [`genui`](https://pub.dev/packages/genui), the Flutter renderer for A2UI
@@ -389,8 +395,9 @@ await loadCatalog(
 (`A2uiDynamicType.number`, `.boolean`, `.stringList` or `.value`). The other
 parameter kinds are `A2uiParam.number`, `A2uiParam.boolean`, `A2uiParam.child`
 (one child component id), `A2uiParam.children` (a list of child ids) and
-`A2uiParam.action` (an event fired on interaction). Pass `checkable: true` for
-inputs that accept validation checks. Catalog-wide guidance for the model goes
+`A2uiParam.action` (an event fired on interaction), and `A2uiParam.schema` for a
+property with a hand-written JSON Schema. Pass `checkable: true` for inputs that
+accept validation checks. Catalog-wide guidance for the model goes
 in `instructions`, as in a `catalog.json`.
 
 ### Using a registered catalog

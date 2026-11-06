@@ -64,21 +64,30 @@ class A2uiCatalogComponent {
     required List<A2uiParam> params,
     bool checkable = false,
   }) {
-    assert(
-      params.map((p) => p.name).toSet().length == params.length,
-      'A2uiCatalogComponent.simple($name): duplicate param names',
-    );
-    assert(
-      !params.any((p) => p.name == 'component' || p.name == 'id'),
-      'A2uiCatalogComponent.simple($name): `component` and `id` are reserved',
-    );
+    // Thrown rather than asserted: a production build would otherwise ship a
+    // schema where one param silently overwrites another (or the
+    // `component` discriminator).
+    if (params.map((p) => p.name).toSet().length != params.length) {
+      throw ArgumentError.value(
+        params.map((p) => p.name).toList(),
+        'params',
+        'A2uiCatalogComponent.simple($name): duplicate param names',
+      );
+    }
+    if (params.any((p) => p.name == 'component' || p.name == 'id')) {
+      throw ArgumentError.value(
+        params.map((p) => p.name).toList(),
+        'params',
+        'A2uiCatalogComponent.simple($name): `component` and `id` are reserved',
+      );
+    }
     final properties = <String, dynamic>{
       'component': {'const': name},
       for (final p in params) p.name: p._schema(),
     };
     return A2uiCatalogComponent(
       name: name,
-      schema: {
+      schema: _frozen({
         'type': 'object',
         'description': ?description,
         if (checkable)
@@ -91,15 +100,16 @@ class A2uiCatalogComponent {
           for (final p in params)
             if (p.required) p.name,
         ],
-      },
+      }),
     );
   }
 
-  /// Builds an [A2uiCatalogComponent] from a `catalog.json` entry.
+  /// Builds an [A2uiCatalogComponent] from a `catalog.json` entry, keeping a
+  /// frozen copy of [schema].
   factory A2uiCatalogComponent.fromJson(
     String name,
     Map<String, dynamic> schema,
-  ) => A2uiCatalogComponent(name: name, schema: schema);
+  ) => A2uiCatalogComponent(name: name, schema: _frozen(schema));
 
   /// Serializes this component back to its `catalog.json` schema.
   Map<String, dynamic> toJson() => schema;
@@ -129,6 +139,9 @@ class A2uiParam {
   /// The value type of a [A2uiParam.dynamicValue].
   final A2uiDynamicType? _dynamicType;
 
+  /// The schema of an [A2uiParam.schema], used as given.
+  final Map<String, dynamic>? _rawSchema;
+
   /// Allowed values, for literal-only string params.
   final List<String>? enumValues;
 
@@ -139,6 +152,7 @@ class A2uiParam {
     this._type,
     this._ref,
     this._dynamicType,
+    this._rawSchema,
     this.enumValues,
   });
 
@@ -232,13 +246,28 @@ class A2uiParam {
          ref: 'Action',
        );
 
-  Map<String, dynamic> _schema() => {
-    if (_ref ?? _dynamicType?._ref case final ref?)
-      r'$ref': '$_commonTypes#/\$defs/$ref',
-    if (_type != null) 'type': _type,
-    'description': ?description,
-    'enum': ?enumValues,
-  };
+  /// A property with a hand-written JSON Schema, for the one property the
+  /// other kinds do not cover (keeping the rest of the component on
+  /// [A2uiCatalogComponent.simple]).
+  ///
+  /// ```dart
+  /// A2uiParam.schema('size', {'type': 'integer', 'minimum': 1, 'maximum': 5})
+  /// ```
+  const A2uiParam.schema(
+    String name,
+    Map<String, dynamic> schema, {
+    bool required = false,
+  }) : this._(name, required: required, rawSchema: schema);
+
+  Map<String, dynamic> _schema() =>
+      _rawSchema ??
+      {
+        if (_ref ?? _dynamicType?._ref case final ref?)
+          r'$ref': '$_commonTypes#/\$defs/$ref',
+        if (_type != null) 'type': _type,
+        'description': ?description,
+        'enum': ?enumValues,
+      };
 }
 
 /// The value type of an [A2uiParam.dynamicValue], i.e. which of the spec's
@@ -276,11 +305,12 @@ class A2uiCatalogFunction {
   /// Creates an [A2uiCatalogFunction].
   const A2uiCatalogFunction({required this.name, required this.schema});
 
-  /// Builds an [A2uiCatalogFunction] from a `catalog.json` entry.
+  /// Builds an [A2uiCatalogFunction] from a `catalog.json` entry, keeping a
+  /// frozen copy of [schema].
   factory A2uiCatalogFunction.fromJson(
     String name,
     Map<String, dynamic> schema,
-  ) => A2uiCatalogFunction(name: name, schema: schema);
+  ) => A2uiCatalogFunction(name: name, schema: _frozen(schema));
 
   /// Serializes this function back to its `catalog.json` schema.
   Map<String, dynamic> toJson() => schema;
@@ -289,8 +319,14 @@ class A2uiCatalogFunction {
 /// A parsed catalog: an id plus the components and client functions it exposes.
 ///
 /// Mirrors the spec's `catalog.json`: [components] and [functions] are keyed by
-/// name, and iteration order is preserved because it is the order the model is
-/// prompted with.
+/// name. Their order is kept for round trips, but is not what the model sees
+/// (`a2ui_agent` lists signatures alphabetically); the order of a component's
+/// properties is, since Express arguments are positional.
+///
+/// A catalog is immutable, schemas included: [A2uiCatalog.fromJson] and
+/// `A2uiCatalogComponent.simple` keep frozen copies. A schema passed to the
+/// raw `A2uiCatalogComponent(...)` constructor must not be changed later,
+/// since the form `a2ui_agent` reads is derived once per catalog.
 class A2uiCatalog {
   /// Globally-unique catalog id (also used as `catalogId` on `createSurface`).
   final String id;
@@ -311,8 +347,7 @@ class A2uiCatalog {
   final String? instructions;
 
   /// Creates an [A2uiCatalog] from its components and functions, keyed by
-  /// name in the order given (the order the model is prompted with). Names
-  /// must be unique.
+  /// name. Names must be unique.
   ///
   /// The maps are unmodifiable: build a new catalog (see [extend]) rather than
   /// editing one, since the form `a2ui_agent` reads is derived once per
@@ -338,8 +373,8 @@ class A2uiCatalog {
     Map<String, dynamic> extra = const {},
   }) : components = Map.unmodifiable(components),
        functions = Map.unmodifiable(functions),
-       defs = Map.unmodifiable(defs),
-       _extra = Map.unmodifiable(extra);
+       defs = _frozen(defs),
+       _extra = _frozen(extra);
 
   /// Top-level `catalog.json` fields this class does not model (such as
   /// `protocolVersion` or `theme`), kept so a loaded document round-trips
@@ -362,10 +397,9 @@ class A2uiCatalog {
   ) {
     final out = <String, T>{};
     for (final item in items) {
-      assert(
-        !out.containsKey(nameOf(item)),
-        'duplicate name "${nameOf(item)}"',
-      );
+      if (out.containsKey(nameOf(item))) {
+        throw ArgumentError('duplicate name "${nameOf(item)}"');
+      }
       out[nameOf(item)] = item;
     }
     return out;
@@ -375,9 +409,22 @@ class A2uiCatalog {
   ///
   /// Accepts the published files verbatim: the id is read from `catalogId`
   /// (falling back to `$id`, then `id`), and `components`/`functions` are
-  /// name-keyed objects of JSON Schema. Malformed entries are skipped rather
-  /// than thrown on.
+  /// name-keyed objects of JSON Schema. A `$defs.anyComponent` (or
+  /// `anyFunction`) union that lists only some entries restricts the catalog
+  /// to those, as it does for `a2ui_core`. Malformed entries are skipped
+  /// rather than thrown on; `loadCatalog` checks the raw document first.
+  ///
+  /// Throws a [FormatException] for the pre-spec shape, where `components` is
+  /// a list.
   factory A2uiCatalog.fromJson(Map<String, dynamic> json) {
+    if (json['components'] is List) {
+      throw const FormatException(
+        'A2uiCatalog.fromJson: "components" must be an object keyed by '
+        'component name (the A2UI catalog.json shape), not a list.',
+      );
+    }
+    final allowedComponents = _unionMembers(json, 'anyComponent', 'components');
+    final allowedFunctions = _unionMembers(json, 'anyFunction', 'functions');
     final id = [
       json['catalogId'],
       json[r'$id'],
@@ -396,11 +443,13 @@ class A2uiCatalog {
         for (final MapEntry(:key, :value) in schemas(
           json['components'],
         ).entries)
-          key: A2uiCatalogComponent.fromJson(key, value),
+          if (allowedComponents?.contains(key) ?? true)
+            key: A2uiCatalogComponent.fromJson(key, value),
       },
       functions: {
         for (final MapEntry(:key, :value) in schemas(json['functions']).entries)
-          key: A2uiCatalogFunction.fromJson(key, value),
+          if (allowedFunctions?.contains(key) ?? true)
+            key: A2uiCatalogFunction.fromJson(key, value),
       },
       defs: {
         if (json[r'$defs'] case final Map defs)
@@ -424,13 +473,41 @@ class A2uiCatalog {
   /// [extend] silently drop every component it adds.
   static const _derivedDefs = {'anyComponent', 'anyFunction'};
 
+  /// The names a `$defs.<union>` lists (`{"oneOf": [{"$ref":
+  /// "#/<section>/Name"}, ...]}`), or null if the document has no such union.
+  static Set<String>? _unionMembers(
+    Map<String, dynamic> json,
+    String union,
+    String section,
+  ) {
+    if (json[r'$defs'] case final Map defs when defs[union] is Map) {
+      final u = defs[union] as Map;
+      return {
+        for (final key in const ['oneOf', 'anyOf'])
+          if (u[key] case final List refs)
+            for (final r in refs)
+              if (r case {
+                r'$ref': final String ref,
+              } when ref.startsWith('#/$section/'))
+                ref.substring('#/$section/'.length),
+      };
+    }
+    return null;
+  }
+
+  /// Top-level fields that describe one document, which an extension under a
+  /// new id should not inherit.
+  static const _documentOnly = {'title', 'description'};
+
   /// Returns a copy under a new [id] with [components] and [functions] added,
   /// for extending a base catalog with bespoke components.
   ///
-  /// An entry named like one of this catalog's replaces it in place, keeping
-  /// its position in the prompt; overriding a component changes its Express
-  /// positional signature, so do it deliberately. Names within each argument
-  /// must be unique. [instructions], when given, replaces this catalog's.
+  /// An entry named like one of this catalog's replaces it; overriding a
+  /// component changes its Express positional signature, so do it
+  /// deliberately. Names within each argument must be unique.
+  /// [instructions], when given, replaces this catalog's (pass `''` to clear
+  /// them). The base document's `title` and `description` are not carried
+  /// over.
   A2uiCatalog extend({
     required String id,
     Iterable<A2uiCatalogComponent> components = const [],
@@ -441,8 +518,14 @@ class A2uiCatalog {
     components: {...this.components, ..._byName(components, (c) => c.name)},
     functions: {...this.functions, ..._byName(functions, (f) => f.name)},
     defs: defs,
-    instructions: instructions ?? this.instructions,
-    extra: _extra,
+    instructions: switch (instructions ?? this.instructions) {
+      '' => null,
+      final i => i,
+    },
+    extra: {
+      for (final MapEntry(:key, :value) in _extra.entries)
+        if (!_documentOnly.contains(key)) key: value,
+    },
   );
 
   /// Returns a copy registered under a different [id].
@@ -470,6 +553,22 @@ class A2uiCatalog {
     'instructions': ?instructions,
   };
 }
+
+/// A deep, unmodifiable copy of a JSON value.
+T _frozen<T>(T value) => _freeze(value) as T;
+
+Object? _freeze(Object? value) => switch (value) {
+  final Map m => Map<String, dynamic>.unmodifiable({
+    for (final MapEntry(:key, :value) in m.entries) '$key': _freeze(value),
+  }),
+  final List l => List<dynamic>.unmodifiable(l.map(_freeze)),
+  _ => value,
+};
+
+/// Checks a raw `catalog.json` document the way `a2ui_core` will, before
+/// [A2uiCatalog.fromJson] skips anything malformed. Throws `A2uiCatalogError`.
+void checkCatalogDocument(Map<String, dynamic> json) =>
+    core.Catalog.fromJson(json.cast<String, Object?>());
 
 /// The bridge to `a2ui_core`, kept out of the public API so a breaking
 /// `a2ui_core` release is not a breaking change here.

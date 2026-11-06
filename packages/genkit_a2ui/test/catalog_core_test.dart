@@ -111,7 +111,12 @@ void main() {
       final published = loadSpecCatalog().functions;
       expect(basicCatalog.functions.keys, published.keys);
       basicCatalog.functions.forEach((name, function) {
-        expect(function.toJson(), published[name]!.toJson(), reason: name);
+        // Encoded, so key order (positional in Express) is compared too.
+        expect(
+          jsonEncode(function.toJson()),
+          jsonEncode(published[name]!.toJson()),
+          reason: name,
+        );
       });
     });
 
@@ -265,6 +270,105 @@ void main() {
         'Keep banners short.',
         reason: 'extend keeps the base instructions unless given new ones',
       );
+    });
+  });
+
+  group('A2uiCatalog construction', () {
+    test(
+      'rejects duplicate and reserved param names in release builds too',
+      () {
+        expect(
+          () => A2uiCatalogComponent.simple(
+            name: 'X',
+            params: [A2uiParam.number('a'), A2uiParam.number('a')],
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => A2uiCatalogComponent.simple(
+            name: 'X',
+            params: [A2uiParam.number('component')],
+          ),
+          throwsArgumentError,
+        );
+        expect(
+          () => A2uiCatalog(
+            id: 'x',
+            components: [
+              A2uiCatalogComponent.simple(name: 'A', params: []),
+              A2uiCatalogComponent.simple(name: 'A', params: []),
+            ],
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test('fromJson rejects the pre-spec components list', () {
+      expect(
+        () => A2uiCatalog.fromJson({
+          'id': 'x',
+          'components': [
+            {'name': 'Banner'},
+          ],
+        }),
+        throwsFormatException,
+      );
+    });
+
+    test('fromJson honours an anyComponent union listing a subset', () {
+      final catalog = A2uiCatalog.fromJson({
+        'catalogId': 'x',
+        'components': {
+          'A': A2uiCatalogComponent.simple(name: 'A', params: []).schema,
+          'B': A2uiCatalogComponent.simple(name: 'B', params: []).schema,
+        },
+        r'$defs': {
+          'anyComponent': {
+            'oneOf': [
+              {r'$ref': '#/components/A'},
+            ],
+          },
+        },
+      });
+      expect(catalog.components.keys, ['A']);
+    });
+
+    test('schemas are deeply immutable', () {
+      final schema = basicCatalog.components['Text']!.schema;
+      expect(() => schema['description'] = 'x', throwsUnsupportedError);
+      expect(
+        () => (schema['properties'] as Map)['text'] = {},
+        throwsUnsupportedError,
+      );
+      final loaded = loadSpecCatalog();
+      expect(
+        () => (loaded.components['Text']!.schema['allOf'] as List).clear(),
+        throwsUnsupportedError,
+      );
+    });
+
+    test('extend does not inherit the base document title', () {
+      final loaded = loadSpecCatalog();
+      expect(loaded.toJson()['title'], isNotNull);
+      expect(loaded.extend(id: 'mine').toJson().containsKey('title'), isFalse);
+    });
+
+    test('A2uiParam.schema uses the given schema as is', () {
+      final c = A2uiCatalogComponent.simple(
+        name: 'Stars',
+        params: [
+          const A2uiParam.schema('size', {
+            'type': 'integer',
+            'minimum': 1,
+          }, required: true),
+        ],
+      );
+      expect((c.schema['properties'] as Map)['size'], {
+        'type': 'integer',
+        'minimum': 1,
+      });
+      expect(c.schema['required'], ['component', 'size']);
     });
   });
 }

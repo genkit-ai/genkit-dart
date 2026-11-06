@@ -201,7 +201,28 @@ void main() {
             isA<StateError>().having(
               (e) => e.message,
               'message',
-              allOf(contains('"bad"'), contains(file.path)),
+              allOf(contains(file.path), contains('protocol version')),
+            ),
+          ),
+        );
+      });
+
+      test('checks the document as written, not what fromJson keeps', () async {
+        // fromJson would skip the non-object `Text`; the file is still wrong.
+        final file = File('${dir.path}/lenient.json');
+        await file.writeAsString(
+          jsonEncode({
+            'catalogId': 'lenient',
+            'components': {'Text': 'not-a-schema'},
+          }),
+        );
+        await expectLater(
+          loadCatalog(genkit, id: 'lenient', file: file.path),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Text'),
             ),
           ),
         );
