@@ -47,4 +47,4 @@ export 'src/parser.dart'
         ProseSegment;
 export 'src/part.dart' show a2uiEnvelopesFromParts, a2uiPart, isA2uiPart;
 export 'src/types.dart'
-    show A2uiComponent, A2uiEnvelope, a2uiMimeType, a2uiVersion, basicCatalogId;
+    show A2uiEnvelope, a2uiMimeType, a2uiVersion, basicCatalogId;

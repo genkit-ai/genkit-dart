@@ -47,12 +47,3 @@ const String basicCatalogId =
 /// `updateDataModel`, or `deleteSurface` is present, alongside an optional
 /// `version`. Client -> server actions use an `action` key.
 typedef A2uiEnvelope = Map<String, dynamic>;
-
-/// A single component entry in an A2UI adjacency list, in its raw JSON shape.
-///
-/// UI is expressed as a flat list of components; the tree is reconstructed via
-/// `id` references. Exactly one component has `id: "root"`. Beyond
-/// `component`/`id`/`weight`, every component carries catalog-specific props
-/// (e.g. `text`, `children`, `child`, `action`), so this is intentionally
-/// open-ended.
-typedef A2uiComponent = Map<String, dynamic>;

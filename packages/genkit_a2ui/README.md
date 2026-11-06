@@ -37,10 +37,12 @@ dart pub add genkit_a2ui
 The client does not depend on `genkit_a2ui`. To render surfaces it needs
 `package:genkit` and a renderer. The Dart examples below use
 [`genui`](https://pub.dev/packages/genui), the Flutter renderer for A2UI
-surfaces, which takes messages typed by `a2ui_core`:
+surfaces, which takes messages typed by `a2ui_core`. Use genui 0.10.3 or later:
+earlier versions use a different id for the basic catalog and render blank
+surfaces.
 
 ```bash
-flutter pub add genkit genui a2ui_core
+flutter pub add genkit 'genui:^0.10.3' a2ui_core
 ```
 
 ## Quickstart
@@ -54,6 +56,7 @@ you must register `A2uiPlugin()` in `Genkit(plugins: [...])` before referencing
 it via `a2ui()`.
 
 ```dart
+import 'package:genkit/experimental.dart'; // defineAgent
 import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
@@ -165,7 +168,13 @@ final surfaceController = SurfaceController(
 Future<void> runTurn(AgentTurn turn) async {
   await for (final chunk in turn.stream) {
     for (final m in a2uiMessagesFrom(chunk.raw.modelChunk?.content)) {
-      surfaceController.handleMessage(core.A2uiMessage.fromJson(m));
+      // One message the renderer cannot parse (a newer protocol version, say)
+      // must not stop the rest of the turn.
+      try {
+        surfaceController.handleMessage(core.A2uiMessage.fromJson(m));
+      } on Object catch (e) {
+        print('skipping an A2UI message: $e');
+      }
     }
   }
 }
@@ -225,8 +234,8 @@ model to do this. Without both steps, the action arrives with an empty `context`
 
 genui registers an empty stub for a catalog id it does not recognize, so a
 surface whose `catalogId` the client does not hold renders as a blank. The
-client's catalog ids must match the server's: genui's basic catalog already uses
-the bundled basic catalog's id, and a custom catalog needs the same id on both
+client's catalog ids must match the server's: genui's basic catalog (0.10.3 and
+later) already uses the bundled basic catalog's id, and a custom catalog needs the same id on both
 sides:
 
 ```dart
@@ -243,7 +252,7 @@ for the full wiring.
 ## Wire format
 
 A2UI travels on its own part channel, following the
-[A2UI extension spec](https://a2ui.org/specification/v0_9/docs/a2ui_extension_specification/):
+[A2UI extension spec](https://a2ui.org/specification/v0.9.1-a2ui-extension-specification/):
 a Genkit `data` part tagged `application/a2ui+json`. The spec puts the message
 list directly in `data`; a Genkit `data` must be an object, so the list sits
 under the spec's `messages` wrapper.
@@ -419,7 +428,7 @@ later for free.
 
 - A **mixed** turn is a message whose content is `[textPart, a2uiPart, ...]`.
 - A **pure-surface** turn is the special case with no text parts.
-- Downstream consumers (the client transport, `genui`) only ever see a2ui parts.
+- Downstream consumers (the client helpers, `genui`) only ever see a2ui parts.
   "Pure vs mixed" is a prompting choice, not a separate code path.
 
 ### The middleware pipeline

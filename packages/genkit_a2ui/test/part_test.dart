@@ -78,6 +78,29 @@ void main() {
       );
     });
 
+    test('prefers data.messages when both keys are present', () {
+      final part = DataPart(
+        data: {
+          'messages': [
+            {
+              'deleteSurface': {'surfaceId': 'new'},
+            },
+          ],
+          'envelopes': [
+            {
+              'deleteSurface': {'surfaceId': 'old'},
+            },
+          ],
+        },
+        metadata: {'mimeType': a2uiMimeType},
+      );
+      expect(a2uiEnvelopesFromParts([part]), [
+        {
+          'deleteSurface': {'surfaceId': 'new'},
+        },
+      ]);
+    });
+
     test('rejects a data part with no mime type metadata', () {
       expect(isA2uiPart(DataPart(data: {'messages': <dynamic>[]})), isFalse);
     });
