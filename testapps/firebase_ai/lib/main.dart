@@ -114,6 +114,15 @@ class HomeScreen extends StatelessWidget {
               },
               child: const Text('Structured Streaming'),
             ),
+            const SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const GroundingScreen()),
+                );
+              },
+              child: const Text('Grounding (Search, URL context)'),
+            ),
           ],
         ),
       ),
@@ -624,6 +633,181 @@ class AudioPlayerQueue {
     for (var i = 0; i < s.length; i++) {
       view.setUint8(offset + i, s.codeUnitAt(i));
     }
+  }
+}
+
+enum _GroundingTool { googleSearch, urlContext }
+
+/// Answers with Google Search or URL context grounding, and shows what the
+/// model used from `response.custom`.
+class GroundingScreen extends StatefulWidget {
+  const GroundingScreen({super.key});
+
+  @override
+  State<GroundingScreen> createState() => _GroundingScreenState();
+}
+
+class _GroundingScreenState extends State<GroundingScreen> {
+  final _controller = TextEditingController(
+    text: 'Who won the most recent Formula 1 race?',
+  );
+  late final Genkit _ai;
+  var _tool = _GroundingTool.googleSearch;
+  bool _isLoading = false;
+  String _answer = '';
+  List<String> _queries = [];
+  List<String> _sources = [];
+  bool _hasSearchSuggestions = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _ai = Genkit(plugins: [firebaseAI()]);
+  }
+
+  Future<void> _ask() async {
+    final text = _controller.text;
+    if (text.isEmpty) return;
+
+    setState(() {
+      _isLoading = true;
+      _answer = '';
+      _queries = [];
+      _sources = [];
+      _hasSearchSuggestions = false;
+    });
+
+    final response = await _ai.generate(
+      model: firebaseAI.gemini('gemini-3.8-flash'),
+      prompt: text,
+      config: switch (_tool) {
+        _GroundingTool.googleSearch => GeminiOptions(
+          googleSearch: GeminiGoogleSearch(),
+        ),
+        _GroundingTool.urlContext => GeminiOptions(
+          urlContext: GeminiUrlContext(),
+        ),
+      },
+    );
+
+    final grounding = response.custom?['groundingMetadata'] as Map?;
+    final urlContext = response.custom?['urlContextMetadata'] as Map?;
+    setState(() {
+      _isLoading = false;
+      _answer = response.finishReason == FinishReason.failed
+          ? 'Error: ${response.error?.status}: ${response.error?.message}'
+          : response.text;
+      _queries = [
+        for (final query in grounding?['webSearchQueries'] as List? ?? [])
+          '$query',
+      ];
+      _sources = [
+        for (final chunk in grounding?['groundingChunks'] as List? ?? [])
+          if (chunk case {'web': {'uri': final uri} && final web})
+            '${web['title'] ?? uri}\n$uri',
+        for (final url in urlContext?['urlMetadata'] as List? ?? [])
+          if (url case {
+            'retrievedUrl': final retrieved,
+            'urlRetrievalStatus': final status,
+          })
+            '$retrieved\n$status',
+      ];
+      _hasSearchSuggestions = grounding?['searchEntryPoint'] != null;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Grounding')),
+      body: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            SegmentedButton<_GroundingTool>(
+              segments: const [
+                ButtonSegment(
+                  value: _GroundingTool.googleSearch,
+                  label: Text('Google Search'),
+                ),
+                ButtonSegment(
+                  value: _GroundingTool.urlContext,
+                  label: Text('URL context'),
+                ),
+              ],
+              selected: {_tool},
+              onSelectionChanged: (selected) =>
+                  setState(() => _tool = selected.single),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _controller,
+                    decoration: InputDecoration(
+                      labelText: _tool == _GroundingTool.urlContext
+                          ? 'Prompt with a URL'
+                          : 'Prompt',
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton(
+                  onPressed: _isLoading ? null : _ask,
+                  child: _isLoading
+                      ? const CircularProgressIndicator()
+                      : const Text('Ask'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(_answer),
+                    if (_queries.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Search queries:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      ..._queries.map((q) => Text('- $q')),
+                    ],
+                    if (_sources.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      const Text(
+                        'Sources:',
+                        style: TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                      ..._sources.map(
+                        (s) => Padding(
+                          padding: const EdgeInsets.only(top: 8),
+                          child: Text(s),
+                        ),
+                      ),
+                    ],
+                    // A real app must render searchEntryPoint.renderedContent
+                    // (HTML) when it uses Google Search grounding.
+                    if (_hasSearchSuggestions) ...[
+                      const SizedBox(height: 16),
+                      const Text(
+                        'The response has Google Search suggestions to '
+                        'display (searchEntryPoint.renderedContent, HTML).',
+                        style: TextStyle(fontStyle: FontStyle.italic),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
