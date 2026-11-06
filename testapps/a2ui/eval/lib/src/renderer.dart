@@ -175,11 +175,11 @@ final class HeadlessRenderer {
         }
         changes.putIfAbsent(id, () => SurfaceChange.updated);
       } else if (m['deleteSurface'] case {'surfaceId': final String id}) {
+        // Like a2ui_core: deleting an unknown surface is a no-op. The agent
+        // deletes before every create, so this is the normal path for a new
+        // surface.
         final s = _surfaces.remove(id);
-        if (s == null) {
-          violations.add('deleteSurface for unknown surface "$id"');
-          continue;
-        }
+        if (s == null) continue;
         deletedThisTurn[id] = s;
         changes[id] = SurfaceChange.deleted;
       }
