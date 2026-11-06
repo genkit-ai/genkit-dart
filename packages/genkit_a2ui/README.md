@@ -214,6 +214,7 @@ validation:
 | `instructions` | `'system'` | Where to inject catalog capabilities. `'none'` injects nothing.                                                                                                 |
 | `validate`     | `'warn'`   | What to do with a block that fails to compile or validate. `'warn'` logs and drops it; `'strict'` throws; `'off'` checks only that the block compiles, not the component tree (references, `root`). |
 | `version`      | `'v0.9'`   | A2UI protocol version. Only `'v0.9'` is supported.                                                                                                              |
+| `repair`       | `true`     | Ask the model once to fix a block that failed to compile. Costs an extra call on the failure path only; see [Self-repair](#self-repair).                        |
 
 ### Surfaces
 
@@ -229,6 +230,42 @@ each other.
 
 In a chat UI, key each rendered surface by its id. A replaced surface then
 re-renders where it first appeared.
+
+### Self-repair
+
+Models occasionally emit a block that does not compile, most often by putting a
+label where a component id belongs:
+
+```text
+refresh = Button("Refresh", "primary", Event("refresh"))
+```
+
+`Button.child` is a component id, so that would render nothing useful. When a
+block fails to compile the middleware sends a follow-up call containing the
+error, the Express contract with the catalog's signatures (a few thousand input
+tokens with the basic catalog), and the failed block, then compiles the reply.
+If it works the surface renders (and the repaired block is what gets replayed
+as history); if not, the block is dropped as before. That is one call per
+distinct broken block, at most 3 per model call and 30 seconds in total.
+
+This costs extra model calls **on the failure path only**. It also changes what
+`validate: 'strict'` reports: it throws only if the repair fails too. To see
+the model's own mistakes while developing, turn repair off:
+
+```dart
+use: [a2ui(validate: 'strict', repair: false)]
+```
+
+Repair runs once the model's response is complete, since the streaming callback
+cannot wait for a second model call. The repaired surface is then sent as the
+last chunk of the stream (and is in the final message), so it arrives at the
+end of the turn rather than where the model wrote it. The repair call uses the
+same model config as the turn (so a per-request API key still applies; an
+option that forces JSON output or a function call can make the repair fail, in
+which case the block is dropped as before; provider-side tools enabled in the
+config, such as code execution, stay on too). Its token usage is added to the
+turn's `usage`; `latencyMs` stays that of the turn's own call. Cancelling the
+turn cancels a repair in flight.
 
 ## Handling user actions
 

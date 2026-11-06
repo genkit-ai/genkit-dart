@@ -33,12 +33,14 @@ base class A2uiOptions {
     String? instructions,
     String? validate,
     String? version,
+    bool? repair,
   }) {
     _json = {
       'catalog': ?catalog,
       'instructions': ?instructions,
       'validate': ?validate,
       'version': ?version,
+      'repair': ?repair,
     };
   }
 
@@ -121,6 +123,34 @@ base class A2uiOptions {
     }
   }
 
+  /// Whether to ask the model to fix a block that failed to compile. Defaults
+  /// to `true`.
+  ///
+  /// On a failure the middleware sends one small follow-up call containing the
+  /// error, the Express contract, and the failed block, then compiles the
+  /// reply. This costs an extra model call on the failure path only, and never
+  /// runs for errors a rewrite cannot fix. Set `false` to drop bad blocks
+  /// outright.
+  bool? get repair {
+    return _json['repair'] as bool?;
+  }
+
+  /// Whether to ask the model to fix a block that failed to compile. Defaults
+  /// to `true`.
+  ///
+  /// On a failure the middleware sends one small follow-up call containing the
+  /// error, the Express contract, and the failed block, then compiles the
+  /// reply. This costs an extra model call on the failure path only, and never
+  /// runs for errors a rewrite cannot fix. Set `false` to drop bad blocks
+  /// outright.
+  set repair(bool? value) {
+    if (value == null) {
+      _json.remove('repair');
+    } else {
+      _json['repair'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -150,6 +180,7 @@ base class _A2uiOptionsTypeFactory extends SchemanticType<A2uiOptions> {
         'instructions': <String, Object?>{'type': 'string'},
         'validate': <String, Object?>{'type': 'string'},
         'version': <String, Object?>{'type': 'string'},
+        'repair': <String, Object?>{'type': 'boolean'},
       },
     },
     dependencies: [],
