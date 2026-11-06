@@ -422,31 +422,48 @@ void main() {
           .listen((r) => warnings.add(r.message));
       addTearDown(sub.cancel);
       final session = _FakeLiveSession();
-      Part frame(String resolution) => MediaPart(
+      Part media(String contentType) => MediaPart(
         media: Media(
-          url: 'data:image/jpeg;base64,AAAA',
-          contentType: 'image/jpeg',
+          url: 'data:$contentType;base64,AAAA',
+          contentType: contentType,
         ),
-        metadata: {'mediaResolution': resolution},
+        metadata: {'mediaResolution': 'MEDIA_RESOLUTION_LOW'},
       );
 
       await sendToLiveSession(
         session,
-        Message(role: Role.user, content: [frame('MEDIA_RESOLUTION_LOW')]),
+        Message(role: Role.user, content: [media('image/jpeg')]),
+      );
+      await sendToLiveSession(
+        session,
+        Message(role: Role.user, content: [media('audio/pcm;rate=16000')]),
       );
       await sendToLiveSession(
         session,
         Message(
           role: Role.user,
           content: [
-            frame('MEDIA_RESOLUTION_LOW'),
+            media('image/jpeg'),
             TextPart(text: 'what?'),
           ],
         ),
       );
 
-      expect(session.calls, ['video', 'turn(parts: 2, turnComplete: true)']);
-      expect(warnings, [contains('not sent with Live realtime input')]);
+      expect(session.calls, [
+        'video',
+        'audio',
+        'turn(parts: 2, turnComplete: true)',
+      ]);
+      expect(warnings, [
+        allOf(
+          contains('not sent with Live realtime input'),
+          contains('image/jpeg'),
+        ),
+        allOf(
+          contains('not sent with Live realtime input'),
+          contains('audio/pcm'),
+        ),
+      ]);
     });
 
     test(

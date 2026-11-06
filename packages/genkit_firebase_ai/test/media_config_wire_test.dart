@@ -75,6 +75,7 @@ void main() {
               {'speaker': 'Jane', 'voiceConfig': _voice('Puck')},
             ],
           },
+          'languageCode': 'en-US',
         },
       });
 
@@ -95,6 +96,7 @@ void main() {
             },
           ],
         },
+        'language_code': 'en-US',
       });
     });
 
