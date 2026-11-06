@@ -63,13 +63,19 @@ void main() async {
 
 `firebaseAI.gemini(name)` works with any Gemini model that Firebase AI Logic
 serves. See [supported models](https://firebase.google.com/docs/ai-logic/models)
-for names and shutdown dates. The plugin also registers these models for the
-Genkit Developer UI:
+for names and shutdown dates. The plugin also registers the models Firebase
+AI Logic serves, so they show up in the Genkit Developer UI with their
+capabilities:
 
-- `gemini-flash-latest`
-- `gemini-3.1-pro-preview`
-- `gemini-2.5-flash-native-audio-preview-12-2025` (Live, see
-  [Live API](#live-api-experimental))
+- Text: `gemini-4-argon`, `gemini-3.8-flash`, `gemini-3.5-flash`,
+  `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite` and `gemini-3.1-pro-preview`.
+  `gemini-flash-latest`, `gemini-3.7-flash` and `gemini-3.6-flash` are Gemini
+  Developer API only.
+- Image: `gemini-nano-banana-2.1`, `gemini-3.1-flash-image`,
+  `gemini-3.1-flash-lite-image` and `gemini-3-pro-image`.
+- Text-to-speech: `gemini-3.8-flash-tts` and `gemini-3.8-flash-lite-tts`.
+- Live (see [Live API](#live-api-experimental)): `gemini-3.8-live`, and
+  `gemini-live-2.5-flash-native-audio` on Agent Platform only.
 
 Gemini models are retired often, and a model name compiled into your app
 stops working when its model shuts down. For example, the Gemini 2.5 models
@@ -135,6 +141,10 @@ Migrating from earlier versions:
   created a `FirebaseAI` instance for the same Firebase app and location. From
   5.1 the flag is part of that cache key, so it always applies. Instances
   created for a different app than `app:` are no longer used.
+- Tool input schemas are sent unchanged as `parametersJsonSchema`. They used to
+  be converted to OpenAPI-style `parameters`, which dropped keywords such as
+  `oneOf`, `additionalProperties` and `default`. The model now gets the full
+  schema, so a tool can behave differently with the same definition.
 
 To route requests through your own `http.Client` (a proxy, logging, retries,
 or a mock in tests), pass `httpClient`. Live models connect over a WebSocket
@@ -159,12 +169,17 @@ final response = await ai.generate(
   model: firebaseAI.gemini('gemini-3.8-flash'),
   prompt: 'Plan a three-day trip to Lisbon.',
   config: GeminiOptions(
-    temperature: 0.7,
     maxOutputTokens: 2048,
     thinkingConfig: ThinkingConfig(thinkingLevel: 'LOW'),
   ),
 );
 ```
+
+Gemini 3 and newer models ignore `temperature`, `topP` and `topK`, and may
+reject `presencePenalty` and `frequencyPenalty` with a 400 error. They don't
+support `candidateCount` either. On older models, a non-streaming request with
+`candidateCount` above 1 returns the first candidate as `text` and `message`
+and the rest in `raw`; streaming with it fails with `INVALID_ARGUMENT`.
 
 ### Thinking
 
@@ -180,11 +195,137 @@ config: GeminiOptions(
 ),
 ```
 
+Gemini 3 returns thought signatures, which it needs back in later turns, for
+example for multi-turn tool calling. The plugin keeps each one in its part's
+`metadata['thoughtSignature']` and sends it back when you pass the response
+messages into the next request. `firebase_ai` has no public API for setting a
+signature, so the plugin uses its `@visibleForTesting` constructors for this
+([flutterfire#18917](https://github.com/firebase/flutterfire/issues/18917)). A
+`firebase_ai` release that changes them can break the round trip.
+
 ### Code execution
 
 `codeExecution: true` lets the model write and run Python. The code and its
 result come back as custom parts with the keys `executableCode` and
 `codeExecutionResult`.
+
+### Safety settings
+
+`safetySettings` sets a blocking threshold per harm category. The
+`HARM_CATEGORY_IMAGE_*` categories and `method` work on Agent Platform only;
+the Gemini Developer API rejects them.
+
+```dart
+config: GeminiOptions(
+  safetySettings: [
+    GeminiSafetySettings(
+      category: 'HARM_CATEGORY_HARASSMENT',
+      threshold: 'BLOCK_ONLY_HIGH',
+    ),
+  ],
+),
+```
+
+### Grounding
+
+`googleSearch` grounds answers in Google Search, `urlContext` lets the model
+read the URLs in the prompt, and `googleMaps` grounds answers in Google Maps
+data. For Maps, pass the user's location in `retrievalConfig`; a `latLng` with
+only one coordinate fails with `INVALID_ARGUMENT`.
+
+```dart
+final response = await ai.generate(
+  model: firebaseAI.gemini('gemini-3.8-flash'),
+  prompt: 'Who won the most recent Formula 1 race?',
+  config: GeminiOptions(googleSearch: GeminiGoogleSearch()),
+);
+
+final grounding = response.custom?['groundingMetadata'] as Map?;
+print(grounding?['webSearchQueries']);
+for (final chunk in grounding?['groundingChunks'] as List? ?? []) {
+  print(chunk['web']?['uri']);
+}
+```
+
+```dart
+config: GeminiOptions(
+  googleMaps: GeminiGoogleMaps(),
+  retrievalConfig: GeminiRetrievalConfig(
+    latLng: GeminiLatLng(latitude: 38.72, longitude: -9.14),
+  ),
+),
+```
+
+The response's `custom` holds `groundingMetadata` (`webSearchQueries`,
+`groundingChunks`, `groundingSupports` and `searchEntryPoint`) and, for URL
+context, `urlContextMetadata`. Both are rebuilt from what `firebase_ai`
+parses, so absent lists come back empty. If you use Google Search grounding,
+you must
+[display the search suggestions and sources](https://firebase.google.com/docs/ai-logic/grounding-google-search):
+`searchEntryPoint.renderedContent` is HTML to show in your app.
+
+### Images and speech
+
+Image models return images as media parts with a `data:` URL. Set
+`responseModalities` and, optionally, `imageConfig`:
+
+```dart
+final response = await ai.generate(
+  model: firebaseAI.gemini('gemini-3.1-flash-image'),
+  prompt: 'A watercolor of a lighthouse at dawn.',
+  config: GeminiOptions(
+    responseModalities: ['TEXT', 'IMAGE'],
+    imageConfig: GeminiImageConfig(aspectRatio: '16:9', imageSize: '2K'),
+  ),
+);
+final image = response.media; // data:image/png;base64,...
+```
+
+Text-to-speech models return audio the same way. `speechConfig` takes one
+voice, or a `multiSpeakerVoiceConfig` with exactly two speakers whose names
+match the prompt:
+
+```dart
+config: GeminiOptions(
+  responseModalities: ['AUDIO'],
+  speechConfig: SpeechConfig(
+    multiSpeakerVoiceConfig: MultiSpeakerVoiceConfig(
+      speakerVoiceConfigs: [
+        SpeakerVoiceConfig(
+          speaker: 'Joe',
+          voiceConfig: VoiceConfig(
+            prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Kore'),
+          ),
+        ),
+        SpeakerVoiceConfig(
+          speaker: 'Jane',
+          voiceConfig: VoiceConfig(
+            prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
+          ),
+        ),
+      ],
+    ),
+    languageCode: 'en-US',
+  ),
+),
+```
+
+### Media resolution
+
+`mediaResolution` sets how much detail the model takes from images and video
+in the prompt: `MEDIA_RESOLUTION_LOW`, `MEDIA_RESOLUTION_MEDIUM` or
+`MEDIA_RESOLUTION_HIGH`. A media part can set its own, which also takes
+`MEDIA_RESOLUTION_ULTRA_HIGH`:
+
+```dart
+MediaPart(
+  media: Media(url: 'gs://my-bucket/scan.png', contentType: 'image/png'),
+  metadata: {'mediaResolution': 'MEDIA_RESOLUTION_ULTRA_HIGH'},
+)
+```
+
+Live realtime audio and video have no media resolution, so it's dropped there
+with a warning.
 
 ## Structured output
 
@@ -222,6 +363,10 @@ final response = await ai.generate(
 );
 ```
 
+A tool's input schema goes to Gemini unchanged as `parametersJsonSchema`, so
+`enum`, `anyOf`, `$ref`, `minimum`/`maximum` and `additionalProperties` reach
+the model.
+
 ## Errors
 
 Errors from Firebase AI Logic, the network or the SDK are reported as a
@@ -248,6 +393,20 @@ if (response.finishReason == FinishReason.failed) {
 `retry` retries statuses that can succeed on a second try, such as
 `UNAVAILABLE` and `RESOURCE_EXHAUSTED`. A blocked prompt is not retried.
 
+To stop a request, pass a cancellation token. Cancelling aborts the HTTP
+request or stream, and the response ends with `FinishReason.aborted`:
+
+```dart
+final controller = CancellationController();
+final result = ai.generate(
+  model: firebaseAI.gemini('gemini-flash-latest'),
+  prompt: 'Write a long story.',
+  cancel: controller.token,
+);
+// Later, for example when the user taps Stop:
+controller.cancel('user pressed stop');
+```
+
 ## Live API (experimental)
 
 Live models stream audio and text both ways over a WebSocket, through
@@ -258,7 +417,7 @@ Live models stream audio and text both ways over a WebSocket, through
 import 'package:genkit/experimental.dart';
 
 final session = await ai.generateBidi(
-  model: 'firebaseai/gemini-2.5-flash-native-audio-preview-12-2025',
+  model: 'firebaseai/gemini-3.8-live',
   config: LiveGenerationConfig(
     responseModalities: ['AUDIO'],
     speechConfig: SpeechConfig(
@@ -275,10 +434,14 @@ session.stream.listen((chunk) {
 });
 ```
 
-Live model names differ by provider. The Gemini Developer API serves
-`gemini-3.1-flash-live-preview` and the `gemini-2.5-flash-native-audio-*`
-previews. Agent Platform serves `gemini-live-2.5-flash-native-audio`, which
-needs a `location` such as `'us-central1'`.
+`gemini-3.8-live` works with both providers. Agent Platform also serves
+`gemini-live-2.5-flash-native-audio`, which needs a `location` such as
+`'us-central1'`.
+
+A session takes system messages only in its first request (`system:` above);
+sending one later fails with `INVALID_ARGUMENT`. If the server closes the
+session, for example for a bad setup, the session ends with that error rather
+than a normal stop.
 
 See [`testapps/firebase_ai`](https://github.com/genkit-ai/genkit-dart/tree/main/testapps/firebase_ai)
-for a complete Flutter app with tool calling and Live audio.
+for a complete Flutter app with tool calling, grounding and Live audio.
