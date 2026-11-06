@@ -26,10 +26,11 @@ import 'express.dart';
 
 /// Builds the repair prompt for a failed block.
 ///
-/// Carries the full Express contract rather than just the signatures of the
-/// components the block mentions: picking those out would need an Express
-/// tokenizer, and a2ui_agent does not export one. The contract is the same
-/// text the turn was prompted with, so it costs tokens but no surprises.
+/// Carries the full Express contract (grammar and catalog signatures) rather
+/// than just the signatures of the components the block mentions: picking
+/// those out would need an Express tokenizer, and a2ui_agent does not export
+/// one. It is the contract part of the turn's prompt, without the
+/// surface/form/style guidance and the example.
 String buildRepairPrompt({
   required String source,
   required String error,
@@ -60,16 +61,21 @@ String? extractRepairedBlock(String reply) {
   // Matched case-insensitively, like the streaming parser's tags: a model that
   // answers with `<A2UI>` has still produced a usable repair, and discarding it
   // over casing would waste the call.
-  final lower = reply.toLowerCase();
-  final open = lower.indexOf('<a2ui>');
-  if (open >= 0) {
-    final start = open + '<a2ui>'.length;
-    final close = lower.indexOf('</a2ui>', start);
+  // Tags are read as loosely as the turn parser reads them (attributes,
+  // `</a2ui >`, wrapping backticks).
+  final open = _openTagRe.firstMatch(reply);
+  if (open != null) {
+    final close = _closeTagRe.firstMatch(reply.substring(open.end));
     // Opened but never closed: take the rest, the compiler will judge it.
-    return _stripFence(reply.substring(start, close < 0 ? null : close));
+    return _stripFence(
+      reply.substring(open.end, close == null ? null : open.end + close.start),
+    );
   }
   return _stripFence(reply);
 }
+
+final _openTagRe = RegExp(r'`?<a2ui(?:\s[^>]*)?>`?', caseSensitive: false);
+final _closeTagRe = RegExp(r'`?</a2ui\s*>`?', caseSensitive: false);
 
 final _fenceRe = RegExp(r'```[a-zA-Z0-9_-]*\r?\n([\s\S]*?)```');
 

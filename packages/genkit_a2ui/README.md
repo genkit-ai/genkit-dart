@@ -241,15 +241,19 @@ refresh = Button("Refresh", "primary", Event("refresh"))
 ```
 
 `Button.child` is a component id, so that would render nothing useful. When a
-block fails to compile the middleware sends one small follow-up call containing
-the error, the Express contract, and the failed block, then compiles the reply.
+block fails to compile the middleware sends a follow-up call containing the
+error, the Express contract with the catalog's signatures (a few thousand input
+tokens with the basic catalog), and the failed block, then compiles the reply.
 If it works the surface renders (and the repaired block is what gets replayed
-as history); if not, the block is dropped as before.
+as history); if not, the block is dropped as before. That is one call per
+distinct broken block, at most 3 per model call and 30 seconds in total.
 
-This costs an extra model call **on the failure path only**. Disable it with:
+This costs extra model calls **on the failure path only**. It also changes what
+`validate: 'strict'` reports: it throws only if the repair fails too. To see
+the model's own mistakes while developing, turn repair off:
 
 ```dart
-use: [a2ui(repair: false)]
+use: [a2ui(validate: 'strict', repair: false)]
 ```
 
 Repair runs once the model's response is complete, since the streaming callback
@@ -258,8 +262,10 @@ last chunk of the stream (and is in the final message), so it arrives at the
 end of the turn rather than where the model wrote it. The repair call uses the
 same model config as the turn (so a per-request API key still applies; an
 option that forces JSON output or a function call can make the repair fail, in
-which case the block is dropped as before), and its token usage is added to the
-turn's.
+which case the block is dropped as before; provider-side tools enabled in the
+config, such as code execution, stay on too). Its token usage is added to the
+turn's `usage`; `latencyMs` stays that of the turn's own call. Cancelling the
+turn cancels a repair in flight.
 
 ## Handling user actions
 

@@ -175,6 +175,145 @@ void main() {
       expect(configs[1], {'apiKey': 'per-request-key'});
     });
 
+    /// A model that answers [first] once and lets [repair] decide later calls.
+    void defineScripted(
+      String first,
+      Future<ModelResponse> Function(
+        ModelRequest req,
+        ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+      )
+      repair,
+    ) {
+      var calls = 0;
+      genkit.defineModel(
+        name: 'm',
+        fn: (req, ctx) async {
+          if (calls++ > 0) return repair(req, ctx);
+          if (ctx.streamingRequested) {
+            ctx.sendChunk(
+              ModelResponseChunk(
+                role: Role.model,
+                content: [TextPart(text: first)],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: first)],
+            ),
+          );
+        },
+      );
+    }
+
+    ModelResponse reply(String text, {FinishReason? finishReason}) =>
+        ModelResponse(
+          finishReason: finishReason ?? FinishReason.stop,
+          message: Message(
+            role: Role.model,
+            content: [TextPart(text: text)],
+          ),
+        );
+
+    test('a repair call that throws leaves the turn intact', () async {
+      defineScripted(badTurn, (_, _) => throw StateError('boom'));
+      final res = await run();
+      expect(res.finishReason, FinishReason.stop);
+      expect(res.text, contains('Here you go:'));
+      expect(res.message!.content.where(isA2uiPart), isEmpty);
+    });
+
+    test('cancelling the turn during a repair aborts it', () async {
+      final controller = CancellationController();
+      defineScripted(badTurn, (_, ctx) async {
+        controller.cancel();
+        ctx.cancel?.throwIfCancelled();
+        return reply(goodRepair);
+      });
+      final res = await genkit.generate(
+        model: modelRef('m'),
+        prompt: 'weather',
+        cancel: controller.token,
+        use: [a2ui()],
+      );
+      expect(res.finishReason, FinishReason.aborted);
+    });
+
+    test(
+      'the repair request carries no tools or output, and does not stream',
+      () async {
+        ModelRequest? seen;
+        bool? streaming;
+        defineScripted(badTurn, (req, ctx) async {
+          seen = req;
+          streaming = ctx.streamingRequested;
+          return reply(goodRepair);
+        });
+        await run(onChunk: (_) {});
+        expect(seen!.tools, anyOf(isNull, isEmpty));
+        expect(seen!.toolChoice, isNull);
+        expect(seen!.output, isNull);
+        expect(seen!.messages.single.role, Role.user);
+        expect(streaming, isFalse);
+      },
+    );
+
+    test('a repair reply cut off by the token limit is not used', () async {
+      defineScripted(
+        badTurn,
+        (_, _) async => reply(goodRepair, finishReason: FinishReason.length),
+      );
+      final res = await run();
+      expect(res.message!.content.where(isA2uiPart), isEmpty);
+    });
+
+    test('makes at most 3 repair calls per model call', () async {
+      final turn = [
+        for (var i = 0; i < 5; i++)
+          '<a2ui>\nsurface("s$i")\nroot = Button("x$i", "primary", '
+              'Event("e"))\n</a2ui>\n',
+      ].join();
+      var repairs = 0;
+      defineScripted(turn, (_, _) async {
+        repairs++;
+        return reply('nothing useful');
+      });
+      await run();
+      expect(repairs, 3);
+    });
+
+    test('does not repair a "block" with no surface(...) line', () async {
+      var repairs = 0;
+      defineScripted('<a2ui>\nroot = Bogus("x")\n</a2ui>', (_, _) async {
+        repairs++;
+        return reply(goodRepair);
+      });
+      await run();
+      expect(repairs, 0);
+    });
+
+    test(
+      're-sends later streamed parts of a repaired surface in order',
+      () async {
+        // The broken block is repaired at the end of the turn; the later render
+        // of the same surface already streamed. Sent after it, the repair would
+        // win on the client while history ends on the later render.
+        const later = 'surface("w")\nroot = Text("later")';
+        defineModel('$badTurn<a2ui>\n$later\n</a2ui>\n', goodRepair);
+        final streamed = <Part>[];
+        final res = await run(onChunk: (c) => streamed.addAll(c.content));
+        List<Object?> sources(Iterable<Part> parts) => [
+          for (final p in parts.where(isA2uiPart))
+            p.metadata?[a2uiExpressMetadataKey],
+        ];
+        expect(sources(res.message!.content), [goodBlock, later]);
+        // Live: `later`; then the catch-up: the repair, and `later` again.
+        expect(sources(streamed), [later, goodBlock, later]);
+      },
+    );
+
     test('the repair prompt carries the error and the failed block', () async {
       defineModel(badTurn, goodRepair);
       await run();
