@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/experimental.dart' show BidiModel;
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
+import 'package:genkit_firebase_ai/src/live.dart';
 import 'package:logging/logging.dart';
 
 void main() {
