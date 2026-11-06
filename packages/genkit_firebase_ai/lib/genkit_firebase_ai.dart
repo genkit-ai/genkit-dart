@@ -151,11 +151,11 @@ abstract class $GeminiOptions {
       'MEDIA_RESOLUTION_LOW',
       'MEDIA_RESOLUTION_MEDIUM',
       'MEDIA_RESOLUTION_HIGH',
-      'MEDIA_RESOLUTION_ULTRA_HIGH',
     ],
     description:
         'Resolution for media inputs. A media part can set its own in '
-        'metadata.mediaResolution.',
+        'metadata.mediaResolution, which also takes '
+        'MEDIA_RESOLUTION_ULTRA_HIGH.',
   )
   String? get mediaResolution;
 }
@@ -687,6 +687,8 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 fai.LiveGenerationConfig toLiveGenerationConfig(Map<String, dynamic>? config) {
   try {
     return _toLiveGenerationConfig(config);
+  } on GenkitException {
+    rethrow;
   } catch (e) {
     throw GenkitException(
       'Invalid Live model config: $e',
@@ -732,6 +734,9 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
 /// and media in model messages (history), go inside the turn instead. All tool responses go
 /// out together, and the remaining parts as one complete client turn, so the
 /// model does not answer before the whole message is in.
+///
+/// Realtime input has no media resolution, so a `metadata.mediaResolution` on
+/// a part sent that way is dropped, with a warning.
 @visibleForTesting
 Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
   _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
@@ -743,13 +748,24 @@ Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
   final framesOnly = otherParts.every(_isRealtimeMedia);
   final turnParts = <fai.Part>[];
 
+  void warnIfResolutionDropped(fai.InlineDataPart part) {
+    if (part.mediaResolution != null) {
+      _logger.warning(
+        'metadata.mediaResolution is not sent with Live realtime input; '
+        'ignoring it for ${part.mimeType}.',
+      );
+    }
+  }
+
   try {
     for (final part in otherParts) {
       switch (part) {
         case fai.InlineDataPart(:final mimeType)
             when isUser && mimeType.startsWith('audio/'):
+          warnIfResolutionDropped(part);
           await session.sendAudioRealtime(part);
         case fai.InlineDataPart() when isUser && framesOnly:
+          warnIfResolutionDropped(part);
           await session.sendVideoRealtime(part);
         default:
           turnParts.add(part);
@@ -863,20 +879,21 @@ fai.Part toGeminiPart(Part p) {
   }
   if (p.isMedia) {
     final media = p.media!;
+    final mediaResolution = _toMediaResolution(
+      switch (p.metadata?['mediaResolution']) {
+        null => null,
+        final String value => value,
+        final other => throw GenkitException(
+          'metadata.mediaResolution must be a string, not $other.',
+          status: StatusCode.invalidArgument,
+        ),
+      },
+      perPart: true,
+    );
     if (media.url.startsWith('data:')) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
         final mimeType = media.contentType ?? _dataUriMimeType(uri.data!);
-        final mediaResolution = _toMediaResolution(
-          switch (p.metadata?['mediaResolution']) {
-            null => null,
-            final String value => value,
-            final other => throw GenkitException(
-              'metadata.mediaResolution must be a string, not $other.',
-              status: StatusCode.invalidArgument,
-            ),
-          },
-        );
         try {
           return fai.InlineDataPart.forTest(
             mimeType,
@@ -900,6 +917,7 @@ fai.Part toGeminiPart(Part p) {
       return fai.FileData.forTest(
         media.contentType ?? 'application/octet-stream',
         media.url,
+        mediaResolution: mediaResolution,
         isThought: isThought,
         thoughtSignature: thoughtSignature,
       );
@@ -907,6 +925,7 @@ fai.Part toGeminiPart(Part p) {
       return fai.FileData(
         media.contentType ?? 'application/octet-stream',
         media.url,
+        mediaResolution: mediaResolution,
         isThought: isThought,
       );
     }
@@ -1472,12 +1491,25 @@ fai.ImageConfig? _toGeminiImageConfig(GeminiImageConfig? config) {
   );
 }
 
-fai.MediaResolution? _toMediaResolution(String? value) => _byWireName(
-  'mediaResolution',
-  value,
-  fai.MediaResolution.values.where((r) => r != fai.MediaResolution.unspecified),
-  (r) => r.toJson(),
-);
+/// The [fai.MediaResolution] named [value]. `ultraHigh` is only valid on a
+/// part ([perPart]); `firebase_ai` asserts against it for a whole request.
+fai.MediaResolution? _toMediaResolution(String? value, {bool perPart = false}) {
+  if (!perPart && value == fai.MediaResolution.ultraHigh.toJson()) {
+    throw GenkitException(
+      '$value is only supported on a media part, in '
+      'metadata.mediaResolution.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  return _byWireName(
+    perPart ? 'metadata.mediaResolution' : 'mediaResolution',
+    value,
+    fai.MediaResolution.values.where(
+      (r) => r != fai.MediaResolution.unspecified,
+    ),
+    (r) => r.toJson(),
+  );
+}
 
 /// The value of [values] whose wire name is [value], or null when [value] is.
 ///

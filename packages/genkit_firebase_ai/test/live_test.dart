@@ -17,6 +17,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/experimental.dart' show BidiModel;
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
+import 'package:logging/logging.dart';
 
 void main() {
   group('toLiveGenerationConfig', () {
@@ -83,6 +84,26 @@ void main() {
       );
     });
 
+    test('reports a bad speechConfig without wrapping it again', () {
+      expect(
+        () => toLiveGenerationConfig({
+          'speechConfig': {
+            'voiceConfig': {
+              'prebuiltVoiceConfig': {'voiceName': 'Kore'},
+            },
+            'multiSpeakerVoiceConfig': {'speakerVoiceConfigs': []},
+          },
+        }),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            startsWith('speechConfig cannot set both'),
+          ),
+        ),
+      );
+    });
+
     test('reports an unknown response modality as an invalid argument', () {
       expect(
         () => toLiveGenerationConfig({
@@ -112,6 +133,40 @@ void main() {
 
     test('sends audio as realtime audio', () async {
       expect(await send([media('audio/pcm;rate=16000')]), ['audio']);
+    });
+
+    test('warns that realtime input drops a part mediaResolution', () async {
+      final warnings = <String>[];
+      final sub = Logger.root.onRecord
+          .where((r) => r.level == Level.WARNING)
+          .listen((r) => warnings.add(r.message));
+      addTearDown(sub.cancel);
+      final session = _FakeLiveSession();
+      Part frame(String resolution) => MediaPart(
+        media: Media(
+          url: 'data:image/jpeg;base64,AAAA',
+          contentType: 'image/jpeg',
+        ),
+        metadata: {'mediaResolution': resolution},
+      );
+
+      await sendToLiveSession(
+        session,
+        Message(role: Role.user, content: [frame('MEDIA_RESOLUTION_LOW')]),
+      );
+      await sendToLiveSession(
+        session,
+        Message(
+          role: Role.user,
+          content: [
+            frame('MEDIA_RESOLUTION_LOW'),
+            TextPart(text: 'what?'),
+          ],
+        ),
+      );
+
+      expect(session.calls, ['video', 'turn(parts: 2, turnComplete: true)']);
+      expect(warnings, [contains('not sent with Live realtime input')]);
     });
 
     test(

@@ -540,12 +540,11 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
         'mediaResolution': <String, Object?>{
           'type': 'string',
           'description':
-              'Resolution for media inputs. A media part can set its own in metadata.mediaResolution.',
+              'Resolution for media inputs. A media part can set its own in metadata.mediaResolution, which also takes MEDIA_RESOLUTION_ULTRA_HIGH.',
           'enum': [
             'MEDIA_RESOLUTION_LOW',
             'MEDIA_RESOLUTION_MEDIUM',
             'MEDIA_RESOLUTION_HIGH',
-            'MEDIA_RESOLUTION_ULTRA_HIGH',
           ],
         },
       },

@@ -175,9 +175,37 @@ void main() {
       expect(config['mediaResolution'], 'MEDIA_RESOLUTION_LOW');
     });
 
-    test('an unknown value throws invalidArgument and sends nothing', () async {
-      await expectRejected({'mediaResolution': 'LOW'});
-    });
+    for (final value in ['LOW', 'MEDIA_RESOLUTION_UNSPECIFIED']) {
+      test('$value throws invalidArgument and sends nothing', () async {
+        await expectRejected({'mediaResolution': value});
+      });
+    }
+
+    test(
+      'ultra high for the whole request points to the part setting',
+      () async {
+        final client = WireClient();
+
+        await expectLater(
+          wireModel(client)(
+            userRequest(
+              'hello',
+              config: {'mediaResolution': 'MEDIA_RESOLUTION_ULTRA_HIGH'},
+            ),
+          ),
+          throwsA(
+            isA<GenkitException>()
+                .having((e) => e.status, 'status', StatusCode.invalidArgument)
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains('only supported on a media part'),
+                ),
+          ),
+        );
+        expect(client.requests, isEmpty);
+      },
+    );
 
     test('a non-string part mediaResolution throws invalidArgument and '
         'sends nothing', () async {
@@ -204,9 +232,11 @@ void main() {
       expect(client.requests, isEmpty);
     });
 
-    test('a media part can set its own', () async {
+    Future<Map<String, dynamic>> sentPart(
+      Media media,
+      String resolution,
+    ) async {
       final client = WireClient();
-
       await wireModel(client)(
         ModelRequest(
           messages: [
@@ -214,19 +244,46 @@ void main() {
               role: Role.user,
               content: [
                 MediaPart(
-                  media: Media(url: 'data:image/png;base64,iVBORw0KGgo='),
-                  metadata: {'mediaResolution': 'MEDIA_RESOLUTION_HIGH'},
+                  media: media,
+                  metadata: {'mediaResolution': resolution},
                 ),
               ],
             ),
           ],
         ),
       );
-
       final contents = client.requests.single.body['contents'] as List;
-      final part = ((contents.single as Map)['parts'] as List).single as Map;
+      return ((contents.single as Map)['parts'] as List).single
+          as Map<String, dynamic>;
+    }
+
+    test('a media part can set its own', () async {
+      final part = await sentPart(
+        Media(url: 'data:image/png;base64,iVBORw0KGgo='),
+        'MEDIA_RESOLUTION_HIGH',
+      );
+
       expect(part['mediaResolution'], {'level': 'MEDIA_RESOLUTION_HIGH'});
       expect((part['inlineData'] as Map)['mimeType'], 'image/png');
+    });
+
+    test('a media part can use ultra high', () async {
+      final part = await sentPart(
+        Media(url: 'data:image/png;base64,iVBORw0KGgo='),
+        'MEDIA_RESOLUTION_ULTRA_HIGH',
+      );
+
+      expect(part['mediaResolution'], {'level': 'MEDIA_RESOLUTION_ULTRA_HIGH'});
+    });
+
+    test('a file part can set its own', () async {
+      final part = await sentPart(
+        Media(url: 'gs://bucket/photo.png', contentType: 'image/png'),
+        'MEDIA_RESOLUTION_LOW',
+      );
+
+      expect(part['mediaResolution'], {'level': 'MEDIA_RESOLUTION_LOW'});
+      expect((part['file_data'] as Map)['file_uri'], 'gs://bucket/photo.png');
     });
   });
 }
