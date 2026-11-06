@@ -17,6 +17,7 @@ library;
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 /// The mistake that motivated repair: a label where a component id belongs.
@@ -468,6 +469,25 @@ go = Button(goLabel, "primary", Event("go"))''';
 
       expect(prompts, hasLength(1));
       expect(componentsOf(res), isNotEmpty);
+    });
+
+    test('lets a repair add the root a new surface forgot', () async {
+      // No `root`, but no live surface either: not a partial update.
+      final warnings = <String>[];
+      final sub = Logger.root.onRecord.listen((r) {
+        if (r.level >= Level.WARNING) warnings.add(r.message);
+      });
+      addTearDown(sub.cancel);
+      defineModel(
+        '<a2ui>\nsurface("n")\nnote = Text("hi")\n</a2ui>',
+        '<a2ui>\nsurface("n")\nnote = Text("hi")\nroot = Column([note])\n</a2ui>',
+      );
+      final res = await run();
+
+      expect(prompts.last, isNot(contains('partial update')));
+      expect(componentsOf(res).map((c) => c['id']), containsAll(['root']));
+      // The first turn has no history to lose.
+      expect(warnings.where((w) => w.contains('request history')), isEmpty);
     });
 
     group('a partial update', () {

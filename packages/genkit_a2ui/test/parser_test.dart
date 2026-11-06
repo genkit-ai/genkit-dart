@@ -490,6 +490,23 @@ void main() {
           expect(() => collect(parser, [updateA]), throwsA(isA<StateError>()));
         });
 
+        test('a delete of another protocol version is ignored', () {
+          final parser = A2uiStreamParser(
+            catalog: basicCatalog,
+            history: [
+              create('s'),
+              withA,
+              {
+                'version': '1.0',
+                'deleteSurface': {'surfaceId': 's'},
+              },
+            ],
+          );
+          expect(kinds(batchesOf(collect(parser, [updateA])).single), [
+            'updateComponents',
+          ]);
+        });
+
         test('a second create without a delete keeps the old tree', () {
           // The renderer rejects creating a live surface, so `a` survives.
           final parser = A2uiStreamParser(

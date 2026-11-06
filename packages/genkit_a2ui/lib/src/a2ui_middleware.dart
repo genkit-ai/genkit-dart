@@ -353,6 +353,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       history,
       repairs,
       extraUsage: repairUsage,
+      hadModelTurns: request.messages.any((m) => m.role == Role.model),
     );
 
     // 5) A block that failed on the stream and was repaired afterwards exists
@@ -460,9 +461,14 @@ class A2uiMiddleware extends GenerateMiddleware {
         }
         calls++;
         _noteFirstRepair();
-        // A block without `root` updates a surface the client holds; its
-        // repair must stay an update rather than replace the surface.
-        final partial = !_rootLineRe.hasMatch(block.source);
+        // A block without `root` for a surface the client holds is an update,
+        // and its repair must stay one rather than replace the surface. The
+        // mirror reports "Surface not found" exactly when the surface is not
+        // live: then the block is a new surface that forgot its `root`, and a
+        // repair may add one.
+        final partial =
+            !_rootLineRe.hasMatch(block.source) &&
+            !block.error.contains(_surfaceNotFound);
         final repaired = await _askForRepair(
           block,
           catalog,
@@ -633,6 +639,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     List<A2uiEnvelope> history,
     Map<String, String> repairs, {
     GenerationUsage? extraUsage,
+    bool hadModelTurns = false,
   }) {
     final parser = A2uiStreamParser.internal(
       catalog: catalog,
@@ -675,8 +682,11 @@ class A2uiMiddleware extends GenerateMiddleware {
     }
     flushHeld();
     if (!newContent.any(isA2uiPart)) _warnOnPreExpressOutput(message);
-    if (history.isEmpty &&
-        parser.failedBlocks.any((b) => b.error.contains('Surface not found'))) {
+    // Only after earlier model turns: on the first turn a block without
+    // `root` is a new surface missing its root, not a sign of lost history.
+    if (hadModelTurns &&
+        history.isEmpty &&
+        parser.failedBlocks.any((b) => b.error.contains(_surfaceNotFound))) {
       _warnOnMissingHistory();
     }
 
@@ -750,6 +760,10 @@ GenerationUsage? _sumUsage(GenerationUsage? a, GenerationUsage? b) {
 }
 
 final _surfaceLineRe = RegExp(r'^\s*surface\(', multiLine: true);
+
+/// How a2ui_agent's renderer state reports an update to a surface that is not
+/// live.
+const _surfaceNotFound = 'Surface not found';
 final _rootLineRe = RegExp(r'^\s*root\s*=', multiLine: true);
 final _surfaceTargetRe = RegExp(
   r'''^\s*(surface|deleteSurface)\(\s*["']([^"']*)["']''',

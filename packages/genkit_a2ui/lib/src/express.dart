@@ -115,6 +115,9 @@ final class ExpressEngine {
 List<A2uiEnvelope> _liveHistory(Iterable<A2uiEnvelope> history) {
   final live = <String, List<(int, A2uiEnvelope)>>{};
   for (final (i, e) in history.indexed) {
+    // A message of another protocol version is rejected when replayed, so it
+    // must not decide what is live either.
+    if (e['version'] case final Object v when v != a2uiVersion) continue;
     switch (e) {
       case {'createSurface': {'surfaceId': final String id}}:
         if (!live.containsKey(id)) live[id] = [(i, e)];
