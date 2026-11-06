@@ -142,6 +142,48 @@ abstract class $GeminiOptions {
   $GeminiGoogleMaps? get googleMaps;
   @Field(description: 'Location and language for Google Maps grounding.')
   $GeminiRetrievalConfig? get retrievalConfig;
+  @Field(description: 'Voice and language for text-to-speech models.')
+  $SpeechConfig? get speechConfig;
+  @Field(description: 'Aspect ratio and size for image generation models.')
+  $GeminiImageConfig? get imageConfig;
+  @StringField(
+    enumValues: [
+      'MEDIA_RESOLUTION_LOW',
+      'MEDIA_RESOLUTION_MEDIUM',
+      'MEDIA_RESOLUTION_HIGH',
+    ],
+    description:
+        'Resolution for media inputs. A media part can set its own in '
+        'metadata.mediaResolution, which also takes '
+        'MEDIA_RESOLUTION_ULTRA_HIGH.',
+  )
+  String? get mediaResolution;
+}
+
+@Schema()
+abstract class $GeminiImageConfig {
+  @StringField(
+    enumValues: [
+      '1:1',
+      '9:16',
+      '16:9',
+      '3:4',
+      '4:3',
+      '2:3',
+      '3:2',
+      '4:5',
+      '5:4',
+      '1:4',
+      '4:1',
+      '1:8',
+      '8:1',
+      '21:9',
+    ],
+  )
+  String? get aspectRatio;
+
+  @StringField(enumValues: ['512', '1K', '2K', '4K'])
+  String? get imageSize;
 }
 
 @Schema()
@@ -237,6 +279,26 @@ abstract class $VoiceConfig {
 
 @Schema()
 abstract class $SpeechConfig {
+  $VoiceConfig? get voiceConfig;
+  @Field(
+    description:
+        'Voices for a multi-speaker conversation, with exactly two '
+        'speakers. Cannot be set together with voiceConfig.',
+  )
+  $MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig;
+  @Field(description: 'BCP-47 language code, for example en-US.')
+  String? get languageCode;
+}
+
+@Schema()
+abstract class $MultiSpeakerVoiceConfig {
+  List<$SpeakerVoiceConfig>? get speakerVoiceConfigs;
+}
+
+@Schema()
+abstract class $SpeakerVoiceConfig {
+  @Field(description: 'The speaker name used in the prompt.')
+  String? get speaker;
   $VoiceConfig? get voiceConfig;
 }
 
@@ -673,6 +735,8 @@ Future<void> runLiveSession(
 fai.LiveGenerationConfig toLiveGenerationConfig(Map<String, dynamic>? config) {
   try {
     return _toLiveGenerationConfig(config);
+  } on GenkitException {
+    rethrow;
   } catch (e) {
     throw GenkitException(
       'Invalid Live model config: $e',
@@ -698,11 +762,7 @@ fai.LiveGenerationConfig _toLiveGenerationConfig(Map<String, dynamic>? config) {
     responseModalities: options.responseModalities
         ?.map((e) => fai.ResponseModalities.values.byName(e.toLowerCase()))
         .toList(),
-    speechConfig: speechConfig == null
-        ? null
-        : fai.SpeechConfig(
-            voiceName: speechConfig.voiceConfig?.prebuiltVoiceConfig?.voiceName,
-          ),
+    speechConfig: toGeminiSpeechConfig(speechConfig),
     maxOutputTokens: options.maxOutputTokens,
     temperature: options.temperature,
     topP: options.topP,
@@ -800,6 +860,9 @@ Future<void> receiveLiveSession(
 /// out together, and the remaining parts as one complete client turn, so the
 /// model does not answer before the whole message is in.
 ///
+/// Realtime input has no media resolution, so a `metadata.mediaResolution` on
+/// a part sent that way is dropped, with a warning.
+///
 /// Throws a [GenkitException] with [StatusCode.invalidArgument] for a system
 /// message, which a session takes only in its initial request.
 @visibleForTesting
@@ -821,13 +884,24 @@ Future<void> sendToLiveSession(fai.LiveSession session, Message msg) async {
   final framesOnly = otherParts.every(_isRealtimeMedia);
   final turnParts = <fai.Part>[];
 
+  void warnIfResolutionDropped(fai.InlineDataPart part) {
+    if (part.mediaResolution != null) {
+      _logger.warning(
+        'metadata.mediaResolution is not sent with Live realtime input; '
+        'ignoring it for ${part.mimeType}.',
+      );
+    }
+  }
+
   try {
     for (final part in otherParts) {
       switch (part) {
         case fai.InlineDataPart(:final mimeType)
             when isUser && mimeType.startsWith('audio/'):
+          warnIfResolutionDropped(part);
           await session.sendAudioRealtime(part);
         case fai.InlineDataPart() when isUser && framesOnly:
+          warnIfResolutionDropped(part);
           await session.sendVideoRealtime(part);
         default:
           turnParts.add(part);
@@ -941,6 +1015,17 @@ fai.Part toGeminiPart(Part p) {
   }
   if (p.isMedia) {
     final media = p.media!;
+    final mediaResolution = _toMediaResolution(
+      switch (p.metadata?['mediaResolution']) {
+        null => null,
+        final String value => value,
+        final other => throw GenkitException(
+          'metadata.mediaResolution must be a string, not $other.',
+          status: StatusCode.invalidArgument,
+        ),
+      },
+      perPart: true,
+    );
     if (media.url.startsWith('data:')) {
       final uri = Uri.parse(media.url);
       if (uri.data != null) {
@@ -949,6 +1034,7 @@ fai.Part toGeminiPart(Part p) {
           return fai.InlineDataPart.forTest(
             mimeType,
             uri.data!.contentAsBytes(),
+            mediaResolution: mediaResolution,
             isThought: isThought,
             thoughtSignature: thoughtSignature,
           );
@@ -956,6 +1042,7 @@ fai.Part toGeminiPart(Part p) {
           return fai.InlineDataPart(
             mimeType,
             uri.data!.contentAsBytes(),
+            mediaResolution: mediaResolution,
             isThought: isThought,
           );
         }
@@ -966,6 +1053,7 @@ fai.Part toGeminiPart(Part p) {
       return fai.FileData.forTest(
         media.contentType ?? 'application/octet-stream',
         media.url,
+        mediaResolution: mediaResolution,
         isThought: isThought,
         thoughtSignature: thoughtSignature,
       );
@@ -973,6 +1061,7 @@ fai.Part toGeminiPart(Part p) {
       return fai.FileData(
         media.contentType ?? 'application/octet-stream',
         media.url,
+        mediaResolution: mediaResolution,
         isThought: isThought,
       );
     }
@@ -1460,6 +1549,125 @@ fai.GenerationConfig _toGeminiSettings(
     thinkingConfig: options.thinkingConfig == null
         ? null
         : _toGeminiThinkingConfig(options.thinkingConfig!),
+    speechConfig: toGeminiSpeechConfig(options.speechConfig),
+    imageConfig: _toGeminiImageConfig(options.imageConfig),
+    mediaResolution: _toMediaResolution(options.mediaResolution),
+  );
+}
+
+/// Converts [config] to a `firebase_ai` speech config.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] when both a
+/// voice and multiple speakers are set, there are not exactly two speakers, or
+/// a speaker lacks a name or voice.
+@visibleForTesting
+fai.SpeechConfig? toGeminiSpeechConfig(SpeechConfig? config) {
+  if (config == null) return null;
+  final voiceName = config.voiceConfig?.prebuiltVoiceConfig?.voiceName;
+  final multi = config.multiSpeakerVoiceConfig;
+  if (multi == null) {
+    return fai.SpeechConfig(
+      voiceName: voiceName,
+      languageCode: config.languageCode,
+    );
+  }
+  if (config.voiceConfig != null) {
+    throw GenkitException(
+      'speechConfig cannot set both voiceConfig and multiSpeakerVoiceConfig.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  final speakers = multi.speakerVoiceConfigs;
+  // Gemini TTS takes exactly two speakers.
+  if (speakers == null || speakers.length != 2) {
+    throw GenkitException(
+      'multiSpeakerVoiceConfig needs exactly two speakerVoiceConfigs entries, '
+      'not ${speakers?.length ?? 0}.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  return fai.SpeechConfig.multiSpeaker(
+    multiSpeakerVoiceConfig: fai.MultiSpeakerVoiceConfig(
+      speakerVoiceConfigs: [
+        for (final speaker in speakers)
+          switch (speaker) {
+            SpeakerVoiceConfig(
+              speaker: final name?,
+              voiceConfig: VoiceConfig(
+                prebuiltVoiceConfig: PrebuiltVoiceConfig(
+                  voiceName: final voice?,
+                ),
+              ),
+            ) =>
+              fai.SpeakerVoiceConfig(speaker: name, voiceName: voice),
+            _ => throw GenkitException(
+              'Each speakerVoiceConfigs entry needs a speaker and a '
+              'voiceConfig.prebuiltVoiceConfig.voiceName.',
+              status: StatusCode.invalidArgument,
+            ),
+          },
+      ],
+    ),
+    languageCode: config.languageCode,
+  );
+}
+
+fai.ImageConfig? _toGeminiImageConfig(GeminiImageConfig? config) {
+  if (config == null) return null;
+  return fai.ImageConfig(
+    aspectRatio: _byWireName(
+      'imageConfig.aspectRatio',
+      config.aspectRatio,
+      fai.ImageAspectRatio.values,
+      (r) => r.toJson(),
+    ),
+    imageSize: _byWireName(
+      'imageConfig.imageSize',
+      config.imageSize,
+      fai.ImageSize.values,
+      (s) => s.toJson(),
+    ),
+  );
+}
+
+/// The [fai.MediaResolution] named [value]. `ultraHigh` is only valid on a
+/// part ([perPart]); `firebase_ai` asserts against it for a whole request.
+fai.MediaResolution? _toMediaResolution(String? value, {bool perPart = false}) {
+  if (!perPart && value == fai.MediaResolution.ultraHigh.toJson()) {
+    throw GenkitException(
+      '$value is only supported on a media part, in '
+      'metadata.mediaResolution.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  return _byWireName(
+    perPart ? 'metadata.mediaResolution' : 'mediaResolution',
+    value,
+    fai.MediaResolution.values.where(
+      (r) => r != fai.MediaResolution.unspecified,
+    ),
+    (r) => r.toJson(),
+  );
+}
+
+/// The value of [values] whose wire name is [value], or null when [value] is.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for an unknown
+/// [value] in [field].
+T? _byWireName<T>(
+  String field,
+  String? value,
+  Iterable<T> values,
+  String Function(T) wireName,
+) {
+  if (value == null) return null;
+  for (final v in values) {
+    if (wireName(v) == value) return v;
+  }
+  throw GenkitException(
+    'Unknown $field "$value"; expected one of '
+    '${values.map(wireName).join(', ')}.',
+    status: StatusCode.invalidArgument,
   );
 }
 

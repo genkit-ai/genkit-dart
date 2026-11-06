@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/experimental.dart' show BidiModel;
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
+import 'package:logging/logging.dart';
 
 void main() {
   group('toLiveGenerationConfig', () {
@@ -44,6 +45,7 @@ void main() {
           'voiceConfig': {
             'prebuiltVoiceConfig': {'voiceName': 'Kore'},
           },
+          'languageCode': 'en-GB',
         },
         'maxOutputTokens': 256,
         'temperature': 1,
@@ -55,6 +57,7 @@ void main() {
 
       expect(config.responseModalities, [fai.ResponseModalities.audio]);
       expect(config.speechConfig!.voiceName, 'Kore');
+      expect(config.speechConfig!.languageCode, 'en-GB');
       expect(config.maxOutputTokens, 256);
       // The sampling getters are deprecated from firebase_ai 5 (#596), so
       // check the wire form instead.
@@ -78,6 +81,26 @@ void main() {
             (e) => e.status,
             'status',
             StatusCode.invalidArgument,
+          ),
+        ),
+      );
+    });
+
+    test('reports a bad speechConfig without wrapping it again', () {
+      expect(
+        () => toLiveGenerationConfig({
+          'speechConfig': {
+            'voiceConfig': {
+              'prebuiltVoiceConfig': {'voiceName': 'Kore'},
+            },
+            'multiSpeakerVoiceConfig': {'speakerVoiceConfigs': []},
+          },
+        }),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            startsWith('speechConfig cannot set both'),
           ),
         ),
       );
@@ -390,6 +413,57 @@ void main() {
 
     test('sends audio as realtime audio', () async {
       expect(await send([media('audio/pcm;rate=16000')]), ['audio']);
+    });
+
+    test('warns that realtime input drops a part mediaResolution', () async {
+      final warnings = <String>[];
+      final sub = Logger.root.onRecord
+          .where((r) => r.level == Level.WARNING)
+          .listen((r) => warnings.add(r.message));
+      addTearDown(sub.cancel);
+      final session = _FakeLiveSession();
+      Part media(String contentType) => MediaPart(
+        media: Media(
+          url: 'data:$contentType;base64,AAAA',
+          contentType: contentType,
+        ),
+        metadata: {'mediaResolution': 'MEDIA_RESOLUTION_LOW'},
+      );
+
+      await sendToLiveSession(
+        session,
+        Message(role: Role.user, content: [media('image/jpeg')]),
+      );
+      await sendToLiveSession(
+        session,
+        Message(role: Role.user, content: [media('audio/pcm;rate=16000')]),
+      );
+      await sendToLiveSession(
+        session,
+        Message(
+          role: Role.user,
+          content: [
+            media('image/jpeg'),
+            TextPart(text: 'what?'),
+          ],
+        ),
+      );
+
+      expect(session.calls, [
+        'video',
+        'audio',
+        'turn(parts: 2, turnComplete: true)',
+      ]);
+      expect(warnings, [
+        allOf(
+          contains('not sent with Live realtime input'),
+          contains('image/jpeg'),
+        ),
+        allOf(
+          contains('not sent with Live realtime input'),
+          contains('audio/pcm'),
+        ),
+      ]);
     });
 
     test(
