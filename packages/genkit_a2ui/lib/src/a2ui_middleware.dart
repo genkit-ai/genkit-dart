@@ -542,18 +542,27 @@ String _summarizeA2uiPart(Part part, Role role) {
       out.add('[UI action $name$from on surface $surfaceId$ctx]');
       continue;
     }
+    // Patterns rather than casts: this runs on stored history, so a malformed
+    // body (`{'createSurface': 'oops'}`) must be skipped, not throw on every
+    // later turn of the session.
     for (final kind in const [
       'createSurface',
       'updateComponents',
       'updateDataModel',
     ]) {
-      if (_idText((env[kind] as Map?)?['surfaceId']) case final id?) {
-        rendered.add(id);
+      if (env[kind] case {'surfaceId': final Object? raw}) {
+        if (_idText(raw) case final id?) {
+          // Every render starts with a delete, which this undoes.
+          removed.remove(id);
+          rendered.add(id);
+        }
       }
     }
-    if (_idText((env['deleteSurface'] as Map?)?['surfaceId']) case final id?) {
-      rendered.remove(id);
-      removed.add(id);
+    if (env['deleteSurface'] case {'surfaceId': final Object? raw}) {
+      if (_idText(raw) case final id?) {
+        rendered.remove(id);
+        removed.add(id);
+      }
     }
   }
   flushSurfaces();

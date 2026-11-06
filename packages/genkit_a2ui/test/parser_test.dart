@@ -223,6 +223,70 @@ void main() {
         });
       }
 
+      // Prose around a block that the after-close handling must not touch;
+      // each must read the same whole, split at any point, or in 3 pieces.
+      final edges = {
+        'blank line after': (
+          'Before.\n<a2ui>\n$body\n</a2ui>\n\nAfter.',
+          'Before.\n\nAfter.',
+        ),
+        'inline code after': (
+          'Before.\n<a2ui>\n$body\n</a2ui>\n`code` after.',
+          'Before.\n`code` after.',
+        ),
+        'code block after': (
+          'Before.\n<a2ui>\n$body\n</a2ui>\n```\nx = 1\n```\n',
+          'Before.\n```\nx = 1\n```\n',
+        ),
+        'code block before': (
+          'Code:\n```\nx = 1\n```\n<a2ui>\n$body\n</a2ui>\nAfter.',
+          'Code:\n```\nx = 1\n```\nAfter.',
+        ),
+        'fenced, closing fence alone': (
+          'Before.\n```\n<a2ui>\n$body\n</a2ui>\n```\nAfter.',
+          'Before.\nAfter.',
+        ),
+      };
+      for (final MapEntry(key: name, value: (text, prose)) in edges.entries) {
+        test('$name, split anywhere', () {
+          final splits = [
+            for (var i = 0; i <= text.length; i++) ...[
+              [text.substring(0, i), text.substring(i)],
+              // A short middle chunk is where a boundary inside what
+              // follows a tag shows up.
+              for (var j = i + 1; j <= i + 4 && j <= text.length; j++)
+                [text.substring(0, i), text.substring(i, j), text.substring(j)],
+            ],
+          ];
+          for (final chunks in splits) {
+            final segments = collect(newParser(), chunks);
+            final reason = 'chunks: $chunks';
+            expect(proseOf(segments), prose, reason: reason);
+            expect(
+              segments.whereType<EnvelopeSegment>().single.source,
+              body,
+              reason: reason,
+            );
+          }
+        });
+      }
+
+      test('tags mentioned in prose with a close tag stay prose', () {
+        const mention = 'Wrap blocks between `<a2ui>` and `</a2ui>` tags.';
+        final segments = collect(newParser(), [
+          '$mention\n<a2ui>\n$body\n</a2ui>\nDone.',
+        ]);
+        expect(proseOf(segments), '$mention\nDone.');
+        expect(batchesOf(segments), hasLength(1));
+      });
+
+      test('a block may start with any Express comment', () {
+        for (final comment in ['# c', '// c', '-- c', '/* c */']) {
+          final segments = collect(newParser(), ['<a2ui>\n$comment\n$body\n']);
+          expect(batchesOf(segments), hasLength(1), reason: comment);
+        }
+      });
+
       test('a tag mentioned in prose stays prose', () {
         for (final text in [
           'The <a2ui> tag is how I render UI. Anything else?',

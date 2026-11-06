@@ -728,6 +728,83 @@ root = Text("new")
       );
     });
 
+    test('summarizes a replaced surface as rendered only', () async {
+      // Every render starts with a delete; without its Express source the part
+      // must not read as both rendered and removed.
+      ModelRequest? seen;
+      defineReplyModel('m_replaced', 'ok', onRequest: (r) => seen = r);
+      await genkit.generate(
+        model: modelRef('m_replaced'),
+        messages: [
+          Message(
+            role: Role.model,
+            content: [
+              a2uiPart([
+                {
+                  'deleteSurface': {'surfaceId': 's1'},
+                },
+                {
+                  'createSurface': {
+                    'surfaceId': 's1',
+                    'catalogId': basicCatalog.id,
+                  },
+                },
+              ]),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hi')],
+          ),
+        ],
+        use: [a2ui()],
+      );
+      expect(
+        seen!.messages
+            .firstWhere((m) => m.role == Role.model)
+            .content
+            .single
+            .text,
+        '(UI surface s1 was rendered here.)',
+      );
+    });
+
+    test(
+      'skips a malformed message body instead of failing the turn',
+      () async {
+        // Stored in a session, a part that threw here would fail every later
+        // turn of that session.
+        defineReplyModel('m_malformed', 'fine');
+        for (final body in <Object?>['oops', 42, <Object?>[]]) {
+          final res = await genkit.generate(
+            model: modelRef('m_malformed'),
+            messages: [
+              Message(
+                role: Role.user,
+                content: [
+                  DataPart(
+                    data: {
+                      'messages': [
+                        {'createSurface': body},
+                        {'deleteSurface': body},
+                      ],
+                    },
+                    metadata: {'mimeType': a2uiMimeType},
+                  ),
+                ],
+              ),
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'hi')],
+              ),
+            ],
+            use: [a2ui()],
+          );
+          expect(res.text, 'fine');
+        }
+      },
+    );
+
     test('encodes client-supplied action fields', () async {
       ModelRequest? seen;
       defineReplyModel('m_action', 'ok', onRequest: (r) => seen = r);

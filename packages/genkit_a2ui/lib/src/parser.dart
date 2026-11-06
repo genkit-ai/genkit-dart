@@ -87,17 +87,27 @@ final _trailingFenceLineRe = RegExp(
 );
 
 /// What may directly follow a closing tag and is not prose: a backtick that
-/// wrapped the tag, a newline, and a code fence the model closed around the
-/// block.
-final _afterCloseRe = RegExp(
+/// wrapped the tag, and a newline.
+final _afterCloseRe = RegExp(r'^`?(?:[ \t]*\r?\n)?');
+
+/// The same, plus the code fence that closes one the model opened around the
+/// block (see [A2uiStreamParser._fencedBlock]).
+final _afterFencedCloseRe = RegExp(
   r'^(?:[ \t]*```[ \t]*(?:\r?\n|$)|`?(?:[ \t]*\r?\n)?(?:[ \t]*```[ \t]*(?:\r?\n|$))?)',
 );
 
-/// The start of a closing code fence, split from the rest by a chunk boundary.
-final _partialFenceRe = RegExp(r'^[ \t]*`{1,2}$');
+/// Text after a closing tag that could still grow into more of
+/// [_afterCloseRe] / [_afterFencedCloseRe], so it is held until it can't.
+final _afterCloseOpenRe = RegExp(r'^`?[ \t]*\r?$');
+final _afterFencedCloseOpenRe = RegExp(
+  r'^`?(?:[ \t]*\r?\n)?[ \t]*`{0,3}[ \t]*\r?$',
+);
 
 /// A code-fence line right before an opening tag (``` or ```a2ui).
 final _fenceBeforeTagRe = RegExp(r'```[\w-]*[ \t]*\r?\n[ \t]*$');
+
+/// A code-fence line, for telling whether prose is inside a code block.
+final _fenceLineRe = RegExp(r'^[ \t]*```', multiLine: true);
 
 /// Markdown fences some models wrap around the block content.
 final _leadingFenceRe = RegExp(r'^```[a-zA-Z-]*\s*');
@@ -189,10 +199,21 @@ class A2uiStreamParser {
   /// "block" turns out to be a mention of the tag (see [_drain]).
   String _openTag = '';
 
-  /// Set when a block closed at the very end of the buffer, so what
-  /// conventionally follows `</a2ui>` (a newline, a closing backtick or code
-  /// fence) is dropped even when it arrives in the next chunk.
+  /// Set when a block just closed: what conventionally follows `</a2ui>` (a
+  /// closing backtick, a newline, a closing code fence) is dropped once
+  /// enough text has arrived to tell, so a chunk boundary anywhere in it
+  /// gives the same prose as the unsplit text.
   bool _afterClose = false;
+
+  /// Whether the model opened a code fence around the current (or last)
+  /// block, so the fence after its close tag is the matching one. Without
+  /// this, a fence after the block would be taken from a code block in the
+  /// prose that follows.
+  bool _fencedBlock = false;
+
+  /// All prose emitted so far, to tell whether a fence line before a tag
+  /// opens a fence around it or closes a code block in the prose.
+  String _proseSoFar = '';
 
   /// Creates an [A2uiStreamParser].
   A2uiStreamParser({
@@ -204,10 +225,6 @@ class A2uiStreamParser {
   /// Feeds a chunk of model text, returning prose + any completed blocks.
   ParseResult push(String text) {
     _buffer += text;
-    if (_afterClose && _buffer.isNotEmpty) {
-      _buffer = _buffer.replaceFirst(_afterCloseRe, '');
-      _afterClose = _partialFenceRe.hasMatch(_buffer);
-    }
     return _drain(false);
   }
 
@@ -222,6 +239,7 @@ class A2uiStreamParser {
     void flushProse() {
       if (proseBuf.isNotEmpty) {
         segments.add(ProseSegment(proseBuf));
+        _proseSoFar += proseBuf;
         proseBuf = '';
       }
     }
@@ -237,6 +255,14 @@ class A2uiStreamParser {
     // Loop because a single push may contain multiple prose/block transitions.
     // Each iteration makes progress or breaks.
     while (true) {
+      if (_afterClose) {
+        final (strip, open) = _fencedBlock
+            ? (_afterFencedCloseRe, _afterFencedCloseOpenRe)
+            : (_afterCloseRe, _afterCloseOpenRe);
+        if (!finalPass && open.hasMatch(_buffer)) break;
+        _buffer = _buffer.replaceFirst(strip, '');
+        _afterClose = false;
+      }
       if (!_inBlock) {
         final open = _openTagRe.firstMatch(_buffer);
         if (open == null) {
@@ -249,10 +275,19 @@ class A2uiStreamParser {
           _buffer = _buffer.substring(safeLen);
           break;
         }
-        // A code fence the model opened around the tag is not prose.
-        proseBuf += _buffer
-            .substring(0, open.start)
-            .replaceFirst(_fenceBeforeTagRe, '');
+        // A code fence the model opened around the tag is not prose, but one
+        // that closes a code block in the prose is.
+        var before = _buffer.substring(0, open.start);
+        _fencedBlock = false;
+        if (_fenceBeforeTagRe.firstMatch(before) case final fence?) {
+          final earlier =
+              _proseSoFar + proseBuf + before.substring(0, fence.start);
+          if (_fenceLineRe.allMatches(earlier).length.isEven) {
+            before = before.substring(0, fence.start);
+            _fencedBlock = true;
+          }
+        }
+        proseBuf += before;
         _openTag = open.group(0)!;
         _buffer = _buffer.substring(open.end);
         _inBlock = true;
@@ -277,9 +312,16 @@ class A2uiStreamParser {
         break;
       }
       final blockText = _buffer.substring(0, close.start);
-      _buffer = _buffer.substring(close.end).replaceFirst(_afterCloseRe, '');
-      _afterClose = _buffer.isEmpty || _partialFenceRe.hasMatch(_buffer);
       _inBlock = false;
+      if (!_startsLikeExpress(blockText)) {
+        // A mention of the tags in prose ("wrap it in `<a2ui>` and
+        // `</a2ui>`"): give the opening tag back and read on from after it,
+        // so a real block later in the text is still found.
+        proseBuf += _openTag;
+        continue;
+      }
+      _buffer = _buffer.substring(close.end);
+      _afterClose = true;
       emitBlock(blockText);
     }
     flushProse();
@@ -372,7 +414,7 @@ bool _startsLikeExpress(String block) {
 }
 
 final _expressStartRe = RegExp(
-  r'^(?:(?:surface|deleteSurface)\s*\(|\$/|[A-Za-z_]\w*\s*=|//)',
+  r'^(?:(?:surface|deleteSurface)\s*\(|\$/|[A-Za-z_]\w*\s*=|#|//|--|/\*)',
 );
 
 String? _surfaceIdOf(A2uiEnvelope e, String kind) => switch (e[kind]) {
