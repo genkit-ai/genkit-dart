@@ -598,7 +598,7 @@ about prior surfaces and user actions:
   it wrote. If you manage conversation history on the client, send parts back
   with their metadata intact.
 - A user action becomes a line such as
-  `[UI action "refresh" on surface tokyo-weather context={"city":"Tokyo"}]`.
+  `[UI action "refresh" from refreshBtn on surface tokyo-weather context={"city":"Tokyo"}]`.
 
 ## Migrating from 0.4
 
@@ -622,7 +622,16 @@ app, say), stage it: ship clients with the helpers below, but have
 `a2uiSubmitToMessage` write both keys
 (`{'messages': messages, 'envelopes': messages}`); upgrade the agent once no 0.4
 clients remain; then drop `envelopes`. A 0.5 agent logs a warning once when a
-client still sends only `envelopes`. Persisted 0.4 sessions still replay.
+client still sends only `envelopes`.
+
+Persisted 0.4 sessions still replay, but their parts carry no Express source,
+so the model sees each old surface only as a one-line summary ("UI surface X
+was rendered here") and will usually re-render it rather than update it.
+
+Other runtimes: the JS and Go plugins make the same key change in
+genkit-ai/genkit#7091 and #7092 (not yet released); the Python plugin still
+uses `envelopes`. Until those ship, mix them with a 0.5 Dart agent or client
+only through the staged rollout above.
 
 ### Clients
 
@@ -637,6 +646,10 @@ client still sends only `envelopes`. Persisted 0.4 sessions still replay.
   `hide basicCatalogId` and the `copyWith(catalogId: ...)` re-tag.
 - [A part can be partial](#surfaces): feed every part's messages, in order, into
   one `SurfaceController` per conversation.
+- Every render starts with a `deleteSurface` for its id, which is a no-op when
+  the surface is new. genui handles that; a custom renderer must treat a delete
+  of an unknown id as a no-op too, and key surfaces by id rather than append
+  one per `createSurface`.
 - If you manage history yourself, send model messages back verbatim, including
   `metadata.a2uiExpress`: it is what the model sees of its earlier surfaces, and
   updates are checked against the surfaces the history contains.

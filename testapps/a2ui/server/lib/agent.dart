@@ -55,8 +55,9 @@ final Genkit ai = Genkit(plugins: [googleAI(), A2uiPlugin()]);
 
 /// The app's custom A2UI catalog.
 ///
-/// A catalog is just the list of components the model is allowed to render,
-/// each with a short, model-facing description of its props. Here we start from
+/// A catalog is the set of components the model is allowed to render, each
+/// described by a schema whose parameters, in order, are the component's
+/// arguments in Express. Here we start from
 /// the bundled [basicCatalog] (Text, Card, Column, Button, ...) and add one
 /// bespoke component, `Gauge`, that has no basic-catalog equivalent. The
 /// matching `Gauge` *widget* is registered on the client under the same
@@ -110,7 +111,7 @@ final A2uiCatalog weatherCatalog = basicCatalog.extend(
 /// before the agent handles a turn.
 ///
 /// [loadCatalog] is the documented way to register a catalog; you can also load
-/// one from a JSON file with `loadCatalog(ai.registry, id: ..., file: ...)`.
+/// one from a JSON file with `loadCatalog(ai, id: ..., file: ...)`.
 Future<void> registerCatalogs() =>
     loadCatalog(ai, id: weatherCatalogId, catalog: weatherCatalog);
 
