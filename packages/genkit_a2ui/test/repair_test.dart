@@ -314,6 +314,30 @@ void main() {
       },
     );
 
+    test(
+      're-sends what a re-sent part drags along on other surfaces',
+      () async {
+        // `both` is re-sent for `w`, and it re-renders `z` too, so the later
+        // `z` part must follow it again or the client ends on the older `z`.
+        const both =
+            'surface("w")\nroot = Text("w2")\nsurface("z")\nroot = Text("z1")';
+        const zLater = 'surface("z")\nroot = Text("z2")';
+        defineModel(
+          '$badTurn<a2ui>\n$both\n</a2ui>\n<a2ui>\n$zLater\n</a2ui>\n',
+          goodRepair,
+        );
+        final streamed = <Part>[];
+        await run(onChunk: (c) => streamed.addAll(c.content));
+        expect(
+          [
+            for (final p in streamed.where(isA2uiPart))
+              p.metadata?[a2uiExpressMetadataKey],
+          ],
+          [both, zLater, goodBlock, both, zLater],
+        );
+      },
+    );
+
     test('the repair prompt carries the error and the failed block', () async {
       defineModel(badTurn, goodRepair);
       await run();

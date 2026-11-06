@@ -457,14 +457,21 @@ class A2uiMiddleware extends GenerateMiddleware {
     CancellationToken? cancel,
   ) async {
     try {
-      final reply = await ask(
-        buildRepairPrompt(
-          source: block.source,
-          error: block.error,
-          catalog: catalog,
+      // Raced against the budget too: not every model plugin honours its
+      // cancellation token, and the budget must bound the wait either way.
+      final reply = await Future.any([
+        ask(
+          buildRepairPrompt(
+            source: block.source,
+            error: block.error,
+            catalog: catalog,
+          ),
+          budget,
         ),
-        budget,
-      );
+        budget.whenCancelled.then<String?>(
+          (_) => throw TimeoutException('A2UI repair budget'),
+        ),
+      ]);
       final repaired = reply == null ? null : extractRepairedBlock(reply);
       if (repaired == null) {
         _logger.warning('repair returned nothing for: ${block.error}');
@@ -753,13 +760,18 @@ List<Part> _catchUp(List<Part> parts, List<String> streamed) {
     }
   }
   if (late.isEmpty) return const [];
+  // Grows as parts are re-sent, so a re-sent part that also touches another
+  // surface pulls in that surface's later parts too.
   final affected = {for (final i in late) ..._surfacesOf(a2ui[i])};
-  return [
-    for (final (i, p) in a2ui.indexed)
-      if (i >= late.first &&
-          (late.contains(i) || _surfacesOf(p).any(affected.contains)))
-        p,
-  ];
+  final out = <Part>[];
+  for (final (i, p) in a2ui.indexed.skip(late.first)) {
+    final surfaces = _surfacesOf(p);
+    if (late.contains(i) || surfaces.any(affected.contains)) {
+      out.add(p);
+      affected.addAll(surfaces);
+    }
+  }
+  return out;
 }
 
 /// The surface ids an a2ui part's messages target.
