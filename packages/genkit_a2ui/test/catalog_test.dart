@@ -194,4 +194,14 @@ void main() {
       expect(text, isNot(contains('## Example')));
     });
   });
+
+  test('renderCatalogInstructions includes the catalog instructions', () {
+    final text = renderCatalogInstructions(
+      basicCatalog.extend(
+        id: 'https://example.com/c.json',
+        instructions: 'ALWAYS-USE-BLUE-CARDS',
+      ),
+    );
+    expect(text, contains('ALWAYS-USE-BLUE-CARDS'));
+  });
 }

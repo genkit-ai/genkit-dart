@@ -61,6 +61,7 @@ final _closeTagRe = RegExp(r'`?</a2ui\s*>`?', caseSensitive: false);
 /// or `text.length` if none could. Held back from the prose so a tag split
 /// across chunks never leaks into it.
 int _partialOpenTagStart(String text) {
+  var start = text.length;
   final lt = text.lastIndexOf('<');
   if (lt >= 0) {
     final tail = text.substring(lt).toLowerCase();
@@ -69,13 +70,34 @@ int _partialOpenTagStart(String text) {
         (tail.startsWith('<a2ui') &&
             !tail.contains('>') &&
             (tail.length == 5 || tail[5].trim().isEmpty));
-    if (couldBeTag) return lt > 0 && text[lt - 1] == '`' ? lt - 1 : lt;
+    if (couldBeTag) start = lt;
   }
-  return text.endsWith('`') ? text.length - 1 : text.length;
+  // A backtick, or a code-fence line, right before the (possible) tag may be
+  // wrapping it; hold it back too, so it can be dropped if the tag follows.
+  if (_trailingFenceLineRe.firstMatch(text.substring(0, start)) case final m?) {
+    return m.start;
+  }
+  if (start > 0 && text[start - 1] == '`') return start - 1;
+  return start;
 }
 
-/// An optional newline right after the closing tag.
-final _trailingNewlineRe = RegExp(r'^[ \t]*\r?\n');
+/// A code-fence line (or the start of one) at the very end of the text.
+final _trailingFenceLineRe = RegExp(
+  r'(?:^|(?<=\n))[ \t]*``+[\w-]*[ \t]*\r?\n?[ \t]*$',
+);
+
+/// What may directly follow a closing tag and is not prose: a backtick that
+/// wrapped the tag, a newline, and a code fence the model closed around the
+/// block.
+final _afterCloseRe = RegExp(
+  r'^(?:[ \t]*```[ \t]*(?:\r?\n|$)|`?(?:[ \t]*\r?\n)?(?:[ \t]*```[ \t]*(?:\r?\n|$))?)',
+);
+
+/// The start of a closing code fence, split from the rest by a chunk boundary.
+final _partialFenceRe = RegExp(r'^[ \t]*`{1,2}$');
+
+/// A code-fence line right before an opening tag (``` or ```a2ui).
+final _fenceBeforeTagRe = RegExp(r'```[\w-]*[ \t]*\r?\n[ \t]*$');
 
 /// Markdown fences some models wrap around the block content.
 final _leadingFenceRe = RegExp(r'^```[a-zA-Z-]*\s*');
@@ -137,9 +159,11 @@ class ParseResult {
 /// deltas as they arrive, and [flush] at the end to drain any trailing block.
 ///
 /// Surface ids are the model's own (`surface("tokyo-weather")`). Rendering a
-/// surface id that already exists replaces that surface: renderers reject a
-/// second `createSurface` for a live id, so the parser emits a `deleteSurface`
-/// first. The Express source is never edited, so it can be replayed verbatim.
+/// surface id that already exists replaces that surface: every `createSurface`
+/// is preceded by a `deleteSurface` for the same id, which renderers treat as
+/// a no-op when the surface is new. That way a re-render never depends on the
+/// server knowing which surfaces the client holds. The Express source is never
+/// edited, so it can be replayed verbatim.
 class A2uiStreamParser {
   /// Catalog the blocks are compiled and validated against.
   final A2uiCatalog catalog;
@@ -154,35 +178,35 @@ class A2uiStreamParser {
 
   final ExpressEngine _engine;
 
-  /// Surfaces that exist on the client at this point of the response.
-  final Set<String> _liveSurfaces;
+  /// Surfaces this response created so far, to flag a model that renders the
+  /// same id twice in one response.
+  final Set<String> _createdHere = {};
 
   String _buffer = '';
   bool _inBlock = false;
 
-  /// Set when a block closed at the very end of the buffer, so the newline
-  /// that conventionally follows `</a2ui>` is dropped even when it arrives in
-  /// the next chunk.
-  bool _dropLeadingNewline = false;
+  /// The opening tag of the block being read, given back as prose if the
+  /// "block" turns out to be a mention of the tag (see [_drain]).
+  String _openTag = '';
+
+  /// Set when a block closed at the very end of the buffer, so what
+  /// conventionally follows `</a2ui>` (a newline, a closing backtick or code
+  /// fence) is dropped even when it arrives in the next chunk.
+  bool _afterClose = false;
 
   /// Creates an [A2uiStreamParser].
-  ///
-  /// [liveSurfaceIds] are the surfaces the client already holds (rendered
-  /// earlier in the conversation); re-rendering one of them replaces it.
   A2uiStreamParser({
     required this.catalog,
     this.validate = A2uiValidateMode.strict,
-    Iterable<String> liveSurfaceIds = const [],
     this.quiet = false,
-  }) : _engine = ExpressEngine.of(catalog),
-       _liveSurfaces = {...liveSurfaceIds};
+  }) : _engine = ExpressEngine.of(catalog);
 
   /// Feeds a chunk of model text, returning prose + any completed blocks.
   ParseResult push(String text) {
     _buffer += text;
-    if (_dropLeadingNewline && _buffer.isNotEmpty) {
-      _buffer = _buffer.replaceFirst(_trailingNewlineRe, '');
-      _dropLeadingNewline = false;
+    if (_afterClose && _buffer.isNotEmpty) {
+      _buffer = _buffer.replaceFirst(_afterCloseRe, '');
+      _afterClose = _partialFenceRe.hasMatch(_buffer);
     }
     return _drain(false);
   }
@@ -225,7 +249,11 @@ class A2uiStreamParser {
           _buffer = _buffer.substring(safeLen);
           break;
         }
-        proseBuf += _buffer.substring(0, open.start);
+        // A code fence the model opened around the tag is not prose.
+        proseBuf += _buffer
+            .substring(0, open.start)
+            .replaceFirst(_fenceBeforeTagRe, '');
+        _openTag = open.group(0)!;
         _buffer = _buffer.substring(open.end);
         _inBlock = true;
         continue;
@@ -234,18 +262,23 @@ class A2uiStreamParser {
       final close = _closeTagRe.firstMatch(_buffer);
       if (close == null) {
         if (finalPass) {
-          // Unterminated block at end of stream: try to compile what we have.
-          emitBlock(_buffer);
+          // Unterminated block at end of stream. If it does not even start
+          // like Express, the model mentioned the tag in prose ("I render UI
+          // with <a2ui> tags"): give it back as prose rather than swallowing
+          // the rest of the reply. Otherwise compile what there is.
+          if (_startsLikeExpress(_buffer)) {
+            emitBlock(_buffer);
+          } else {
+            proseBuf += _openTag + _buffer;
+          }
           _buffer = '';
           _inBlock = false;
         }
         break;
       }
       final blockText = _buffer.substring(0, close.start);
-      _buffer = _buffer
-          .substring(close.end)
-          .replaceFirst(_trailingNewlineRe, '');
-      _dropLeadingNewline = _buffer.isEmpty;
+      _buffer = _buffer.substring(close.end).replaceFirst(_afterCloseRe, '');
+      _afterClose = _buffer.isEmpty || _partialFenceRe.hasMatch(_buffer);
       _inBlock = false;
       emitBlock(blockText);
     }
@@ -276,30 +309,35 @@ class A2uiStreamParser {
       return _reject('failed to compile A2UI Express block: ${e.message}');
     }
     if (compiled.isEmpty) return null;
-    return EnvelopeSegment(_replaceLiveSurfaces(compiled), source);
+    return EnvelopeSegment(_withReplacements(compiled), source);
   }
 
-  /// Puts a `deleteSurface` in front of each `createSurface` that targets a
-  /// surface the client already holds, so the re-render replaces it instead of
-  /// being rejected (or worse, merged into the old component tree).
-  List<A2uiEnvelope> _replaceLiveSurfaces(List<A2uiEnvelope> envelopes) {
+  /// Puts a `deleteSurface` in front of every `createSurface`, so a re-render
+  /// replaces a surface the client holds instead of being rejected (or worse,
+  /// merged into the old component tree), whether or not the conversation's
+  /// history records it. For a new surface the delete is a no-op.
+  List<A2uiEnvelope> _withReplacements(List<A2uiEnvelope> envelopes) {
     final out = <A2uiEnvelope>[];
     for (final e in envelopes) {
       if (_surfaceIdOf(e, 'createSurface') case final id?) {
-        if (_liveSurfaces.contains(id)) {
-          out.add({
-            'version': e['version'] ?? a2uiVersion,
-            'deleteSurface': {'surfaceId': id},
-          });
+        if (!_createdHere.add(id)) {
+          _log(
+            'A2UI: surface "$id" was rendered twice in one response; the '
+            'later render replaces the earlier one.',
+          );
         }
-        _liveSurfaces.add(id);
-      } else if (_surfaceIdOf(e, 'deleteSurface') case final id?) {
-        _liveSurfaces.remove(id);
+        out.add({
+          'version': e['version'] ?? a2uiVersion,
+          'deleteSurface': {'surfaceId': id},
+        });
       }
       out.add(e);
     }
     return out;
   }
+
+  void _log(String message) =>
+      quiet ? _logger.fine(message) : _logger.warning(message);
 
   /// Handles a rejected block according to [validate]: throws in strict mode,
   /// logs in warn mode. Always returns null so callers can `return _reject()`.
@@ -322,16 +360,20 @@ class A2uiStreamParser {
   }
 }
 
-/// The ids of the surfaces still live after replaying [envelopes] in order:
-/// created and not deleted since.
-Set<String> liveSurfaceIds(Iterable<A2uiEnvelope> envelopes) {
-  final live = <String>{};
-  for (final e in envelopes) {
-    if (_surfaceIdOf(e, 'createSurface') case final id?) live.add(id);
-    if (_surfaceIdOf(e, 'deleteSurface') case final id?) live.remove(id);
-  }
-  return live;
+/// Whether [block] begins with something an Express block can begin with: a
+/// `surface(...)` / `deleteSurface(...)` call, a data path or variable
+/// assignment, or a comment.
+bool _startsLikeExpress(String block) {
+  final first = block
+      .replaceFirst(_leadingFenceRe, '')
+      .replaceFirst(_strayBacktickStartRe, '')
+      .trimLeft();
+  return _expressStartRe.hasMatch(first);
 }
+
+final _expressStartRe = RegExp(
+  r'^(?:(?:surface|deleteSurface)\s*\(|\$/|[A-Za-z_]\w*\s*=|//)',
+);
 
 String? _surfaceIdOf(A2uiEnvelope e, String kind) => switch (e[kind]) {
   {'surfaceId': final String id} => id,

@@ -179,8 +179,9 @@ void main() {
       expect(uiPart, isNotNull);
 
       final envelopes = a2uiEnvelopesFromParts(res.message!.content);
-      expect(envelopes.length, 2);
-      expect((envelopes[0]['createSurface'] as Map)['surfaceId'], 'weather');
+      // deleteSurface (a no-op for a new surface), createSurface, components.
+      expect(envelopes.length, 3);
+      expect((envelopes[1]['createSurface'] as Map)['surfaceId'], 'weather');
       // The Express source rides along so it can be replayed verbatim.
       expect(uiPart!.metadata?[a2uiExpressMetadataKey], sampleSource);
     });
@@ -229,8 +230,8 @@ void main() {
       // The block spread over many parts is stitched into exactly two envelopes
       // on a single a2ui data part.
       final envelopes = a2uiEnvelopesFromParts(out);
-      expect(envelopes.length, 2);
-      expect((envelopes[0]['createSurface'] as Map)['surfaceId'], 'sfc');
+      expect(envelopes.length, 3);
+      expect((envelopes[1]['createSurface'] as Map)['surfaceId'], 'sfc');
 
       // No text part should still contain the raw block: it must have been
       // compiled out, not leaked back as prose.
@@ -466,7 +467,7 @@ root = NotAThing()
       final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
       expect(
         userMsg.content.single.text,
-        '[UI action "refresh" on surface s1]',
+        '[UI action "refresh" from btn on surface s1]',
       );
     });
 
@@ -662,6 +663,71 @@ root = Text("new")
       expect(text, contains('s1'));
     });
 
+    test('summarizes a model part whose source is not a string', () async {
+      ModelRequest? seen;
+      defineReplyModel('m_bad_source', 'ok', onRequest: (r) => seen = r);
+      final part = DataPart(
+        data: {
+          'messages': [
+            {
+              'createSurface': {'surfaceId': 's1', 'catalogId': 'c'},
+            },
+          ],
+        },
+        metadata: {'mimeType': a2uiMimeType, a2uiExpressMetadataKey: 42},
+      );
+      await genkit.generate(
+        model: modelRef('m_bad_source'),
+        messages: [
+          Message(role: Role.model, content: [part]),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hi')],
+          ),
+        ],
+        use: [a2ui()],
+      );
+      final text = seen!.messages
+          .firstWhere((m) => m.role == Role.model)
+          .content
+          .single
+          .text;
+      expect(text, '(UI surface s1 was rendered here.)');
+    });
+
+    test('summarizes a removed surface as removed', () async {
+      ModelRequest? seen;
+      defineReplyModel('m_removed', 'ok', onRequest: (r) => seen = r);
+      await genkit.generate(
+        model: modelRef('m_removed'),
+        messages: [
+          Message(
+            role: Role.model,
+            content: [
+              a2uiPart([
+                {
+                  'deleteSurface': {'surfaceId': 's1'},
+                },
+              ]),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hi')],
+          ),
+        ],
+        use: [a2ui()],
+      );
+      expect(
+        seen!.messages
+            .firstWhere((m) => m.role == Role.model)
+            .content
+            .single
+            .text,
+        '(UI surface s1 was removed here.)',
+      );
+    });
+
     test('encodes client-supplied action fields', () async {
       ModelRequest? seen;
       defineReplyModel('m_action', 'ok', onRequest: (r) => seen = r);
@@ -689,47 +755,48 @@ root = Text("new")
       );
     });
 
-    test(
-      'a surface the model deleted is created fresh, not replaced',
-      () async {
-        defineReplyModel('m_recreate', '''<a2ui>
+    test('a surface the model deleted is created again', () async {
+      defineReplyModel('m_recreate', '''<a2ui>
 surface("s1")
 root = Text("again")
 </a2ui>''');
 
-        final res = await genkit.generate(
-          model: modelRef('m_recreate'),
-          messages: [
-            Message(
-              role: Role.model,
-              content: [
-                a2uiPart([
-                  {
-                    'createSurface': {
-                      'surfaceId': 's1',
-                      'catalogId': basicCatalog.id,
-                    },
+      final res = await genkit.generate(
+        model: modelRef('m_recreate'),
+        messages: [
+          Message(
+            role: Role.model,
+            content: [
+              a2uiPart([
+                {
+                  'createSurface': {
+                    'surfaceId': 's1',
+                    'catalogId': basicCatalog.id,
                   },
-                ]),
-                a2uiPart([
-                  {
-                    'deleteSurface': {'surfaceId': 's1'},
-                  },
-                ]),
-              ],
-            ),
-            Message(
-              role: Role.user,
-              content: [TextPart(text: 'show it again')],
-            ),
-          ],
-          use: [a2ui()],
-        );
+                },
+              ]),
+              a2uiPart([
+                {
+                  'deleteSurface': {'surfaceId': 's1'},
+                },
+              ]),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'show it again')],
+          ),
+        ],
+        use: [a2ui()],
+      );
 
-        final envelopes = a2uiEnvelopesFromParts(res.message!.content);
-        expect(envelopes.first['createSurface'], isNotNull);
-      },
-    );
+      final envelopes = a2uiEnvelopesFromParts(res.message!.content);
+      expect(envelopes.map((e) => e.keys.firstWhere((k) => k != 'version')), [
+        'deleteSurface',
+        'createSurface',
+        'updateComponents',
+      ]);
+    });
 
     test('groups consecutive surface envelopes into one block but splits '
         'around an action', () async {
@@ -823,7 +890,7 @@ root = Text("again")
       // Stream saw prose (without the raw block) and the envelopes.
       expect(streamedProse, contains('Here is the weather'));
       expect(streamedProse, isNot(contains('root =')));
-      expect(streamedEnvelopes.length, 2);
+      expect(streamedEnvelopes.length, 3);
 
       // The final message carries the same envelopes the stream did.
       expect(a2uiEnvelopesFromParts(res.message!.content), streamedEnvelopes);

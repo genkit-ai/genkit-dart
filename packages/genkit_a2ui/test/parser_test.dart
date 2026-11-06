@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit_a2ui/a2ui.dart';
-import 'package:genkit_a2ui/src/parser.dart' show liveSurfaceIds;
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
@@ -47,12 +46,7 @@ List<List<A2uiEnvelope>> batchesOf(List<ParseSegment> segments) =>
 
 A2uiStreamParser newParser({
   A2uiValidateMode validate = A2uiValidateMode.strict,
-  Iterable<String> live = const [],
-}) => A2uiStreamParser(
-  catalog: basicCatalog,
-  validate: validate,
-  liveSurfaceIds: live,
-);
+}) => A2uiStreamParser(catalog: basicCatalog, validate: validate);
 
 const weatherSource = '''
 surface("tokyo")
@@ -81,6 +75,7 @@ void main() {
       expect(proseOf(segments.sublist(0, blockAt)), 'Here is the weather:\n');
       expect(proseOf(segments.sublist(blockAt + 1)), 'Anything else?');
       expect(kinds(batchesOf(segments).single), [
+        'deleteSurface',
         'createSurface',
         'updateComponents',
         'updateDataModel',
@@ -155,7 +150,7 @@ void main() {
       expect(
         batchesOf(
           segments,
-        ).map((b) => (b.first['createSurface'] as Map)['surfaceId']),
+        ).map((b) => (b.first['deleteSurface'] as Map)['surfaceId']),
         ['one', 'two'],
       );
     });
@@ -199,11 +194,59 @@ void main() {
       }
     });
 
-    group('re-rendering a surface the client already holds', () {
-      test('deletes it first so the new render replaces it', () {
-        final batch = batchesOf(
-          collect(newParser(live: ['tokyo']), [weatherBlock]),
-        ).single;
+    group('tolerant reading', () {
+      const body = 'surface("s")\nroot = Text("hi")';
+
+      // Every way a model has been seen wrapping a block; each must parse the
+      // same whole or split at any single point.
+      final variants = {
+        'plain': 'Before.\n<a2ui>\n$body\n</a2ui>\nAfter.',
+        'backticks': 'Before.\n`<a2ui>`\n$body\n`</a2ui>`\nAfter.',
+        'fenced': 'Before.\n```a2ui\n<a2ui>\n$body\n</a2ui>\n```\nAfter.',
+        'spaced': 'Before.\n<a2ui >\n$body\n</a2ui >\nAfter.',
+      };
+      for (final MapEntry(key: name, value: text) in variants.entries) {
+        test('$name, split at every point', () {
+          for (var i = 0; i <= text.length; i++) {
+            final segments = collect(newParser(), [
+              text.substring(0, i),
+              text.substring(i),
+            ]);
+            final reason = 'split at $i: ${text.substring(0, i)}|';
+            expect(proseOf(segments), 'Before.\nAfter.', reason: reason);
+            expect(
+              segments.whereType<EnvelopeSegment>().single.source,
+              body,
+              reason: reason,
+            );
+          }
+        });
+      }
+
+      test('a tag mentioned in prose stays prose', () {
+        for (final text in [
+          'The <a2ui> tag is how I render UI. Anything else?',
+          'I can draw UI with `<a2ui>` tags if you like.',
+        ]) {
+          final segments = collect(newParser(validate: A2uiValidateMode.warn), [
+            text,
+          ]);
+          expect(proseOf(segments), text);
+          expect(batchesOf(segments), isEmpty);
+        }
+      });
+
+      test('an unterminated block that starts like Express still compiles', () {
+        final segments = collect(newParser(), ['<a2ui>\n$body\n']);
+        expect(batchesOf(segments), hasLength(1));
+      });
+    });
+
+    group('replacing surfaces', () {
+      test('every render deletes its surface first', () {
+        // The client may hold the surface whether or not the server's history
+        // records it; for a new surface the delete is a no-op.
+        final batch = batchesOf(collect(newParser(), [weatherBlock])).single;
         expect(kinds(batch), [
           'deleteSurface',
           'createSurface',
@@ -213,43 +256,11 @@ void main() {
         expect((batch.first['deleteSurface'] as Map)['surfaceId'], 'tokyo');
       });
 
-      test('also when the same response renders it twice', () {
+      test('a model delete is passed through as written', () {
         final batches = batchesOf(
-          collect(newParser(), [weatherBlock, 'and again ', weatherBlock]),
+          collect(newParser(), ['<a2ui>\ndeleteSurface("tokyo")\n</a2ui>\n']),
         );
-        expect(kinds(batches[0]).first, 'createSurface');
-        expect(kinds(batches[1]).first, 'deleteSurface');
-      });
-
-      test('but not after the model deleted it', () {
-        final batches = batchesOf(
-          collect(newParser(live: ['tokyo']), [
-            '<a2ui>\ndeleteSurface("tokyo")\n</a2ui>\n',
-            weatherBlock,
-          ]),
-        );
-        expect(kinds(batches[0]), ['deleteSurface']);
-        expect(kinds(batches[1]).first, 'createSurface');
-      });
-
-      test('leaves other surfaces alone', () {
-        final batch = batchesOf(
-          collect(newParser(live: ['paris']), [weatherBlock]),
-        ).single;
-        expect(kinds(batch).first, 'createSurface');
-      });
-    });
-
-    group('liveSurfaceIds', () {
-      test('tracks creates and deletes in order', () {
-        A2uiEnvelope create(String id) => {
-          'createSurface': {'surfaceId': id, 'catalogId': 'c'},
-        };
-        A2uiEnvelope delete(String id) => {
-          'deleteSurface': {'surfaceId': id},
-        };
-        expect(liveSurfaceIds([create('a'), create('b'), delete('a')]), {'b'});
-        expect(liveSurfaceIds([delete('a'), create('a')]), {'a'});
+        expect(kinds(batches.single), ['deleteSurface']);
       });
     });
 
@@ -339,7 +350,11 @@ void main() {
         final batch = batchesOf(
           collect(newParser(validate: A2uiValidateMode.off), [literalInIdSlot]),
         ).single;
-        expect(kinds(batch), ['createSurface', 'updateComponents']);
+        expect(kinds(batch), [
+          'deleteSurface',
+          'createSurface',
+          'updateComponents',
+        ]);
       });
 
       test('off still drops a block that does not compile, silently', () {

@@ -42,6 +42,10 @@ final class ExpressEngine {
   final A2uiRequestProcessor _processor;
   final InferenceFormat _format;
 
+  /// Reused across blocks: setting a parser up costs more than compiling a
+  /// typical block.
+  late final _parser = _format.createParser();
+
   /// The Express grammar plus the catalog's component and function
   /// signatures, as model-facing prompt text.
   late final String promptSnippet = _processor.promptSnippet;
@@ -70,7 +74,7 @@ final class ExpressEngine {
                     .whereType<A2uiPart>())
               ...part.a2ui,
           ]
-        : _format.createParser().compile(block);
+        : _parser.compile(block);
     return [for (final m in messages) m.toJson()];
   }
 }

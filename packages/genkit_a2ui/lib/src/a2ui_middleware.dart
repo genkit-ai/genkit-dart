@@ -33,6 +33,7 @@ library;
 import 'dart:convert';
 
 import 'package:genkit/plugin.dart';
+import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'catalog.dart';
@@ -195,11 +196,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     // basic catalog for the default id).
     final catalog = resolveCatalog(_registry, _catalogId);
 
-    // Surfaces the client already holds. Re-rendering one of them replaces it
-    // (see A2uiStreamParser).
-    final liveSurfaces = liveSurfaceIds([
-      for (final m in request.messages) ...a2uiEnvelopesFromParts(m.content),
-    ]);
+    _warnOnPreSpecClient(request);
 
     // 0) Sanitize any inbound a2ui data parts (e.g. a surface action sent back
     //    as the next turn, or replayed history) into model-readable text, so
@@ -227,7 +224,6 @@ class A2uiMiddleware extends GenerateMiddleware {
             : A2uiValidateMode.warn,
         // The final parse sees these blocks again and reports them.
         quiet: true,
-        liveSurfaceIds: liveSurfaces,
       );
       wrappedCtx = ctx.copyWith(
         sendChunk: (chunk) {
@@ -253,7 +249,7 @@ class A2uiMiddleware extends GenerateMiddleware {
 
     // 4) Transform the final message. Surface ids are the model's own, so the
     //    final parse produces the same envelopes the stream did.
-    return _transformResponse(response, catalog, liveSurfaces);
+    return _transformResponse(response, catalog);
   }
 
   /// Appends A2UI instructions to (or creates) the system message.
@@ -320,16 +316,11 @@ class A2uiMiddleware extends GenerateMiddleware {
   ModelResponse _transformResponse(
     ModelResponse response,
     A2uiCatalog catalog,
-    Set<String> liveSurfaces,
   ) {
     final message = response.message;
     if (message == null) return response;
 
-    final parser = A2uiStreamParser(
-      catalog: catalog,
-      validate: _validate,
-      liveSurfaceIds: liveSurfaces,
-    );
+    final parser = A2uiStreamParser(catalog: catalog, validate: _validate);
     final newContent = <Part>[];
 
     // Drains whatever the parser is still holding (a withheld prose tail, or an
@@ -364,6 +355,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       }
     }
     flushHeld();
+    if (!newContent.any(isA2uiPart)) _warnOnPreExpressOutput(message);
 
     return ModelResponse(
       message: Message(
@@ -436,6 +428,58 @@ List<Part> _partsFromSegments(List<ParseSegment> segments) {
   return out;
 }
 
+final _migrationLogger = Logger('genkit_a2ui.middleware');
+var _warnedPreSpecClient = false;
+var _warnedPreExpressOutput = false;
+
+/// Warns once per process when the latest user message carries an a2ui part
+/// with only the pre-0.5 `envelopes` key: that client cannot read this
+/// version's `messages` parts, so its surfaces would silently stop rendering.
+void _warnOnPreSpecClient(ModelRequest request) {
+  if (_warnedPreSpecClient) return;
+  final last = request.messages.where((m) => m.role == Role.user).lastOrNull;
+  for (final part in last?.content ?? const <Part>[]) {
+    final data = part.data;
+    if (part.metadata?['mimeType'] == a2uiMimeType &&
+        data != null &&
+        data.containsKey('envelopes') &&
+        !data.containsKey('messages')) {
+      _warnedPreSpecClient = true;
+      _migrationLogger.warning(
+        'A2UI: a client sent an a2ui part with the pre-0.5 `envelopes` key. '
+        'It cannot render the `messages` parts this version sends; update it '
+        'to the client helpers in the genkit_a2ui README.',
+      );
+      return;
+    }
+  }
+}
+
+/// Warns once per process when the model wrote the pre-0.5 JSON format, which
+/// passes through as plain text, typically because custom instructions
+/// (`instructions: 'none'`) or examples still describe it.
+void _warnOnPreExpressOutput(Message message) {
+  if (_warnedPreExpressOutput) return;
+  final text = message.content.map((p) => p.text ?? '').join();
+  if (!text.contains('```a2ui')) return;
+  _warnedPreExpressOutput = true;
+  _migrationLogger.warning(
+    'A2UI: the model wrote a ```a2ui fenced block, which genkit_a2ui 0.5 no '
+    'longer reads. It expects A2UI Express between <a2ui> tags; see '
+    'renderCatalogInstructions.',
+  );
+}
+
+/// An id from a client-supplied message, as prompt text: plain ids read as
+/// is, anything else is JSON-encoded so it cannot reshape the line. Null for
+/// a missing or empty id.
+String? _idText(Object? id) => switch (id) {
+  final String s when s.isEmpty => null,
+  final String s when RegExp(r'^[\w.:-]+$').hasMatch(s) => s,
+  final String s => jsonEncode(s),
+  _ => null,
+};
+
 /// Converts an inbound a2ui part back into model-readable text, the inverse of
 /// the outbound block-to-part transform.
 ///
@@ -462,11 +506,17 @@ String _summarizeA2uiPart(Part part, Role role) {
   }
 
   final out = <String>[];
-  final surfaces = <String>{};
+  final rendered = <String>{};
+  final removed = <String>{};
   void flushSurfaces() {
-    if (surfaces.isEmpty) return;
-    out.add('(UI surface ${surfaces.join(', ')} was rendered here.)');
-    surfaces.clear();
+    if (rendered.isNotEmpty) {
+      out.add('(UI surface ${rendered.join(', ')} was rendered here.)');
+    }
+    if (removed.isNotEmpty) {
+      out.add('(UI surface ${removed.join(', ')} was removed here.)');
+    }
+    rendered.clear();
+    removed.clear();
   }
 
   for (final env in a2uiEnvelopesFromParts([part])) {
@@ -479,25 +529,31 @@ String _summarizeA2uiPart(Part part, Role role) {
         final String n => jsonEncode(n),
         _ => '(unnamed)',
       };
-      final surfaceId = switch (action['surfaceId']) {
-        final String id when RegExp(r'^[\w.:-]+$').hasMatch(id) => id,
-        final String id => jsonEncode(id),
-        _ => '(unknown)',
+      final surfaceId = _idText(action['surfaceId']) ?? '(unknown)';
+      // Which component fired it tells apart two buttons with one action name.
+      final from = switch (_idText(action['sourceComponentId'])) {
+        final id? => ' from $id',
+        null => '',
       };
       final context = action['context'];
       final ctx = (context is Map && context.isNotEmpty)
           ? ' context=${jsonEncode(context)}'
           : '';
-      out.add('[UI action $name on surface $surfaceId$ctx]');
+      out.add('[UI action $name$from on surface $surfaceId$ctx]');
       continue;
     }
     for (final kind in const [
       'createSurface',
       'updateComponents',
       'updateDataModel',
-      'deleteSurface',
     ]) {
-      if (env[kind] case {'surfaceId': final String id}) surfaces.add(id);
+      if (_idText((env[kind] as Map?)?['surfaceId']) case final id?) {
+        rendered.add(id);
+      }
+    }
+    if (_idText((env['deleteSurface'] as Map?)?['surfaceId']) case final id?) {
+      rendered.remove(id);
+      removed.add(id);
     }
   }
   flushSurfaces();

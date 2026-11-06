@@ -49,11 +49,9 @@ const String a2uiCatalogValueType = 'a2ui-catalog';
 /// Resolves to the bundled [basicCatalog].
 const String defaultCatalogId = 'basic';
 
-/// The set of icon names the basic catalog's `Icon` component supports. Names
-/// outside this list render as literal text (the renderer degrades gracefully),
-/// so the prompt lists them to steer the model toward valid names. Note the
-/// middleware validates component *types* against the catalog but does not
-/// validate individual `Icon` name values.
+/// The icon names the bundled basic catalog's `Icon` component accepts. It is
+/// an enum in the catalog, so the prompt lists the names and a block using any
+/// other name fails to compile (and goes to repair, if enabled).
 const List<String> basicIconNames = [
   'accountCircle',
   'add',
@@ -526,7 +524,16 @@ You may still write normal prose before or after it.
 - User actions arrive as lines like
   `[UI action "refresh" on surface tokyo-weather context={"city":"Tokyo"}]`.$formsSection${_renderStyleTips(has)}${_renderExample(catalog, has)}
 
-${ExpressEngine.of(catalog).promptSnippet}
+${ExpressEngine.of(catalog).promptSnippet}${_renderCatalogGuidance(catalog)}
 
 Do not explain the Express code; just emit the block.''';
 }
+
+/// The catalog's own `instructions`. `a2ui_agent` includes them only for v1.0
+/// catalogs, so for v0.9 they are added here.
+String _renderCatalogGuidance(A2uiCatalog catalog) =>
+    switch (catalog.instructions?.trim()) {
+      final String text when text.isNotEmpty =>
+        '\n\n## Catalog instructions\n\n$text',
+      _ => '',
+    };
