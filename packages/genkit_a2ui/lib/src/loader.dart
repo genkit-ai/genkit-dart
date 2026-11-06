@@ -48,7 +48,7 @@ Future<A2uiCatalog> loadCatalog(
 
   A2uiCatalog resolved;
   if (file != null) {
-    resolved = await _readCatalogFile(file);
+    resolved = await _readCatalogFile(file, fallbackId: id);
   } else if (catalog != null) {
     resolved = catalog;
   } else {
@@ -76,7 +76,7 @@ Future<A2uiCatalog> loadCatalog(
 }
 
 /// Reads and parses a catalog from a JSON file.
-Future<A2uiCatalog> _readCatalogFile(String file) async {
+Future<A2uiCatalog> _readCatalogFile(String file, {String? fallbackId}) async {
   String raw;
   try {
     raw = await File(file).readAsString();
@@ -103,7 +103,7 @@ Future<A2uiCatalog> _readCatalogFile(String file) async {
   // Check the document as written: `fromJson` skips malformed entries, so
   // checking only its result would hide them.
   try {
-    checkCatalogDocument(doc);
+    checkCatalogDocument(doc, fallbackId: fallbackId);
   } catch (e, st) {
     Error.throwWithStackTrace(
       StateError('loadCatalog(): catalog file "$file" is not valid: $e'),

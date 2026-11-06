@@ -103,6 +103,30 @@ void main() {
       });
 
       test(
+        'accepts a file named by \$id, id, or only loadCatalog(id:)',
+        () async {
+          final doc = custom.toJson()..remove('catalogId');
+          for (final (i, named) in <Map<String, Object?>>[
+            {r'$id': 'https://example.com/c.json'},
+            {'id': 'https://example.com/c.json'},
+            {},
+          ].indexed) {
+            final file = File('${dir.path}/c$i.json');
+            await file.writeAsString(jsonEncode({...doc, ...named}));
+            final result = await loadCatalog(
+              genkit,
+              id: 'c$i',
+              file: file.path,
+            );
+            expect(
+              result.id,
+              named.isEmpty ? 'c$i' : 'https://example.com/c.json',
+            );
+          }
+        },
+      );
+
+      test(
         'loads the README example catalog and compiles against it',
         () async {
           // Pull the JSON block out of the README so the docs cannot drift.

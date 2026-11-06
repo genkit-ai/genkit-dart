@@ -480,8 +480,13 @@ class A2uiCatalog {
     String union,
     String section,
   ) {
-    if (json[r'$defs'] case final Map defs when defs[union] is Map) {
-      final u = defs[union] as Map;
+    // Only an explicit `oneOf`/`anyOf` list restricts the section; an open
+    // union (`{"type": "object"}`) allows everything, like no union at all.
+    final u = switch (json[r'$defs']) {
+      final Map defs => defs[union],
+      _ => null,
+    };
+    if (u is Map && (u['oneOf'] is List || u['anyOf'] is List)) {
       return {
         for (final key in const ['oneOf', 'anyOf'])
           if (u[key] case final List refs)
@@ -567,8 +572,19 @@ Object? _freeze(Object? value) => switch (value) {
 
 /// Checks a raw `catalog.json` document the way `a2ui_core` will, before
 /// [A2uiCatalog.fromJson] skips anything malformed. Throws `A2uiCatalogError`.
-void checkCatalogDocument(Map<String, dynamic> json) =>
-    core.Catalog.fromJson(json.cast<String, Object?>());
+///
+/// The id is resolved like [A2uiCatalog.fromJson] does (`catalogId`, then
+/// `$id`, then `id`), falling back to [fallbackId], so a file that names
+/// itself another way is not rejected for lacking `catalogId`.
+void checkCatalogDocument(Map<String, dynamic> json, {String? fallbackId}) {
+  final id = [
+    json['catalogId'],
+    json[r'$id'],
+    json['id'],
+    fallbackId,
+  ].whereType<String>().firstOrNull;
+  core.Catalog.fromJson({...json, 'catalogId': ?id});
+}
 
 /// The bridge to `a2ui_core`, kept out of the public API so a breaking
 /// `a2ui_core` release is not a breaking change here.

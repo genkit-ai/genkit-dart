@@ -334,6 +334,19 @@ void main() {
       expect(catalog.components.keys, ['A']);
     });
 
+    test('fromJson ignores an open anyComponent union', () {
+      final catalog = A2uiCatalog.fromJson({
+        'catalogId': 'x',
+        'components': {
+          'A': A2uiCatalogComponent.simple(name: 'A', params: []).schema,
+        },
+        r'$defs': {
+          'anyComponent': {'type': 'object'},
+        },
+      });
+      expect(catalog.components.keys, ['A']);
+    });
+
     test('schemas are deeply immutable', () {
       final schema = basicCatalog.components['Text']!.schema;
       expect(() => schema['description'] = 'x', throwsUnsupportedError);
