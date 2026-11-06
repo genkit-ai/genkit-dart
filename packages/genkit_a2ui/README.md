@@ -628,10 +628,10 @@ Persisted 0.4 sessions still replay, but their parts carry no Express source,
 so the model sees each old surface only as a one-line summary ("UI surface X
 was rendered here") and will usually re-render it rather than update it.
 
-Other runtimes: the JS and Go plugins make the same key change in
-genkit-ai/genkit#7091 and #7092 (not yet released); the Python plugin still
-uses `envelopes`. Until those ship, mix them with a 0.5 Dart agent or client
-only through the staged rollout above.
+Other runtimes: the JS, Go and Python plugins make the same key change in
+genkit-ai/genkit#7091, #7092 and #7118 (not yet released). Until those ship,
+mix them with a 0.5 Dart agent or client only through the staged rollout
+above.
 
 ### Clients
 
