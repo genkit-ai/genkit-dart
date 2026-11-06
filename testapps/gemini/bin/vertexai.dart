@@ -135,8 +135,12 @@ void main(List<String> args) async {
       );
 
       await for (final chunk in stream) {
-        if (ctx.streamingRequested) {
-          ctx.sendChunk(chunk.output!);
+        // `output` is null while the JSON streamed so far can't be parsed
+        // yet, or for chunks without JSON text (e.g. thoughts or tool
+        // calls), so skip those.
+        final output = chunk.output;
+        if (ctx.streamingRequested && output != null) {
+          ctx.sendChunk(output);
         }
       }
 
@@ -160,7 +164,9 @@ void main(List<String> args) async {
         prompt: prompt,
         onChunk: ctx.streamingRequested
             ? (GenerateResponseChunk<CharacterProfile?> chunk) {
-                ctx.sendChunk(chunk.output!);
+                // Null until enough JSON has arrived to parse.
+                final output = chunk.output;
+                if (output != null) ctx.sendChunk(output);
               }
             : null,
       );

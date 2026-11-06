@@ -24,15 +24,29 @@ const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
 class GoogleGenAiPluginHandle {
   const GoogleGenAiPluginHandle();
 
-  /// Creates the plugin.
+  /// Creates the Gemini API plugin.
+  ///
+  /// [apiKey] defaults to the `GOOGLE_API_KEY` or `GEMINI_API_KEY`
+  /// environment variable.
   ///
   /// [baseUrl] replaces the Gemini API root
   /// (`https://generativelanguage.googleapis.com/`), for example to send
   /// requests through a proxy that speaks the same REST API. Requests go to
-  /// `<baseUrl>/v1beta/models/<model>:generateContent`, still authenticated
-  /// with [apiKey] in the `x-goog-api-key` header.
-  GenkitPlugin call({String? apiKey, String? baseUrl}) {
-    return GoogleGenAiPluginImpl(apiKey: apiKey, baseUrl: baseUrl);
+  /// `<baseUrl>/v1beta/models/<model>:generateContent` (or
+  /// `<baseUrl>/v1beta/interactions` for models called through the
+  /// Interactions API), still authenticated with [apiKey] in the
+  /// `x-goog-api-key` header.
+  ///
+  /// [store] stores interactions on the server for requests that don't set
+  /// `store` themselves (only for models called through the Interactions
+  /// API); a stored interaction is continued by the next request, which then
+  /// only sends the newer messages.
+  GenkitPlugin call({String? apiKey, String? baseUrl, bool store = false}) {
+    return GoogleGenAiPluginImpl(
+      apiKey: apiKey,
+      baseUrl: baseUrl,
+      store: store,
+    );
   }
 
   ModelRef<GeminiOptions> gemini(String name) {

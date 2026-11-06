@@ -39,7 +39,7 @@ void main() {
         expect(action, isNotNull);
         final info = modelInfoOf(action!);
         expect(info['label'], curated.label);
-        expect(info['stage'], 'stable');
+        expect(info['stage'], curated.stage);
         expect(
           (info['supports'] as Map).cast<String, dynamic>(),
           curated.supports,
@@ -102,30 +102,55 @@ void main() {
       );
     });
 
-    test('picks up new Gemini API text entries but not their TTS', () {
-      expect(vertexAiKnownModels, contains('gemini-3.8-flash'));
+    test('keeps its own list, independent of the Gemini API catalog', () {
+      // Unchanged from when this list was derived from the Gemini API catalog.
+      // The two lists now change separately (models come and go differently
+      // on the two endpoints).
+      expect(vertexAiKnownModels.keys, {
+        'gemini-3.1-pro-preview',
+        'gemini-3-flash-preview',
+        'gemini-3.8-flash',
+        'gemini-3.7-flash',
+        'gemini-3.6-flash',
+        'gemini-3.5-flash',
+        'gemini-3.5-flash-lite',
+        'gemini-3.1-flash-lite',
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-3.1-flash-image',
+        'gemini-3.1-flash-lite-image',
+        'gemini-3-pro-image',
+        'gemini-2.5-flash-image',
+      });
+    });
+
+    test('does not take googleAI stages', () {
+      // Hidden on googleAI (deprecated / legacy), not here.
+      for (final id in [
+        'gemini-3.5-flash',
+        'gemini-3.1-flash-image',
+        'gemini-2.5-pro',
+      ]) {
+        expect(vertexAiKnownModels[id]?.stage, 'stable', reason: id);
+      }
+    });
+
+    test('leaves out Gemini API TTS names', () {
       expect(knownGeminiModels, contains('gemini-3.8-flash-tts'));
       expect(vertexAiKnownModels, isNot(contains('gemini-3.8-flash-tts')));
     });
 
-    test('shares the Gemini API entries rather than copying them', () {
-      for (final MapEntry(:key, :value) in vertexAiKnownModels.entries) {
-        if (!knownGeminiModels.containsKey(key)) continue; // Vertex-only
-        expect(value, same(knownGeminiModels[key]), reason: key);
-      }
-    });
-
-    test('keeps 2.5 Pro and Flash, which only Vertex still serves', () {
-      for (final id in ['gemini-2.5-pro', 'gemini-2.5-flash']) {
-        expect(knownGeminiModels, isNot(contains(id)), reason: id);
-        expect(vertexAiKnownModels[id]?.stage, 'stable', reason: id);
-        expect(
-          vertexAiKnownModels[id]?.supports,
-          GeminiModelFamily.text.supports,
-          reason: id,
-        );
-      }
-    });
+    for (final model in KnownVertexGeminiModel.values) {
+      test('${model.id} carries its label, stage and family profile', () {
+        final info = model.info;
+        expect(info.label, model.label);
+        expect(info.stage, model.stage.wireName);
+        expect(info.supports, model.family.supports);
+        expect(GeminiModelFamily.of(model.id), model.family);
+        expect(model.hidden, model.stage != GeminiModelStage.stable);
+      });
+    }
   });
 
   group('list', () {
