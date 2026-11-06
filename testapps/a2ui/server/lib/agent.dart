@@ -142,10 +142,8 @@ final uiAgent = ai.defineAgent(
   name: 'uiAgent',
   model: googleAI.gemini('gemini-flash-latest'),
   system:
-      'You are a helpful assistant that can render rich UI. Prefer rendering '
-      'an A2UI surface whenever a result is clearer shown than told - for '
-      'example weather, comparisons, lists, forms, or anything interactive. '
-      'Keep any prose brief; put the substance in the UI. When asked about '
+      'You are a helpful assistant that can render rich UI. Keep prose '
+      'brief when you render a surface. When asked about '
       'weather, call the getWeather tool, then render a nice Card/Column '
       'summarizing it (temperature, condition, humidity). Use the custom '
       'Gauge component for the headline temperature (e.g. min -10, max 40, '

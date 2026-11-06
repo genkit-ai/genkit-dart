@@ -47,6 +47,14 @@ void main() {
       expect(text, contains('reuse its id'));
     });
 
+    test('keeps conversation in prose unless the app asks otherwise', () {
+      expect(
+        text,
+        contains('Unless the system instructions ask for a surface'),
+      );
+      expect(text, contains('do NOT render a surface'));
+    });
+
     test('explains partial updates', () {
       expect(text, contains('leave out `root`'));
       expect(text, contains('replaces the old\n  one entirely'));

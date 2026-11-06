@@ -216,6 +216,23 @@ validation:
 | `version`      | `'v0.9'`   | A2UI protocol version. Only `'v0.9'` is supported.                                                                                                              |
 | `repair`       | `true`     | Ask the model once to fix a block that failed to compile. Costs an extra call on the failure path only; see [Self-repair](#self-repair).                        |
 
+### When the model renders
+
+The injected instructions ask for a surface when the answer is data the user
+will look at or act on (structured tool results, comparisons, choices, forms),
+and for plain prose otherwise: greetings, advice, explanations, simple facts.
+They yield to your system prompt, so steer it from there:
+
+```dart
+ai.defineAgent(
+  name: 'dashboard',
+  // More surfaces:
+  system: 'Answer with an A2UI surface whenever you can, explanations included.',
+  // Or fewer: 'Only render a surface when the user asks for one.'
+  use: [a2ui()],
+);
+```
+
 ### Surfaces
 
 The model names each surface (`surface("tokyo-weather")`) and the id reaches the
@@ -250,8 +267,8 @@ part as its own surface drops the updates.
 
 Unless `validate` is `'off'`, every block is checked against the surfaces the
 conversation's history left on the client, so an update must target a live
-surface and leave its component tree valid. Send a2ui parts back with the history (as `remoteAgent` and session
-stores do) for this to work. The check trusts the history: a client that
+surface and leave its component tree valid. Send a2ui parts back with the
+history (as `remoteAgent` and session stores do) for this to work. The check trusts the history: a client that
 dropped messages the server sent can still reject an update the server
 accepted.
 
@@ -582,6 +599,121 @@ about prior surfaces and user actions:
   with their metadata intact.
 - A user action becomes a line such as
   `[UI action "refresh" on surface tokyo-weather context={"city":"Tokyo"}]`.
+
+## Migrating from 0.4
+
+0.5 is a breaking release: the wire format, the model's output format, the
+catalog API and the client story all change.
+
+### Upgrade order
+
+The a2ui part's payload key changed from `data.envelopes` to `data.messages`
+(the A2UI extension spec's message list). 0.5 reads both keys but writes only
+`messages`, so:
+
+- A 0.5 agent's surfaces don't render on 0.4 clients
+  (`package:genkit_a2ui/client.dart`). Prose still streams; the surfaces just
+  never appear.
+- A client on the 0.5 helpers sends actions as `{messages: [...]}` with no text
+  part, which a 0.4 agent fails on.
+
+Upgrade the agent and its clients together. If you can't (a store-distributed
+app, say), stage it: ship clients with the helpers below, but have
+`a2uiSubmitToMessage` write both keys
+(`{'messages': messages, 'envelopes': messages}`); upgrade the agent once no 0.4
+clients remain; then drop `envelopes`. A 0.5 agent logs a warning once when a
+client still sends only `envelopes`. Persisted 0.4 sessions still replay.
+
+### Clients
+
+- `package:genkit_a2ui/client.dart` (`actionToMessage`, `A2uiClientAction`)
+  and `A2uiComponent` are removed. Clients no longer depend on `genkit_a2ui`:
+  add `genkit`, `genui` (0.10.3 or later) and `a2ui_core`, and copy
+  `a2uiMessagesFrom` and `a2uiSubmitToMessage` from
+  [Render surfaces on the client](#2-render-surfaces-on-the-client). genui
+  0.10.x and genkit_a2ui 0.5 can't share a pubspec (they need different
+  a2ui_core versions).
+- genui 0.10.3 uses the same id as the bundled basic catalog, so drop
+  `hide basicCatalogId` and the `copyWith(catalogId: ...)` re-tag.
+- [A part can be partial](#surfaces): feed every part's messages, in order, into
+  one `SurfaceController` per conversation.
+- If you manage history yourself, send model messages back verbatim, including
+  `metadata.a2uiExpress`: it is what the model sees of its earlier surfaces, and
+  updates are checked against the surfaces the history contains.
+
+### Agents
+
+- The model writes [A2UI Express](#one-representation) between `<a2ui>` tags
+  instead of fenced `a2ui` JSON. The wire messages are still A2UI v0.9. With
+  `instructions: 'none'`, rewrite your prompt starting from
+  `renderCatalogInstructions(catalog)`; a fenced JSON block now passes through
+  as prose (with a one-time warning).
+- Surface ids belong to the model. The `surfaceId` option is removed (in a JSON
+  middleware config the key is ignored). Rendering an id again replaces that
+  surface, and a block without `root` updates it.
+- Every block is checked against the catalog's schemas and against the
+  conversation's live surfaces, so `validate: 'strict'` throws in more cases.
+  [Self-repair](#self-repair) is on by default; `repair: false` restores the
+  drop-or-throw behavior.
+- The injected instructions favor prose for conversation; see
+  [When the model renders](#when-the-model-renders).
+
+```dart
+// 0.4
+use: [a2ui(surfaceId: 'main')]
+// 0.5
+use: [a2ui()]
+```
+
+### Catalogs
+
+Catalogs use the spec's catalog.json shape: `components` is an object keyed by
+name, each a JSON Schema whose property order is the model's argument order.
+The published basic `catalog.json` loads as is, and `loadCatalog(file:)` rejects
+the 0.4 array shape. In Dart, `components` is a `Map`, components are
+`{name, schema}`, and you extend the basic catalog rather than spread it:
+
+```dart
+// 0.4
+const gauge = A2uiCatalogComponent(
+  name: 'Gauge',
+  description: 'A circular gauge.',
+  props: 'value: number (required); max?: number.',
+);
+final myCatalog = A2uiCatalog(
+  id: myId,
+  components: [...basicCatalog.components, gauge],
+);
+
+// 0.5
+final myCatalog = basicCatalog.extend(
+  id: myId,
+  components: [
+    A2uiCatalogComponent.simple(
+      name: 'Gauge',
+      description: 'A circular gauge.',
+      params: [
+        A2uiParam.dynamicValue(
+          'value',
+          required: true,
+          type: A2uiDynamicType.number,
+        ),
+        A2uiParam.number('max'),
+      ],
+    ),
+  ],
+);
+```
+
+The bundled `basicCatalog` follows the published catalog: arguments come in
+spec order, `List.listStyle` and `Slider.step` are gone, and `Icon` accepts only
+the listed names.
+
+### `A2uiStreamParser`
+
+If you use it directly: `surfaceId` and `version` are removed, `catalog` is
+required, and `history` takes every A2UI message the client already holds.
+`EnvelopeSegment` gained the block's Express `source`.
 
 ## License
 
