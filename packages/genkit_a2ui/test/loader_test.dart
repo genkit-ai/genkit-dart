@@ -15,17 +15,19 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:a2ui_agent/a2ui_agent.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
+import 'package:genkit_a2ui/src/catalog_types.dart' show A2uiCatalogCore;
 import 'package:test/test.dart';
 
-final custom = const A2uiCatalog(
+final custom = A2uiCatalog(
   id: 'my-catalog',
   components: [
-    A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Widget',
       description: 'A widget.',
-      props: 'label: string.',
+      params: [const A2uiParam.dynamicValue('label')],
     ),
   ],
 );
@@ -58,7 +60,7 @@ void main() {
         final result = await loadCatalog(
           genkit,
           id: 'anon',
-          catalog: A2uiCatalog(id: '', components: custom.components),
+          catalog: A2uiCatalog(id: '', components: custom.components.values),
         );
         expect(result.id, 'anon');
       },
@@ -97,8 +99,64 @@ void main() {
           file: file.path,
         );
         expect(result.components.length, 1);
-        expect(result.components.first.name, 'Widget');
+        expect(result.components['Widget'], isNotNull);
       });
+
+      test(
+        'accepts a file named by \$id, id, or only loadCatalog(id:)',
+        () async {
+          final doc = custom.toJson()..remove('catalogId');
+          for (final (i, named) in <Map<String, Object?>>[
+            {r'$id': 'https://example.com/c.json'},
+            {'id': 'https://example.com/c.json'},
+            {},
+          ].indexed) {
+            final file = File('${dir.path}/c$i.json');
+            await file.writeAsString(jsonEncode({...doc, ...named}));
+            final result = await loadCatalog(
+              genkit,
+              id: 'c$i',
+              file: file.path,
+            );
+            expect(
+              result.id,
+              named.isEmpty ? 'c$i' : 'https://example.com/c.json',
+            );
+          }
+        },
+      );
+
+      test(
+        'loads the README example catalog and compiles against it',
+        () async {
+          // Pull the JSON block out of the README so the docs cannot drift.
+          final readme = File('README.md').readAsStringSync();
+          final json = RegExp(
+            r'### Option A[\s\S]*?```json\n([\s\S]*?)```',
+          ).firstMatch(readme)!.group(1)!;
+          final file = File('${dir.path}/my-catalog.json');
+          await file.writeAsString(json);
+
+          final result = await loadCatalog(
+            genkit,
+            id: 'my-catalog',
+            file: file.path,
+          );
+          final messages = const ExpressFormatFactory()
+              .createFormat([result.toCore()])
+              .createParser()
+              .compile('root = Banner("Disk almost full", "warning")');
+          final update = messages.last.toJson()['updateComponents'] as Map;
+          expect(update['components'], [
+            {
+              'id': 'root',
+              'component': 'Banner',
+              'title': 'Disk almost full',
+              'severity': 'warning',
+            },
+          ]);
+        },
+      );
 
       test('throws on a missing file', () async {
         await expectLater(
@@ -123,6 +181,72 @@ void main() {
               (e) => e.message,
               'message',
               contains('not valid JSON'),
+            ),
+          ),
+        );
+      });
+
+      test('rejects the pre-spec components array, naming the shape', () async {
+        final file = File('${dir.path}/array.json');
+        await file.writeAsString(
+          jsonEncode({
+            'id': 'x',
+            'components': [
+              {'name': 'Banner', 'description': 'A banner.', 'props': ''},
+            ],
+          }),
+        );
+        await expectLater(
+          loadCatalog(genkit, id: 'x', file: file.path),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('keyed by component name'),
+            ),
+          ),
+        );
+      });
+
+      test('reports an invalid catalog at load time, naming it', () async {
+        // An unsupported protocol version only fails when a2ui_core parses
+        // the catalog; that must happen here, not on the first generate call.
+        final file = File('${dir.path}/bad-version.json');
+        await file.writeAsString(
+          jsonEncode({
+            'catalogId': 'bad',
+            'protocolVersion': '9.9',
+            'components': <String, dynamic>{},
+          }),
+        );
+        await expectLater(
+          loadCatalog(genkit, id: 'bad', file: file.path),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              allOf(contains(file.path), contains('protocol version')),
+            ),
+          ),
+        );
+      });
+
+      test('checks the document as written, not what fromJson keeps', () async {
+        // fromJson would skip the non-object `Text`; the file is still wrong.
+        final file = File('${dir.path}/lenient.json');
+        await file.writeAsString(
+          jsonEncode({
+            'catalogId': 'lenient',
+            'components': {'Text': 'not-a-schema'},
+          }),
+        );
+        await expectLater(
+          loadCatalog(genkit, id: 'lenient', file: file.path),
+          throwsA(
+            isA<StateError>().having(
+              (e) => e.message,
+              'message',
+              contains('Text'),
             ),
           ),
         );
