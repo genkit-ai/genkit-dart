@@ -1558,7 +1558,8 @@ fai.GenerationConfig _toGeminiSettings(
 /// Converts [config] to a `firebase_ai` speech config.
 ///
 /// Throws a [GenkitException] with [StatusCode.invalidArgument] when both a
-/// voice and multiple speakers are set, or a speaker lacks a name or voice.
+/// voice and multiple speakers are set, there are not exactly two speakers, or
+/// a speaker lacks a name or voice.
 @visibleForTesting
 fai.SpeechConfig? toGeminiSpeechConfig(SpeechConfig? config) {
   if (config == null) return null;
@@ -1576,17 +1577,19 @@ fai.SpeechConfig? toGeminiSpeechConfig(SpeechConfig? config) {
       status: StatusCode.invalidArgument,
     );
   }
-  if (multi.speakerVoiceConfigs?.isEmpty ?? true) {
+  final speakers = multi.speakerVoiceConfigs;
+  // Gemini TTS takes exactly two speakers.
+  if (speakers == null || speakers.length != 2) {
     throw GenkitException(
-      'multiSpeakerVoiceConfig needs at least one speakerVoiceConfigs entry.',
+      'multiSpeakerVoiceConfig needs exactly two speakerVoiceConfigs entries, '
+      'not ${speakers?.length ?? 0}.',
       status: StatusCode.invalidArgument,
     );
   }
   return fai.SpeechConfig.multiSpeaker(
     multiSpeakerVoiceConfig: fai.MultiSpeakerVoiceConfig(
       speakerVoiceConfigs: [
-        for (final speaker
-            in multi.speakerVoiceConfigs ?? <SpeakerVoiceConfig>[])
+        for (final speaker in speakers)
           switch (speaker) {
             SpeakerVoiceConfig(
               speaker: final name?,

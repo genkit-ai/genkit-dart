@@ -106,6 +106,7 @@ void main() {
           'multiSpeakerVoiceConfig': {
             'speakerVoiceConfigs': [
               {'speaker': 'Joe', 'voiceConfig': _voice('Puck')},
+              {'speaker': 'Jane', 'voiceConfig': _voice('Kore')},
             ],
           },
         },
@@ -120,19 +121,27 @@ void main() {
           'multiSpeakerVoiceConfig': {
             'speakerVoiceConfigs': [
               {'speaker': 'Joe', 'voiceConfig': _voice('Puck')},
+              {'speaker': 'Jane', 'voiceConfig': _voice('Kore')},
             ],
           },
         },
       });
     });
 
-    test('no speakers throws invalidArgument and sends nothing', () async {
-      await expectRejected({
-        'speechConfig': {
-          'multiSpeakerVoiceConfig': {'speakerVoiceConfigs': <Object>[]},
-        },
+    for (final count in [0, 1, 3]) {
+      test('$count speakers throw invalidArgument and send nothing', () async {
+        await expectRejected({
+          'speechConfig': {
+            'multiSpeakerVoiceConfig': {
+              'speakerVoiceConfigs': [
+                for (var i = 0; i < count; i++)
+                  {'speaker': 'Speaker $i', 'voiceConfig': _voice('Kore')},
+              ],
+            },
+          },
+        });
       });
-    });
+    }
 
     test('a speaker without a voice throws invalidArgument and sends '
         'nothing', () async {
@@ -140,7 +149,8 @@ void main() {
         'speechConfig': {
           'multiSpeakerVoiceConfig': {
             'speakerVoiceConfigs': [
-              {'speaker': 'Joe'},
+              {'speaker': 'Joe', 'voiceConfig': _voice('Kore')},
+              {'speaker': 'Jane'},
             ],
           },
         },
