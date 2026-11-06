@@ -4,6 +4,13 @@ version: 0.4.0
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0
 
+# Matches firebase_ai, which supports no other platforms.
+platforms:
+  android:
+  ios:
+  macos:
+  web:
+
 environment:
   sdk: ^3.12.0
 
