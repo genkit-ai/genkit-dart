@@ -17,15 +17,12 @@
 /// The whole server-side integration is the `a2ui()` model middleware; register
 /// `A2uiPlugin` in `Genkit(plugins: [...])`, then add `a2ui()` to an agent's (or
 /// a one-shot `generate`'s) `use` list. Pair it with `basicCatalog` (or your own
-/// catalog) and render on the client with the `genui` package plus the helpers
-/// in `package:genkit_a2ui/client.dart`.
+/// catalog).
 ///
-/// The library is named so that dartdoc treats it as the canonical home for the
-/// symbols shared with `package:genkit_a2ui/client.dart`. Without a name that
-/// matches the package, dartdoc cannot break the tie between the two entry
-/// points and emits "ambiguous reexport" warnings for the shared parts/types.
-// ignore: unnecessary_library_name
-library genkit_a2ui;
+/// Clients do not depend on this package. A2UI travels as spec-shaped data
+/// parts, so a client needs only `package:genkit` and a renderer such as
+/// `genui`; see the README for copy-paste helpers.
+library;
 
 export 'src/a2ui_middleware.dart'
     show A2uiMiddleware, A2uiOptions, A2uiPlugin, a2ui;
@@ -50,10 +47,4 @@ export 'src/parser.dart'
         ProseSegment;
 export 'src/part.dart' show a2uiEnvelopesFromParts, a2uiPart, isA2uiPart;
 export 'src/types.dart'
-    show
-        A2uiClientAction,
-        A2uiComponent,
-        A2uiEnvelope,
-        a2uiMimeType,
-        a2uiVersion,
-        basicCatalogId;
+    show A2uiEnvelope, a2uiMimeType, a2uiVersion, basicCatalogId;

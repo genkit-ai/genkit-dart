@@ -11,7 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   a2ui_core: ^0.1.0
-  genui: ^0.10.1
+  genui: ^0.10.3
   # Used by the custom `Gauge` catalog item (lib/gauge.dart) to build its prop
   # schema with `S`/`Schema`. genui depends on the same package.
   json_schema_builder: ^0.1.3

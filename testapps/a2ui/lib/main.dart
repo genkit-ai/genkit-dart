@@ -15,24 +15,21 @@
 /// A2UI sample Flutter client.
 ///
 /// Talks to the Genkit A2UI agent (served by `bin/server.dart`) with
-/// `remoteAgent` from `package:genkit/client.dart`, renders prose in a simple
-/// chat log, and renders each A2UI surface with the `genui` renderer.
+/// `remoteAgent`, renders prose in a simple chat log, and renders each A2UI
+/// surface with the `genui` renderer.
 ///
-/// A2UI travels as `data` parts on the agent stream; we pull them off each
-/// chunk (via `chunk.raw.modelChunk?.content`) with `a2uiEnvelopesFromParts`
-/// (from `package:genkit_a2ui/client.dart`), convert each envelope to a genui
-/// `A2uiMessage`, and feed it to a `SurfaceController`. Surface actions (e.g. button presses) are sent back to the agent as the next
-/// turn.
+/// A2UI travels as spec-shaped `data` parts on the agent stream. The client
+/// code does not use `genkit_a2ui`: the two helpers in `a2ui_helpers.dart`
+/// (copied from the genkit_a2ui README) read messages off each chunk and turn
+/// surface actions into the next turn's input.
 library;
-
-import 'dart:convert';
 
 import 'package:a2ui_core/a2ui_core.dart' as core;
 import 'package:flutter/material.dart';
 import 'package:genkit/experimental_client.dart';
-import 'package:genkit_a2ui/client.dart';
 import 'package:genui/genui.dart';
 
+import 'a2ui_helpers.dart';
 import 'gauge.dart';
 import 'shared.dart';
 
@@ -170,19 +167,22 @@ class _ChatPageState extends State<ChatPage> {
   }
 
   /// Sends a rendered surface's action back to the agent as the next turn.
-  Future<void> _onSurfaceSubmit(dynamic message) async {
+  Future<void> _onSurfaceSubmit(ChatMessage submit) async {
     // Guard against re-entrancy: a button press mid-stream would otherwise
     // start a second concurrent turn, interleaving the streams and letting one
     // turn's completion flip `_busy` off while the other is still running.
     if (_busy) return;
-    final action = _actionFromSubmit(message);
-    if (action == null) return;
+    // genui also reports renderer errors through onSubmit; only actions start
+    // a turn.
+    final message = a2uiSubmitToMessage(submit);
+    if (message == null) return;
+    final names = a2uiActionNames(message);
     setState(() {
-      _entries.add(_TextEntry(true, '▶ ${action.name}'));
+      _entries.add(_TextEntry(true, '> ${names.join(', ')}'));
       _busy = true;
     });
     _scrollToBottom();
-    await _runTurn(_chat.sendStream(message: actionToMessage(action)));
+    await _runTurn(_chat.sendStream(message: message));
   }
 
   /// Runs a single agent turn, streaming prose + surfaces into the log.
@@ -198,10 +198,8 @@ class _ChatPageState extends State<ChatPage> {
           setState(() => prose!.text += chunk.text);
           _scrollToBottom();
         }
-        for (final envelope in a2uiEnvelopesFromParts(
-          chunk.raw.modelChunk?.content,
-        )) {
-          _handleEnvelope(envelope);
+        for (final m in a2uiMessagesFrom(chunk.raw.modelChunk?.content)) {
+          _handleEnvelope(m);
         }
       }
       await turn.response;
@@ -242,32 +240,6 @@ class _ChatPageState extends State<ChatPage> {
         c.remove('align');
       }
     }
-  }
-
-  /// Extracts an [A2uiClientAction] from a genui `onSubmit` ChatMessage.
-  ///
-  /// genui reports surface interactions as a `UiInteractionPart` whose payload
-  /// is a JSON string `{ "version": "v0.9", "action": { name, surfaceId,
-  /// widgetId, context } }`.
-  A2uiClientAction? _actionFromSubmit(dynamic message) {
-    for (final part in (message as ChatMessage).parts) {
-      final interaction = part.asUiInteractionPart?.interaction;
-      if (interaction == null) continue;
-      final decoded = jsonDecode(interaction);
-      final action = (decoded is Map) ? decoded['action'] : null;
-      if (action is Map) {
-        final map = action.cast<String, dynamic>();
-        return A2uiClientAction(
-          name: (map['name'] as String?) ?? 'action',
-          surfaceId: (map['surfaceId'] as String?) ?? '',
-          sourceComponentId: (map['widgetId'] as String?) ?? '',
-          timestamp: DateTime.now().toUtc().toIso8601String(),
-          context:
-              (map['context'] as Map?)?.cast<String, dynamic>() ?? const {},
-        );
-      }
-    }
-    return null;
   }
 
   @override

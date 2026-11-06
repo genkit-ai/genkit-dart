@@ -405,7 +405,7 @@ void main() {
 
       final actionPart = DataPart(
         data: {
-          'envelopes': [
+          'messages': [
             {
               'action': {
                 'name': 'refresh',
@@ -441,6 +441,73 @@ void main() {
       expect(joined, contains('Tokyo'));
     });
 
+    test('summarizes a data-only action message (no text part)', () async {
+      ModelRequest? seen;
+      defineReplyModel('m_action_only', 'ok', onRequest: (r) => seen = r);
+
+      // What the README's client helper sends: genui's spec-shaped
+      // {version, action} envelope, with no accompanying prose.
+      final actionPart = DataPart(
+        data: {
+          'messages': [
+            {
+              'version': 'v0.9',
+              'action': {
+                'name': 'refresh',
+                'surfaceId': 's1',
+                'sourceComponentId': 'btn',
+                'timestamp': 't',
+                'context': <String, dynamic>{},
+              },
+            },
+          ],
+        },
+        metadata: {'mimeType': a2uiMimeType},
+      );
+
+      await genkit.generate(
+        model: modelRef('m_action_only'),
+        messages: [
+          Message(role: Role.user, content: [actionPart]),
+        ],
+        use: [a2ui()],
+      );
+
+      final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
+      expect(
+        userMsg.content.single.text,
+        '[UI action "refresh" on surface s1]',
+      );
+    });
+
+    test('summarizes parts written with the legacy envelopes key', () async {
+      ModelRequest? seen;
+      defineReplyModel('m_legacy', 'ok', onRequest: (r) => seen = r);
+
+      final legacyPart = DataPart(
+        data: {
+          'envelopes': [
+            {
+              'action': {'name': 'refresh', 'surfaceId': 's1'},
+            },
+          ],
+        },
+        metadata: {'mimeType': a2uiMimeType},
+      );
+
+      await genkit.generate(
+        model: modelRef('m_legacy'),
+        messages: [
+          Message(role: Role.user, content: [legacyPart]),
+        ],
+        use: [a2ui()],
+      );
+
+      final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
+      expect(userMsg.content.any(isA2uiPart), isFalse);
+      expect(userMsg.content.single.text, contains('UI action "refresh"'));
+    });
+
     test('replays a prior assistant surface as a fenced a2ui block, not a '
         'sentinel', () async {
       ModelRequest? seen;
@@ -449,7 +516,7 @@ void main() {
       // A prior assistant turn that rendered a surface: create + update.
       final surfacePart = DataPart(
         data: {
-          'envelopes': [
+          'messages': [
             {
               'createSurface': {
                 'surfaceId': 's1',
@@ -562,7 +629,7 @@ void main() {
       // Prior assistant surface `s1` + an action on it, replayed as history.
       final priorSurface = DataPart(
         data: {
-          'envelopes': [
+          'messages': [
             {
               'createSurface': {
                 'surfaceId': 's1',
@@ -583,7 +650,7 @@ void main() {
       );
       final actionOnS1 = DataPart(
         data: {
-          'envelopes': [
+          'messages': [
             {
               'action': {'name': 'refresh', 'surfaceId': 's1'},
             },
@@ -626,7 +693,7 @@ void main() {
 
       final mixedPart = DataPart(
         data: {
-          'envelopes': [
+          'messages': [
             {
               'createSurface': {
                 'surfaceId': 's1',
@@ -840,11 +907,7 @@ void main() {
         // Two identical actions plus a distinct one, all in a single part.
         final actionsPart = DataPart(
           data: {
-            'envelopes': [
-              action('refresh'),
-              action('refresh'),
-              action('close'),
-            ],
+            'messages': [action('refresh'), action('refresh'), action('close')],
           },
           metadata: {'mimeType': a2uiMimeType},
         );
@@ -873,7 +936,7 @@ void main() {
       // text; the sole a2ui part must not leave the message content empty.
       final unknownPart = DataPart(
         data: {
-          'envelopes': [
+          'messages': [
             {'somethingUnknown': true},
           ],
         },
