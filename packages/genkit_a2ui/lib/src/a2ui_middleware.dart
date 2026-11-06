@@ -18,20 +18,22 @@
 /// agent's (or a one-shot `generate`'s) `use` list and the agent gains the
 /// ability to render A2UI surfaces. The middleware:
 ///
-/// 1. Injects the catalog's capabilities into the system prompt so the model
-///    knows what UI it may render.
+/// 1. Injects the catalog's capabilities and the A2UI Express contract into
+///    the system prompt so the model knows what UI it may render.
 /// 2. Intercepts the model's output (both the streamed chunks and the final
-///    message), extracts any `a2ui` fenced blocks, validates them against the
-///    catalog, and rewrites them into the canonical a2ui data part.
+///    message), compiles each `<a2ui>` Express block against the catalog, and
+///    rewrites it into the canonical a2ui data part.
+/// 3. Turns inbound a2ui parts (replayed history, user actions) back into text
+///    the model can read.
 ///
 /// Implemented via the `model` hook, so it wraps each raw model call in the
 /// agent's tool loop.
 library;
 
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:genkit/plugin.dart';
+import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'catalog.dart';
@@ -55,17 +57,15 @@ abstract class $A2uiOptions {
   /// if you supply your own instructions).
   String? get instructions;
 
-  /// Validate emitted envelopes against the catalog. `'warn'` (default) logs a
-  /// warning and drops the offending block/envelope, keeping the rest of the
-  /// turn alive; `'strict'` throws on malformed JSON or unknown components
-  /// (best during development); `'off'` passes them through unchecked.
+  /// What to do with a block that fails to compile or validate. `'warn'`
+  /// (default) logs a warning and drops the block, keeping the rest of the turn
+  /// alive; `'strict'` throws (best during development); `'off'` skips the
+  /// renderer-side checks (dangling references, missing `root`) and drops a
+  /// block that does not compile without logging a warning.
   String? get validate;
 
-  /// Surface id policy. Provide a fixed id to reuse for every surface. Defaults
-  /// to a fresh UUID per surface.
-  String? get surfaceId;
-
-  /// Protocol version stamped on emitted envelopes. Defaults to `'v0.9'`.
+  /// The A2UI protocol version to emit. Only `'v0.9'` (the default) is
+  /// supported.
   String? get version;
 }
 
@@ -92,7 +92,6 @@ GenerateMiddlewareRef<A2uiOptions> a2ui({
   String? catalog,
   String? instructions,
   String? validate,
-  String? surfaceId,
   String? version,
 }) {
   return middlewareRef(
@@ -101,7 +100,6 @@ GenerateMiddlewareRef<A2uiOptions> a2ui({
       catalog: catalog,
       instructions: instructions,
       validate: validate,
-      surfaceId: surfaceId,
       version: version,
     ),
   );
@@ -138,43 +136,27 @@ String _parseInstructions(String? value) {
   }
 }
 
-/// Resolves the `version` option, defaulting to [a2uiVersion]. Throws on any
-/// value outside [supportedA2uiVersions] so an unsupported protocol version
-/// fails fast rather than silently stamping envelopes the renderer can't read.
-String _parseVersion(String? value) {
-  if (value == null) return a2uiVersion;
-  if (!supportedA2uiVersions.contains(value)) {
+/// Checks the `version` option against [supportedA2uiVersions] so an
+/// unsupported protocol version fails fast rather than emitting envelopes the
+/// renderer can't read.
+void _checkVersion(String? value) {
+  if (value != null && !supportedA2uiVersions.contains(value)) {
     throw ArgumentError(
       'a2ui(): unsupported version "$value" '
       '(supported: ${supportedA2uiVersions.join(', ')}).',
     );
   }
-  return value;
-}
-
-final _rng = Random();
-
-/// Generates a random v4 UUID string.
-String _uuidV4() {
-  final bytes = List<int>.generate(16, (_) => _rng.nextInt(256));
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
-      '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
 }
 
 /// The A2UI model middleware.
 ///
-/// Injects catalog capabilities into the prompt and rewrites emitted `a2ui`
+/// Injects catalog capabilities into the prompt and rewrites emitted `<a2ui>`
 /// blocks (streamed and final) into a2ui data parts.
 class A2uiMiddleware extends GenerateMiddleware {
   final Registry _registry;
   final String _catalogId;
   final String _instructions;
   final A2uiValidateMode _validate;
-  final String _version;
-  final String? _fixedSurfaceId;
 
   // Memoizes the rendered catalog instructions. `renderCatalogInstructions`
   // (including the 58-name icon list) is a pure function of the catalog, but the
@@ -187,11 +169,9 @@ class A2uiMiddleware extends GenerateMiddleware {
   A2uiMiddleware(this._registry, [A2uiOptions? config])
     : _catalogId = config?.catalog ?? defaultCatalogId,
       _instructions = _parseInstructions(config?.instructions),
-      _validate = _parseValidateMode(config?.validate),
-      _version = _parseVersion(config?.version),
-      _fixedSurfaceId = config?.surfaceId;
-
-  String _nextSurfaceId() => _fixedSurfaceId ?? _uuidV4();
+      _validate = _parseValidateMode(config?.validate) {
+    _checkVersion(config?.version);
+  }
 
   /// Renders (and caches) the catalog instructions for [catalog].
   String _renderInstructions(A2uiCatalog catalog) {
@@ -216,9 +196,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     // basic catalog for the default id).
     final catalog = resolveCatalog(_registry, _catalogId);
 
-    // Share surface ids between the streamed parse and the final-message parse
-    // of this single turn, so the same surface gets the same id in both.
-    final surfaceIds = _ReplayableSurfaceIds(_nextSurfaceId);
+    _warnOnPreSpecClient(request);
 
     // 0) Sanitize any inbound a2ui data parts (e.g. a surface action sent back
     //    as the next turn, or replayed history) into model-readable text, so
@@ -237,9 +215,15 @@ class A2uiMiddleware extends GenerateMiddleware {
     if (ctx.streamingRequested) {
       streamParser = A2uiStreamParser(
         catalog: catalog,
-        validate: _validate,
-        version: _version,
-        surfaceId: surfaceIds.next,
+        // Never throw from here: this runs inside the provider's chunk
+        // callback, where a throw fails (and retries) the whole model call.
+        // A bad block is just left off the stream; the final message applies
+        // the configured mode.
+        validate: _validate == A2uiValidateMode.off
+            ? A2uiValidateMode.off
+            : A2uiValidateMode.warn,
+        // The final parse sees these blocks again and reports them.
+        quiet: true,
       );
       wrappedCtx = ctx.copyWith(
         sendChunk: (chunk) {
@@ -250,7 +234,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     }
 
     // 3) Run downstream model, then flush the stream parser so the last withheld
-    //    prose tail (the parser holds back up to a partial opening fence) and any
+    //    prose tail (the parser holds back up to a partial opening tag) and any
     //    unterminated trailing block still reach the streaming consumer. Without
     //    this, clients that render purely from stream deltas would show truncated
     //    prose / miss a final block (the aggregated message recovers it, but the
@@ -263,10 +247,9 @@ class A2uiMiddleware extends GenerateMiddleware {
       }
     }
 
-    // 4) Transform the final message. The final parse replays the same surface
-    //    ids the stream minted.
-    surfaceIds.reset();
-    return _transformResponse(response, catalog, surfaceIds.replayNext);
+    // 4) Transform the final message. Surface ids are the model's own, so the
+    //    final parse produces the same envelopes the stream did.
+    return _transformResponse(response, catalog);
   }
 
   /// Appends A2UI instructions to (or creates) the system message.
@@ -333,17 +316,11 @@ class A2uiMiddleware extends GenerateMiddleware {
   ModelResponse _transformResponse(
     ModelResponse response,
     A2uiCatalog catalog,
-    String Function() surfaceId,
   ) {
     final message = response.message;
     if (message == null) return response;
 
-    final parser = A2uiStreamParser(
-      catalog: catalog,
-      validate: _validate,
-      version: _version,
-      surfaceId: surfaceId,
-    );
+    final parser = A2uiStreamParser(catalog: catalog, validate: _validate);
     final newContent = <Part>[];
 
     // Drains whatever the parser is still holding (a withheld prose tail, or an
@@ -356,11 +333,11 @@ class A2uiMiddleware extends GenerateMiddleware {
     for (final part in message.content) {
       final text = part.text;
       if (part.isText && text != null && text.isNotEmpty) {
-        // Push WITHOUT flushing between consecutive text parts so an a2ui block
+        // Push WITHOUT flushing between consecutive text parts so an <a2ui> block
         // that spans several adjacent text parts is stitched back together. The
         // model's final message is not guaranteed to coalesce adjacent text:
         // the Gemini plugin, for instance, aggregates a turn into many separate
-        // text parts (fence, JSON body split many ways, close fence, then a
+        // text parts (open tag, block body split many ways, close tag, then a
         // trailing empty-text part carrying the thought signature), so a
         // per-part flush would reset the parser mid-block and leak the whole
         // surface back out as raw prose. This mirrors the streaming path, which
@@ -378,6 +355,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       }
     }
     flushHeld();
+    if (!newContent.any(isA2uiPart)) _warnOnPreExpressOutput(message);
 
     return ModelResponse(
       message: Message(
@@ -405,7 +383,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       for (final part in message.content) {
         if (isA2uiPart(part)) {
           msgChanged = true;
-          final text = _summarizeA2uiPart(a2uiEnvelopesFromParts([part]));
+          final text = _summarizeA2uiPart(part, message.role);
           if (text.isNotEmpty) content.add(TextPart(text: text));
         } else {
           content.add(part);
@@ -443,100 +421,150 @@ List<Part> _partsFromSegments(List<ParseSegment> segments) {
     switch (seg) {
       case ProseSegment(:final prose):
         if (prose.isNotEmpty) out.add(TextPart(text: prose));
-      case EnvelopeSegment(:final envelopes):
-        out.add(a2uiPart(envelopes));
+      case EnvelopeSegment(:final envelopes, :final source):
+        out.add(a2uiPart(envelopes, source: source));
     }
   }
   return out;
 }
 
-/// Converts a list of a2ui envelopes from an inbound message part back into
-/// model-readable text - the inverse of the outbound block-to-part transform.
-///
-/// The two envelope kinds are handled differently on purpose:
-///
-/// - Assistant-authored surface envelopes (`createSurface`, `updateComponents`,
-///   `updateDataModel`, `deleteSurface`) are reconstructed as the canonical
-///   `a2ui` fenced block the model originally emitted. Replaying a prior turn's
-///   surface as history therefore shows the model its own UI output in the exact
-///   format it is asked to produce, reinforcing correct behavior. (Summarizing
-///   it to a sentinel like `[rendered UI surface]` instead taught the model to
-///   emit that literal string in place of a real block.)
-/// - Client-synthesized `action` envelopes never had a block form, so they
-///   become a short text summary the model can reason about.
-///
-/// Consecutive surface envelopes are grouped into a single block (one surface is
-/// usually several envelopes: create + update(s)). Unknown envelope shapes are
-/// dropped; the caller keeps the message non-empty when everything drops.
-String _summarizeA2uiPart(List<A2uiEnvelope> envelopes) {
-  final out = <String>[];
-  final pendingSurface = <A2uiEnvelope>[];
+final _migrationLogger = Logger('genkit_a2ui.middleware');
+var _warnedPreSpecClient = false;
+var _warnedPreExpressOutput = false;
 
-  void flushSurface() {
-    if (pendingSurface.isEmpty) return;
-    // Keep the real surface ids verbatim. The model may not reuse them for a
-    // NEW surface: the parser forces a fresh id onto every `createSurface`
-    // block (see `_finalizeBlock`), so a copied id can't overwrite a prior
-    // surface. Keeping the real ids lets the model correlate a replayed action
-    // (`[UI action ... on surface <id>]`) with the surface it targeted - which
-    // matters when several surfaces are on screen at once.
-    //
-    // Encode compactly (not pretty-printed): fewer tokens, and it collapses the
-    // payload to a single line so the block is exactly three lines (open fence,
-    // JSON, close fence). Because JSON escapes any newline inside a string as
-    // `\n`, an A2UI `Text` value containing a fenced code sample can't put a
-    // literal ``` at the start of a line, so it can never prematurely close this
-    // block (the parser's close fence is line-anchored). The block text can
-    // still contain ``` characters mid-line; a fully robust emitter would use a
-    // variable-length fence, but that also requires the parser's fixed
-    // three-backtick open fence to become count-aware, so it is deferred.
-    out.add('```a2ui\n${jsonEncode(pendingSurface)}\n```');
-    pendingSurface.clear();
+/// Warns once per process when the latest user message carries an a2ui part
+/// with only the pre-0.5 `envelopes` key: that client cannot read this
+/// version's `messages` parts, so its surfaces would silently stop rendering.
+void _warnOnPreSpecClient(ModelRequest request) {
+  if (_warnedPreSpecClient) return;
+  final last = request.messages.where((m) => m.role == Role.user).lastOrNull;
+  for (final part in last?.content ?? const <Part>[]) {
+    final data = part.data;
+    if (part.metadata?['mimeType'] == a2uiMimeType &&
+        data != null &&
+        data.containsKey('envelopes') &&
+        !data.containsKey('messages')) {
+      _warnedPreSpecClient = true;
+      _migrationLogger.warning(
+        'A2UI: a client sent an a2ui part with the pre-0.5 `envelopes` key. '
+        'It cannot render the `messages` parts this version sends; update it '
+        'to the client helpers in the genkit_a2ui README.',
+      );
+      return;
+    }
+  }
+}
+
+/// Warns once per process when the model wrote the pre-0.5 JSON format, which
+/// passes through as plain text, typically because custom instructions
+/// (`instructions: 'none'`) or examples still describe it.
+void _warnOnPreExpressOutput(Message message) {
+  if (_warnedPreExpressOutput) return;
+  final text = message.content.map((p) => p.text ?? '').join();
+  if (!text.contains('```a2ui')) return;
+  _warnedPreExpressOutput = true;
+  _migrationLogger.warning(
+    'A2UI: the model wrote a ```a2ui fenced block, which genkit_a2ui 0.5 no '
+    'longer reads. It expects A2UI Express between <a2ui> tags; see '
+    'renderCatalogInstructions.',
+  );
+}
+
+/// An id from a client-supplied message, as prompt text: plain ids read as
+/// is, anything else is JSON-encoded so it cannot reshape the line. Null for
+/// a missing or empty id.
+String? _idText(Object? id) => switch (id) {
+  final String s when s.isEmpty => null,
+  final String s when RegExp(r'^[\w.:-]+$').hasMatch(s) => s,
+  final String s => jsonEncode(s),
+  _ => null,
+};
+
+/// Converts an inbound a2ui part back into model-readable text, the inverse of
+/// the outbound block-to-part transform.
+///
+/// - A part the model authored carries its Express source in the metadata
+///   ([a2uiExpressMetadataKey]) and is replayed verbatim as an `<a2ui>` block,
+///   so the model sees exactly what it wrote, in the format it is asked to
+///   produce. The source is never rewritten (surface ids are the model's own),
+///   so it still describes what the client rendered.
+/// - A user `action` becomes a short line the model can reason about.
+/// - A surface part with no source (written before parts carried it, or by a
+///   client that dropped the metadata) is summarized as a plain sentence. Not
+///   as replayed JSON, which would teach the model a second output format, and
+///   not as a tag-like marker, which models tend to copy into their output.
+///
+/// Unknown message shapes are dropped; the caller keeps the message non-empty
+/// when everything drops.
+String _summarizeA2uiPart(Part part, Role role) {
+  // Only the model's own parts are replayed as blocks it wrote; anywhere else
+  // the metadata is summarized like any other part.
+  if (role == Role.model) {
+    if (part.metadata?[a2uiExpressMetadataKey] case final String source) {
+      return '<a2ui>\n$source\n</a2ui>';
+    }
   }
 
-  for (final env in envelopes) {
+  final out = <String>[];
+  final rendered = <String>{};
+  final removed = <String>{};
+  void flushSurfaces() {
+    if (rendered.isNotEmpty) {
+      out.add('(UI surface ${rendered.join(', ')} was rendered here.)');
+    }
+    if (removed.isNotEmpty) {
+      out.add('(UI surface ${removed.join(', ')} was removed here.)');
+    }
+    rendered.clear();
+    removed.clear();
+  }
+
+  for (final env in a2uiEnvelopesFromParts([part])) {
     final action = env['action'];
     if (action is Map) {
-      // Emit any buffered surface block before the action, preserving order.
-      flushSurface();
-      final name = action['name'];
-      final surfaceId = action['surfaceId'];
+      flushSurfaces();
+      // Client-supplied values are JSON-encoded, so a name holding `]` or a
+      // newline cannot reshape the line. A plain name reads as before.
+      final name = switch (action['name']) {
+        final String n => jsonEncode(n),
+        _ => '(unnamed)',
+      };
+      final surfaceId = _idText(action['surfaceId']) ?? '(unknown)';
+      // Which component fired it tells apart two buttons with one action name.
+      final from = switch (_idText(action['sourceComponentId'])) {
+        final id? => ' from $id',
+        null => '',
+      };
       final context = action['context'];
       final ctx = (context is Map && context.isNotEmpty)
           ? ' context=${jsonEncode(context)}'
           : '';
-      out.add('[UI action "$name" on surface $surfaceId$ctx]');
-    } else if (env['createSurface'] != null ||
-        env['updateComponents'] != null ||
-        env['updateDataModel'] != null ||
-        env['deleteSurface'] != null) {
-      pendingSurface.add(env);
+      out.add('[UI action $name$from on surface $surfaceId$ctx]');
+      continue;
+    }
+    // Patterns rather than casts: this runs on stored history, so a malformed
+    // body (`{'createSurface': 'oops'}`) must be skipped, not throw on every
+    // later turn of the session.
+    for (final kind in const [
+      'createSurface',
+      'updateComponents',
+      'updateDataModel',
+    ]) {
+      if (env[kind] case {'surfaceId': final Object? raw}) {
+        if (_idText(raw) case final id?) {
+          // Every render starts with a delete, which this undoes.
+          removed.remove(id);
+          rendered.add(id);
+        }
+      }
+    }
+    if (env['deleteSurface'] case {'surfaceId': final Object? raw}) {
+      if (_idText(raw) case final id?) {
+        rendered.remove(id);
+        removed.add(id);
+      }
     }
   }
-  flushSurface();
+  flushSurfaces();
   return out.join('\n');
-}
-
-/// Wraps a surface-id factory so a single model turn's streamed parse and its
-/// final-message parse mint the *same* surface ids.
-
-class _ReplayableSurfaceIds {
-  final String Function() _base;
-  final List<String> _generated = [];
-  int _cursor = 0;
-
-  _ReplayableSurfaceIds(this._base);
-
-  String next() {
-    final id = _base();
-    _generated.add(id);
-    return id;
-  }
-
-  String replayNext() =>
-      _cursor < _generated.length ? _generated[_cursor++] : next();
-
-  void reset() {
-    _cursor = 0;
-  }
 }
