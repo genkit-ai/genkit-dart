@@ -558,9 +558,24 @@ base class Action<Input, Output, Chunk, Init>
     CancellationToken? cancel,
   }) {
     StreamController<Input>? internalInputController;
+    var inputListened = false;
     if (inputStream == null) {
-      internalInputController = StreamController<Input>();
+      internalInputController = StreamController<Input>(
+        onListen: () => inputListened = true,
+      );
       inputStream = internalInputController.stream;
+    }
+
+    // `StreamController.close()` completes only once its stream has been
+    // listened to and is done. An action that ends without ever listening to
+    // its input (for example one that throws while connecting) never gets
+    // there, so `BidiActionStream.close()` would wait forever. Cancel the
+    // unread input once the action ends so close() can return.
+    void releaseUnreadInput() {
+      final controller = internalInputController;
+      if (controller != null && !inputListened) {
+        unawaited(controller.stream.listen(null).cancel());
+      }
     }
 
     final streamController = StreamController<Chunk>();
@@ -585,12 +600,14 @@ base class Action<Input, Output, Chunk, Init>
           cancel: cancel,
         )
         .then((result) {
+          releaseUnreadInput();
           bidiStream.setResult(result.result);
           if (!streamController.isClosed) {
             streamController.close();
           }
         })
         .catchError((Object e, StackTrace s) {
+          releaseUnreadInput();
           bidiStream.setError(e, s);
           if (!streamController.isClosed) {
             streamController.addError(e, s);
