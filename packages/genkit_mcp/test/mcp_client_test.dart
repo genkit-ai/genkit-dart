@@ -771,6 +771,129 @@ void main() {
     expect(content['text'], '{"answer":42}');
   });
 
+  group('tool results', () {
+    Future<ToolResponseResult<dynamic>> callToolReturning(
+      Map<String, dynamic> callToolResult,
+    ) async {
+      final transport = FakeClientTransport();
+      transport.tools = [
+        {
+          'name': 'screenshot',
+          'description': 'takes a screenshot',
+          'inputSchema': {'type': 'object'},
+        },
+      ];
+      transport.callToolResult = callToolResult;
+      final client = GenkitMcpClient(
+        McpClientOptions(
+          name: 'media-client',
+          mcpServer: McpServerConfig(transport: transport),
+        ),
+      );
+      addTearDown(client.close);
+      await client.ready();
+      final tools = await client.getActiveTools(Genkit());
+      return await tools.first.call({}) as ToolResponseResult<dynamic>;
+    }
+
+    String? urlOf(Part part) => part.media?.url;
+
+    test('return image content as media parts', () async {
+      final result = await callToolReturning({
+        'content': [
+          {'type': 'image', 'data': 'AAAA', 'mimeType': 'image/png'},
+        ],
+      });
+
+      expect(result.output, isNull);
+      expect(result.parts!.map(urlOf), ['data:image/png;base64,AAAA']);
+    });
+
+    test('put text in the output and media and links in parts', () async {
+      final result = await callToolReturning({
+        'content': [
+          {'type': 'text', 'text': 'Captured.'},
+          {'type': 'audio', 'data': 'BBBB', 'mimeType': 'audio/wav'},
+          {
+            'type': 'resource',
+            'resource': {'uri': 'file:///notes.txt', 'text': 'Notes'},
+          },
+          {
+            'type': 'resource',
+            'resource': {
+              'uri': 'file:///shot.jpg',
+              'blob': 'CCCC',
+              'mimeType': 'image/jpeg',
+            },
+          },
+          {'type': 'resource_link', 'uri': 'file:///log.txt', 'name': 'log'},
+        ],
+      });
+
+      expect(
+        result.output,
+        'Captured.\n\nResource (file:///notes.txt):\nNotes',
+      );
+      expect(result.parts!.map(urlOf), [
+        'data:audio/wav;base64,BBBB',
+        'data:image/jpeg;base64,CCCC',
+        null,
+      ]);
+      expect(result.parts!.last.resource, {'uri': 'file:///log.txt'});
+    });
+
+    test('default media without a mimeType to octet-stream', () async {
+      final result = await callToolReturning({
+        'content': [
+          {
+            'type': 'resource',
+            'resource': {'uri': 'file:///blob.bin', 'blob': 'DDDD'},
+          },
+        ],
+      });
+
+      final media = result.parts!.single.media!;
+      expect(media.url, 'data:application/octet-stream;base64,DDDD');
+      expect(media.contentType, 'application/octet-stream');
+    });
+
+    test('decode JSON text output', () async {
+      final result = await callToolReturning({
+        'content': [
+          {'type': 'text', 'text': '{"width":2}'},
+        ],
+      });
+
+      expect(result.output, {'width': 2});
+      expect(result.parts, isNull);
+    });
+
+    test('keep structured content as the output alongside media', () async {
+      final result = await callToolReturning({
+        'content': [
+          {'type': 'image', 'data': 'AAAA', 'mimeType': 'image/png'},
+        ],
+        'structuredContent': {'width': 2},
+      });
+
+      expect(result.output, {'width': 2});
+      expect(result.parts!.map(urlOf), ['data:image/png;base64,AAAA']);
+    });
+
+    test('return errors as an error output', () async {
+      final result = await callToolReturning({
+        'content': [
+          {'type': 'text', 'text': 'boom'},
+          {'type': 'image', 'data': 'AAAA', 'mimeType': 'image/png'},
+        ],
+        'isError': true,
+      });
+
+      expect(result.output, {'error': 'boom'});
+      expect(result.parts, isNull);
+    });
+  });
+
   test('client handles sampling and elicitation requests', () async {
     final transport = FakeClientTransport();
     final client = GenkitMcpClient(
