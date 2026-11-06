@@ -238,9 +238,19 @@ surface("tokyo-weather")
 $/temp = "21°C"
 ```
 
-Every block is checked against the surfaces the conversation's history left on
-the client, so an update must target a live surface and leave its component
-tree valid. Send a2ui parts back with the history (as `remoteAgent` and session
+(That updates whatever the surface bound to `$/temp`, such as a
+`Text($/temp)`; a surface that rendered the temperature as a literal needs the
+component redefined instead.)
+
+**A part can be partial.** Since an a2ui part may carry only updates for a
+surface an earlier part or turn created, clients must feed every message from
+every part, in order, into one renderer (one genui `SurfaceController`) per
+conversation, and render each surface once, keyed by its id. Rendering each
+part as its own surface drops the updates.
+
+Unless `validate` is `'off'`, every block is checked against the surfaces the
+conversation's history left on the client, so an update must target a live
+surface and leave its component tree valid. Send a2ui parts back with the history (as `remoteAgent` and session
 stores do) for this to work. The check trusts the history: a client that
 dropped messages the server sent can still reject an update the server
 accepted.

@@ -469,5 +469,83 @@ go = Button(goLabel, "primary", Event("go"))''';
       expect(prompts, hasLength(1));
       expect(componentsOf(res), isNotEmpty);
     });
+
+    group('a partial update', () {
+      /// A turn after one that rendered `w` as a column holding `btn`.
+      Future<GenerateResult> runAfterRender() => genkit.generate(
+        model: modelRef('m'),
+        messages: [
+          Message(
+            role: Role.model,
+            content: [
+              a2uiPart([
+                {
+                  'createSurface': {
+                    'surfaceId': 'w',
+                    'catalogId': basicCatalog.id,
+                  },
+                },
+                {
+                  'updateComponents': {
+                    'surfaceId': 'w',
+                    'components': [
+                      {
+                        'id': 'root',
+                        'component': 'Column',
+                        'children': ['btn'],
+                      },
+                      {'id': 'btn', 'component': 'Text', 'text': 'old'},
+                    ],
+                  },
+                },
+              ]),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'add a button')],
+          ),
+        ],
+        use: [a2ui()],
+      );
+
+      const badPartial =
+          '<a2ui>\nsurface("w")\n'
+          'btn = Button("Refresh", "primary", Event("refresh"))\n</a2ui>';
+      const fixedPartial =
+          'surface("w")\nlabel = Text("Refresh")\n'
+          'btn = Button(label, "primary", Event("refresh"))';
+
+      test('that is valid costs no extra call', () async {
+        defineModel(
+          '<a2ui>\nsurface("w")\nbtn = Text("new")\n</a2ui>',
+          goodRepair,
+        );
+        final res = await runAfterRender();
+
+        expect(prompts, hasLength(1));
+        expect(componentsOf(res), isNotEmpty);
+      });
+
+      test('is repaired as a partial update', () async {
+        defineModel(badPartial, '<a2ui>\n$fixedPartial\n</a2ui>');
+        final res = await runAfterRender();
+
+        expect(prompts.last, contains('partial update'));
+        expect(componentsOf(res).map((c) => c['id']), ['label', 'btn']);
+      });
+
+      test('discards a repair that adds a root', () async {
+        // That would replace the whole surface instead of updating it.
+        defineModel(
+          badPartial,
+          '<a2ui>\n$fixedPartial\nroot = Column([btn])\n</a2ui>',
+        );
+        final res = await runAfterRender();
+
+        expect(prompts, hasLength(2));
+        expect(componentsOf(res), isEmpty);
+      });
+    });
   });
 }

@@ -22,9 +22,12 @@ library;
 import 'package:a2ui_agent/a2ui_agent.dart';
 import 'package:a2ui_core/a2ui_core.dart'
     show A2uiError, A2uiProtocolVersion, AgentToRendererMessage;
+import 'package:logging/logging.dart';
 
 import 'catalog_types.dart';
 import 'types.dart';
+
+final _logger = Logger('genkit_a2ui.express');
 
 /// Prompts for and compiles A2UI Express against one catalog.
 final class ExpressEngine {
@@ -71,7 +74,9 @@ final class ExpressEngine {
   /// package compiled Express) does not hide the surfaces that did render.
   SurfaceMirror mirror(Iterable<A2uiEnvelope> history) {
     final mirror = SurfaceMirror._(_processor.createState());
-    for (final envelope in history) {
+    var skipped = 0;
+    Object? firstError;
+    for (final envelope in _liveHistory(history)) {
       try {
         // History written by a client may leave out the version.
         mirror._state.apply(
@@ -79,9 +84,17 @@ final class ExpressEngine {
             {'version': a2uiVersion, ...envelope},
           ]),
         );
-      } on A2uiError {
+      } on A2uiError catch (e) {
         // Skipped; see above.
+        skipped++;
+        firstError ??= e.message;
       }
+    }
+    if (skipped > 0) {
+      _logger.fine(
+        'A2UI: skipped $skipped history message(s) the mirror rejected, '
+        'first: $firstError. Updates to their surfaces may be rejected.',
+      );
     }
     // The renderer already holds all of this, so none of it is judged again:
     // without this, a component an earlier update orphaned would count as new
@@ -89,6 +102,32 @@ final class ExpressEngine {
     mirror._state.markChecked(mirror._state.surfaceIds);
     return mirror;
   }
+}
+
+/// The messages of [history] that still shape a live surface, in order.
+///
+/// A long conversation re-renders and deletes surfaces many times; replaying
+/// all of it on every model call would cost time in proportion to the
+/// conversation. This keeps, per surface, only what follows its last creation,
+/// and drops surfaces that ended deleted. It follows the renderer's rules: a
+/// `createSurface` for a surface that is already live is rejected there, so it
+/// is ignored here too, and the updates after it still apply to the old tree.
+List<A2uiEnvelope> _liveHistory(Iterable<A2uiEnvelope> history) {
+  final live = <String, List<(int, A2uiEnvelope)>>{};
+  for (final (i, e) in history.indexed) {
+    switch (e) {
+      case {'createSurface': {'surfaceId': final String id}}:
+        if (!live.containsKey(id)) live[id] = [(i, e)];
+      case {'deleteSurface': {'surfaceId': final String id}}:
+        live.remove(id);
+      case {'updateComponents': {'surfaceId': final String id}} ||
+          {'updateDataModel': {'surfaceId': final String id}}:
+        live[id]?.add((i, e));
+    }
+  }
+  final kept = [for (final l in live.values) ...l]
+    ..sort((a, b) => a.$1.compareTo(b.$1));
+  return [for (final (_, e) in kept) e];
 }
 
 /// The agent-side mirror of a renderer's surfaces, which messages are checked
@@ -110,10 +149,20 @@ final class SurfaceMirror {
   /// `A2uiIntegrityError`) and leaves the mirror unchanged if any check fails.
   void apply(List<A2uiEnvelope> envelopes) {
     if (envelopes.isEmpty) return;
+    // Only a surface whose components changed needs its tree checked; a
+    // data-only update cannot break it (and should not be blamed for a tree
+    // that history left incomplete).
+    final reshaped = {
+      for (final e in envelopes)
+        if (e
+            case {'createSurface': {'surfaceId': final String id}} ||
+                {'updateComponents': {'surfaceId': final String id}})
+          id,
+    };
     _state.transaction(() {
-      final touched = _state.apply(_parse(envelopes));
+      _state.apply(_parse(envelopes));
       // Deleted surfaces are skipped by the tree check.
-      if (touched.isNotEmpty) _state.checkTopology(touched);
+      if (reshaped.isNotEmpty) _state.checkTopology(reshaped);
     });
   }
 

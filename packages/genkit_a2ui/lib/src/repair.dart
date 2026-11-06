@@ -31,10 +31,15 @@ import 'express.dart';
 /// those out would need an Express tokenizer, and a2ui_agent does not export
 /// one. It is the contract part of the turn's prompt, without the
 /// surface/form/style guidance and the example.
+///
+/// [partial] marks a block that updates a surface the client already holds
+/// (no `root`): the contract's rule that a tree has a `root` applies to new
+/// surfaces, and a repair that added one would replace the whole surface.
 String buildRepairPrompt({
   required String source,
   required String error,
   required A2uiCatalog catalog,
+  bool partial = false,
 }) =>
     '''
 ${ExpressEngine.of(catalog).promptSnippet}
@@ -52,8 +57,14 @@ $source
 Fix the error and return ONLY the corrected block, wrapped in <a2ui> tags.
 Make the smallest change that fixes it: keep every component, value and data
 path the block already has, and if the block looks cut off, complete it rather
-than dropping the unfinished part. Keep its surface(...) line unchanged. Do
+than dropping the unfinished part. Keep its surface(...) line unchanged.${partial ? _partialNote : ''} Do
 not explain the change.''';
+
+const _partialNote = '''
+
+This block is a partial update to a surface that already exists: do not add a
+`root` assignment, and keep it an update. Every variable it uses must still be
+assigned in the block.''';
 
 /// Extracts the Express source from a repair reply, tolerating a model that
 /// omits the tags or wraps the block in a Markdown fence.

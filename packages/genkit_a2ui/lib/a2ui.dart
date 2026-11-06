@@ -44,7 +44,6 @@ export 'src/parser.dart'
         A2uiStreamParser,
         A2uiValidateMode,
         EnvelopeSegment,
-        FailedBlock,
         ParseResult,
         ParseSegment,
         ProseSegment;

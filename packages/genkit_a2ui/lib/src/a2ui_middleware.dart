@@ -219,8 +219,11 @@ class A2uiMiddleware extends GenerateMiddleware {
     // Every A2UI message the client already holds. Blocks are checked against
     // the surfaces it leaves live, so one may update or replace them (see
     // A2uiStreamParser).
+    // Only model messages: a user message carries actions, not surfaces, and
+    // a surface in one would not be the agent's.
     final history = [
-      for (final m in request.messages) ...a2uiEnvelopesFromParts(m.content),
+      for (final m in request.messages)
+        if (m.role == Role.model) ...a2uiEnvelopesFromParts(m.content),
     ];
 
     // 0) Sanitize any inbound a2ui data parts (e.g. a surface action sent back
@@ -246,7 +249,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     // no catch-up chunk either.
     var sawChunks = false;
     if (ctx.streamingRequested) {
-      streamParser = A2uiStreamParser(
+      streamParser = A2uiStreamParser.internal(
         catalog: catalog,
         // Never throw from here: this runs inside the provider's chunk
         // callback, where a throw fails (and retries) the whole model call.
@@ -390,7 +393,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     // history plus every block before it, repaired or not, so a repaired block
     // may update a surface an earlier block of the same response created.
     List<FailedBlock> probe(Map<String, String> repairs) {
-      final parser = A2uiStreamParser(
+      final parser = A2uiStreamParser.internal(
         catalog: catalog,
         validate: _validate == A2uiValidateMode.off
             ? A2uiValidateMode.off
@@ -424,11 +427,14 @@ class A2uiMiddleware extends GenerateMiddleware {
     final unlink = cancel?.link(budget);
     final timer = Timer(_repairBudget, () => budget.cancel('repair budget'));
     var calls = 0;
+    // The failures under [repairs]; reused rather than re-parsed, since after
+    // a candidate is accepted its probe already is the new state.
+    var failing = probe(repairs);
     try {
       while (true) {
-        final block = probe(
-          repairs,
-        ).where((b) => !attempted.contains(b.source)).firstOrNull;
+        final block = failing
+            .where((b) => !attempted.contains(b.source))
+            .firstOrNull;
         if (block == null) break;
         attempted.add(block.source);
         if (!block.isModelFixable) {
@@ -454,25 +460,43 @@ class A2uiMiddleware extends GenerateMiddleware {
         }
         calls++;
         _noteFirstRepair();
+        // A block without `root` updates a surface the client holds; its
+        // repair must stay an update rather than replace the surface.
+        final partial = !_rootLineRe.hasMatch(block.source);
         final repaired = await _askForRepair(
           block,
           catalog,
           ask,
           budget.token,
           cancel,
+          partial: partial,
         );
         if (repaired == null) continue;
+        if (partial && _rootLineRe.hasMatch(repaired)) {
+          _logger.warning(
+            'repair turned a partial update into a full render, discarding '
+            'it: ${block.error}',
+          );
+          continue;
+        }
         // Only accept a repair that holds up in place, under the configured
-        // mode.
+        // mode, and does not break a later block that worked before.
         final candidate = {...repairs, block.source: repaired};
-        final still = probe(
-          candidate,
-        ).where((b) => b.source == block.source).firstOrNull;
-        if (still != null) {
+        final after = probe(candidate);
+        if (after.where((b) => b.source == block.source).firstOrNull
+            case final still?) {
           _logger.warning('repair failed for "${block.error}": ${still.error}');
           continue;
         }
+        final before = {for (final b in failing) b.source};
+        if (after.any((b) => !before.contains(b.source))) {
+          _logger.warning(
+            'repair broke a later block, discarding it: ${block.error}',
+          );
+          continue;
+        }
         repairs = candidate;
+        failing = after;
         _logger.info('repaired an A2UI block after: ${block.error}');
       }
     } finally {
@@ -488,8 +512,9 @@ class A2uiMiddleware extends GenerateMiddleware {
     A2uiCatalog catalog,
     Future<String?> Function(String prompt, CancellationToken cancel) ask,
     CancellationToken budget,
-    CancellationToken? cancel,
-  ) async {
+    CancellationToken? cancel, {
+    required bool partial,
+  }) async {
     try {
       // Raced against the budget too: not every model plugin honours its
       // cancellation token, and the budget must bound the wait either way.
@@ -499,6 +524,7 @@ class A2uiMiddleware extends GenerateMiddleware {
             source: block.source,
             error: block.error,
             catalog: catalog,
+            partial: partial,
           ),
           budget,
         ),
@@ -608,7 +634,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     Map<String, String> repairs, {
     GenerationUsage? extraUsage,
   }) {
-    final parser = A2uiStreamParser(
+    final parser = A2uiStreamParser.internal(
       catalog: catalog,
       validate: _validate,
       history: history,
@@ -649,6 +675,10 @@ class A2uiMiddleware extends GenerateMiddleware {
     }
     flushHeld();
     if (!newContent.any(isA2uiPart)) _warnOnPreExpressOutput(message);
+    if (history.isEmpty &&
+        parser.failedBlocks.any((b) => b.error.contains('Surface not found'))) {
+      _warnOnMissingHistory();
+    }
 
     return ModelResponse(
       message: Message(
@@ -720,6 +750,7 @@ GenerationUsage? _sumUsage(GenerationUsage? a, GenerationUsage? b) {
 }
 
 final _surfaceLineRe = RegExp(r'^\s*surface\(', multiLine: true);
+final _rootLineRe = RegExp(r'^\s*root\s*=', multiLine: true);
 final _surfaceTargetRe = RegExp(
   r'''^\s*(surface|deleteSurface)\(\s*["']([^"']*)["']''',
   multiLine: true,
@@ -745,6 +776,21 @@ bool _isAbnormal(FinishReason? reason) => const {
   'interrupted',
   'other',
 }.contains(reason?.value);
+
+var _warnedMissingHistory = false;
+
+/// Warns once per process when the model updated a surface but the request
+/// carried no a2ui parts at all: most likely an app that manages history
+/// itself and drops them, which makes every update fail.
+void _warnOnMissingHistory() {
+  if (_warnedMissingHistory) return;
+  _warnedMissingHistory = true;
+  _logger.warning(
+    'A2UI: the model updated a surface, but the request history has no a2ui '
+    'parts to check it against. If you manage conversation history yourself, '
+    'send the model messages back with their a2ui parts (and metadata) intact.',
+  );
+}
 
 var _notedFirstRepair = false;
 

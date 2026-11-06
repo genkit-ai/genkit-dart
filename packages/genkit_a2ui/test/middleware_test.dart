@@ -895,6 +895,8 @@ surface("s1")
 \$/temp = "21°C"
 note = Text("Windy")
 </a2ui>''';
+      var returned = false;
+      var streamedEarly = false;
       genkit.defineModel(
         name: 'm_partial_stream',
         fn: (req, ctx) async {
@@ -913,6 +915,7 @@ note = Text("Windy")
               ),
             );
           }
+          returned = true;
           return ModelResponse(
             finishReason: FinishReason.stop,
             message: Message(
@@ -959,9 +962,15 @@ note = Text("Windy")
           ),
         ],
         use: [a2ui(validate: 'strict')],
-        onChunk: (c) => streamed.addAll(a2uiEnvelopesFromParts(c.content)),
+        onChunk: (c) {
+          final envelopes = a2uiEnvelopesFromParts(c.content);
+          if (envelopes.isNotEmpty && !returned) streamedEarly = true;
+          streamed.addAll(envelopes);
+        },
       );
 
+      // Live, not only from the catch-up chunk sent after the call returns.
+      expect(streamedEarly, isTrue);
       expect(streamed, isNotEmpty);
       expect(streamed, a2uiEnvelopesFromParts(res.message!.content));
     });

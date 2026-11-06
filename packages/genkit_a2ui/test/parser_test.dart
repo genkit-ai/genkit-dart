@@ -372,10 +372,10 @@ void main() {
       });
 
       test('an update must still leave a valid tree', () {
-        // `extra` references a component the surface does not hold.
+        // Compiles on its own, but `note` is unreachable from the held root.
         expect(
           () => collect(newParser(live: ['tokyo']), [
-            '<a2ui>\nsurface("tokyo")\nroot = Column([extra])\n</a2ui>',
+            '<a2ui>\nsurface("tokyo")\nnote = Text("x")\n</a2ui>',
           ]),
           throwsA(isA<StateError>()),
         );
@@ -427,6 +427,81 @@ void main() {
         expect(kinds(batch), ['updateDataModel']);
       });
 
+      test('a data-only update passes when history left a broken tree', () {
+        final parser = A2uiStreamParser(
+          catalog: basicCatalog,
+          history: [
+            {
+              'createSurface': {'surfaceId': 's', 'catalogId': basicCatalogId},
+            },
+            {
+              'updateComponents': {
+                'surfaceId': 's',
+                'components': [
+                  {
+                    'id': 'root',
+                    'component': 'Column',
+                    'children': ['missing'],
+                  },
+                ],
+              },
+            },
+          ],
+        );
+        final batch = batchesOf(
+          collect(parser, ['<a2ui>\nsurface("s")\n\$/k = "v"\n</a2ui>']),
+        ).single;
+        expect(kinds(batch), ['updateDataModel']);
+      });
+
+      group('history', () {
+        A2uiEnvelope create(String id) => {
+          'createSurface': {'surfaceId': id, 'catalogId': basicCatalogId},
+        };
+        A2uiEnvelope components(String id, List<Map<String, Object?>> c) => {
+          'updateComponents': {'surfaceId': id, 'components': c},
+        };
+        final withA = components('s', [
+          {
+            'id': 'root',
+            'component': 'Column',
+            'children': ['a'],
+          },
+          {'id': 'a', 'component': 'Text', 'text': 'A'},
+        ]);
+        const updateA = '<a2ui>\nsurface("s")\na = Text("new")\n</a2ui>';
+
+        test('a surface deleted and created again starts over', () {
+          final parser = A2uiStreamParser(
+            catalog: basicCatalog,
+            history: [
+              create('s'),
+              withA,
+              {
+                'deleteSurface': {'surfaceId': 's'},
+              },
+              create('s'),
+              components('s', [
+                {'id': 'root', 'component': 'Text', 'text': 'new'},
+              ]),
+            ],
+          );
+          // `a` went with the old surface, so it would now be unreachable.
+          expect(() => collect(parser, [updateA]), throwsA(isA<StateError>()));
+        });
+
+        test('a second create without a delete keeps the old tree', () {
+          // The renderer rejects creating a live surface, so `a` survives.
+          final parser = A2uiStreamParser(
+            catalog: basicCatalog,
+            history: [create('s'), withA, create('s')],
+          );
+          expect(kinds(batchesOf(collect(parser, [updateA])).single), [
+            'updateComponents',
+          ]);
+        });
+      });
+
       test('a rejected block does not change what later blocks see', () {
         final parser = newParser(
           live: ['tokyo'],
@@ -434,9 +509,10 @@ void main() {
         );
         final batches = batchesOf(
           collect(parser, [
-            // Rejected: `extra` is missing, so the delete never happens.
+            // Compiles, but the renderer rejects the orphaned `extra`, so the
+            // delete in the same block never happens either.
             '<a2ui>\ndeleteSurface("tokyo")\nsurface("x")\n'
-                'root = Column([extra])\n</a2ui>',
+                'root = Text("r")\nextra = Text("orphan")\n</a2ui>',
             '<a2ui>\nsurface("tokyo")\n\$/temp = "21°C"\n</a2ui>',
           ]),
         );
