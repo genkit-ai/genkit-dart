@@ -1474,7 +1474,7 @@ base class _SpeechConfigTypeFactory extends SchemanticType<SpeechConfig> {
         'voiceConfig': <String, Object?>{r'$ref': r'#/$defs/VoiceConfig'},
         'multiSpeakerVoiceConfig': <String, Object?>{
           'description':
-              'Voices for a multi-speaker conversation. Cannot be set together with voiceConfig.',
+              'Voices for a multi-speaker conversation, with exactly two speakers. Cannot be set together with voiceConfig.',
           'allOf': [
             <String, Object?>{r'$ref': r'#/$defs/MultiSpeakerVoiceConfig'},
           ],

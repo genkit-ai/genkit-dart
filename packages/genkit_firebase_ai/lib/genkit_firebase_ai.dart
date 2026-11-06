@@ -282,8 +282,8 @@ abstract class $SpeechConfig {
   $VoiceConfig? get voiceConfig;
   @Field(
     description:
-        'Voices for a multi-speaker conversation. Cannot be set together '
-        'with voiceConfig.',
+        'Voices for a multi-speaker conversation, with exactly two '
+        'speakers. Cannot be set together with voiceConfig.',
   )
   $MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig;
   @Field(description: 'BCP-47 language code, for example en-US.')
