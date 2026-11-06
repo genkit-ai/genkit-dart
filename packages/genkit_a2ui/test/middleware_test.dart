@@ -832,6 +832,149 @@ root = Text("new")
       );
     });
 
+    test(
+      'a block without root updates a surface from an earlier turn',
+      () async {
+        defineReplyModel('m_partial', '''Updated.
+<a2ui>
+surface("s1")
+\$/temp = "21°C"
+note = Text("Windy")
+</a2ui>''');
+
+        final res = await genkit.generate(
+          model: modelRef('m_partial'),
+          messages: [
+            Message(
+              role: Role.model,
+              content: [
+                a2uiPart([
+                  {
+                    'createSurface': {
+                      'surfaceId': 's1',
+                      'catalogId': basicCatalog.id,
+                    },
+                  },
+                  {
+                    'updateComponents': {
+                      'surfaceId': 's1',
+                      'components': [
+                        {
+                          'id': 'root',
+                          'component': 'Column',
+                          'children': ['note'],
+                        },
+                        {'id': 'note', 'component': 'Text', 'text': 'Calm'},
+                      ],
+                    },
+                  },
+                ]),
+              ],
+            ),
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'update it')],
+            ),
+          ],
+          // Strict: a block the earlier turn's surface did not satisfy throws.
+          use: [a2ui(validate: 'strict')],
+        );
+
+        final envelopes = a2uiEnvelopesFromParts(res.message!.content);
+        expect(envelopes.map((e) => e.keys.firstWhere((k) => k != 'version')), [
+          'updateComponents',
+          'updateDataModel',
+        ]);
+      },
+    );
+
+    test('streams the same partial update the final message carries', () async {
+      const reply = '''Updated.
+<a2ui>
+surface("s1")
+\$/temp = "21°C"
+note = Text("Windy")
+</a2ui>''';
+      var returned = false;
+      var streamedEarly = false;
+      genkit.defineModel(
+        name: 'm_partial_stream',
+        fn: (req, ctx) async {
+          for (var i = 0; i < reply.length; i += 7) {
+            ctx.sendChunk(
+              ModelResponseChunk(
+                role: Role.model,
+                content: [
+                  TextPart(
+                    text: reply.substring(
+                      i,
+                      i + 7 > reply.length ? reply.length : i + 7,
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }
+          returned = true;
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: reply)],
+            ),
+          );
+        },
+      );
+
+      final streamed = <A2uiEnvelope>[];
+      final res = await genkit.generate(
+        model: modelRef('m_partial_stream'),
+        messages: [
+          Message(
+            role: Role.model,
+            content: [
+              a2uiPart([
+                {
+                  'createSurface': {
+                    'surfaceId': 's1',
+                    'catalogId': basicCatalog.id,
+                  },
+                },
+                {
+                  'updateComponents': {
+                    'surfaceId': 's1',
+                    'components': [
+                      {
+                        'id': 'root',
+                        'component': 'Column',
+                        'children': ['note'],
+                      },
+                      {'id': 'note', 'component': 'Text', 'text': 'Calm'},
+                    ],
+                  },
+                },
+              ]),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'update it')],
+          ),
+        ],
+        use: [a2ui(validate: 'strict')],
+        onChunk: (c) {
+          final envelopes = a2uiEnvelopesFromParts(c.content);
+          if (envelopes.isNotEmpty && !returned) streamedEarly = true;
+          streamed.addAll(envelopes);
+        },
+      );
+
+      // Live, not only from the catch-up chunk sent after the call returns.
+      expect(streamedEarly, isTrue);
+      expect(streamed, isNotEmpty);
+      expect(streamed, a2uiEnvelopesFromParts(res.message!.content));
+    });
+
     test('a surface the model deleted is created again', () async {
       defineReplyModel('m_recreate', '''<a2ui>
 surface("s1")

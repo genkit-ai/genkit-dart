@@ -24,6 +24,7 @@ library;
 
 import 'package:a2ui_core/a2ui_core.dart' show A2uiCatalogError, A2uiError;
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart' show internal;
 
 import 'catalog.dart';
 import 'express.dart';
@@ -144,6 +145,7 @@ class EnvelopeSegment extends ParseSegment {
 }
 
 /// An Express block that failed to compile, kept for a possible repair.
+@internal
 class FailedBlock {
   /// The block's source, without its tags.
   final String source;
@@ -209,23 +211,34 @@ class A2uiStreamParser {
   /// Logs rejected blocks at `FINE` instead of `WARNING`, for a pass whose
   /// rejections another pass reports (the stream parser, whose blocks the
   /// final parse sees again).
-  final bool quiet;
+  final bool _logQuietly;
 
   /// Repaired sources, keyed by the original block source.
   ///
   /// Set on a second pass after a repair succeeded, so the block compiles from
   /// the corrected source while everything else about the response stays the
   /// same.
-  final Map<String, String> repairs;
+  final Map<String, String> _repairedSources;
 
   /// Blocks that failed to compile, in source order.
   ///
   /// Recorded rather than acted on, so the middleware can attempt a repair
   /// once the response is complete: parsing is synchronous (and the streaming
   /// callback cannot await), so the retry cannot happen here.
+  @internal
   final List<FailedBlock> failedBlocks = [];
 
   final ExpressEngine _engine;
+
+  /// The renderer's surfaces as of this point of the response, which each
+  /// block is checked against. Null when [validate] is off. Built on the first
+  /// block, so a turn without blocks pays nothing for replaying history.
+  late final SurfaceMirror? _mirror = validate == A2uiValidateMode.off
+      ? null
+      : _engine.mirror(_received);
+
+  /// The `history` passed in, replayed into [_mirror] when it is built.
+  final Iterable<A2uiEnvelope> _received;
 
   /// Surfaces this response created so far, to flag a model that renders the
   /// same id twice in one response.
@@ -255,12 +268,29 @@ class A2uiStreamParser {
   String _proseSoFar = '';
 
   /// Creates an [A2uiStreamParser].
+  ///
+  /// [history] is every A2UI message the client already received, in order.
+  /// Blocks are checked against the surfaces it leaves live, so a block may
+  /// update one of them (a block without `root` targets an existing surface).
   A2uiStreamParser({
+    required A2uiCatalog catalog,
+    A2uiValidateMode validate = A2uiValidateMode.strict,
+    Iterable<A2uiEnvelope> history = const [],
+  }) : this.internal(catalog: catalog, validate: validate, history: history);
+
+  /// The middleware's constructor, with the knobs its repair passes need
+  /// (see the private fields they set).
+  @internal
+  A2uiStreamParser.internal({
     required this.catalog,
     this.validate = A2uiValidateMode.strict,
-    this.quiet = false,
-    this.repairs = const {},
-  }) : _engine = ExpressEngine.of(catalog);
+    Iterable<A2uiEnvelope> history = const [],
+    bool quiet = false,
+    Map<String, String> repairs = const {},
+  }) : _engine = ExpressEngine.of(catalog),
+       _received = history,
+       _logQuietly = quiet,
+       _repairedSources = repairs;
 
   /// Feeds a chunk of model text, returning prose + any completed blocks.
   ParseResult push(String text) {
@@ -384,13 +414,11 @@ class A2uiStreamParser {
     // Compile the repaired source if this block failed on an earlier pass. The
     // segment keeps the source that actually compiled, so history replays the
     // working block rather than the broken one.
-    final effective = repairs[source] ?? source;
-    final List<A2uiEnvelope> compiled;
+    final effective = _repairedSources[source] ?? source;
+    final List<A2uiEnvelope> envelopes;
     try {
-      compiled = _engine.compile(
-        effective,
-        validate: validate != A2uiValidateMode.off,
-      );
+      envelopes = _withReplacements(_engine.compile(effective));
+      _mirror?.apply(envelopes);
     } on A2uiError catch (e) {
       failedBlocks.add(
         FailedBlock(
@@ -401,8 +429,8 @@ class A2uiStreamParser {
       );
       return _reject('failed to compile A2UI Express block: ${e.message}');
     }
-    if (compiled.isEmpty) return null;
-    return EnvelopeSegment(_withReplacements(compiled), effective);
+    if (envelopes.isEmpty) return null;
+    return EnvelopeSegment(envelopes, effective);
   }
 
   /// Puts a `deleteSurface` in front of every `createSurface`, so a re-render
@@ -430,7 +458,7 @@ class A2uiStreamParser {
   }
 
   void _log(String message) =>
-      quiet ? _logger.fine(message) : _logger.warning(message);
+      _logQuietly ? _logger.fine(message) : _logger.warning(message);
 
   /// Handles a rejected block according to [validate]: throws in strict mode,
   /// logs in warn mode. Always returns null so callers can `return _reject()`.
@@ -441,7 +469,7 @@ class A2uiStreamParser {
         _logger.fine('$full (dropping block)');
         return null;
       case A2uiValidateMode.warn:
-        if (quiet) {
+        if (_logQuietly) {
           _logger.fine('$full (dropping block)');
         } else {
           _logger.warning('$full (dropping block)');

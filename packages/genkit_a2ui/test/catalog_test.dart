@@ -47,6 +47,11 @@ void main() {
       expect(text, contains('reuse its id'));
     });
 
+    test('explains partial updates', () {
+      expect(text, contains('leave out `root`'));
+      expect(text, contains('replaces the old\n  one entirely'));
+    });
+
     test('marks component-id slots', () {
       expect(text, contains('Card(child (component ID))'));
     });
