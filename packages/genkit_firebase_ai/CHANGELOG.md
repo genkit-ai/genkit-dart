@@ -18,7 +18,7 @@
    `firebaseAI` with `ai.generate` or `ai.generateBidi`.
  - **Errors are `GenkitException`s (#615).** The model throws a
    `GenkitException` with a `status` instead of `firebase_ai` exceptions, so
-   `on QuotaExceeded catch` and `response.cause is QuotaExceeded` no longer
+   `on QuotaExceeded catch (e)` and `response.cause is QuotaExceeded` no longer
    match. Check `status` (for example `StatusCode.resourceExhausted`) instead.
    The `firebase_ai` exception, when there is one, is the `cause` of the
    `GenkitException`.
@@ -55,6 +55,7 @@
 
 ### Fixes
 
+ - register gemini-3.8-live for the Gemini Developer API only (#720)
  - report a malformed data: URL as INVALID_ARGUMENT (#697)
  - send every Live system message as systemInstruction (#681)
  - report unsupported parts as INVALID_ARGUMENT (#679)
@@ -71,6 +72,7 @@
 
 ### Other Changes
 
+ - refresh README for App Check enforcement, models and options (#664)
  - note that Gemini 3 ignores or rejects the sampling options (#674)
 
 
