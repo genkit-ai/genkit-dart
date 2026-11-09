@@ -152,6 +152,10 @@ Migrating from earlier versions:
   be converted to OpenAPI-style `parameters`, which dropped keywords such as
   `oneOf`, `additionalProperties` and `default`. The model now gets the full
   schema, so a tool can behave differently with the same definition.
+- The converter and Live helper functions (`toGemini*`, `fromGemini*`,
+  `extractUsage`, `runLiveSession`, `toLiveGenerationConfig` and the like) are
+  no longer exported. They were meant for the plugin's own use. Call models
+  through `firebaseAI` and `ai.generate` or `ai.generateBidi` instead.
 
 To route requests through your own `http.Client` (a proxy, logging, retries,
 or a mock in tests), pass `httpClient`. Live models connect over a WebSocket
