@@ -17,6 +17,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:audioplayers/audioplayers.dart';
+import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart' hide Flow;
 // Live (bidi) generation is experimental; see the note in experimental.dart.
@@ -56,6 +57,14 @@ void main() async {
   });
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Firebase AI Logic enforces App Check. On first run each debug provider
+  // logs a debug token; add it in the Firebase console under App Check >
+  // Apps > Manage debug tokens.
+  await FirebaseAppCheck.instance.activate(
+    providerAndroid: const AndroidDebugProvider(),
+    providerApple: const AppleDebugProvider(),
+    providerWeb: WebDebugProvider(),
+  );
   runApp(const MyApp());
 }
 
