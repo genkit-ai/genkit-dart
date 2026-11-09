@@ -510,9 +510,15 @@ are lost.'''
   return '''# Rendering UI with A2UI
 
 You can render rich, interactive UI (not just text) by emitting an A2UI
-surface. When a result is better *shown* than *told* (weather, lists, forms,
-comparisons, confirmations, anything visual or interactive), render a surface.
-You may still write normal prose before or after it.
+surface. Render one when the answer is data the user will look at or act on:
+structured results from tools (multiple fields or records), comparisons,
+choices to pick from, forms, dashboards, or anything interactive. You may still
+write normal prose before or after it.
+
+Unless the system instructions ask for a surface, do NOT render a surface when
+the answer reads fine as a few sentences: greetings, small talk, opinions,
+advice, explanations, or simple facts. Answer those in prose. A surface that
+only holds paragraphs of text is worse than the text.
 
 ## Surfaces
 

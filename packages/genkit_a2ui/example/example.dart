@@ -47,9 +47,7 @@ Future<void> main() async {
   final stream = ai.generateStream(
     model: googleAI.gemini('gemini-flash-latest'),
     prompt: 'Show me the weather in Tokyo as a small card.',
-    system:
-        'Render an A2UI surface whenever a result is clearer shown than told. '
-        'Keep any prose brief.',
+    system: 'Keep any prose brief when you render a surface.',
     use: [a2ui()], // <- the entire A2UI integration (default 'basic' catalog).
   );
 
