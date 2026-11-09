@@ -36,8 +36,13 @@ await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 await FirebaseAppCheck.instance.activate(
   providerAndroid: const AndroidDebugProvider(),
   providerApple: const AppleDebugProvider(),
+  providerWeb: WebDebugProvider(),
 );
 ```
+
+On first run, each debug provider logs a debug token (in the browser console
+on web). Add it in the Firebase console under App Check > Apps > Manage debug
+tokens.
 
 ## Usage
 
