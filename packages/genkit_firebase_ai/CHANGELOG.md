@@ -12,16 +12,23 @@
 
 ### Migrating from 0.4
 
- - **Converters are private (#716).** `toGemini*`, `fromGemini*`,
-   `extractUsage`, `runLiveSession`, `toLiveGenerationConfig` and the other
-   converter and Live helpers are no longer exported. Call models through
-   `firebaseAI` with `ai.generate` or `ai.generateBidi`.
- - **Errors are `GenkitException`s (#615).** The model throws a
-   `GenkitException` with a `status` instead of `firebase_ai` exceptions, so
-   `on QuotaExceeded catch (e)` and `response.cause is QuotaExceeded` no longer
-   match. Check `status` (for example `StatusCode.resourceExhausted`) instead.
-   The `firebase_ai` exception, when there is one, is the `cause` of the
-   `GenkitException`.
+ - **Converters are private (#716).** The `toGemini*` and `fromGemini*`
+   functions and `extractUsage` are no longer exported. Call models through
+   `firebaseAI` with `ai.generate`.
+ - **Errors carry a status (#615).** `ai.generate` reports a model error as
+   `finishReason: FinishReason.failed`, with the status and message in
+   `response.error`. Check `response.error?.status` (for example
+   `StatusCode.resourceExhausted`). `response.cause` is now a
+   `GenkitException` with that status instead of the `firebase_ai` exception,
+   so `response.cause is QuotaExceeded` no longer matches; the `firebase_ai`
+   exception, when there is one, is its `cause`.
+ - **Missing token counts are null (#675).** When Gemini leaves a count out,
+   `usage.inputTokens`, `outputTokens` and `totalTokens` are null instead of
+   `0`. Code like `usage.inputTokens!` compiles but fails at runtime; use
+   `?? 0` where you need a number.
+ - **Streaming with `candidateCount` > 1 fails (#676).** It used to merge the
+   candidates' text. It now fails with `INVALID_ARGUMENT` before sending. Use a
+   non-streaming request for several candidates.
  - **Finish reasons use Genkit's names (#608).** `maxTokens` is now `length`,
    `safety` is `blocked`, `malformedFunctionCall` is `other`, and values
    `firebase_ai` can't parse are `unknown`. Compare against the `FinishReason`
