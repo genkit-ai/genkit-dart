@@ -69,12 +69,13 @@ base class _TestCustomOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TestCustomOptions',
-    definition: $Schema
-        .object(
-          properties: {'customField': $Schema.string()},
-          required: ['customField'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'customField': <String, Object?>{'type': 'string'},
+      },
+      'required': ['customField'],
+    },
     dependencies: [],
   );
 }

@@ -2,6 +2,16 @@ Chrome Built-in AI (Gemini Nano) plugin for Genkit Dart.
 
 This plugin allows you to run Gemini Nano locally in Chrome, providing low-latency, offline-capable AI features directly in your web application.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Prerequisites
 
 > **Note:** The API is expected to ship in Chrome 148.

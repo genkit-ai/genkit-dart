@@ -12,10 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_mcp/genkit_mcp.dart';
+import 'package:mcp_dart/mcp_dart.dart' as mcp;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -40,7 +42,7 @@ final class _PromptInputSchema extends SchemanticType<Map<String, dynamic>> {
   );
 }
 
-String _resolveStdioServerScript() {
+String _resolveTestScript(String name) {
   var dir = Directory.current;
   while (true) {
     final pubspec = File('${dir.path}${Platform.pathSeparator}pubspec.yaml');
@@ -51,13 +53,10 @@ String _resolveStdioServerScript() {
           '${dir.path}${Platform.pathSeparator}'
           'packages${Platform.pathSeparator}'
           'genkit_mcp${Platform.pathSeparator}'
-          'test${Platform.pathSeparator}'
-          'stdio_test_server.dart',
+          'test${Platform.pathSeparator}$name',
         );
         if (!script.existsSync()) {
-          throw StateError(
-            'Failed to locate stdio test server script at ${script.path}',
-          );
+          throw StateError('Failed to locate test script at ${script.path}');
         }
         return script.path;
       }
@@ -85,14 +84,72 @@ String _resolvePackageConfig() {
   }
 }
 
+/// Precompiles a stdio test server to a kernel snapshot.
+///
+/// Spawning `dart <script>.dart` recompiles the server and all of its
+/// dependencies on every launch, which can take many seconds on a loaded CI
+/// runner and eats into the client's connect timeout. A `.dill` starts almost
+/// immediately.
+Future<String> _compileTestServer(String scriptName, Directory outDir) async {
+  final output =
+      '${outDir.path}${Platform.pathSeparator}'
+      '${scriptName.replaceAll('.dart', '.dill')}';
+  final result = await Process.run(Platform.resolvedExecutable, [
+    'compile',
+    'kernel',
+    '--packages=${_resolvePackageConfig()}',
+    '-o',
+    output,
+    _resolveTestScript(scriptName),
+  ]);
+  if (result.exitCode != 0) {
+    throw StateError(
+      'Failed to compile $scriptName:\n${result.stdout}\n${result.stderr}',
+    );
+  }
+  return output;
+}
+
 void main() {
+  late Directory stdioServersDir;
+  late String genkitStdioServer;
+  late String mcpDartStdioServer;
+
+  setUpAll(() async {
+    stdioServersDir = await Directory.systemTemp.createTemp(
+      'genkit_mcp_stdio_servers',
+    );
+    final compiled = await Future.wait([
+      _compileTestServer('stdio_test_server.dart', stdioServersDir),
+      _compileTestServer('mcp_dart_stdio_test_server.dart', stdioServersDir),
+    ]);
+    genkitStdioServer = compiled[0];
+    mcpDartStdioServer = compiled[1];
+  });
+
+  tearDownAll(() async {
+    await stdioServersDir.delete(recursive: true);
+  });
+
   test('HTTP/SSE end-to-end server and client', () async {
+    final toolsChanged = Completer<void>();
+    final resourceUpdated = Completer<void>();
+    final logMessage = Completer<void>();
     final ai = Genkit();
+    late GenkitMcpServer server;
     ai.defineTool<Map<String, dynamic>, String>(
       name: 'testTool',
       description: 'test tool',
       inputSchema: .map(.string(), .dynamicSchema()),
-      fn: (input, _) async => 'yep ${input['foo']}',
+      fn: (input, _) async {
+        if (input['log'] == true) {
+          await server.logMessage(
+            level: 'info',
+            data: {'message': 'latest logging works'},
+          );
+        }
+        return .response('yep ${input['foo']}');
+      },
     );
     ai.defineCustomPrompt<Map<String, dynamic>>(
       name: 'testPrompt',
@@ -117,7 +174,7 @@ void main() {
       },
     );
 
-    final server = GenkitMcpServer(
+    server = GenkitMcpServer(
       ai,
       McpServerOptions(name: 'test-server', version: '0.0.1'),
     );
@@ -130,6 +187,22 @@ void main() {
     final client = GenkitMcpClient(
       McpClientOptions(
         name: 'test-client',
+        notificationHandler: (method, params) {
+          if (method == mcp.Method.notificationsToolsListChanged &&
+              !toolsChanged.isCompleted) {
+            toolsChanged.complete();
+          }
+          if (method == mcp.Method.notificationsResourcesUpdated &&
+              params['uri'] == 'my://resource' &&
+              !resourceUpdated.isCompleted) {
+            resourceUpdated.complete();
+          }
+          if (method == mcp.Method.notificationsMessage &&
+              params['level'] == 'info' &&
+              !logMessage.isCompleted) {
+            logMessage.complete();
+          }
+        },
         mcpServer: McpServerConfig(
           url: Uri.parse(
             'http://${transport.address.address}:${transport.port}/mcp',
@@ -137,40 +210,55 @@ void main() {
         ),
       ),
     );
-    await client.ready();
+    try {
+      await client.ready();
+      expect(client.protocolVersion, mcp.stableProtocolVersion);
 
-    final tools = await client.getActiveTools(Genkit());
-    expect(tools, hasLength(1));
-    final toolResult = await tools.first.call({'foo': 'bar'});
-    expect(toolResult, 'yep bar');
+      final tools = await client.getActiveTools(Genkit());
+      expect(tools, hasLength(1));
+      final toolResult = await tools.first.call({'foo': 'bar'});
+      expect(toolResult.output, 'yep bar');
 
-    final prompts = await client.getActivePrompts(Genkit());
-    expect(prompts, hasLength(1));
-    final promptRequest = await prompts.first.call({'input': 'hello'});
-    expect(
-      promptRequest.messages.first.content.first.text,
-      'prompt says: hello',
-    );
+      final prompts = await client.getActivePrompts(Genkit());
+      expect(prompts, hasLength(1));
+      final promptRequest = await prompts.first.call({'input': 'hello'});
+      expect(
+        promptRequest.messages.first.content.first.text,
+        'prompt says: hello',
+      );
 
-    final resources = await client.getActiveResources(Genkit());
-    expect(resources, hasLength(1));
-    final resourceOutput = await resources.first.call(
-      ResourceInput(uri: 'my://resource'),
-    );
-    expect(resourceOutput.content.first.toJson()['text'], 'my resource');
+      final resources = await client.getActiveResources(Genkit());
+      expect(resources, hasLength(1));
+      final resourceOutput = await resources.first.call(
+        ResourceInput(uri: 'my://resource'),
+      );
+      expect(resourceOutput.content.first.toJson()['text'], 'my resource');
 
-    await server.close();
+      await server.notifyToolsChanged();
+      await toolsChanged.future.timeout(const Duration(seconds: 2));
+
+      await client.subscribeResource(uri: 'my://resource');
+      await server.notifyResourceUpdated('my://resource');
+      await resourceUpdated.future.timeout(const Duration(seconds: 2));
+      await client.unsubscribeResource(uri: 'my://resource');
+
+      await client.setLogLevel('info');
+      await client.callTool(name: 'testTool', arguments: {'log': true});
+      await logMessage.future.timeout(const Duration(seconds: 2));
+    } finally {
+      await client.close();
+      await server.close();
+    }
   });
 
   test('stdio end-to-end server and client', () async {
-    final serverScript = _resolveStdioServerScript();
-    final packageConfig = _resolvePackageConfig();
     final client = GenkitMcpClient(
       McpClientOptions(
         name: 'test-client',
         mcpServer: McpServerConfig(
           command: Platform.resolvedExecutable,
-          args: ['--packages=$packageConfig', serverScript],
+          args: [genkitStdioServer],
+          timeout: const Duration(seconds: 30),
         ),
       ),
     );
@@ -181,7 +269,7 @@ void main() {
       final tools = await client.getActiveTools(Genkit());
       expect(tools, hasLength(1));
       final toolResult = await tools.first.call({'foo': 'bar'});
-      expect(toolResult, 'yep bar');
+      expect(toolResult.output, 'yep bar');
 
       final prompts = await client.getActivePrompts(Genkit());
       expect(prompts, hasLength(1));
@@ -201,4 +289,129 @@ void main() {
       await client.close();
     }
   });
+
+  test(
+    'native mcp_dart client interoperates with Genkit HTTP server',
+    () async {
+      final ai = Genkit();
+      ai.defineTool<Map<String, dynamic>, String>(
+        name: 'echo',
+        description: 'echo tool',
+        inputSchema: .map(.string(), .dynamicSchema()),
+        fn: (input, _) async => .response('genkit ${input['value']}'),
+      );
+      final server = GenkitMcpServer(
+        ai,
+        McpServerOptions(name: 'genkit-test-server', version: '0.0.1'),
+      );
+      final transport = await StreamableHttpServerTransport.bind(
+        address: InternetAddress.loopbackIPv4,
+        port: 0,
+        enableJsonResponse: true,
+      );
+      await server.start(transport);
+
+      final nativeClient = mcp.McpClient(
+        const mcp.Implementation(name: 'mcp-dart-client', version: '0.0.1'),
+        options: const mcp.McpClientOptions(
+          protocol: mcp.McpProtocol.require2026,
+        ),
+      );
+      try {
+        await nativeClient.connect(
+          mcp.StreamableHttpClientTransport(
+            Uri.parse(
+              'http://${transport.address.address}:${transport.port}/mcp',
+            ),
+          ),
+        );
+        expect(nativeClient.getProtocolVersion(), mcp.stableProtocolVersion);
+
+        final tools = await nativeClient.listTools();
+        expect(tools.tools.map((tool) => tool.name), contains('echo'));
+        final result = await nativeClient.callTool(
+          const mcp.CallToolRequest(
+            name: 'echo',
+            arguments: {'value': 'works'},
+          ),
+        );
+        expect((result.content.single as mcp.TextContent).text, 'genkit works');
+      } finally {
+        await nativeClient.close();
+        await server.close();
+      }
+    },
+  );
+
+  test('Genkit HTTP client works with JSON responses', () async {
+    final ai = Genkit();
+    ai.defineTool<Map<String, dynamic>, String>(
+      name: 'echo',
+      description: 'echo tool',
+      inputSchema: .map(.string(), .dynamicSchema()),
+      fn: (input, _) async => .response('genkit ${input['value']}'),
+    );
+    final server = GenkitMcpServer(
+      ai,
+      McpServerOptions(name: 'genkit-test-server', version: '0.0.1'),
+    );
+    final serverTransport = await StreamableHttpServerTransport.bind(
+      address: InternetAddress.loopbackIPv4,
+      port: 0,
+      enableJsonResponse: true,
+    );
+    await server.start(serverTransport);
+    final url = Uri.parse(
+      'http://${serverTransport.address.address}:'
+      '${serverTransport.port}/mcp',
+    );
+    final client = GenkitMcpClient(
+      McpClientOptions(
+        name: 'genkit-test-client',
+        mcpServer: McpServerConfig(
+          url: url,
+          timeout: const Duration(seconds: 5),
+        ),
+      ),
+    );
+
+    try {
+      await client.ready();
+      expect(client.protocolVersion, mcp.stableProtocolVersion);
+      final tools = await client.getActiveTools(Genkit());
+      final toolResult = await tools.single.call({'value': 'works'});
+      expect(toolResult.output, 'genkit works');
+    } finally {
+      await client.close();
+      await server.close();
+    }
+  });
+
+  test(
+    'Genkit client interoperates with native mcp_dart stdio server',
+    () async {
+      final client = GenkitMcpClient(
+        McpClientOptions(
+          name: 'genkit-test-client',
+          mcpServer: McpServerConfig(
+            command: Platform.resolvedExecutable,
+            args: [mcpDartStdioServer],
+            timeout: const Duration(seconds: 30),
+          ),
+        ),
+      );
+
+      try {
+        await client.ready();
+        expect(client.serverName, 'mcp-dart-test-server');
+        expect(client.protocolVersion, mcp.stableProtocolVersion);
+        final tools = await client.getActiveTools(Genkit());
+        expect(tools, hasLength(1));
+        final toolResult = await tools.single.call({'value': 'works'});
+        expect(toolResult.output, 'native works');
+      } finally {
+        await client.close();
+      }
+    },
+  );
 }

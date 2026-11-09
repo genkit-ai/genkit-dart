@@ -67,7 +67,7 @@ Run the generator:
 dart run build_runner build
 ```
 
-This generates `MyObj` (data class), which has `MyObj.$schema` (`SchemanticType<MyObj>`) schema definitions which can be used to get json schema (`MyObj.$schema.jsonSchema()` which returns json_schema_builder Schema extension type). `MyObj` has a regular constructor (`MyObj(name: 'blah', subObj: MySubObj(foo: 'blah'))`) and a factory `MyObj.fromJson({..json.})`.
+This generates `MyObj` (data class), which has `MyObj.$schema` (`SchemanticType<MyObj>`) schema definitions which can be used to get json schema (`MyObj.$schema.jsonSchema()`, which returns the JSON Schema as a `Map<String, Object?>`). `MyObj` has a regular constructor (`MyObj(name: 'blah', subObj: MySubObj(foo: 'blah'))`) and a factory `MyObj.fromJson({..json.})`.
 
 ## Usage
 

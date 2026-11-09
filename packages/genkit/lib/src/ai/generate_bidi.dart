@@ -15,8 +15,11 @@
 import 'dart:async';
 
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 import '../core/action.dart';
+import '../core/cancellation.dart';
+import '../core/dynamic_action_provider.dart';
 import '../core/registry.dart';
 import '../exception.dart';
 import '../schema_extensions.dart';
@@ -25,9 +28,12 @@ import 'generate.dart';
 import 'generate_types.dart';
 import 'model.dart';
 import 'tool.dart';
+import 'tool_resolution.dart';
 
 final _logger = Logger('genkit');
 
+/// Experimental: lives behind `package:genkit/experimental.dart`.
+@experimental
 class GenerateBidiSession {
   final BidiActionStream<ModelResponseChunk, ModelResponse, ModelRequest>
   _session;
@@ -71,25 +77,52 @@ Future<GenerateBidiSession> runGenerateBidi(
   dynamic config,
   List<String>? tools,
   String? system,
+  CancellationToken? cancel,
 }) async {
   final model =
-      await registry.lookupAction('bidi-model', modelName) as BidiModel?;
+      await registry.lookupAction(.bidiModel, modelName) as BidiModel?;
   if (model == null) {
     throw GenkitException(
       'Bidi Model $modelName not found',
-      status: StatusCodes.NOT_FOUND,
+      status: StatusCode.notFound,
     );
   }
 
   var toolDefs = <ToolDefinition>[];
   var toolActions = <Tool>[];
   if (tools != null) {
+    var currentRegistry = registry;
+    if (tools.any((t) => t.contains(':'))) {
+      currentRegistry = Registry.childOf(registry);
+    }
+
+    void addTool(Tool tool) {
+      toolActions.add(tool);
+      toolDefs.add(toToolDefinition(tool));
+    }
+
     for (var toolName in tools) {
-      final tool = await registry.lookupAction('tool', toolName) as Tool?;
-      if (tool != null) {
-        toolActions.add(tool);
-        toolDefs.add(toToolDefinition(tool));
+      // A DAP reference is either the full registry key or the shorthand form
+      // (see parseDapToolRef); resolve those through the provider.
+      final dapRef = parseDapToolRef(toolName);
+      if (dapRef != null) {
+        final dap =
+            await currentRegistry.lookupAction(
+                  .dynamicActionProvider,
+                  dapRef.host,
+                )
+                as DynamicActionProvider?;
+        if (dap != null) {
+          for (final action in await resolveDapActions(dap, dapRef)) {
+            currentRegistry.register(action);
+            if (action is Tool) addTool(action);
+          }
+          continue;
+        }
       }
+
+      final tool = await currentRegistry.lookupAction(.tool, toolName) as Tool?;
+      if (tool != null) addTool(tool);
     }
   }
 
@@ -107,7 +140,20 @@ Future<GenerateBidiSession> runGenerateBidi(
     tools: toolDefs,
   );
 
-  final session = model.streamBidi(init: initRequest);
+  final session = model.streamBidi(init: initRequest, cancel: cancel);
+  // Close the input side of the session when cancellation is requested so no
+  // further turns can be sent; the model's own `cancel` handling stops the
+  // in-flight turn. Capture the disposer and drop it once the session settles
+  // so a reused, long-lived `cancel` token doesn't leak this closure (and the
+  // session it pins) across sessions.
+  final unsubscribe = cancel?.onCancel(() => unawaited(session.close()));
+  if (unsubscribe != null) {
+    // `whenComplete` returns a *new* future that re-completes with the same
+    // error; `ignore()` it so a session that settles with an error (e.g. a
+    // transport failure) does not surface a duplicate unhandled async error via
+    // this cleanup hook (the caller already sees it through `outputController`).
+    session.onResult.whenComplete(unsubscribe).ignore();
+  }
 
   final outputController = StreamController<GenerateResponseChunk>();
   final previousChunks = <ModelResponseChunk>[];
@@ -134,25 +180,46 @@ Future<GenerateBidiSession> runGenerateBidi(
           _logger.fine('Processing ${toolRequests.length} tool requests');
           final toolResponses = <Part>[];
           for (final toolRequest in toolRequests) {
+            final requestedName = toolRequest.toolRequest.name;
+            // The model echoes the wire (short) name, so match on either the
+            // full name or its last path segment (see `toToolDefinition`).
             final tool = toolActions.firstWhere(
-              (t) => t.name == toolRequest.toolRequest.name,
+              (t) =>
+                  t.name == requestedName ||
+                  shortToolName(t.name) == requestedName,
               orElse: () => throw GenkitException(
-                'Tool ${toolRequest.toolRequest.name} not found',
-                status: StatusCodes.NOT_FOUND,
+                'Tool $requestedName not found',
+                status: StatusCode.notFound,
               ),
             );
 
+            // Interrupts (human-in-the-loop) require handing control back to the
+            // caller, which a live bidi session cannot do: the model is waiting
+            // on a function response and there is no resume path. A returned
+            // `.interrupt(...)` must fail the session loudly rather than
+            // answer the model, so this throw lives OUTSIDE the try/catch
+            // below (which would otherwise turn it into an `Error: ...` tool
+            // response and keep the session going).
+            GenkitException bidiInterruptUnsupported() => GenkitException(
+              'Tool "${toolRequest.toolRequest.name}" attempted to interrupt '
+              'during a live (bidi) session. Interrupts are not supported by '
+              'generateBidi; use a unary generate() call for human-in-the-loop '
+              'tools.',
+              status: StatusCode.unimplemented,
+            );
+
+            final ToolResult result;
             try {
-              final output = await tool.runRaw(toolRequest.toolRequest.input);
-              toolResponses.add(
-                ToolResponsePart(
-                  toolResponse: ToolResponse(
-                    ref: toolRequest.toolRequest.ref,
-                    name: toolRequest.toolRequest.name,
-                    output: output.result,
-                  ),
-                ),
-              );
+              result = (await tool.runRaw(
+                toolRequest.toolRequest.input,
+                cancel: cancel,
+              )).result;
+            } on CancelledException {
+              // A cooperative cancel tears the session down (the cancel hook
+              // above calls `session.close()`). Propagate it rather than turn it
+              // into a fabricated `Error: ...cancelled` tool answer that would
+              // be sent back to the model on an already-closed input sink.
+              rethrow;
             } catch (e) {
               toolResponses.add(
                 ToolResponsePart(
@@ -163,6 +230,28 @@ Future<GenerateBidiSession> runGenerateBidi(
                   ),
                 ),
               );
+              continue;
+            }
+
+            switch (result) {
+              case ToolInterruptResult():
+                throw bidiInterruptUnsupported();
+              case ToolResponseResult(
+                :final output,
+                :final parts,
+                :final metadata,
+              ):
+                toolResponses.add(
+                  ToolResponsePart(
+                    toolResponse: ToolResponse(
+                      ref: toolRequest.toolRequest.ref,
+                      name: toolRequest.toolRequest.name,
+                      output: output,
+                      content: parts?.map((p) => p.toJson()).toList(),
+                    ),
+                    metadata: metadata,
+                  ),
+                );
             }
           }
           _logger.fine('toolResponses: $toolResponses');

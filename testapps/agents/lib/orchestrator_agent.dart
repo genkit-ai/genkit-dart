@@ -29,6 +29,7 @@
 ///   * `historyLength` to forward conversation context to sub-agents.
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_middleware/agents.dart';
 
@@ -47,6 +48,8 @@ final researcher = ai.defineAgent(
       'You are a thorough research assistant. When asked a question, provide a '
       'clear, well-structured, and well-sourced answer.',
   maxTurns: 10,
+  use: [retry()],
+  store: InMemorySessionStore(),
 );
 
 final coder = ai.defineAgent(
@@ -58,6 +61,8 @@ final coder = ai.defineAgent(
       'You are an expert programmer. When asked to write code, provide clean, '
       'well-commented code with explanations. Use Dart by default unless asked '
       'otherwise.',
+  use: [retry()],
+  store: InMemorySessionStore(),
 );
 
 // ---------------------------------------------------------------------------
@@ -79,7 +84,9 @@ After receiving sub-agent responses, synthesize a final answer for the user.''',
       agents: ['researcher', 'coder'],
       maxDelegations: 5,
       historyLength: 4,
+      async: true,
     ),
+    retry(),
   ],
   store: InMemorySessionStore(),
 );

@@ -1,3 +1,41 @@
+## 1.0.1
+
+ - updated internal dependencies.
+
+## 1.0.0
+
+### Breaking Changes
+
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - use Duration for cache TTLs (#539)
+ - seal Registry and hide internal plumbing (#529)
+ - rename Tool(toolOutputSchema:) to outputSchema (#530)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+
+
+## 0.4.0
+
+### Breaking Changes
+
+ - close DAP feature gaps (traces, metadata, registry, reflection) (#432)
+ - use mcp_dart for protocol handling (#341)
+
+
+## 0.3.1
+
+ - updated internal dependencies.
+
+## 0.3.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+
 ## 0.2.4
 
  - updated internal dependencies.

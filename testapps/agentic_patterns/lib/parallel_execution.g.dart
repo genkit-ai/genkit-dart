@@ -68,12 +68,13 @@ base class _ProductInputTypeFactory extends SchemanticType<ProductInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ProductInput',
-    definition: $Schema
-        .object(
-          properties: {'product': $Schema.string()},
-          required: ['product'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'product': <String, Object?>{'type': 'string'},
+      },
+      'required': ['product'],
+    },
     dependencies: [],
   );
 }
@@ -133,12 +134,14 @@ base class _MarketingCopyTypeFactory extends SchemanticType<MarketingCopy> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MarketingCopy',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string(), 'tagline': $Schema.string()},
-          required: ['name', 'tagline'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'tagline': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name', 'tagline'],
+    },
     dependencies: [],
   );
 }

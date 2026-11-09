@@ -1,0 +1,14 @@
+analyzer:
+  exclude:
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
+  errors:
+    # This sample deliberately uses Genkit's experimental agent surface
+    # (`package:genkit/experimental*.dart`).
+    experimental_member_use: ignore
+include: package:flutter_lints/flutter.yaml

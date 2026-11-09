@@ -20,7 +20,7 @@
 /// inline prompt configuration.
 library;
 
-import 'package:genkit/genkit.dart';
+import 'package:genkit/experimental.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'genkit.dart';
@@ -96,7 +96,7 @@ final getAttractions = ai.defineTool(
               description: 'Learn about the local history',
             ),
           ];
-    return GetAttractionsOutput(attractions: attractions);
+    return .response(GetAttractionsOutput(attractions: attractions));
   },
 );
 
@@ -106,21 +106,23 @@ final getFlightInfo = ai.defineTool(
       'Get mock flight information between two cities on a given date.',
   inputSchema: GetFlightInfoInput.$schema,
   outputSchema: GetFlightInfoOutput.$schema,
-  fn: (input, _) async => GetFlightInfoOutput(
-    flights: [
-      Flight(
-        airline: 'SkyAir',
-        departure: '08:00',
-        arrival: '11:30',
-        price: r'$350',
-      ),
-      Flight(
-        airline: 'GlobalJet',
-        departure: '14:15',
-        arrival: '17:45',
-        price: r'$420',
-      ),
-    ],
+  fn: (input, _) async => .response(
+    GetFlightInfoOutput(
+      flights: [
+        Flight(
+          airline: 'SkyAir',
+          departure: '08:00',
+          arrival: '11:30',
+          price: r'$350',
+        ),
+        Flight(
+          airline: 'GlobalJet',
+          departure: '14:15',
+          arrival: '17:45',
+          price: r'$420',
+        ),
+      ],
+    ),
   ),
 );
 
@@ -133,7 +135,7 @@ final getFlightInfo = ai.defineTool(
 /// Model middleware is declared directly in the `.prompt` frontmatter via the
 /// `use:` field (see `prompts/tripPlanner.prompt`, which applies the `retry`
 /// middleware). The referenced middleware must be registered on the shared
-/// Genkit instance (see `genkit.dart`, which registers `RetryPlugin`).
+/// Genkit instance; `retry` is built in, so there is nothing to add.
 final tripPlannerAgent = ai.definePromptAgent(
   promptName: 'tripPlanner',
   promptInput: {'tone': 'enthusiastic'},

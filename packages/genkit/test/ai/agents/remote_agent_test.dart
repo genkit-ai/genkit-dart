@@ -15,6 +15,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
@@ -243,6 +244,23 @@ void main() {
         throwsA(isA<UnsupportedError>()),
       );
       // The rejected turn never hit the wire.
+      expect(client.requests, isEmpty);
+
+      final context = {
+        'auth': {'uid': 'user-123'},
+      };
+      await expectLater(
+        agent.getSnapshot(snapshotId: 's_x', context: context),
+        throwsA(isA<UnsupportedError>()),
+      );
+      await expectLater(
+        agent.loadChat(snapshotId: 's_x', context: context),
+        throwsA(isA<UnsupportedError>()),
+      );
+      await expectLater(
+        agent.abort('s_x', context: context),
+        throwsA(isA<UnsupportedError>()),
+      );
       expect(client.requests, isEmpty);
     });
 

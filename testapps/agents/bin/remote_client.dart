@@ -27,7 +27,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-import 'package:genkit/client.dart';
+import 'package:genkit/experimental_client.dart';
 
 String get _base =>
     Platform.environment['AGENT_BASE_URL'] ?? 'http://localhost:8080';

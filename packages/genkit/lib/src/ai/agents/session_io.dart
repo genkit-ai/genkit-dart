@@ -15,16 +15,19 @@
 /// File-system backed session snapshot storage.
 ///
 /// Ported from the Genkit JS `session-stores.ts` (`FileSessionStore`). This
-/// library depends on `dart:io`, so it lives behind the `package:genkit/io.dart`
-/// entrypoint rather than the browser-safe `package:genkit/genkit.dart`.
+/// library depends on `dart:io`, so it lives behind the
+/// `package:genkit/experimental_io.dart` entrypoint rather than the
+/// browser-safe `package:genkit/experimental.dart`.
 library;
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:meta/meta.dart';
+
 import '../../exception.dart';
-import '../../types.dart';
+import '../../experimental_types.dart';
 import 'session.dart';
 
 /// Default interval for the polling fallback used by
@@ -48,7 +51,7 @@ void _assertSafeId(String id, String label) {
     throw GenkitException(
       'Invalid $label: "$id". A $label must be a plain file name (no path '
       'separators or "..").',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }
@@ -105,7 +108,9 @@ class _PointerDoc {
 /// scanning the prefix directory and selecting the single leaf whose
 /// `sessionId` matches, then rewrites the pointer so subsequent lookups are fast
 /// again.
-class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
+@experimental
+class FileSessionStore
+    implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader {
   /// Creates a file-backed store rooted at [dirPath] (created if missing).
   ///
   /// - [maxPersistedChainLength]: when set, snapshots older than this many
@@ -116,10 +121,10 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
   ///   so one tenant can never see another's snapshots. Defaults to `"global"`.
   /// - [rejectBranchingSessions]: when `true`, a `sessionId` lookup that
   ///   resolves to a branched history (more than one leaf) throws
-  ///   [StatusCodes.FAILED_PRECONDITION] instead of returning the latest leaf.
+  ///   [StatusCode.failedPrecondition] instead of returning the latest leaf.
   ///   Defaults to `false`; opt in (e.g. in dev) to surface accidental
   ///   branching early.
-  /// - [snapshotWatchPollInterval]: polling interval for the
+  /// - [_snapshotWatchPollInterval]: polling interval for the
   ///   [onSnapshotStateChange] fallback that backstops the directory watcher
   ///   (which can miss events on some filesystems, e.g. network mounts).
   FileSessionStore(
@@ -127,9 +132,8 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
     this.maxPersistedChainLength,
     this.snapshotPathPrefix,
     this.rejectBranchingSessions = false,
-    Duration snapshotWatchPollInterval = _defaultSnapshotWatchPollInterval,
-  }) : _dir = Directory(dirPath).absolute,
-       _snapshotWatchPollInterval = snapshotWatchPollInterval {
+    this._snapshotWatchPollInterval = _defaultSnapshotWatchPollInterval,
+  }) : _dir = Directory(dirPath).absolute {
     _dir.createSync(recursive: true);
   }
 
@@ -279,6 +283,60 @@ class FileSessionStore implements SessionStore, SnapshotChangeNotifier {
       return _latestSnapshotForSession(normalized.sessionId!, context);
     }
     return _snapshotById(normalized.snapshotId!, context);
+  }
+
+  @override
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
+    normalizeGetSnapshotOptions(snapshotId: snapshotId);
+    final file = await _fileFor(snapshotId, context);
+    if (!file.existsSync()) return null;
+    // Let a corrupt / unreadable file throw, exactly as the full read
+    // (`_snapshotById`) does, so a caller can tell corruption apart from "not
+    // found" (a truncated file must not read as a missing snapshot).
+    final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+    // Promote the resolved sessionId before dropping `state` so identity (and
+    // the pointer fast path in `getLatestSnapshotMetadata`) survives a row that
+    // carried it only under `state`; then drop `state` so the (possibly large)
+    // payload is never materialized into a SessionState.
+    final sessionId =
+        (json['sessionId'] as String?) ??
+        (json['state'] as Map<String, dynamic>?)?['sessionId'] as String?;
+    json.remove('state');
+    if (sessionId != null) json['sessionId'] = sessionId;
+    return SessionSnapshot.fromJson(json);
+  }
+
+  @override
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
+    Map<String, dynamic>? context,
+  }) async {
+    normalizeGetSnapshotOptions(sessionId: sessionId);
+    // Fast path via the pointer file (skipped when we must detect branching):
+    // resolve the leaf id and read its metadata directly. Honor the pointer
+    // only when the leaf still exists and belongs to this session; a stale or
+    // foreign pointer falls through to the scan below. A corrupt pointer target
+    // propagates, exactly as the full read's fast path (`_snapshotById` in
+    // `_latestSnapshotForSession`) does, so the two paths stay identical.
+    if (!rejectBranchingSessions) {
+      final pointer = await _readPointer(sessionId, context);
+      if (pointer != null) {
+        final meta = await getSnapshotMetadata(
+          pointer.currentSnapshotId,
+          context: context,
+        );
+        if (meta != null && snapshotSessionId(meta) == sessionId) {
+          return meta;
+        }
+      }
+    }
+    // Fallback: the full scan resolves the leaf (and rewrites the pointer);
+    // strip its state on the way out.
+    final snap = await getSnapshot(sessionId: sessionId, context: context);
+    return snap != null ? stripSnapshotState(snap) : null;
   }
 
   /// Loads a single snapshot file by its id (no sessionId branch). Used both by

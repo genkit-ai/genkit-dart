@@ -23,6 +23,7 @@
 ///   * A persistent store is REQUIRED for detach to work.
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 
 import 'genkit.dart';

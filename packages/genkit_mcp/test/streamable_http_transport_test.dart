@@ -32,6 +32,8 @@ class _TestServer {
 Future<_TestServer> _startServer({
   bool enableJsonResponse = false,
   String? sessionId,
+  bool enableDnsRebindingProtection = true,
+  bool rejectBatchJsonRpcPayloads = true,
 }) async {
   final ai = Genkit();
   final server = GenkitMcpServer(
@@ -42,6 +44,8 @@ Future<_TestServer> _startServer({
     address: InternetAddress.loopbackIPv4,
     port: 0,
     enableJsonResponse: enableJsonResponse,
+    enableDnsRebindingProtection: enableDnsRebindingProtection,
+    rejectBatchJsonRpcPayloads: rejectBatchJsonRpcPayloads,
     sessionIdGenerator: sessionId == null ? null : () => sessionId,
   );
   await server.start(transport);
@@ -49,7 +53,16 @@ Future<_TestServer> _startServer({
 }
 
 Map<String, dynamic> _initializeRequest(int id) {
-  return {'jsonrpc': '2.0', 'id': id, 'method': 'initialize', 'params': {}};
+  return {
+    'jsonrpc': '2.0',
+    'id': id,
+    'method': 'initialize',
+    'params': {
+      'protocolVersion': '2025-11-25',
+      'capabilities': <String, dynamic>{},
+      'clientInfo': {'name': 'test-client', 'version': '0.0.1'},
+    },
+  };
 }
 
 Future<HttpClientResponse> _postJson(
@@ -93,6 +106,36 @@ Future<HttpClientResponse> _getSse(
   return request.close();
 }
 
+/// Opens a standalone GET SSE stream and waits for its response headers.
+///
+/// The server only flushes headers along with the first event on the stream,
+/// and drops notifications sent before the GET is registered. A single
+/// notification after a fixed delay races with request handling and flakes on
+/// loaded CI runners, so keep nudging until the response arrives. Extra
+/// notifications are harmless: they go to the newest registered stream.
+Future<HttpClientResponse> _openStandaloneSse(
+  HttpClient client,
+  _TestServer testServer, {
+  required String sessionId,
+}) async {
+  final pending = _getSse(
+    client,
+    testServer.url,
+    headers: {'mcp-session-id': sessionId},
+  );
+  var done = false;
+  // Errors still surface via Future.any / return below.
+  pending.whenComplete(() => done = true).ignore();
+  while (!done) {
+    await testServer.server.notifyToolsChanged();
+    await Future.any<void>([
+      pending,
+      Future<void>.delayed(const Duration(milliseconds: 50)),
+    ]);
+  }
+  return pending;
+}
+
 Future<HttpClientResponse> _delete(
   HttpClient client,
   Uri url, {
@@ -101,6 +144,15 @@ Future<HttpClientResponse> _delete(
   final request = await client.deleteUrl(url);
   headers?.forEach(request.headers.set);
   return request.close();
+}
+
+Future<void> _markInitialized(HttpClient client, Uri url) async {
+  final response = await _postJson(client, url, {
+    'jsonrpc': '2.0',
+    'method': 'notifications/initialized',
+  });
+  expect(response.statusCode, HttpStatus.accepted);
+  await response.drain();
 }
 
 Future<void> _closeSse(HttpClientResponse response) async {
@@ -113,6 +165,28 @@ Future<void> _closeSse(HttpClientResponse response) async {
 }
 
 void main() {
+  test('rejects non-loopback Host headers by default', () async {
+    final testServer = await _startServer(enableJsonResponse: true);
+    final client = HttpClient();
+    try {
+      final response = await _postJson(
+        client,
+        testServer.url,
+        _initializeRequest(1),
+        headers: {'host': 'attacker.example'},
+      );
+
+      expect(response.statusCode, HttpStatus.forbidden);
+      expect(
+        await response.transform(utf8.decoder).join(),
+        contains('DNS rebinding protection'),
+      );
+    } finally {
+      client.close(force: true);
+      await testServer.server.close();
+    }
+  });
+
   test('rejects invalid protocol version header', () async {
     final testServer = await _startServer(enableJsonResponse: true);
     final client = HttpClient();
@@ -128,7 +202,10 @@ void main() {
       final body = await response.transform(utf8.decoder).join();
       final decoded = jsonDecode(body) as Map<String, dynamic>;
       final error = decoded['error'] as Map<String, dynamic>;
-      expect(error['message'], contains('Unsupported MCP-Protocol-Version'));
+      expect(
+        error['message'].toString().toLowerCase(),
+        contains('unsupported protocol version'),
+      );
     } finally {
       client.close(force: true);
       await testServer.server.close();
@@ -179,7 +256,7 @@ void main() {
       final body = await response.transform(utf8.decoder).join();
       final decoded = jsonDecode(body) as Map<String, dynamic>;
       final error = decoded['error'] as Map<String, dynamic>;
-      expect(error['message'], contains('Missing MCP-Session-Id'));
+      expect(error['message'], contains('Mcp-Session-Id header is required'));
     } finally {
       client.close(force: true);
       await testServer.server.close();
@@ -219,7 +296,52 @@ void main() {
     }
   });
 
-  test('GET rejects concurrent SSE streams', () async {
+  test('GET supports concurrent SSE streams', () async {
+    final testServer = await _startServer(
+      enableJsonResponse: true,
+      sessionId: 'session-1',
+    );
+    final client = HttpClient();
+    try {
+      final initResponse = await _postJson(
+        client,
+        testServer.url,
+        _initializeRequest(1),
+      );
+      expect(initResponse.statusCode, HttpStatus.ok);
+      final sessionId = initResponse.headers.value('mcp-session-id');
+      expect(sessionId, 'session-1');
+      await initResponse.drain();
+
+      final first = await _openStandaloneSse(
+        client,
+        testServer,
+        sessionId: sessionId!,
+      );
+      expect(first.statusCode, HttpStatus.ok);
+
+      final second = await _openStandaloneSse(
+        client,
+        testServer,
+        sessionId: sessionId,
+      );
+      expect(second.statusCode, HttpStatus.ok);
+
+      await _closeSse(second);
+      await _closeSse(first);
+    } finally {
+      client.close(force: true);
+      await testServer.server.close();
+    }
+  });
+
+  // Skipped: Dart's dart:io HttpResponse.flush() can succeed on loopback
+  // connections even after the client destroys the socket, because data is
+  // written to the OS send buffer before the FIN is detected. This makes
+  // the server's probe (_probeStandaloneStream) unreliable in unit tests.
+  // Reconnect-after-disconnect behavior is still covered by the e2e
+  // integration tests in mcp_integration_test.dart.
+  test('GET allows reconnect after disconnect', () async {
     final testServer = await _startServer(
       enableJsonResponse: true,
       sessionId: 'session-1',
@@ -242,80 +364,31 @@ void main() {
         headers: {'mcp-session-id': sessionId!},
       );
       expect(first.statusCode, HttpStatus.ok);
-
-      final second = await _getSse(
-        client,
-        testServer.url,
-        headers: {'mcp-session-id': sessionId},
-      );
-      expect(second.statusCode, HttpStatus.conflict);
-      await second.drain();
-
       await _closeSse(first);
+
+      // Allow the server to detect the disconnected stream.
+      // The server checks response.done and probes with a ping; give it
+      // enough time for the socket closure to propagate.
+      HttpClientResponse? second;
+      for (var attempt = 0; attempt < 15; attempt += 1) {
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        second = await _getSse(
+          client,
+          testServer.url,
+          headers: {'mcp-session-id': sessionId},
+        );
+        if (second.statusCode == HttpStatus.ok) break;
+        await second.drain();
+      }
+      expect(second?.statusCode, HttpStatus.ok);
+      if (second != null) {
+        await _closeSse(second);
+      }
     } finally {
       client.close(force: true);
       await testServer.server.close();
     }
-  });
-
-  // Skipped: Dart's dart:io HttpResponse.flush() can succeed on loopback
-  // connections even after the client destroys the socket, because data is
-  // written to the OS send buffer before the FIN is detected. This makes
-  // the server's probe (_probeStandaloneStream) unreliable in unit tests.
-  // Reconnect-after-disconnect behavior is still covered by the e2e
-  // integration tests in mcp_integration_test.dart.
-  test(
-    'GET allows reconnect after disconnect',
-    () async {
-      final testServer = await _startServer(
-        enableJsonResponse: true,
-        sessionId: 'session-1',
-      );
-      final client = HttpClient();
-      try {
-        final initResponse = await _postJson(
-          client,
-          testServer.url,
-          _initializeRequest(1),
-        );
-        expect(initResponse.statusCode, HttpStatus.ok);
-        final sessionId = initResponse.headers.value('mcp-session-id');
-        expect(sessionId, 'session-1');
-        await initResponse.drain();
-
-        final first = await _getSse(
-          client,
-          testServer.url,
-          headers: {'mcp-session-id': sessionId!},
-        );
-        expect(first.statusCode, HttpStatus.ok);
-        await _closeSse(first);
-
-        // Allow the server to detect the disconnected stream.
-        // The server checks response.done and probes with a ping; give it
-        // enough time for the socket closure to propagate.
-        HttpClientResponse? second;
-        for (var attempt = 0; attempt < 15; attempt += 1) {
-          await Future<void>.delayed(const Duration(milliseconds: 50));
-          second = await _getSse(
-            client,
-            testServer.url,
-            headers: {'mcp-session-id': sessionId},
-          );
-          if (second.statusCode == HttpStatus.ok) break;
-          await second.drain();
-        }
-        expect(second?.statusCode, HttpStatus.ok);
-        if (second != null) {
-          await _closeSse(second);
-        }
-      } finally {
-        client.close(force: true);
-        await testServer.server.close();
-      }
-    },
-    skip: 'Flaky: loopback socket teardown is not reliably detected by probe',
-  );
+  }, skip: 'Flaky: loopback socket teardown is not reliably detected by probe');
 
   test('DELETE closes session', () async {
     final testServer = await _startServer(
@@ -402,14 +475,14 @@ void main() {
       final decoded = jsonDecode(body) as Map<String, dynamic>;
       final error = decoded['error'] as Map<String, dynamic>;
       expect(error['code'], -32600);
-      expect(error['message'], contains('payload must be an object or array'));
+      expect(error['message'], contains('JSON-RPC message object'));
     } finally {
       client.close(force: true);
       await testServer.server.close();
     }
   });
 
-  test('POST rejects invalid batch entries', () async {
+  test('POST rejects JSON-RPC batches by default', () async {
     final testServer = await _startServer(enableJsonResponse: true);
     final client = HttpClient();
     try {
@@ -423,15 +496,18 @@ void main() {
       final decoded = jsonDecode(body) as Map<String, dynamic>;
       final error = decoded['error'] as Map<String, dynamic>;
       expect(error['code'], -32600);
-      expect(error['message'], contains('batch entries must be objects'));
+      expect(error['message'].toString().toLowerCase(), contains('batch'));
     } finally {
       client.close(force: true);
       await testServer.server.close();
     }
   });
 
-  test('supports JSON-RPC batch requests', () async {
-    final testServer = await _startServer(enableJsonResponse: true);
+  test('can allow legacy JSON-RPC batch requests explicitly', () async {
+    final testServer = await _startServer(
+      enableJsonResponse: true,
+      rejectBatchJsonRpcPayloads: false,
+    );
     final client = HttpClient();
     try {
       final initResponse = await _postJson(
@@ -441,6 +517,7 @@ void main() {
       );
       expect(initResponse.statusCode, HttpStatus.ok);
       await initResponse.drain();
+      await _markInitialized(client, testServer.url);
 
       final response = await _postJson(client, testServer.url, [
         {'jsonrpc': '2.0', 'id': 2, 'method': 'tools/list', 'params': {}},
@@ -475,6 +552,7 @@ void main() {
       );
       expect(initResponse.statusCode, HttpStatus.ok);
       await initResponse.drain();
+      await _markInitialized(client, testServer.url);
 
       final responses = await Future.wait([
         _postJson(client, testServer.url, {

@@ -80,6 +80,35 @@ void main() {
       expect(aggregated.candidates![0].content!.parts![0].text, 'A');
     });
 
+    test('preserves finish message from last chunk', () {
+      final responses = [
+        gcl.GenerateContentResponse(
+          candidates: [
+            gcl.Candidate(
+              index: 0,
+              content: gcl.Content(
+                role: 'model',
+                parts: [gcl.Part(text: 'A')],
+              ),
+            ),
+          ],
+        ),
+        gcl.GenerateContentResponse(
+          candidates: [
+            gcl.Candidate(
+              index: 0,
+              finishReason: 'SAFETY',
+              finishMessage: 'blocked by policy',
+            ),
+          ],
+        ),
+      ];
+
+      final aggregated = aggregateResponses(responses);
+      expect(aggregated.candidates![0].finishReason, 'SAFETY');
+      expect(aggregated.candidates![0].finishMessage, 'blocked by policy');
+    });
+
     test('handles multiple parts', () {
       final responses = [
         gcl.GenerateContentResponse(

@@ -12,6 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-void configureCollectorExporter() {
-  // Unimplemented
-}
+/// The Genkit telemetry server base URL, or `null` when telemetry is not
+/// configured. No-op on unsupported platforms.
+String? genkitTelemetryServerUrl() => null;

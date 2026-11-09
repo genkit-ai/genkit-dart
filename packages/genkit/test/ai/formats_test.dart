@@ -146,7 +146,7 @@ void main() {
         );
 
         final generateAction = await genkit.registry.lookupAction(
-          'util',
+          .util,
           'generate',
         );
 
@@ -420,7 +420,7 @@ void main() {
       );
 
       final chunks = await stream.toList();
-      final outputs = chunks.map((c) => c.jsonOutput).toList();
+      final outputs = chunks.map((c) => c.output).toList();
 
       expect(outputs.length, 3);
       // Chunk 1: '{"a":' -> repaired to {"a": null}

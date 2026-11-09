@@ -24,9 +24,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
-import 'package:google_cloud_firestore/google_cloud_firestore.dart';
+// Firestore exports its own gRPC StatusCode enum; Genkit's is the one used here.
+import 'package:google_cloud_firestore/google_cloud_firestore.dart'
+    hide StatusCode;
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 final _logger = Logger('genkit.firestoreSessionStore');
 
@@ -261,7 +265,7 @@ int _byteLength(Object? value) => utf8.encode(jsonEncode(value)).length;
       "getSnapshot requires exactly one of 'snapshotId' or 'sessionId' "
       "(got ${hasSnapshot ? 'snapshotId' : 'neither'}"
       "${hasSession ? ' and sessionId' : ''}).",
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return (
@@ -357,7 +361,9 @@ bool _isNewerLeaf(
 /// yet". To avoid this, either set the `GOOGLE_CLOUD_PROJECT` environment
 /// variable (often required even when ADC is present) or pass an explicit
 /// [Firestore] instance configured with a project ID to the constructor.
-class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
+@experimental
+class FirestoreSessionStore
+    implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader {
   /// Creates a Firestore-backed session store.
   ///
   /// - [db]: an explicit [Firestore] instance. Defaults to a new [Firestore]
@@ -378,7 +384,7 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
   ///   snapshot, pointer and shard documents are nested under a tenant-scoped
   ///   subcollection keyed by this prefix, isolating reads and writes per
   ///   tenant. Defaults to `"global"`.
-  /// - [snapshotWatchPollInterval]: polling interval used by
+  /// - [_snapshotWatchPollInterval]: polling interval used by
   ///   [onSnapshotStateChange]. Defaults to 2 seconds.
   FirestoreSessionStore({
     Firestore? db,
@@ -386,9 +392,8 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
     this.checkpointInterval = defaultCheckpointInterval,
     this.shardSize = defaultShardSize,
     this.snapshotPathPrefix,
-    Duration snapshotWatchPollInterval = _defaultSnapshotWatchPollInterval,
-  }) : db = db ?? Firestore(),
-       _snapshotWatchPollInterval = snapshotWatchPollInterval;
+    this._snapshotWatchPollInterval = _defaultSnapshotWatchPollInterval,
+  }) : db = db ?? Firestore();
 
   /// The Firestore instance backing this store.
   final Firestore db;
@@ -423,7 +428,7 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
       throw GenkitException(
         "FirestoreSessionStore: invalid snapshotPathPrefix '$prefix' - it must "
         "be a non-blank string that is not '.' / '..' and contains no '/'.",
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     return prefix;
@@ -497,6 +502,35 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
   }
 
   @override
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
+    // Reject an empty id up front, mirroring `getSnapshot`'s normalization.
+    _normalizeGetSnapshotOptions(snapshotId, null);
+    // A single document read: the snapshot document already carries every
+    // metadata field, so unlike the full read there is no read-only
+    // transaction and no shard/diff reconstruction of the conversation state.
+    final snap = await _snapshotsCol(context).doc(snapshotId).get();
+    if (!snap.exists) return null;
+    return _toMetadataSnapshot(_SnapshotDoc.fromData(snap.data()!));
+  }
+
+  @override
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
+    Map<String, dynamic>? context,
+  }) async {
+    _normalizeGetSnapshotOptions(null, sessionId);
+    // Pointer read then the leaf's metadata: two single-document reads, no
+    // transaction and no state reconstruction.
+    final pointerSnap = await _pointersCol(context).doc(sessionId).get();
+    if (!pointerSnap.exists) return null;
+    final pointer = _PointerDoc.fromData(pointerSnap.data()!);
+    return getSnapshotMetadata(pointer.currentSnapshotId, context: context);
+  }
+
+  @override
   Future<String?> saveSnapshot(
     String? snapshotId,
     SnapshotMutator mutator, {
@@ -530,7 +564,7 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
         throw GenkitException(
           "FirestoreSessionStore requires 'sessionId' to be set on the "
           'snapshot.',
-          status: StatusCodes.INVALID_ARGUMENT,
+          status: StatusCode.invalidArgument,
         );
       }
       final newState = result.state?.toJson() ?? <String, dynamic>{};
@@ -568,7 +602,7 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
             "in a terminal state ('${existing.doc.status}'). Terminal snapshots "
             'are immutable and may have descendants; write a new child snapshot '
             'instead.',
-            status: StatusCodes.FAILED_PRECONDITION,
+            status: StatusCode.failedPrecondition,
           );
         }
         if (existing.doc.kind == 'checkpoint') {
@@ -962,7 +996,7 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
       if (!s.exists) {
         throw GenkitException(
           "FirestoreSessionStore: missing checkpoint shard '${s.id}'.",
-          status: StatusCodes.DATA_LOSS,
+          status: StatusCode.dataLoss,
         );
       }
       builder.add((s.data()!['chunk'] as List).cast<int>());
@@ -988,4 +1022,20 @@ class FirestoreSessionStore implements SessionStore, SnapshotChangeNotifier {
     };
     return SessionSnapshot.fromJson(json);
   }
+
+  /// Assembles a state-less [SessionSnapshot] from a snapshot document, for a
+  /// metadata-only read: every field a full read carries except the state, which
+  /// is left null (no shard/diff reconstruction needed).
+  SessionSnapshot _toMetadataSnapshot(_SnapshotDoc doc) =>
+      SessionSnapshot.fromJson(<String, dynamic>{
+        'snapshotId': doc.snapshotId,
+        'sessionId': doc.sessionId,
+        'createdAt': doc.createdAt,
+        if (doc.parentId != null) 'parentId': doc.parentId,
+        if (doc.updatedAt != null) 'updatedAt': doc.updatedAt,
+        if (doc.status != null) 'status': doc.status,
+        if (doc.heartbeatAt != null) 'heartbeatAt': doc.heartbeatAt,
+        if (doc.finishReason != null) 'finishReason': doc.finishReason,
+        if (doc.error != null) 'error': doc.error,
+      });
 }

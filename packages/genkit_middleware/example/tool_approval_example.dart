@@ -29,7 +29,7 @@ void main() async {
       // Since it's a generic Map<String, String> we access safely:
       final from = input['from'];
       final to = input['to'];
-      return 'SUCCESS: Transferred funds from $from to $to';
+      return .response('SUCCESS: Transferred funds from $from to $to');
     },
   );
 

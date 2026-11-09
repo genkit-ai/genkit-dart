@@ -25,7 +25,7 @@ EmbedderRef<CustomOptions> embedderRef<CustomOptions>(
   return _EmbedderRef<CustomOptions>(name, customOptions);
 }
 
-abstract class EmbedderRef<CustomOptions> {
+abstract interface class EmbedderRef<CustomOptions> {
   String get name;
   SchemanticType<CustomOptions>? get customOptions;
 }
@@ -39,19 +39,20 @@ class _EmbedderRef<CustomOptions> implements EmbedderRef<CustomOptions> {
   _EmbedderRef(this.name, this.customOptions);
 }
 
-class Embedder<CustomOptions>
+base class Embedder<CustomOptions>
     extends Action<EmbedRequest, EmbedResponse, void, void>
     implements EmbedderRef<CustomOptions> {
   @override
-  SchemanticType<CustomOptions>? customOptions;
+  final SchemanticType<CustomOptions>? customOptions;
 
   Embedder({
     required super.name,
-    required super.fn,
+    required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
     super.metadata,
     this.customOptions,
   }) : super(
-         actionType: 'embedder',
+         fn: requireInput('Embedder', name, fn),
+         actionType: .embedder,
          inputSchema: EmbedRequest.$schema,
          outputSchema: EmbedResponse.$schema,
        ) {
@@ -81,7 +82,7 @@ ActionMetadata embedderMetadata(
   return ActionMetadata(
     name: name,
     description: name,
-    actionType: 'embedder',
+    actionType: .embedder,
     metadata: {
       'label': name,
       'description': name,

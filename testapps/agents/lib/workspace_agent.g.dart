@@ -77,19 +77,20 @@ base class _WriteArtifactInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WriteArtifactInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(
-              description: 'The name (e.g. filename) of the artifact.',
-            ),
-            'content': $Schema.string(
-              description: 'The full content of the artifact.',
-            ),
-          },
-          required: ['name', 'content'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{
+          'type': 'string',
+          'description': 'The name (e.g. filename) of the artifact.',
+        },
+        'content': <String, Object?>{
+          'type': 'string',
+          'description': 'The full content of the artifact.',
+        },
+      },
+      'required': ['name', 'content'],
+    },
     dependencies: [],
   );
 }
@@ -142,16 +143,16 @@ base class _ReadArtifactInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReadArtifactInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(
-              description: 'The name of the artifact to read.',
-            ),
-          },
-          required: ['name'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{
+          'type': 'string',
+          'description': 'The name of the artifact to read.',
+        },
+      },
+      'required': ['name'],
+    },
     dependencies: [],
   );
 }

@@ -17,16 +17,14 @@ import 'dart:async';
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 
-import 'ai/agents/agent.dart' as agent_lib;
-import 'ai/agents/agent.dart' show Agent, AgentFn, ClientTransform;
-import 'ai/agents/session.dart' show Session, SessionStore, getCurrentSession;
-
 import 'ai/dotprompt_registry.dart';
 import 'ai/embedder.dart';
 import 'ai/evaluator.dart';
 import 'ai/formatters/formatters.dart';
 import 'ai/generate.dart';
 import 'ai/generate_middleware.dart';
+import 'ai/middleware/retry.dart';
+import 'ai/middleware/simulate_constrained_generation.dart';
 import 'ai/model.dart';
 import 'ai/prompt.dart';
 import 'ai/prompt_loader.dart';
@@ -42,7 +40,11 @@ import 'core/reflection.dart';
 import 'core/registry.dart';
 import 'exception.dart';
 import 'genkit_ai.dart';
-import 'o11y/otlp_http_exporter.dart' show configureCollectorExporter;
+import 'o11y/instrumentation.dart'
+    show configureInstrumentation, disposeInstrumentations, isInstrumentedBy;
+import 'o11y/instrumentation_setup.dart'
+    show GenkitBuiltinInstrumentation, genkitDevInstrumentation;
+
 import 'types.dart';
 import 'utils.dart' as utils;
 
@@ -54,11 +56,11 @@ import 'utils.dart' as utils;
 /// [definePrompt], and [defineResource].
 ///
 /// It extends [GenkitAI], inheriting the model-orchestration veneer
-/// ([generate], [generateStream], [generateBidi], [embed], [embedMany], [run]).
+/// ([generate], [generateStream], [embed], [run]).
 ///
-/// If `isDevEnv` is true or the `GENKIT_ENV` environment variable is set to
-/// 'dev', initializing [Genkit] also starts a local reflection server that
-/// communicates with the Genkit Developer UI.
+/// If `isDevEnv` is true, or `GENKIT_ENV` is set to 'dev' in the process
+/// environment or as a `--dart-define`, initializing [Genkit] also starts a
+/// local reflection server that communicates with the Genkit Developer UI.
 final class Genkit extends GenkitAI {
   ReflectionServerHandle? _reflectionServer;
 
@@ -77,14 +79,18 @@ final class Genkit extends GenkitAI {
     /// prompt loading.
     String? promptDir = './prompts',
   }) : super(Registry()) {
-    configureCollectorExporter();
-
     // Initialize dotprompt registry with schema resolver wired to the registry
     _dotpromptRegistry = DotpromptRegistry(
       schemaResolver: (name) async {
         return registry.lookupValue<Map<String, dynamic>>('schema', name);
       },
     );
+
+    // Built-in middleware first, so a plugin's middleware of the same name
+    // takes precedence.
+    for (final def in [simulateConstrainedGenerationDef, retryDef]) {
+      registry.registerValue('middleware', def.name, def);
+    }
 
     // Register plugins
     for (final plugin in plugins) {
@@ -102,6 +108,22 @@ final class Genkit extends GenkitAI {
     configureFormats(registry);
 
     if (isDevEnv ?? utils.isDevEnv) {
+      // In the dev environment, auto-inject the built-in telemetry
+      // instrumentation (unless already configured) so the Developer UI
+      // receives traces. It posts Genkit's spans directly to the Genkit
+      // telemetry server over HTTP, independently of OpenTelemetry. It returns
+      // null (and we do not instrument) when no server is configured
+      // (`GENKIT_TELEMETRY_SERVER` unset); in that case the reflection
+      // handshake may still enable it later if the CLI supplies a server URL.
+      // In production, Genkit is not instrumented unless the user configures a
+      // provider.
+      if (!isInstrumentedBy<GenkitBuiltinInstrumentation>()) {
+        final devInstrumentation = genkitDevInstrumentation();
+        if (devInstrumentation != null) {
+          configureInstrumentation(devInstrumentation);
+        }
+      }
+
       _reflectionServer = startReflectionServer(registry, port: reflectionPort);
     }
 
@@ -119,6 +141,10 @@ final class Genkit extends GenkitAI {
   ///
   /// This is mostly meant for testing purposes.
   Future<void> shutdown() async {
+    // Release instrumentation resources (e.g. the built-in dev provider's log
+    // subscription). Providers implementing DisposableInstrumentation are
+    // disposed; they remain registered.
+    disposeInstrumentations();
     if (_reflectionServer != null) {
       await _reflectionServer!.stop();
     }
@@ -135,41 +161,7 @@ final class Genkit extends GenkitAI {
   }) {
     final flow = Flow(
       name: name,
-      fn: (input, context) {
-        if (input == null && inputSchema != null && null is! Input) {
-          throw ArgumentError('Flow "$name" requires a non-null input.');
-        }
-        return fn(input as Input, context);
-      },
-      inputSchema: inputSchema,
-      outputSchema: outputSchema,
-      streamSchema: streamSchema,
-      initSchema: initSchema,
-    );
-    registry.register(flow);
-    return flow;
-  }
-
-  /// Defines a bi-directional Genkit flow.
-  Flow<Input, Output, Chunk, Init> defineBidiFlow<Input, Output, Chunk, Init>({
-    required String name,
-    required BidiActionFn<Input, Output, Chunk, Init> fn,
-    SchemanticType<Input>? inputSchema,
-    SchemanticType<Output>? outputSchema,
-    SchemanticType<Chunk>? streamSchema,
-    SchemanticType<Init>? initSchema,
-  }) {
-    final flow = Flow(
-      name: name,
-      fn: (input, context) {
-        if (context.inputStream == null) {
-          throw GenkitException(
-            'Bidi flow $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-        return fn(context.inputStream!, context);
-      },
+      fn: fn,
       inputSchema: inputSchema,
       outputSchema: outputSchema,
       streamSchema: streamSchema,
@@ -198,23 +190,114 @@ final class Genkit extends GenkitAI {
     return tool;
   }
 
-  /// Defines an executable prompt with Handlebars template support.
+  /// Defines and registers a generate middleware. Call the returned
+  /// definition to build the ref for `use:`.
   ///
-  /// The prompt is registered in the registry and can be looked up by name.
-  /// Returns an [ExecutablePrompt] that can be called directly, rendered,
-  /// or streamed.
+  /// ```dart
+  /// final logging = ai.defineGenerateMiddleware<LoggingOptions>(
+  ///   name: 'logging',
+  ///   configSchema: LoggingOptions.$schema,
+  ///   create: (config, ctx) => LoggingMiddleware(config),
+  /// );
+  ///
+  /// await ai.generate(
+  ///   prompt: 'hi',
+  ///   use: [logging(LoggingOptions(level: 'debug')), retry(maxRetries: 2)],
+  /// );
+  /// ```
+  ///
+  /// [create] runs once per `generate` call that uses the middleware, so an
+  /// instance can keep per-call state. A middleware defined here replaces a
+  /// built-in or plugin middleware with the same [name].
+  ///
+  /// To ship middleware in a package, build it with [generateMiddleware] and
+  /// return it from a plugin's `middleware()` instead.
+  GenerateMiddlewareDef<CustomOptions> defineGenerateMiddleware<CustomOptions>({
+    required String name,
+    required GenerateMiddleware Function(
+      CustomOptions? config,
+      GenerateMiddlewareContext ctx,
+    )
+    create,
+    SchemanticType<CustomOptions>? configSchema,
+  }) {
+    final middleware = generateMiddleware<CustomOptions>(
+      name: name,
+      create: create,
+      configSchema: configSchema,
+    );
+    registry.registerValue('middleware', name, middleware);
+    return middleware;
+  }
+
+  /// Defines and registers an interrupt.
+  ///
+  /// Interrupts are special tools that always halt the generation loop and
+  /// return control back to the caller. They make it simpler to implement
+  /// "human-in-the-loop" and out-of-band processing patterns that require
+  /// waiting on external actions to complete.
+  ///
+  /// When the model calls an interrupt, the request bubbles back to the caller
+  /// instead of executing any logic. You can then resume generation by
+  /// supplying `interruptRespond` (to provide an answer) on a follow-up [generate] call.
   ///
   /// Example:
   /// ```dart
-  /// final hi = ai.definePrompt(
-  ///   name: 'hi',
+  /// final confirm = ai.defineInterrupt(
+  ///   name: 'confirmAction',
+  ///   description: 'Asks the user to confirm before proceeding.',
+  ///   inputSchema: SchemanticType.map(
+  ///     SchemanticType.string(),
+  ///     SchemanticType.dynamicSchema(),
+  ///   ),
+  /// );
+  /// ```
+  Interrupt<Input, Output> defineInterrupt<Input, Output>({
+    required String name,
+    required String description,
+    SchemanticType<Input>? inputSchema,
+    SchemanticType<Output>? outputSchema,
+    Map<String, dynamic>? metadata,
+
+    /// Optional data attached to the `interrupt` metadata of the generated tool
+    /// request. Receives the tool input and may return a value or a future.
+    /// When omitted, the interrupt metadata defaults to `true`.
+    FutureOr<Object?> Function(Input input, ToolFnArg<Input> ctx)?
+    requestMetadata,
+  }) {
+    final interrupt = Interrupt<Input, Output>(
+      name: name,
+      description: description,
+      inputSchema: inputSchema,
+      outputSchema: outputSchema,
+      metadata: metadata,
+      requestMetadata: requestMetadata,
+    );
+    registry.register(interrupt);
+    return interrupt;
+  }
+
+  /// Defines a prompt with Handlebars template support.
+  ///
+  /// The prompt is registered in the registry and can be looked up by name.
+  /// Returns a [Prompt] that can be called directly, rendered, or streamed.
+  ///
+  /// Pass [inputSchema] and [outputSchema] to get a fully typed prompt: the
+  /// type arguments are inferred, so they rarely need to be written out.
+  ///
+  /// Example:
+  /// ```dart
+  /// final joke = ai.definePrompt(
+  ///   name: 'joke',
   ///   model: modelRef('googleai/gemini-flash-latest'),
-  ///   prompt: 'Say hi to {{name}}',
+  ///   inputSchema: JokeInput.$schema,
+  ///   outputSchema: Joke.$schema,
+  ///   prompt: 'Tell a joke about {{topic}}',
   /// );
   ///
-  /// final response = await hi({'name': 'Sparky'});
+  /// final Joke? j = (await joke(JokeInput(topic: 'cats'))).output;
   /// ```
-  ExecutablePrompt<Input> definePrompt<CustomOptions, Input>({
+  Prompt<Input, Output> definePrompt<Input, Output, CustomOptions>({
     required String name,
     String? variant,
     ModelRef<CustomOptions>? model,
@@ -227,16 +310,24 @@ final class Genkit extends GenkitAI {
     List<Part>? promptParts,
     List<Message>? messages,
     String? messagesTemplate,
+
+    /// Structured output schema. Infers `Output`, sets the request's JSON
+    /// schema, and parses `response.output`.
+    SchemanticType<Output>? outputSchema,
+
+    /// Raw output config (`format`, `constrained`, `instructions`), for
+    /// settings `outputSchema` does not cover. Setting a `jsonSchema` on both
+    /// this and `outputSchema` throws.
     GenerateActionOutputConfig? output,
     int? maxTurns,
     bool? returnToolRequests,
     Map<String, dynamic>? metadata,
     List<Tool>? tools,
     List<String>? toolNames,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     List<GenerateMiddlewareRef>? use,
   }) {
-    final promptConfig = PromptConfig<CustomOptions, Input>(
+    final promptConfig = PromptConfig<Input, Output, CustomOptions>(
       name: name,
       variant: variant,
       model: model,
@@ -249,6 +340,7 @@ final class Genkit extends GenkitAI {
       promptParts: promptParts,
       messages: messages,
       messagesTemplate: messagesTemplate,
+      outputSchema: outputSchema,
       output: output,
       maxTurns: maxTurns,
       returnToolRequests: returnToolRequests,
@@ -258,7 +350,7 @@ final class Genkit extends GenkitAI {
       toolChoice: toolChoice,
       use: use,
     );
-    return definePromptAction<CustomOptions, Input>(
+    return definePromptAction<Input, Output, CustomOptions>(
       registry,
       _dotpromptRegistry,
       promptConfig,
@@ -290,144 +382,50 @@ final class Genkit extends GenkitAI {
 
   /// Looks up a previously defined prompt by name.
   ///
-  /// Returns the [ExecutablePrompt] registered under the given name
+  /// Returns the [Prompt] registered under the given name
   /// and optional variant.
+  ///
+  /// Supply `Input` / `Output` to get a typed handle. `Input` is asserted by
+  /// the caller (the registry does not retain it). `Output` needs a parser:
+  /// the schema the prompt was defined with, or [outputParserSchema] here.
+  ///
+  /// [outputParserSchema] is for prompts whose schema has no Dart type, such
+  /// as a `.prompt` file's `output.schema`. It only parses the response and is
+  /// never sent to the model: the request always carries the schema the prompt
+  /// defines, and the lookup throws if the prompt defines none. `Output` is
+  /// inferred from it, so no type arguments are needed.
+  ///
+  /// A prompt that only requests JSON (`format: json`, no schema) cannot back
+  /// a domain type, since the model is never given its shape, but it can be
+  /// looked up as `prompt<dynamic, Map<String, dynamic>>()`.
   ///
   /// Example:
   /// ```dart
   /// final hi = await ai.prompt('hi');
   /// final response = await hi({'name': 'Sparky'});
+  ///
+  /// // Defined in code (`definePrompt`) with outputSchema: Joke.$schema, so already typed.
+  /// final joke = await ai.prompt<JokeInput, Joke>('joke');
+  ///
+  /// // A .prompt file with an output.schema: supply the Dart parser.
+  /// // Inferred as Prompt<dynamic, Summary>.
+  /// final summarize = await ai.prompt(
+  ///   'summarize',
+  ///   outputParserSchema: Summary.$schema,
+  /// );
   /// ```
-  Future<ExecutablePrompt> prompt(String name, {String? variant}) {
-    return lookupPrompt(registry, name, variant: variant);
-  }
-
-  /// Defines and registers an agent by creating a prompt and wiring it into a
-  /// multi-turn agent in one step.
-  ///
-  /// This is a convenience shortcut for calling [definePrompt] followed by
-  /// [definePromptAgent].
-  Agent<State> defineAgent<CustomOptions, Input, State>({
-    required String name,
+  Future<Prompt<Input, Output>> prompt<Input, Output>(
+    String name, {
     String? variant,
-    ModelRef<CustomOptions>? model,
-    CustomOptions? config,
-    String? description,
-    SchemanticType<Input>? inputSchema,
-    String? system,
-    List<Part>? systemParts,
-    String? prompt,
-    List<Part>? promptParts,
-    List<Message>? messages,
-    String? messagesTemplate,
-    GenerateActionOutputConfig? output,
-    int? maxTurns,
-    bool? returnToolRequests,
-    Map<String, dynamic>? metadata,
-    List<Tool>? tools,
-    List<String>? toolNames,
-    String? toolChoice,
-    List<GenerateMiddlewareRef>? use,
-
-    /// Supplies values for the prompt's input variables, so a single prompt
-    /// can be reused and customized by multiple agents.
-    Map<String, dynamic>? promptInput,
-
-    /// Optional schema describing the shape of the custom session state. When
-    /// provided, `chat().state` / `res.state` return parsed `State` instances.
-    SchemanticType<State>? stateSchema,
-    SessionStore? store,
-    ClientTransform? clientTransform,
+    SchemanticType<Output>? outputParserSchema,
   }) {
-    // Register the prompt.
-    definePrompt<CustomOptions, Input>(
-      name: name,
+    return lookupPrompt<Input, Output>(
+      registry,
+      name,
       variant: variant,
-      model: model,
-      config: config,
-      description: description,
-      inputSchema: inputSchema,
-      system: system,
-      systemParts: systemParts,
-      prompt: prompt,
-      promptParts: promptParts,
-      messages: messages,
-      messagesTemplate: messagesTemplate,
-      output: output,
-      maxTurns: maxTurns,
-      returnToolRequests: returnToolRequests,
-      metadata: metadata,
-      tools: tools,
-      toolNames: toolNames,
-      toolChoice: toolChoice,
-      use: use,
-    );
-
-    // Wire it into a prompt agent.
-    return agent_lib.definePromptAgent<State>(
-      registry,
-      promptName: variant != null ? '$name.$variant' : name,
-      promptInput: promptInput,
-      stateSchema: stateSchema,
-      store: store,
-      clientTransform: clientTransform,
+      outputParserSchema: outputParserSchema,
     );
   }
-
-  /// Registers a multi-turn custom agent action capable of maintaining
-  /// persistent state.
-  ///
-  /// Use this when you need full control over the agent turn loop. For the
-  /// common prompt-driven case, use [defineAgent].
-  Agent<State> defineCustomAgent<State>({
-    required String name,
-    String? description,
-    SchemanticType<State>? stateSchema,
-    SessionStore? store,
-    ClientTransform? clientTransform,
-    required AgentFn<State> fn,
-  }) {
-    return agent_lib.defineCustomAgent<State>(
-      registry,
-      name: name,
-      description: description,
-      stateSchema: stateSchema,
-      store: store,
-      clientTransform: clientTransform,
-      fn: fn,
-    );
-  }
-
-  /// Registers an agent from an existing, previously-defined prompt.
-  Agent<State> definePromptAgent<State>({
-    required String promptName,
-
-    /// Supplies values for the prompt's input variables, so a single prompt
-    /// can be reused and customized by multiple agents.
-    Map<String, dynamic>? promptInput,
-    SchemanticType<State>? stateSchema,
-    SessionStore? store,
-    ClientTransform? clientTransform,
-  }) {
-    return agent_lib.definePromptAgent<State>(
-      registry,
-      promptName: promptName,
-      promptInput: promptInput,
-      stateSchema: stateSchema,
-      store: store,
-      clientTransform: clientTransform,
-    );
-  }
-
-  /// Returns the [Session] active in the current agent turn, or `null` when
-  /// called outside of an agent turn.
-  ///
-  /// When a `State` type argument is supplied it is applied to the returned
-  /// session so `getCustom()` / `updateCustom(...)` are typed. Because Dart
-  /// generics are reified, the requested `State` must match the one the running
-  /// agent was defined with (a mismatch throws on the cast). Defaults to the
-  /// untyped `Session<dynamic>?` view.
-  Session<State>? currentSession<State>() => getCurrentSession<State>();
 
   /// Registers a Handlebars partial template for use in prompts.
   ///
@@ -479,7 +477,7 @@ final class Genkit extends GenkitAI {
     if (resourceName == null) {
       throw GenkitException(
         'Resource must specify a name, uri, or template.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     final resourceMetadata = <String, dynamic>{
@@ -498,42 +496,18 @@ final class Genkit extends GenkitAI {
   }
 
   /// Defines an AI model interface.
+  ///
+  /// [info] describes what the model can do, as shown in the Developer UI
+  /// and by `listActions`.
   Model defineModel({
     required String name,
     required ActionFn<ModelRequest, ModelResponse, ModelResponseChunk, void> fn,
+    ModelInfo? info,
   }) {
     final model = Model(
       name: name,
-      fn: (input, context) {
-        return fn(input!, context);
-      },
-    );
-    registry.register(model);
-    return model;
-  }
-
-  /// Defines a bi-directional AI model interface.
-  BidiModel defineBidiModel({
-    required String name,
-    required BidiActionFn<
-      ModelRequest,
-      ModelResponse,
-      ModelResponseChunk,
-      ModelRequest
-    >
-    fn,
-  }) {
-    final model = BidiModel(
-      name: name,
-      fn: (input, context) {
-        if (context.inputStream == null) {
-          throw GenkitException(
-            'Bidi model $name called without an input stream',
-            status: StatusCodes.INVALID_ARGUMENT,
-          );
-        }
-        return fn(context.inputStream!, context);
-      },
+      metadata: info == null ? null : {'model': info.toJson()},
+      fn: fn,
     );
     registry.register(model);
     return model;
@@ -545,14 +519,14 @@ final class Genkit extends GenkitAI {
     required String url,
     FutureOr<Map<String, String>?> Function(Map<String, dynamic> context)?
     headers,
-    ModelInfo? modelInfo,
+    ModelInfo? info,
     http.Client? httpClient,
   }) {
     final model = remoteModel(
       name: name,
       url: url,
       headers: headers,
-      modelInfo: modelInfo,
+      info: info,
       httpClient: httpClient,
     );
     registry.register(model);
@@ -564,28 +538,30 @@ final class Genkit extends GenkitAI {
     required String name,
     required ActionFn<EmbedRequest, EmbedResponse, void, void> fn,
   }) {
-    final embedder = Embedder(
-      name: name,
-      fn: (input, context) {
-        return fn(input!, context);
-      },
-    );
+    final embedder = Embedder(name: name, fn: fn);
     registry.register(embedder);
     return embedder;
   }
 
   /// Defines a dynamic provider for actions.
+  ///
+  /// [getActionFn] receives the requested [ActionType] and name so a single
+  /// provider can serve tools, prompts, and resources. [cacheTtl] controls how
+  /// long the provider's listing is cached: three seconds when null, and
+  /// [Duration.zero] disables caching.
   DynamicActionProvider defineDynamicActionProvider({
     required String name,
     FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn,
-    FutureOr<Action?> Function(String)? getActionFn,
+    FutureOr<Action?> Function(ActionType actionType, String name)? getActionFn,
     Map<String, dynamic>? metadata,
+    Duration? cacheTtl,
   }) {
     final provider = DynamicActionProvider(
       name: name,
       listActionsFn: listActionsFn,
       getActionFn: getActionFn,
       metadata: metadata,
+      cacheTtl: cacheTtl,
     );
     registry.register(provider);
     return provider;
@@ -597,13 +573,7 @@ final class Genkit extends GenkitAI {
     required String description,
     required ActionFn<EvalRequest, List<EvalFnResponse>, void, void> fn,
   }) {
-    final evaluator = Evaluator(
-      name: name,
-      description: description,
-      fn: (input, context) {
-        return fn(input!, context);
-      },
-    );
+    final evaluator = Evaluator(name: name, description: description, fn: fn);
     registry.register(evaluator);
     return evaluator;
   }

@@ -23,6 +23,96 @@ import '../exception.dart';
 
 const _flowStreamDelimiter = '\n\n';
 
+/// Builds a [GenkitException] from a Genkit error body, keeping the server's
+/// status and message.
+///
+/// Accepts the bare shape (`{code, status, message}`, the non-200 body sent by
+/// GenkitRouter) and the wrapped ones (`{error: {...}}`, `{error: "..."}`).
+/// [httpStatus] is only a fallback for bodies without a recognizable status
+/// (a proxy's HTML page, say): the HTTP mapping is lossy, e.g. both
+/// `FAILED_PRECONDITION` and `INVALID_ARGUMENT` are sent as 400.
+///
+/// [details] defaults to [body] (encoded as JSON unless it is a string).
+GenkitException _wireError(
+  Object? body, {
+  int? httpStatus,
+  required String fallbackMessage,
+  String? details,
+}) {
+  var error = body;
+  String? message;
+  if (error is Map) {
+    switch (error['error']) {
+      case final Map inner:
+        error = inner;
+      // `{"error": "rate limited"}`: the same envelope with a plain message,
+      // sent by some proxies and hand-written servers.
+      case final String m when m.isNotEmpty:
+        message = m;
+    }
+  }
+
+  String? wireName;
+  if (error is Map) {
+    if (error['status'] case final String s) wireName = s;
+    if (error['message'] case final String m when m.isNotEmpty) message = m;
+  }
+
+  var status = wireName == null ? null : StatusCode.fromWireName(wireName);
+  // fromWireName maps unrecognized names (a newer server's, or JS express's
+  // 'INVALID ARGUMENT') to UNKNOWN. Prefer the HTTP-derived status when there
+  // is one, unless the server really sent UNKNOWN.
+  final recognized =
+      status != null && (status != StatusCode.unknown || wireName == 'UNKNOWN');
+  if (!recognized && httpStatus != null) {
+    status = StatusCode.fromHttpStatus(httpStatus);
+  }
+
+  return GenkitException(
+    message ?? fallbackMessage,
+    // Null (no status at all) falls back to GenkitException's default
+    // (`internal`).
+    status: status,
+    details:
+        details ??
+        (body == null ? null : (body is String ? body : jsonEncode(body))),
+  );
+}
+
+/// Like [_wireError], for a raw non-200 response body.
+///
+/// Only a JSON body is read for status and message. Anything else (a proxy's
+/// HTML page, the Go server's plain-text errors) gets the HTTP-derived status
+/// and a generic message; the raw body is always kept in `details`.
+GenkitException _httpError(int statusCode, String body) {
+  Object? decoded;
+  try {
+    decoded = jsonDecode(body);
+  } on FormatException {
+    // Not JSON; leave `decoded` null so only the HTTP status is used.
+  }
+  return _wireError(
+    decoded,
+    httpStatus: statusCode,
+    fallbackMessage: 'Server returned error: $statusCode',
+    details: body.isEmpty ? null : body,
+  );
+}
+
+/// Maps the `error` payload of a response or stream frame to a
+/// [GenkitException]. A plain string payload is used as the message.
+GenkitException _errorPayload(Object? error, String fallbackMessage) =>
+    _wireError(
+      error,
+      fallbackMessage: error is String && error.isNotEmpty
+          ? error
+          : fallbackMessage,
+    );
+
+/// Maps the `error` payload of a streamed error frame to a [GenkitException].
+GenkitException _streamError(Object? error) =>
+    _errorPayload(error, 'Unknown streaming error');
+
 Future<Output?> streamFlow<Output, Chunk>({
   required String url,
   required void Function(Chunk chunk) onChunk,
@@ -54,12 +144,7 @@ Future<Output?> streamFlow<Output, Chunk>({
 
   if (streamedResponse.statusCode != 200) {
     final body = await streamedResponse.stream.bytesToString();
-
-    throw GenkitException(
-      'Server returned error: ${streamedResponse.statusCode}',
-      status: StatusCodes.fromHttpStatus(streamedResponse.statusCode),
-      details: body,
-    );
+    throw _httpError(streamedResponse.statusCode, body);
   }
 
   var errorOccurred = false;
@@ -71,8 +156,10 @@ Future<Output?> streamFlow<Output, Chunk>({
     final finalError = error is GenkitException
         ? error
         : GenkitException(
-            'Error in stream',
-            underlyingException: error,
+            // The cause text goes in the message too: callers such as the
+            // agent client surface only `message`.
+            'Error in stream: $error',
+            cause: error,
             stackTrace: stackTrace,
           );
 
@@ -94,26 +181,22 @@ Future<Output?> streamFlow<Output, Chunk>({
 
             if (chunkString.isEmpty) continue;
 
+            // Stream errors arrive as `data: {"error": ...}` (handled below,
+            // as Go, Python and current Dart servers send). The legacy
+            // `error: ...` frame comes from JS servers and Dart servers with
+            // `sendLegacyErrorFrame` set. JS express wraps the payload
+            // (`{"error": {...}}`); the JS Next.js plugin doesn't
+            // (`{status, message}`).
             if (chunkString.startsWith('error: ')) {
               final jsonString = chunkString.substring('error: '.length);
               final errorData = jsonDecode(jsonString);
-              if (errorData is Map<String, dynamic> &&
-                  errorData.containsKey('error')) {
-                final errorContent = errorData['error'] as Map<String, dynamic>;
-                final message =
-                    (errorContent['message'] as String?) ??
-                    'Unknown streaming error';
-                return handleError(
-                  GenkitException(message, details: jsonEncode(errorContent)),
-                );
-              } else {
-                return handleError(
-                  GenkitException(
-                    errorData.toString(),
-                    details: jsonEncode(errorData),
-                  ),
-                );
-              }
+              return handleError(
+                _streamError(
+                  errorData is Map && errorData.containsKey('error')
+                      ? errorData['error']
+                      : errorData,
+                ),
+              );
             }
 
             if (!chunkString.startsWith('data: ')) {
@@ -127,7 +210,11 @@ Future<Output?> streamFlow<Output, Chunk>({
 
             final data = jsonDecode(jsonString);
             if (data is Map<String, dynamic>) {
-              if (data.containsKey('result')) {
+              // Only the frame's top-level key counts: user payloads sit under
+              // `message`/`result`, so an `error` field in them is plain data.
+              if (data.containsKey('error')) {
+                return handleError(_streamError(data['error']));
+              } else if (data.containsKey('result')) {
                 if (!responseCompleter.isCompleted) {
                   responseCompleter.complete(fromResponse!(data['result']));
                 }
@@ -236,7 +323,7 @@ defineRemoteAction<Input, Output, Chunk, Init>({
 ///          or the type of the final response from a streaming flow.
 ///   - `Chunk`: The type of the data chunks streamed from the flow.
 /// {@endtemplate}
-class RemoteAction<Input, Output, Chunk, Init> {
+interface class RemoteAction<Input, Output, Chunk, Init> {
   final String _url;
   final Map<String, String>? _defaultHeaders;
   final http.Client _httpClient;
@@ -246,17 +333,13 @@ class RemoteAction<Input, Output, Chunk, Init> {
 
   /// {@macro remote_action}
   RemoteAction({
-    required String url,
-    Map<String, String>? defaultHeaders,
+    required this._url,
+    this._defaultHeaders,
     http.Client? httpClient,
-    required Output Function(dynamic jsonData) fromResponse,
-    required Chunk Function(dynamic jsonData) fromStreamChunk,
-  }) : _url = url,
-       _defaultHeaders = defaultHeaders,
-       _httpClient = httpClient ?? http.Client(),
-       _ownsHttpClient = httpClient == null,
-       _fromResponse = fromResponse,
-       _fromStreamChunk = fromStreamChunk;
+    required this._fromResponse,
+    required this._fromStreamChunk,
+  }) : _httpClient = httpClient ?? http.Client(),
+       _ownsHttpClient = httpClient == null;
 
   /// Invokes the remote flow.
   Future<Output> call({
@@ -282,17 +365,13 @@ class RemoteAction<Input, Output, Chunk, Init> {
     } catch (e, s) {
       throw GenkitException(
         'HTTP request failed: ${e.toString()}',
-        underlyingException: e,
+        cause: e,
         stackTrace: s,
       );
     }
 
     if (response.statusCode != 200) {
-      throw GenkitException(
-        'Server returned error: ${response.statusCode}',
-        status: StatusCodes.fromHttpStatus(response.statusCode),
-        details: response.body,
-      );
+      throw _httpError(response.statusCode, response.body);
     }
 
     dynamic decodedBody;
@@ -301,7 +380,7 @@ class RemoteAction<Input, Output, Chunk, Init> {
     } on FormatException catch (e, s) {
       throw GenkitException(
         'Failed to decode JSON response: ${e.toString()}',
-        underlyingException: e,
+        cause: e,
         details: response.body,
         stackTrace: s,
       );
@@ -310,12 +389,7 @@ class RemoteAction<Input, Output, Chunk, Init> {
     if (decodedBody is Map<String, dynamic>) {
       if (decodedBody.containsKey('error')) {
         final errorData = decodedBody['error'];
-        final message =
-            (errorData is Map<String, dynamic> &&
-                errorData.containsKey('message'))
-            ? errorData['message'] as String
-            : errorData.toString();
-        throw GenkitException(message, details: jsonEncode(errorData));
+        throw _errorPayload(errorData, 'Unknown server error');
       }
       if (decodedBody.containsKey('result')) {
         return _fromResponse(decodedBody['result']);
@@ -386,10 +460,10 @@ class RemoteAction<Input, Output, Chunk, Init> {
     return actionStream;
   }
 
-  /// Disposes of the underlying HTTP client if it was created by this [RemoteAction].
-  /// Call this when the [RemoteAction] is no longer needed to free up resources,
-  /// but only if an `httpClient` was not provided at construction.
-  void dispose() {
+  /// Closes the underlying HTTP client if this [RemoteAction] created it.
+  ///
+  /// A caller-provided `httpClient` is left open; its owner closes it.
+  void close() {
     if (_ownsHttpClient) {
       _httpClient.close();
     }

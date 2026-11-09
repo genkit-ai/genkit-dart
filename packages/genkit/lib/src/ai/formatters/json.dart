@@ -19,6 +19,17 @@ import '../../schema_extensions.dart';
 import '../../types.dart';
 import 'types.dart';
 
+/// Renders [schema] as prompt instructions asking for conforming JSON.
+///
+/// Shared by the JSON format (when instructions are requested) and the
+/// `simulateConstrainedGeneration` middleware, so a model reads the same text
+/// either way.
+String jsonSchemaInstructions(Map<String, dynamic> schema) {
+  final rendered = const JsonEncoder.withIndent('  ').convert(schema);
+  return 'Output should be in JSON format and conform to the following '
+      'schema:\n\n```\n$rendered\n```\n';
+}
+
 final jsonFormatter = Formatter(
   name: 'json',
   config: GenerateActionOutputConfig(
@@ -28,12 +39,7 @@ final jsonFormatter = Formatter(
     defaultInstructions: false,
   ),
   handler: (schema) {
-    String? instructions;
-    if (schema != null) {
-      final schemaString = const JsonEncoder.withIndent('  ').convert(schema);
-      instructions =
-          'Output should be in JSON format and conform to the following schema:\n\n```\n$schemaString\n```\n';
-    }
+    final instructions = schema == null ? null : jsonSchemaInstructions(schema);
     return FormatterHandlerResult(
       parseMessage: (message) {
         return extractJson(message.text);

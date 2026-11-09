@@ -52,8 +52,8 @@ Future<void> _runThrowingFlow() async {
   try {
     await throwy(input: 'Hello Genkit client for Dart!');
   } on GenkitException catch (e) {
-    if (e.underlyingException is http.ClientException) {
-      print('Client error: ${e.underlyingException}');
+    if (e.cause is http.ClientException) {
+      print('Client error: ${e.cause}');
       print('Make sure the server is running.');
     } else {
       print('Excepted flow error: ${e.details}');
@@ -75,8 +75,8 @@ Future<void> _runThrowingStreamingFlow() async {
       print('Chunk: ${chunk.count}');
     }
   } on GenkitException catch (e) {
-    if (e.underlyingException is http.ClientException) {
-      print('Client error: ${e.underlyingException}');
+    if (e.cause is http.ClientException) {
+      print('Client error: ${e.cause}');
       print('Make sure the server is running.');
     } else {
       print('Excepted flow error: ${e.details}');

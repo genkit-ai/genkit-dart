@@ -6,6 +6,11 @@ input:
   schema:
     text: string, the text to summarize
     maxSentences: string, maximum number of sentences in the summary
+output:
+  format: json
+  schema:
+    summary: string, the summary text
+    keyPoints(array, key points from the source text): string
 ---
 {{role "system"}}
 You are a concise summarizer. Produce clear, brief summaries.

@@ -14,36 +14,222 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+
 import 'action.dart';
 
-class DynamicActionProvider
-    extends Action<void, Map<String, Object?>, void, void> {
-  final FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn;
-  final FutureOr<Action?> Function(String)? getActionFn;
+/// Default cache lifetime for a [DynamicActionProvider]'s listing, matching
+/// JS's `SimpleCache` default of three seconds.
+const _defaultDapTtl = Duration(seconds: 3);
 
-  DynamicActionProvider({
+Duration? _checkTtl(Duration? ttl) {
+  if (ttl != null && ttl.isNegative) {
+    throw ArgumentError.value(
+      ttl,
+      'cacheTtl',
+      'must not be negative; use Duration.zero to disable caching',
+    );
+  }
+  return ttl;
+}
+
+/// Builds the DAP key stamped onto actions resolved through a provider so their
+/// provenance survives into tool definitions, traces, and reflection. Mirrors
+/// JS's `/dynamic-action-provider/<host>:<actionType>/<name>` format.
+String dapActionKey(String host, ActionType actionType, String name) =>
+    '/dynamic-action-provider/$host:${actionType.value}/$name';
+
+/// Caches a [DynamicActionProvider]'s listing with a TTL and de-duplicates
+/// concurrent refreshes, mirroring JS's `SimpleCache`.
+class _DapCache {
+  /// Listing lifetime; [Duration.zero] disables caching.
+  final Duration ttl;
+  List<ActionMetadata>? _value;
+  DateTime? _expiresAt;
+  Future<List<ActionMetadata>>? _inflight;
+
+  _DapCache(this.ttl);
+
+  bool get _isStale {
+    final value = _value;
+    final expiresAt = _expiresAt;
+    return value == null ||
+        expiresAt == null ||
+        ttl == Duration.zero ||
+        DateTime.now().isAfter(expiresAt);
+  }
+
+  void setValue(List<ActionMetadata> value) {
+    _value = value;
+    _expiresAt = DateTime.now().add(ttl);
+  }
+
+  void invalidate() {
+    _value = null;
+    _expiresAt = null;
+  }
+
+  Future<List<ActionMetadata>> getOrFetch(
+    Future<List<ActionMetadata>> Function() fetch,
+  ) {
+    if (!_isStale) return Future.value(_value!);
+    final existing = _inflight;
+    if (existing != null) return existing;
+    final future = () async {
+      try {
+        final value = await fetch();
+        setValue(value);
+        return value;
+      } catch (_) {
+        invalidate();
+        rethrow;
+      } finally {
+        _inflight = null;
+      }
+    }();
+    _inflight = future;
+    return future;
+  }
+}
+
+/// A provider that resolves actions (tools, prompts, resources) dynamically at
+/// runtime rather than registering them statically. Backs integrations such as
+/// the MCP host, where the available actions are discovered from a remote
+/// server and may change over time.
+///
+/// The provider is itself an [Action]: refreshing its listing runs inside a
+/// span so each refresh is traced (matching JS, where the DAP is a
+/// `dynamic-action-provider` action and the cache calls `dap.run()`).
+/// Reflection (Dev UI) listing skips the trace so it does not create a span
+/// every time it lists actions.
+///
+/// ```dart
+/// final dap = ai.defineDynamicActionProvider(
+///   name: 'my-tools',
+///   listActionsFn: () => [for (final t in tools) t],
+///   getActionFn: (type, name) => type == .tool ? toolsByName[name] : null,
+/// );
+/// await dap.listActions();          // cached listing
+/// await dap.getAction(.tool, 'x');  // resolve one action
+/// dap.invalidateCache();            // force the next listing to refetch
+/// ```
+base class DynamicActionProvider
+    extends Action<void, List<ActionMetadata>, void, void> {
+  final FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn;
+  final FutureOr<Action?> Function(ActionType actionType, String name)?
+  getActionFn;
+
+  final _DapCache _cache;
+
+  /// Creates a dynamic action provider. [cacheTtl] controls the listing cache
+  /// lifetime: three seconds when null, and [Duration.zero] disables caching.
+  /// A negative value throws [ArgumentError].
+  factory DynamicActionProvider({
+    required String name,
+    FutureOr<Iterable<ActionMetadata>> Function()? listActionsFn,
+    FutureOr<Action?> Function(ActionType actionType, String name)? getActionFn,
+    Map<String, dynamic>? metadata,
+    Duration? cacheTtl,
+  }) {
+    // Bind `fn` to the instance so running the provider action directly (e.g.
+    // via the reflection `runAction` path) performs the same stamped fetch as
+    // [listActions], matching JS where the cache calls `dap.run()`.
+    late DynamicActionProvider provider;
+    provider = DynamicActionProvider._(
+      name: name,
+      listActionsFn: listActionsFn,
+      getActionFn: getActionFn,
+      metadata: metadata,
+      cacheTtl: cacheTtl,
+      fn: (input, context) => provider._fetchAndStamp(),
+    );
+    return provider;
+  }
+
+  DynamicActionProvider._({
     required super.name,
     this.listActionsFn,
     this.getActionFn,
     super.metadata,
-  }) : super(
-         actionType: 'dynamic-action-provider',
-         fn: (input, context) async {
-           // TODO: implement when spec is finalized.
-           return {};
-         },
-       );
+    Duration? cacheTtl,
+    required super.fn,
+  }) : _cache = _DapCache(_checkTtl(cacheTtl) ?? _defaultDapTtl),
+       super(actionType: .dynamicActionProvider);
 
-  Future<List<ActionMetadata>> listActions() async {
-    if (listActionsFn == null) return [];
-    final actions = await listActionsFn!();
-    return actions.toList();
+  Future<List<ActionMetadata>> _fetchAndStamp() async {
+    final fn = listActionsFn;
+    if (fn == null) return const [];
+    final actions = (await fn()).toList();
+    for (final action in actions) {
+      action.key ??= dapActionKey(name, action.actionType, action.name);
+    }
+    return actions;
   }
 
-  Future<Action?> getAction(String name) async {
-    if (getActionFn != null) {
-      return await getActionFn!(name);
+  /// Invalidates the cached listing so the next [listActions] refetches.
+  void invalidateCache() => _cache.invalidate();
+
+  /// Returns the provider's action listing, refreshing from source when the
+  /// cache is stale. When [skipTrace] is false (the default) a refresh runs
+  /// inside a span so it appears in traces.
+  Future<List<ActionMetadata>> listActions({bool skipTrace = false}) {
+    return _cache.getOrFetch(() async {
+      // Skip the trace for Dev UI listing so it does not create a span every
+      // time the actions are enumerated.
+      if (skipTrace) return _fetchAndStamp();
+      // Route through the action machinery so the refresh is a real span whose
+      // `fn` performs the stamped fetch.
+      return (await runRaw(null)).result;
+    });
+  }
+
+  /// Resolves a single action by type and name, stamping its DAP [key].
+  ///
+  /// Refreshes the listing first (like JS's `getAction`, which awaits
+  /// `cache.getOrFetch()`): a provider's [getActionFn] may depend on state
+  /// populated while listing (e.g. the MCP host indexes remote actions during
+  /// its listing), so resolving without a prior list would miss them.
+  Future<Action?> getAction(ActionType actionType, String name) async {
+    final fn = getActionFn;
+    if (fn == null) return null;
+    await listActions();
+    final action = await fn(actionType, name);
+    if (action != null) {
+      action.key ??= dapActionKey(this.name, action.actionType, action.name);
     }
-    return null;
+    return action;
+  }
+
+  /// Returns metadata for actions of [actionType] matching [name], supporting
+  /// `*` (all), a `prefix*` wildcard, and exact matches. Mirrors JS's
+  /// `listActionMetadata`.
+  ///
+  /// Used by the registry and tool resolution to expand wildcard tool refs.
+  @internal
+  Future<List<ActionMetadata>> listActionMetadata(
+    ActionType actionType,
+    String name,
+  ) async {
+    final all = await listActions();
+    final typed = all.where((m) => m.actionType == actionType);
+    if (name == '*') return typed.toList();
+    if (name.endsWith('*')) {
+      final prefix = name.substring(0, name.length - 1);
+      return typed.where((m) => m.name.startsWith(prefix)).toList();
+    }
+    return typed.where((m) => m.name == name).toList();
+  }
+
+  /// Expands the provider into a map of DAP key to metadata, used by reflection
+  /// (Dev UI) to surface individual dynamic actions. Skips the trace so listing
+  /// does not create a span. Mirrors JS's `getActionMetadataRecord`.
+  @internal
+  Future<Map<String, ActionMetadata>> getActionMetadataRecord() async {
+    final result = <String, ActionMetadata>{};
+    for (final meta in await listActions(skipTrace: true)) {
+      final key = meta.key ?? dapActionKey(name, meta.actionType, meta.name);
+      result[key] = meta;
+    }
+    return result;
   }
 }

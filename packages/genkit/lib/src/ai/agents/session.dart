@@ -21,9 +21,11 @@ library;
 import 'dart:async';
 import 'dart:math';
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import '../../exception.dart';
+import '../../experimental_types.dart';
 import '../../types.dart';
 import 'state_codec.dart';
 
@@ -49,6 +51,23 @@ SessionSnapshot _cloneSnapshot(SessionSnapshot snapshot) =>
     SessionSnapshot.fromJson(
       _deepClone(snapshot.toJson()) as Map<String, dynamic>,
     );
+
+/// Returns a copy of [snapshot] with its `state` dropped, for a metadata-only
+/// read.
+///
+/// Deep-clones the retained fields so a caller mutating the result (e.g.
+/// `meta.error!.message = ...`) never reaches a store's row - the cheap clone
+/// happens *after* `state` is removed, so the large payload is never copied.
+/// Promotes the resolved `sessionId` to the top level so session identity
+/// survives a row that carried it only under `state` (see [snapshotSessionId]);
+/// without this the row would come back with a null `sessionId`, breaking both
+/// client branching and the `FileSessionStore` pointer fast path.
+SessionSnapshot stripSnapshotState(SessionSnapshot snapshot) {
+  final sessionId = snapshotSessionId(snapshot);
+  final json = Map<String, dynamic>.from(snapshot.toJson())..remove('state');
+  if (sessionId != null) json['sessionId'] = sessionId;
+  return SessionSnapshot.fromJson(_deepClone(json) as Map<String, dynamic>);
+}
 
 /// Decodes a stored JSON list into typed values via [fromJson], treating a
 /// missing/null entry as an empty list.
@@ -82,6 +101,7 @@ void Function() _addListener<T>(
 typedef SnapshotMutator = SessionSnapshot? Function(SessionSnapshot? current);
 
 /// Interface for persistent session snapshot storage.
+@experimental
 abstract interface class SessionStore {
   /// Loads a snapshot either by its [snapshotId] or by [sessionId].
   ///
@@ -89,7 +109,7 @@ abstract interface class SessionStore {
   /// resolves to the session's latest leaf snapshot (the most recent snapshot
   /// that no other snapshot points to as its parent). A branched history (more
   /// than one leaf) resolves to the most-recently created leaf by default, or
-  /// is rejected with [StatusCodes.FAILED_PRECONDITION] when the store is
+  /// is rejected with [StatusCode.failedPrecondition] when the store is
   /// configured to reject branching.
   ///
   /// [context] carries the ambient request/action context (e.g. the
@@ -111,6 +131,39 @@ abstract interface class SessionStore {
   Future<String?> saveSnapshot(
     String? snapshotId,
     SnapshotMutator mutator, {
+    Map<String, dynamic>? context,
+  });
+}
+
+/// Optional capability layered on [SessionStore] for answering a metadata-only
+/// read (`GetSnapshotDataInput.metadataOnly`) without loading the row's state.
+///
+/// A store that does not implement it is still correct: the runtime reads the
+/// row in full and drops the state, paying to load a conversation history it
+/// will not use. A projecting store (SQL, Firestore) implements this to skip
+/// that load. All bundled stores implement it: [InMemorySessionStore],
+/// `FileSessionStore`, and `FirestoreSessionStore`. Implement both methods or
+/// neither: the capability is detected as a whole.
+///
+/// Both methods honor the same id validation and null/error contract as
+/// [SessionStore.getSnapshot]: an empty id is rejected, a not-found row reads
+/// as `null`, and a corrupt/unreadable row surfaces as an error rather than as
+/// `null` (so a caller can tell corruption apart from "not found").
+abstract interface class SnapshotMetadataReader {
+  /// [SessionStore.getSnapshot] by [snapshotId] without the state: the returned
+  /// row carries every other field as stored, with `state` null, and the same
+  /// null-if-not-found contract.
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  });
+
+  /// [SessionStore.getSnapshot] by [sessionId] (the session's latest leaf)
+  /// without the state: the same resolution, the same null-if-none contract,
+  /// and a row with `state` null. The resolved `sessionId` is carried on the
+  /// returned row even for a row that stored it only under `state`.
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
     Map<String, dynamic>? context,
   });
 }
@@ -143,6 +196,7 @@ abstract interface class SnapshotChangeNotifier {
 /// Keeping the internal representation as plain JSON is deliberate: the
 /// `customChanged` -> `customPatch` streaming logic diffs raw JSON, so the typed
 /// API never changes what is stored on the wire.
+@experimental
 final class Session<State> {
   /// Builds a session from [initialState], assigning a [sessionId] if absent.
   ///
@@ -150,11 +204,10 @@ final class Session<State> {
   /// object) so mutations round-trip cleanly through `SessionState`'s
   /// (de)serialization regardless of the generated setter behavior.
   ///
-  /// When a [stateSchema] is provided, [getCustom] / [updateCustom] parse and
+  /// When a [_stateSchema] is provided, [getCustom] / [updateCustom] parse and
   /// serialize the custom state through it; otherwise they operate on raw JSON.
-  Session(SessionState initialState, {SchemanticType<State>? stateSchema})
-    : sessionId = initialState.sessionId ?? generateUuidV4(),
-      _stateSchema = stateSchema {
+  Session(SessionState initialState, {this._stateSchema})
+    : sessionId = initialState.sessionId ?? generateUuidV4() {
     // Deep-clone so we never alias (or mutate) the caller's object: the session
     // owns its state, and a handler mutating it must not reach back into the
     // caller's / chat's state. A shallow `Map.from` would leave nested
@@ -314,13 +367,14 @@ final class SessionError implements Exception {
 }
 
 /// In-memory implementation of persistent session store.
+@experimental
 final class InMemorySessionStore
-    implements SessionStore, SnapshotChangeNotifier {
+    implements SessionStore, SnapshotChangeNotifier, SnapshotMetadataReader {
   /// Creates an in-memory store.
   ///
   /// When [rejectBranchingSessions] is `true`, a `sessionId` lookup that
   /// resolves to a branched history (more than one leaf) throws
-  /// [StatusCodes.FAILED_PRECONDITION] instead of returning the latest leaf.
+  /// [StatusCode.failedPrecondition] instead of returning the latest leaf.
   /// Defaults to `false`; opt in (e.g. in dev) to surface accidental branching
   /// early.
   InMemorySessionStore({this.rejectBranchingSessions = false});
@@ -363,6 +417,42 @@ final class InMemorySessionStore
       rejectBranching: rejectBranchingSessions,
     );
     return leaf != null ? _cloneSnapshot(leaf) : null;
+  }
+
+  @override
+  Future<SessionSnapshot?> getSnapshotMetadata(
+    String snapshotId, {
+    Map<String, dynamic>? context,
+  }) async {
+    // Validate the id the same way `getSnapshot` does (reject empty), so the
+    // metadata path honors the same contract instead of silently returning
+    // null for a blank id.
+    normalizeGetSnapshotOptions(snapshotId: snapshotId);
+    // Strip directly off the stored row: `stripSnapshotState` deep-clones only
+    // the retained fields, so a caller can mutate the result without reaching
+    // this row and we never copy the (possibly large) state payload.
+    final snap = _snapshots[snapshotId];
+    return snap != null ? stripSnapshotState(snap) : null;
+  }
+
+  @override
+  Future<SessionSnapshot?> getLatestSnapshotMetadata(
+    String sessionId, {
+    Map<String, dynamic>? context,
+  }) async {
+    normalizeGetSnapshotOptions(sessionId: sessionId);
+    final owned = <SessionSnapshot>[];
+    for (final snap in _snapshots.values) {
+      if (snapshotSessionId(snap) == sessionId) {
+        owned.add(snap);
+      }
+    }
+    final leaf = selectLeafSnapshot(
+      owned,
+      sessionId,
+      rejectBranching: rejectBranchingSessions,
+    );
+    return leaf != null ? stripSnapshotState(leaf) : null;
   }
 
   @override
@@ -413,7 +503,7 @@ void assertValidSessionId(String sessionId) {
   if (sessionId.trim().isEmpty) {
     throw GenkitException(
       'Invalid sessionId: expected a non-empty string, got "$sessionId".',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }
@@ -467,7 +557,7 @@ NormalizedGetSnapshot normalizeGetSnapshotOptions({
       "getSnapshot requires exactly one of 'snapshotId' or 'sessionId' "
       "(got ${hasSnapshot ? 'snapshotId' : 'neither'}"
       "${hasSession ? ' and sessionId' : ''}).",
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   if (hasSession) {
@@ -490,7 +580,7 @@ NormalizedGetSnapshot normalizeGetSnapshotOptions({
 ///   regenerate) the behavior depends on [rejectBranching]:
 ///   - `false` (default): returns the most-recently created leaf (by
 ///     `createdAt`).
-///   - `true`: throws [StatusCodes.FAILED_PRECONDITION], since there is no
+///   - `true`: throws [StatusCode.failedPrecondition], since there is no
 ///     unambiguous "latest".
 SessionSnapshot? selectLeafSnapshot(
   List<SessionSnapshot> snapshots,
@@ -516,7 +606,7 @@ SessionSnapshot? selectLeafSnapshot(
     throw GenkitException(
       "Session '$sessionId' has no leaf snapshot (corrupt or cyclic "
       'history). Resume by snapshotId instead.',
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
 
@@ -526,7 +616,7 @@ SessionSnapshot? selectLeafSnapshot(
       'leaves), so there is no single latest snapshot. This happens when a '
       'conversation is branched (e.g. regenerate). Resume by snapshotId '
       'instead.',
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
 

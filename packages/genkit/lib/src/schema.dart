@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:schemantic/schemantic.dart';
 
 Map<String, dynamic> toJsonSchema({
@@ -20,7 +19,8 @@ Map<String, dynamic> toJsonSchema({
   Map<String, dynamic>? jsonSchema,
   bool useRefs = true,
 }) {
-  var result = jsb.Schema.any().value;
+  // An empty schema accepts any value.
+  var result = <String, dynamic>{};
   if (jsonSchema != null) {
     result = jsonSchema;
   }

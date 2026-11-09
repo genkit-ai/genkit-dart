@@ -1,3 +1,77 @@
+## 1.0.1
+
+ - updated internal dependencies.
+
+## 1.0.0
+
+### Breaking Changes
+
+ - prefix exported option types with provider (#572)
+ - rename GenkitException.underlyingException to cause; drop statusCode (#548)
+ - type usage counts and indexes as int (#546)
+ - make GenerateResult and GenerateResponseChunk read-only views (#547)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - remove GoogleAiModels, stop exporting catalog enums, refresh the catalog (#524)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - remove embedMany in favor of embed (#535)
+ - align naming of ToolFnArg, ModelInfo params and RemoteAction.close (#537)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - make constrained generation simulation an opt-in middleware (#519)
+
+### Features
+
+ - discover gemini-embedding-* embedders and embed media (#394)
+ - extend curated model catalog toward the JS/Go union (#513)
+
+### Fixes
+
+ - honor the portable toolChoice option (#494)
+ - degrade list() to curated catalog on discovery failure (#512)
+ - stop closing injected clients and honour late cancellation (#454)
+ - map Gemini finish reasons to Genkit vocabulary (#425)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+ - state that common.dart is not covered by semver (#501)
+
+
+## 0.4.0
+
+### Breaking Changes
+
+ - add cancellation support for action calls and generate API (#397)
+
+### Features
+
+ - curate and discover Gemma models (#438)
+ - require generateContent in model discovery (#440)
+
+### Fixes
+
+ - send seed in GenerationConfig (#452)
+
+
+## 0.3.1
+
+ - updated internal dependencies.
+
+## 0.3.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+### Features
+
+ - wire curated Gemini catalog into googleai plugin (#329)
+
+### Fixes
+
+ - drop safety settings with unset category instead of sending UNSPECIFIED (#392)
+ - gate responseJsonSchema on constrained JSON mode (#375)
+
+
 ## 0.2.12
 
 ### Fixes

@@ -24,18 +24,41 @@ const GoogleGenAiPluginHandle googleAI = GoogleGenAiPluginHandle();
 class GoogleGenAiPluginHandle {
   const GoogleGenAiPluginHandle();
 
-  GenkitPlugin call({String? apiKey}) {
-    return GoogleGenAiPluginImpl(apiKey: apiKey);
+  /// Creates the plugin.
+  ///
+  /// [baseUrl] replaces the Gemini API root
+  /// (`https://generativelanguage.googleapis.com/`), for example to send
+  /// requests through a proxy that speaks the same REST API. Requests go to
+  /// `<baseUrl>/v1beta/models/<model>:generateContent`, still authenticated
+  /// with [apiKey] in the `x-goog-api-key` header.
+  GenkitPlugin call({String? apiKey, String? baseUrl}) {
+    return GoogleGenAiPluginImpl(apiKey: apiKey, baseUrl: baseUrl);
   }
 
   ModelRef<GeminiOptions> gemini(String name) {
     return modelRef('googleai/$name', customOptions: GeminiOptions.$schema);
   }
 
-  EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
+  /// A [ModelRef] for the Gemini text-to-speech model [name].
+  ///
+  /// Carries [GeminiTtsOptions], which adds `speechConfig` on top of
+  /// [GeminiOptions]. Use it for any `-tts` name, curated or not, so the
+  /// request config is typed to what the model accepts.
+  ModelRef<GeminiTtsOptions> geminiTts(String name) {
+    return modelRef('googleai/$name', customOptions: GeminiTtsOptions.$schema);
+  }
+
+  /// A [ModelRef] for the Gemma model [name] served by the Gemini API.
+  ///
+  /// An alias of [gemini] that reads correctly at Gemma call sites. Should
+  /// Gemma ever gain an options schema of its own, the options type here
+  /// narrows to it, which is a breaking change for callers.
+  ModelRef<GeminiOptions> gemma(String name) => gemini(name);
+
+  EmbedderRef<GoogleGenAiEmbedderOptions> textEmbedding(String name) {
     return embedderRef(
       'googleai/$name',
-      customOptions: TextEmbedderOptions.$schema,
+      customOptions: GoogleGenAiEmbedderOptions.$schema,
     );
   }
 }

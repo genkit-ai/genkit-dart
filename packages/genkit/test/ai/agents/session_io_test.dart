@@ -18,10 +18,10 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:genkit/io.dart';
+import 'package:genkit/experimental.dart';
+import 'package:genkit/experimental_io.dart';
 
 import 'package:genkit/src/exception.dart';
-import 'package:genkit/src/types.dart';
 import 'package:test/test.dart';
 
 SessionSnapshot _snap({
@@ -194,7 +194,7 @@ void main() {
             isA<GenkitException>().having(
               (e) => e.status,
               'status',
-              StatusCodes.FAILED_PRECONDITION,
+              StatusCode.failedPrecondition,
             ),
           ),
         );
@@ -463,6 +463,104 @@ void main() {
           );
         });
       }
+    });
+
+    group('metadata reads', () {
+      test('getSnapshotMetadata drops state but keeps metadata', () async {
+        await store.saveSnapshot(
+          's1',
+          (_) => _snap(snapshotId: 's1', sessionId: 'sess'),
+        );
+
+        final meta = await store.getSnapshotMetadata('s1');
+        expect(meta!.snapshotId, 's1');
+        expect(meta.state, isNull);
+        // sessionId lived only under state on this row; promotion keeps it.
+        expect(meta.sessionId, 'sess');
+      });
+
+      test('getSnapshotMetadata returns null for a missing snapshot', () async {
+        expect(await store.getSnapshotMetadata('nope'), isNull);
+      });
+
+      test('getSnapshotMetadata throws on a corrupt file', () async {
+        await store.saveSnapshot(
+          's1',
+          (_) => _snap(snapshotId: 's1', sessionId: 'sess'),
+        );
+        // Truncate the file: a corrupt row must surface as an error, not read
+        // as "not found" (matching the full read).
+        File('${tempDir.path}/global/s1.json').writeAsStringSync('{not json');
+        expect(() => store.getSnapshotMetadata('s1'), throwsA(isA<Object>()));
+      });
+
+      test(
+        'getLatestSnapshotMetadata resolves the leaf without state',
+        () async {
+          await store.saveSnapshot(
+            'a',
+            (_) => _snap(snapshotId: 'a', sessionId: 'sess'),
+          );
+          await store.saveSnapshot(
+            'b',
+            (_) => _snap(snapshotId: 'b', sessionId: 'sess', parentId: 'a'),
+          );
+
+          final meta = await store.getLatestSnapshotMetadata('sess');
+          expect(meta!.snapshotId, 'b');
+          expect(meta.state, isNull);
+          expect(meta.sessionId, 'sess');
+        },
+      );
+
+      test('getLatestSnapshotMetadata surfaces a corrupt pointer target like '
+          'the full read', () async {
+        await store.saveSnapshot(
+          'a',
+          (_) => _snap(snapshotId: 'a', sessionId: 'sess'),
+        );
+        // Corrupt the leaf the pointer names. The full read's fast path
+        // propagates this (a truncated leaf is not "no snapshot"); the
+        // metadata read must behave identically.
+        File('${tempDir.path}/global/a.json').writeAsStringSync('{not json');
+
+        expect(
+          () => store.getSnapshot(sessionId: 'sess'),
+          throwsA(isA<Object>()),
+        );
+        expect(
+          () => store.getLatestSnapshotMetadata('sess'),
+          throwsA(isA<Object>()),
+        );
+      });
+
+      test('getLatestSnapshotMetadata self-heals a stale pointer', () async {
+        await store.saveSnapshot(
+          'a',
+          (_) => _snap(snapshotId: 'a', sessionId: 'sess'),
+        );
+        // Point the pointer at a snapshot that no longer matches; the scan
+        // fallback should still resolve the true leaf without its state.
+        File('${tempDir.path}/global/.pointers/sess.json').writeAsStringSync(
+          jsonEncode({'currentSnapshotId': 'gone', 'updatedAt': 'x'}),
+        );
+
+        final meta = await store.getLatestSnapshotMetadata('sess');
+        expect(meta!.snapshotId, 'a');
+        expect(meta.state, isNull);
+        expect(meta.sessionId, 'sess');
+      });
+
+      test('metadata reads validate their id like getSnapshot', () async {
+        expect(
+          () => store.getSnapshotMetadata(''),
+          throwsA(isA<GenkitException>()),
+        );
+        expect(
+          () => store.getLatestSnapshotMetadata(''),
+          throwsA(isA<GenkitException>()),
+        );
+      });
     });
   });
 }

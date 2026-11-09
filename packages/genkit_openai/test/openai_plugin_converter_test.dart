@@ -13,16 +13,19 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart' hide Tool;
-import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/converters.dart';
 import 'package:openai_dart/openai_dart.dart'
     show
         AssistantMessage,
         ChatMessage,
+        CompletionTokensDetails,
         ContentPart,
         FunctionCall,
+        PromptTokensDetails,
         SystemMessage,
         ToolCall,
         ToolMessage,
+        Usage,
         UserMessage;
 import 'package:test/test.dart';
 
@@ -330,6 +333,131 @@ void main() {
     test('maps unknown', () {
       expect(GenkitConverter.mapFinishReason('unknown'), FinishReason.unknown);
       expect(GenkitConverter.mapFinishReason(null), FinishReason.unknown);
+    });
+  });
+  group('GenkitConverter.mapUsage', () {
+    test('maps all fields including details', () {
+      final usage = GenkitConverter.mapUsage(
+        const Usage(
+          promptTokens: 15,
+          completionTokens: 7,
+          totalTokens: 22,
+          promptTokensDetails: PromptTokensDetails(cachedTokens: 5),
+          completionTokensDetails: CompletionTokensDetails(reasoningTokens: 3),
+        ),
+      );
+
+      expect(usage?.inputTokens, 15);
+      expect(usage?.outputTokens, 7);
+      expect(usage?.totalTokens, 22);
+      expect(usage?.cachedContentTokens, 5);
+      expect(usage?.thoughtsTokens, 3);
+    });
+
+    test('nullable fields stay null', () {
+      final usage = GenkitConverter.mapUsage(
+        const Usage(promptTokens: 15, totalTokens: 15),
+      );
+
+      expect(usage?.inputTokens, 15);
+      expect(usage?.outputTokens, isNull);
+      expect(usage?.thoughtsTokens, isNull);
+      expect(usage?.cachedContentTokens, isNull);
+    });
+
+    test('null usage maps to null', () {
+      expect(GenkitConverter.mapUsage(null), isNull);
+    });
+  });
+
+  group('GenkitConverter.toOpenAITool schema guards', () {
+    test('schema without a type key is defaulted to object', () {
+      final result = GenkitConverter.toOpenAITool(
+        ToolDefinition(
+          name: 'echo',
+          description: 'Echoes the input',
+          inputSchema: {
+            'properties': {
+              'text': {'type': 'string'},
+            },
+          },
+        ),
+      );
+      expect(result.function.parameters, {
+        'type': 'object',
+        'properties': {
+          'text': {'type': 'string'},
+        },
+      });
+    });
+
+    test('a property named definitions is not stripped as a \$defs block', () {
+      final schema = {
+        'type': 'object',
+        'properties': {
+          'term': {'type': 'string'},
+          'definitions': {
+            'type': 'array',
+            'items': {'type': 'string'},
+          },
+        },
+        'required': ['term', 'definitions'],
+        'additionalProperties': false,
+      };
+
+      final result = GenkitConverter.toOpenAITool(
+        ToolDefinition(
+          name: 'saveGlossary',
+          description: 'Save definitions',
+          inputSchema: schema,
+        ),
+      );
+
+      expect(result.function.parameters, schema);
+    });
+
+    test('keeps the keywords beside a \$ref', () {
+      final result = GenkitConverter.toOpenAITool(
+        ToolDefinition(
+          name: 'lookup',
+          description: 'Looks up a code',
+          inputSchema: {
+            'type': 'object',
+            'properties': {
+              'code': {r'$ref': r'#/$defs/Code', 'maxLength': 3},
+            },
+            r'$defs': {
+              'Code': {'type': 'string'},
+            },
+          },
+        ),
+      );
+
+      expect(result.function.parameters, {
+        'type': 'object',
+        'properties': {
+          'code': {'type': 'string', 'maxLength': 3},
+        },
+      });
+    });
+
+    test('non-object input schema throws INVALID_ARGUMENT', () {
+      expect(
+        () => GenkitConverter.toOpenAITool(
+          ToolDefinition(
+            name: 'echo',
+            description: 'Echoes the input',
+            inputSchema: {'type': 'string'},
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            allOf(contains('echo'), contains('object')),
+          ),
+        ),
+      );
     });
   });
 }

@@ -1,3 +1,62 @@
+## 0.4.0
+
+### Breaking Changes
+
+ - replace vertexAI with agentPlatform; drop appCheck and auth params (#609)
+
+### Features
+
+ - add httpClient parameter and wire-test harness (#602)
+
+### Fixes
+
+ - allow firebase_ai 4.x (#601)
+
+### Other Changes
+
+ - remove temporary analyzer pin (#634)
+
+
+## 0.3.0
+
+### Breaking Changes
+
+ - type usage counts and indexes as int (#546)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - make constrained generation simulation an opt-in middleware (#519)
+ - simulate constrained generation when a model lacks native support (#453)
+
+### Fixes
+
+ - stop pre-registering the retired gemini-2.5-pro (#509)
+ - honor the portable toolChoice option (#496)
+
+### Other Changes
+
+ - temporarily pin analyzer below 14.5.0 (#625)
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+ - add example/ programs to genkit_chrome, genkit_firebase_ai, genkit_google_cloud (#505)
+
+
+## 0.2.2
+
+### Breaking Changes
+
+ - move live/bidi model surface to experimental (#461)
+
+
+## 0.2.1
+
+ - updated internal dependencies.
+
+## 0.2.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+
 ## 0.1.14
 
 ### Fixes

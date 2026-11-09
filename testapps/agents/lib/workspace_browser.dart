@@ -103,7 +103,7 @@ final readWorkspaceFile = ai.defineFlow(
     if (!p.isWithin(workspaceDir, fullPath) && fullPath != workspaceDir) {
       throw GenkitException(
         'Path outside workspace',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
     final content = await File(fullPath).readAsString();

@@ -1,15 +1,28 @@
 [![Pub](https://img.shields.io/pub/v/genkit_openai.svg)](https://pub.dev/packages/genkit_openai)
 
-OpenAI-compatible API plugin for Genkit Dart. Supports OpenAI models (GPT-4o, GPT-4, GPT-3.5-turbo, etc.) and any OpenAI-compatible API (xAI/Grok, DeepSeek, Together AI, Groq, etc.).
+OpenAI plugin for Genkit Dart. Talks the OpenAI Chat Completions API, so it
+drives OpenAI's own models and any host that implements the same API — Groq,
+Together AI, OpenRouter and friends — by pointing it at a different
+[`baseUrl`](#openai-compatible-apis).
+
+[DeepSeek](#deepseek) and [xAI](#xai) get first-class handles of their own,
+`deepSeek()` and `xAI()`, which carry the key, catalog and request differences
+each host needs rather than leaving them to you.
+
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
 
 ## Installation
 
-Add `genkit_openai` to your `pubspec.yaml`:
-
-```yaml
-dependencies:
-  genkit: ^0.13.0
-  genkit_openai: ^0.3.0
+```bash
+dart pub add genkit genkit_openai
 ```
 
 ## Usage
@@ -17,15 +30,13 @@ dependencies:
 ### Basic Usage
 
 ```dart
-import 'dart:io';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
 
 void main() async {
-  // Initialize Genkit with the OpenAI plugin
-  final ai = Genkit(plugins: [
-    openAI(apiKey: Platform.environment['OPENAI_API_KEY']),
-  ]);
+  // Initialize Genkit with the OpenAI plugin. The API key is read from the
+  // OPENAI_API_KEY environment variable when not passed explicitly.
+  final ai = Genkit(plugins: [openAI()]);
 
   // Generate text
   final response = await ai.generate(
@@ -37,6 +48,30 @@ void main() async {
 }
 ```
 
+### API Key
+
+The key is resolved in this order:
+
+1. `apiKeyProvider`, if given
+2. `apiKey`, if given
+3. the `OPENAI_API_KEY` environment variable
+
+Creating the plugin does no network I/O and does not require a key, so an app
+starts up (and the Dev UI connects) offline. A missing or invalid key surfaces
+when a model is actually called.
+
+This is deliberately more permissive than the other Genkit SDKs, not parity
+with them: the JS plugin throws when constructed without a key and Go panics
+in `Init`. Dart defers the requirement to call time so the Dev UI stays
+usable before a key is exported, matching `genkit_anthropic`.
+
+Model discovery via `GET /models` happens only when listing actions, and is
+best-effort: if it fails, the plugin falls back to a curated catalog of common
+models plus any `models:` you registered. Each curated model carries per-model
+capability metadata; see [Available Models](#available-models). Models outside
+that catalog still work when named explicitly, so newly released ids need no
+plugin update.
+
 ### With Custom Options
 
 ```dart
@@ -46,7 +81,6 @@ final response = await ai.generate(
   config: OpenAIChatOptions(
     temperature: 0.7,
     maxTokens: 100,
-    jsonMode: false,
   ),
 );
 ```
@@ -98,10 +132,10 @@ void main() async {
     inputSchema: WeatherInputSchema.$schema,
     outputSchema: WeatherOutputSchema.$schema,
     fn: (input, ctx) async {
-      return WeatherOutput(
+      return .response(WeatherOutput(
         temperature: 72,
         condition: 'sunny',
-      );
+      ));
     },
   );
 
@@ -139,9 +173,28 @@ final response = await ai.generate(
 
 ## OpenAI-Compatible APIs
 
-The plugin supports any OpenAI-compatible API by specifying a custom `baseUrl`.
-Use the `name` parameter to give each backend a unique identity — this is
-required when registering multiple backends in the same `Genkit` instance.
+Point the plugin at any OpenAI-compatible host with `baseUrl`. Use `name` to
+give each backend a unique identity — this is required when registering
+multiple backends in the same `Genkit` instance, and it becomes the namespace
+prefix for that backend's models.
+
+Two things to know before pointing this at a non-OpenAI host:
+
+- **Model discovery is optional.** `GET /models` is only called when listing
+  actions, and a host that does not serve it degrades to a warning. Name any
+  model explicitly and it resolves whether or not the host advertises it — but
+  what the Dev UI *lists* for a custom `baseUrl` is only what discovery
+  returned plus your `models:`. The curated OpenAI catalog is deliberately
+  withheld, so a Groq backend does not offer you `groq/gpt-4o`. Declare the
+  models you care about in `models:` to see them listed.
+- **Streaming always sends `stream_options.include_usage`.** Hosts that reject
+  unknown stream options will refuse streaming calls.
+
+Compatibility is verified against a local fake host
+(`test/openai_plugin_compat_test.dart`) covering `baseUrl` routing, auth,
+custom headers, custom models, streaming and error mapping — not against each
+provider's live API, so treat the providers named above as examples of the
+shape rather than a certified list.
 
 ### Groq
 
@@ -172,6 +225,20 @@ final response = await ai.generate(
   prompt: 'Hello!',
 );
 ```
+
+To describe a model that serves a known one under another name, start from the
+curated entry with `modelInfoFor` (or `xaiModelInfoFor` /
+`deepSeekModelInfoFor`):
+
+```dart
+CustomModelDefinition(
+  name: 'my-gpt-proxy',
+  info: modelInfoFor('gpt-5.5'),
+)
+```
+
+The curated entries follow the providers' model lists, so what these return can
+change between releases.
 
 ### Multiple Backends
 
@@ -204,14 +271,306 @@ final b = await ai.generate(
 
 ## Available Models
 
-Any OpenAI-compatible model can be used by providing its name to the `model()` method:
+The plugin curates capability metadata (vision, tool calling, structured
+outputs, system vs. developer role, lifecycle stage) for the well-known OpenAI
+chat models. Reference a model by name:
 
 ```dart
 final response = await ai.generate(
+  model: openAI.model('gpt-5.5'),
+  prompt: 'Hello',
+);
+```
+
+Listing falls back to this catalog when discovery is unavailable, minus the
+models OpenAI has retired: those still resolve by name, but are never offered
+in a listing. The catalog itself is internal and changes with OpenAI's model
+list in any release.
+
+The catalog is not the set of usable models. Any OpenAI-compatible model works
+by passing its name to `model()`; a name that is not curated takes the current
+multimodal defaults, and a dated snapshot resolves to the capabilities of the
+alias it belongs to:
+
+```dart
+final response = await ai.generate(
+  // Resolves to the curated gpt-4o capabilities.
   model: openAI.model('gpt-4o-2024-08-06'),
   prompt: 'Hello',
 );
 ```
+
+To correct or extend what the plugin knows about a model — most often for a
+model released after this version of the plugin, or one served by a proxy that
+supports less than OpenAI does — pass a `CustomModelDefinition` with explicit
+`info`.
+
+Behind a custom `baseUrl`, a curated model keeps its capabilities — a gateway
+serving `gpt-3.5-turbo` is serving that model — but not OpenAI's deployment
+details, since the label, lifecycle stage and snapshot list all describe
+OpenAI's own hosting. The catalog is also not added to that host's listing:
+what a compatible provider lists is whatever its `/models` reports plus the
+models you register.
+
+### Text to Speech
+
+Speech models are referenced with `speechModel()` rather than `model()`, take
+`OpenAISpeechOptions`, and answer with a single audio media part whose `url` is
+a base64 `data:` URL:
+
+```dart
+final response = await ai.generate(
+  model: openAI.speechModel('gpt-4o-mini-tts'),
+  prompt: 'Genkit is an amazing AI framework.',
+  config: OpenAISpeechOptions(
+    voice: 'sage',
+    instructions: 'Speak in a calm, warm tone.',
+  ),
+);
+
+final media = response.media!;            // contentType: audio/mpeg
+final bytes = base64Decode(media.url.split(',').last);
+await File('speech.mp3').writeAsBytes(bytes);
+```
+
+All three accept `speed` (0.25-4.0). `instructions` is honored only by
+`gpt-4o-mini-tts`; the older two ignore it.
+
+Speech models are detected by name (`*tts*`). For an OpenAI-compatible provider
+whose speech model is named differently, declare media output when registering
+it and the plugin will route it to `/audio/speech`:
+
+```dart
+openAI(
+  name: 'voicecorp',
+  baseUrl: 'https://api.voicecorp.example/v1',
+  models: [
+    CustomModelDefinition(
+      name: 'voicebox-1',
+      info: ModelInfo(supports: {'output': ['media']}),
+    ),
+  ],
+)
+```
+
+### Speech to Text
+
+Transcription models take audio in and return text. The audio goes in through
+`promptParts` as a `MediaPart` holding a base64 `data:` URL:
+
+```dart
+final response = await ai.generate(
+  model: openAI.transcriptionModel('whisper-1'),
+  promptParts: [
+    MediaPart(
+      media: Media(contentType: 'audio/mpeg', url: 'data:audio/mpeg;base64,...'),
+    ),
+  ],
+  config: OpenAITranscriptionOptions(language: 'en'),
+);
+
+print(response.text); // 'The quick brown fox jumps over the lazy dog.'
+```
+
+`whisper-1`, `gpt-4o-transcribe` and `gpt-4o-mini-transcribe` are supported.
+Set `responseFormat: 'srt'` or `'vtt'` to get subtitle markup instead of a
+plain transcript, and `'verbose_json'` (with `timestampGranularities`) for
+timing metadata. `response.text` is the transcript either way; the decoded
+response — segments, timestamps, logprobs — is on `response.raw`. Ask for
+`outputFormat: 'json'` and the JSON object comes through whole instead, so
+`response.output` parses.
+
+`whisper-1` can also translate: `translate: true` routes the request to
+OpenAI's translation endpoint, which returns English text for audio in any
+language.
+
+```dart
+final response = await ai.generate(
+  model: openAI.transcriptionModel('whisper-1'),
+  promptParts: [MediaPart(media: spanishAudio)],
+  config: OpenAITranscriptionOptions(translate: true),
+);
+```
+
+A compatible provider whose transcription model is not named `*whisper*` or
+`*transcribe*` names the API it is served by:
+
+```dart
+CustomModelDefinition(
+  name: 'earbox-1',
+  kind: OpenAIModelKind.transcription,
+)
+```
+
+`kind` and not `info`: `supports: {'media': true}` describes a vision chat
+model just as well as a transcription one, so it cannot be the signal. Speech
+models are the exception — `output: ['media']` says the model returns audio and
+nothing else — and are still recognised from `info` as well as by name.
+
+## Embeddings
+
+Embedders resolve the same way models do:
+
+```dart
+final vectors = await ai.embed(
+  embedder: openAI.embedder('text-embedding-3-small'),
+  document: DocumentData(content: [TextPart(text: 'The cat sat on the mat.')]),
+);
+
+print(vectors.single.embedding.length); // 1536
+```
+
+Passing `documents:` instead takes a list and returns one vector per document, in
+order. A corpus larger than the 2048 inputs OpenAI accepts per request is split
+across requests rather than rejected.
+
+Each document's text parts are joined with newlines; media parts are dropped,
+since OpenAI has no multimodal embedder. A document carrying no text at all is
+rejected before the request goes out.
+
+The curated embedders are described with the vector length each model
+returns. The `text-embedding-3-*` models will also return a shorter vector on
+request:
+
+```dart
+final vectors = await ai.embed(
+  embedder: openAI.embedder('text-embedding-3-small'),
+  document: DocumentData(content: [TextPart(text: 'hello')]),
+  options: OpenAIEmbedderOptions(dimensions: 256),
+);
+```
+
+As with models, the catalog is not the set of usable embedders: any name works
+by passing it to `openAI.embedder()`, it is just described without a vector
+length, and behind a custom `baseUrl` only what that host's `/models` reports
+is listed.
+
+## DeepSeek
+
+DeepSeek speaks the same API, so it is the same plugin pointed at a different
+host and told whose dialect it is speaking:
+
+```dart
+final ai = Genkit(plugins: [deepSeek()]);
+
+final response = await ai.generate(
+  model: deepSeek.model('deepseek-flash'),
+  prompt: 'Hello!',
+);
+```
+
+The key comes from `DEEPSEEK_API_KEY` when it is not passed explicitly.
+The plugin curates `deepseek-flash` (1M context, image input, thinking on by
+default) and `deepseek-v4-pro` (text only).
+`deepseek-chat` and `deepseek-reasoner` are curated as legacy — DeepSeek
+announced their discontinuation for 2026-07-24 but still serves both, routing
+them to the non-thinking and thinking modes of Flash — so they stay listed,
+with honest capabilities, until the names stop answering.
+
+No entry claims whether a model thinks. On DeepSeek that is a request-time
+mode rather than a property of the name: `deepseek-chat` is Flash with
+thinking off by default, and it still honours a `reasoningEffort` that asks
+for it. Nothing is refused locally on that basis.
+
+Three things differ on the wire, and the plugin handles each:
+
+- The token limit goes out as `max_tokens`. DeepSeek ignores
+  `max_completion_tokens` silently rather than rejecting it, so a limit sent
+  under OpenAI's newer name would simply be lost.
+- Structured output asks for `json_object`. DeepSeek has no `json_schema`, so
+  the plugin writes the schema into the prompt instead, and makes sure the
+  prompt says "json", which DeepSeek requires.
+- When a request carries tools, previous turns' reasoning is replayed as
+  `reasoning_content`. DeepSeek concatenates it into the context and loses the
+  thread otherwise. Without tools it is not sent, because DeepSeek ignores it
+  and OpenAI never asked for it.
+
+`reasoningEffort` works as it does for OpenAI. DeepSeek's own settings are
+`none`, `low`, `high` and `max`, and it maps the rest onto them — `minimal`
+runs as `low`, `medium` and `xhigh` as `high` — so every level the option
+advertises is sendable and none is refused locally. The effort goes out at the
+top level where every host reads it, and alongside it a `thinking` object says
+which mode it applies to; `none` means "don't think at all", which is
+`thinking: {type: disabled}`.
+
+Two caveats the plugin does not paper over: while thinking, DeepSeek ignores
+`temperature`, `presencePenalty` and `frequencyPenalty`, and floors `topP` at
+0.95. And thinking is on by default for the models that support it, which is the
+opposite of OpenAI's behaviour.
+
+## xAI
+
+Grok speaks the same API, and of the curated providers it is the closest to
+OpenAI — same request fields, same `json_schema` structured outputs:
+
+```dart
+final ai = Genkit(plugins: [xAI()]);
+
+final response = await ai.generate(
+  model: xAI.model('grok-4.6'),
+  prompt: 'Hello!',
+);
+```
+
+The key comes from `XAI_API_KEY`. The plugin curates the Grok 4.x line plus
+`grok-build-0.1`, the coding model. Every Grok text model takes image input,
+calls tools and accepts a schema, so they share one capability preset; the only
+axis they differ on is whether they reason, and `grok-4.20-0309-non-reasoning`
+is the one that does not.
+
+One difference worth knowing: xAI's reasoning levels are `none`, `low`,
+`medium`, `high` and `xhigh` — no `minimal` or `max` — and xAI documents the
+accepted set as varying per model (4.3 takes `none` and defaults to `low`, 4.6
+does neither). The plugin checks the union and leaves the model-level pairing
+to the API.
+
+The image and video models (`grok-imagine-*`) are not listed: this plugin
+serves chat generation.
+
+## Reasoning
+
+The o-series and the GPT-5 family take a `reasoningEffort`, which trades latency
+and tokens against answer quality:
+
+```dart
+final response = await ai.generate(
+  model: openAI.model('gpt-5.5'),
+  prompt: 'Prove it.',
+  config: OpenAIChatOptions(reasoningEffort: 'high'),
+);
+```
+
+Which of these levels a model accepts moves with the generation — `minimal`
+arrived with GPT-5, `none` replaced it in GPT-5.1, `xhigh` came later — so
+every level is offered to every reasoning model and OpenAI decides whether the
+pair makes sense. The set of levels itself is fixed by `openai_dart`, which
+models the parameter as an enum: a level OpenAI ships after this release needs
+an SDK bump to reach. What the plugin does check is the model:
+sending an effort to one that does not reason is rejected before the request
+goes out, naming the model rather than the parameter. Behind a `baseUrl` on
+another host that check is skipped, since the catalog describes OpenAI's models
+and not that host's, and a model you registered through `models:` is left to
+the API to judge - declaring it says more about what it accepts than the
+catalog does.
+
+`verbosity` is a separate GPT-5-family knob, controlling how much the model says
+rather than how hard it thinks.
+
+When a model returns its chain of thought, it arrives as a `ReasoningPart`
+ahead of the answer, and streams as it is produced:
+
+```dart
+await for (final chunk in ai.generateStream(model: ..., prompt: ...)) {
+  for (final part in chunk.content) {
+    if (part.isReasoning) stdout.write(part.reasoning);
+  }
+}
+```
+
+OpenAI's own models never return reasoning on the chat API — they bill it as
+reasoning tokens and keep it — so in practice this is a compatible-backend
+path: DeepSeek R1 and vLLM send `reasoning_content`, OpenRouter sends
+`reasoning`, and both are read.
 
 ## Options
 
@@ -225,9 +584,78 @@ The `OpenAIChatOptions` class supports the following options:
 - `frequencyPenalty` (double?, -2.0 to 2.0) - Frequency penalty
 - `seed` (int?) - Seed for deterministic sampling
 - `user` (String?) - User identifier for abuse detection
-- `jsonMode` (bool?) - Enable JSON mode
+- `jsonMode` (bool?) - Forces `{"type": "json_object"}`. Only consulted when Genkit's own output config says nothing about the format; any explicit `outputFormat` wins, `'text'` included. See [JSON output](#json-output)
 - `visualDetailLevel` (String?, 'auto'|'low'|'high') - Visual detail level for images
 - `version` (String?) - Model version override
+- `reasoningEffort` (String?, 'none'|'minimal'|'low'|'medium'|'high'|'xhigh'|'max') -
+  How hard a reasoning model thinks before answering
+- `verbosity` (String?, 'low'|'medium'|'high') - How much the model says in its answer
+
+The `OpenAISpeechOptions` class supports the following options:
+
+- `voice` (String?) - Voice name, e.g. `'alloy'`, `'sage'`, `'coral'` (defaults to `'alloy'`). Free-form, so new OpenAI voices work without a plugin update
+- `instructions` (String?) - Tone and delivery guidance (`gpt-4o-mini-tts` only)
+- `speed` (double?, 0.25-4.0) - Playback speed
+- `responseFormat` (String?, 'mp3'|'opus'|'aac'|'flac'|'wav'|'pcm') - Audio container (defaults to `'mp3'`)
+- `version` (String?) - Model version override
+
+The `OpenAITranscriptionOptions` class supports the following options:
+
+- `language` (String?) - ISO-639-1 code of the spoken language; improves accuracy and latency
+- `prompt` (String?) - Decoding hint (vocabulary, names, style). Defaults to the request's text content
+- `temperature` (double?, 0.0-1.0) - Sampling temperature
+- `responseFormat` (String?, 'json'|'text'|'srt'|'verbose_json'|'vtt') - Transcript format (defaults to `'json'`)
+- `timestampGranularities` (List<String>?) - `'word'` and/or `'segment'`; needs `verbose_json`, `whisper-1` only
+- `chunkingStrategy` (Object?) - `'auto'` or a server-VAD map; `gpt-4o-transcribe` family only
+- `include` (List<String>?) - Extra response fields, e.g. `['logprobs']`
+- `translate` (bool?) - Translate to English instead of transcribing; `whisper-1` only
+- `version` (String?) - Model version override
+
+The `OpenAIEmbedderOptions` class supports:
+
+- `dimensions` (int?, >= 1) - Length of the returned vector, for the models
+  that accept a shorter one
+- `user` (String?) - User identifier for abuse detection
+
+### JSON output
+
+There are three ways to get JSON back, in order of preference:
+
+```dart
+// 1. A schema - the model is constrained to the shape and `output` is typed.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Describe a book.',
+  outputSchema: Book.$schema,
+);
+print(response.output!.title);
+
+// 2. JSON with no particular shape.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Return a JSON object with keys "name" and "age".',
+  outputFormat: 'json',
+);
+
+// 3. The provider flag directly, for callers not using Genkit's output config.
+final response = await ai.generate(
+  model: openAI.model('gpt-4o'),
+  prompt: 'Reply with a JSON object.',
+  config: OpenAIChatOptions(jsonMode: true),
+);
+```
+
+`outputSchema` sends `response_format: {"type": "json_schema"}`; the other two
+send `{"type": "json_object"}`. Output config wins when both are set, so
+`jsonMode` never overrides a schema.
+
+OpenAI rejects `json_object` unless the conversation also asks for JSON, so
+options 2 and 3 need the prompt to say so. Option 1 does not.
+
+The plugin sends `strict: false`. Schemas are flattened (`$ref`/`$defs`
+resolved) but otherwise unmodified. Strict mode is off because it requires
+every property to appear in `required` and `additionalProperties: false` on
+every object — which rejects ordinary schemas that have optional fields.
 
 ## Custom Headers
 

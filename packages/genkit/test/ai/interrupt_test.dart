@@ -56,9 +56,7 @@ void main() {
         name: toolName,
         description: 'Interrupts execution',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (input, context) async {
-          context.interrupt('CONFIRM_ME');
-        },
+        fn: (input, context) async => .interrupt('CONFIRM_ME'),
       );
 
       final response = await genkit.generate(
@@ -125,9 +123,7 @@ void main() {
         name: toolName,
         description: 'Interrupts execution',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (input, context) async {
-          context.interrupt('CONFIRM_ME');
-        },
+        fn: (input, context) async => .interrupt('CONFIRM_ME'),
       );
 
       final response1 = await genkit.generate(
@@ -214,13 +210,13 @@ void main() {
         name: toolSafe,
         description: 'Safe',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (_, _) async => 'SafeOutput',
+        fn: (_, _) async => .response('SafeOutput'),
       );
       genkit.defineTool(
         name: toolInterrupt,
         description: 'Interrupted',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (_, c) async => c.interrupt('STOP'),
+        fn: (_, c) async => .interrupt('STOP'),
       );
 
       final response = await genkit.generate(
@@ -246,6 +242,198 @@ void main() {
 
       expect(response.interrupts.length, 1);
       expect(response.interrupts.first.toolRequest.name, toolInterrupt);
+    });
+
+    group('null tool output', () {
+      // A tool that legitimately answers `null` must still count as answered
+      // when resuming; only a missing response is "unresolved".
+
+      /// Model that requests [toolNames] in parallel, then answers 'done' once
+      /// it sees tool responses, recording them in [observed].
+      void defineParallelModel(
+        String name,
+        List<String> toolNames,
+        List<ToolResponse> observed,
+      ) {
+        genkit.defineModel(
+          name: name,
+          fn: (request, context) async {
+            if (request.messages.last.role == Role.tool) {
+              observed.addAll(
+                request.messages.last.content.map((p) => p.toolResponse!),
+              );
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'done')],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  for (final t in toolNames)
+                    ToolRequestPart(
+                      toolRequest: ToolRequest(name: t, input: {}),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      }
+
+      Future<GenerateResult<Object?>> resume(
+        String model,
+        List<String> toolNames,
+        GenerateResult<Object?> interrupted, {
+        List<InterruptResponse>? respond,
+      }) => genkit.generate(
+        model: modelRef(model),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'go')],
+          ),
+          interrupted.message!,
+        ],
+        toolNames: toolNames,
+        interruptRespond: respond,
+      );
+
+      // `generate(interruptRespond: ...)` maps a null output to a restart, so
+      // a null reply is only expressible through the action-level `respond`
+      // (Dev UI, remote callers).
+      test('resume.respond with a null output resumes', () async {
+        final observed = <ToolResponse>[];
+        defineParallelModel('nullRespondModel', ['askTool'], observed);
+        genkit.defineTool(
+          name: 'askTool',
+          description: 'Interrupts',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (_, _) async => .interrupt(),
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef('nullRespondModel'),
+          prompt: 'go',
+          toolNames: ['askTool'],
+        );
+        expect(response1.finishReason, FinishReason.interrupted);
+        final toolRequest = response1.interrupts.single.toolRequest;
+
+        final response2 = await runGenerateAction(
+          genkit.registry,
+          GenerateActionOptions(
+            model: 'nullRespondModel',
+            messages: [
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'go')],
+              ),
+              response1.message!,
+            ],
+            tools: ['askTool'],
+            resume: GenerateResumeOptions(
+              respond: [
+                ToolResponsePart(
+                  toolResponse: ToolResponse(
+                    ref: toolRequest.ref,
+                    name: toolRequest.name,
+                    output: null,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ActionFnArg(),
+        );
+
+        expect(response2.finishReason, FinishReason.stop);
+        expect(response2.text, 'done');
+        expect(observed.single.name, 'askTool');
+        expect(observed.single.output, isNull);
+      });
+
+      test('a sibling tool that returned null is kept as pending', () async {
+        final observed = <ToolResponse>[];
+        defineParallelModel('nullPendingModel', [
+          'voidTool',
+          'askTool',
+        ], observed);
+        var voidToolCalls = 0;
+        genkit.defineTool(
+          name: 'voidTool',
+          description: 'Returns null',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (_, _) async {
+            voidToolCalls++;
+            return .response(null);
+          },
+        );
+        genkit.defineTool(
+          name: 'askTool',
+          description: 'Interrupts',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (_, _) async => .interrupt(),
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef('nullPendingModel'),
+          prompt: 'go',
+          toolNames: ['voidTool', 'askTool'],
+        );
+        expect(response1.finishReason, FinishReason.interrupted);
+        final voidPart = response1.message!.content.firstWhere(
+          (p) => p.toolRequestPart?.toolRequest.name == 'voidTool',
+        );
+        expect(voidPart.metadata, containsPair('pendingOutput', null));
+
+        final response2 = await resume(
+          'nullPendingModel',
+          ['voidTool', 'askTool'],
+          response1,
+          respond: [InterruptResponse(response1.interrupts.single, 'ok')],
+        );
+
+        expect(response2.finishReason, FinishReason.stop);
+        expect(voidToolCalls, 1, reason: 'pending output is not re-run');
+        expect(
+          {for (final r in observed) r.name: r.output},
+          {'voidTool': null, 'askTool': 'ok'},
+        );
+      });
+
+      test('a missing response is still unresolved', () async {
+        final observed = <ToolResponse>[];
+        defineParallelModel('missingRespondModel', ['askTool'], observed);
+        genkit.defineTool(
+          name: 'askTool',
+          description: 'Interrupts',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (_, _) async => .interrupt(),
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef('missingRespondModel'),
+          prompt: 'go',
+          toolNames: ['askTool'],
+        );
+
+        final response2 = await resume(
+          'missingRespondModel',
+          ['askTool'],
+          response1,
+          respond: [],
+        );
+
+        expect(response2.finishReason, FinishReason.failed);
+        expect(response2.finishMessage, contains('Unresolved tool request'));
+        expect(observed, isEmpty);
+      });
     });
 
     test('runGenerateAction should correctly resume using respond', () async {
@@ -286,9 +474,7 @@ void main() {
         name: toolName,
         description: 'Interrupts execution',
         inputSchema: .map(.string(), .dynamicSchema()),
-        fn: (input, context) async {
-          context.interrupt('CONFIRM_ME');
-        },
+        fn: (input, context) async => .interrupt('CONFIRM_ME'),
       );
 
       // 1. Initial Call
@@ -304,13 +490,7 @@ void main() {
           ],
           tools: [toolName],
         ),
-        (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          inputStream: null,
-          init: null,
-          context: null,
-        ),
+        ActionFnArg(),
       );
 
       expect(response1.finishReason, FinishReason.interrupted);
@@ -344,13 +524,7 @@ void main() {
             ],
           ),
         ),
-        (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          inputStream: null,
-          init: null,
-          context: null,
-        ),
+        ActionFnArg(),
       );
 
       expect(response2.text, 'Resumed via Action!');
@@ -399,9 +573,9 @@ void main() {
         fn: (input, context) async {
           if (toolCallCount == 0) {
             toolCallCount++;
-            context.interrupt('CONFIRM_ME');
+            return .interrupt('CONFIRM_ME');
           }
-          return 'ToolExecuted';
+          return .response('ToolExecuted');
         },
       );
 
@@ -418,13 +592,7 @@ void main() {
           ],
           tools: [toolName],
         ),
-        (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          inputStream: null,
-          init: null,
-          context: null,
-        ),
+        ActionFnArg(),
       );
 
       expect(response1.finishReason, FinishReason.interrupted);
@@ -450,13 +618,7 @@ void main() {
             restart: [ToolRequestPart(toolRequest: toolReq.toolRequest)],
           ),
         ),
-        (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          inputStream: null,
-          init: null,
-          context: null,
-        ),
+        ActionFnArg(),
       );
 
       expect(response2.text, 'Restarted via Action!');
@@ -509,9 +671,9 @@ void main() {
         fn: (input, context) async {
           if (toolCallCount == 0) {
             toolCallCount++;
-            context.interrupt('CONFIRM_ME');
+            return .interrupt('CONFIRM_ME');
           }
-          return 'ToolExecuted';
+          return .response('ToolExecuted');
         },
       );
 
@@ -543,6 +705,193 @@ void main() {
       expect(response2.text, 'Restarted!');
       expect(modelCallCount, 2);
       expect(toolCallCount, 1);
+    });
+
+    test(
+      'should validly resume from interrupt using restart with a namespaced tool',
+      () async {
+        var modelCallCount = 0;
+        var toolCallCount = 0;
+        String? observedToolOutput;
+
+        const modelName = 'namespacedRestartModel';
+        const namespacedToolName = 'work-orders/order_part';
+        const wireToolName = 'order_part';
+
+        genkit.defineModel(
+          name: modelName,
+          fn: (request, context) async {
+            modelCallCount++;
+            if (request.messages.last.role == Role.tool) {
+              observedToolOutput = request
+                  .messages
+                  .last
+                  .content
+                  .first
+                  .toolResponse
+                  ?.output
+                  ?.toString();
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'Restarted namespaced tool!')],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(
+                      name: wireToolName,
+                      input: {'part': 'heating element'},
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool(
+          name: namespacedToolName,
+          description: 'Orders a spare part',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (input, context) async {
+            toolCallCount++;
+            if (toolCallCount == 1) {
+              return .interrupt('CONFIRM_ORDER');
+            }
+            return .response('OrderedPart');
+          },
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef(modelName),
+          prompt: 'order part',
+          toolNames: [namespacedToolName],
+        );
+
+        expect(response1.finishReason, FinishReason.interrupted);
+
+        final history = [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'order part')],
+          ),
+          response1.message!,
+        ];
+
+        final response2 = await genkit.generate(
+          model: modelRef(modelName),
+          messages: history,
+          toolNames: [namespacedToolName],
+          interruptRestart: [response1.message!.content.first.toolRequestPart!],
+        );
+
+        expect(response2.text, 'Restarted namespaced tool!');
+        expect(modelCallCount, 2);
+        expect(toolCallCount, 2);
+        expect(observedToolOutput, 'OrderedPart');
+      },
+    );
+
+    group('restarted tool response', () {
+      /// Interrupts on the first call, then restarts the tool so it returns
+      /// [restarted]. Returns the tool response part the model saw on resume.
+      Future<ToolResponsePart?> restartWith(
+        ToolResult<dynamic> restarted,
+      ) async {
+        ToolResponsePart? observed;
+        var toolCallCount = 0;
+
+        genkit.defineModel(
+          name: 'restartResponseModel',
+          fn: (request, context) async {
+            if (request.messages.last.role == Role.tool) {
+              observed = request.messages.last.content.first.toolResponsePart;
+              return ModelResponse(
+                finishReason: FinishReason.stop,
+                message: Message(
+                  role: Role.model,
+                  content: [TextPart(text: 'done')],
+                ),
+              );
+            }
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(name: 'restartTool', input: {}),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+
+        genkit.defineTool(
+          name: 'restartTool',
+          description: 'Interrupts once, then returns the given result',
+          inputSchema: .map(.string(), .dynamicSchema()),
+          fn: (input, context) async {
+            toolCallCount++;
+            if (toolCallCount == 1) return .interrupt();
+            return restarted;
+          },
+        );
+
+        final response1 = await genkit.generate(
+          model: modelRef('restartResponseModel'),
+          prompt: 'go',
+          toolNames: ['restartTool'],
+        );
+        expect(response1.finishReason, FinishReason.interrupted);
+
+        final response2 = await genkit.generate(
+          model: modelRef('restartResponseModel'),
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'go')],
+            ),
+            response1.message!,
+          ],
+          toolNames: ['restartTool'],
+          interruptRestart: [response1.message!.content.first.toolRequestPart!],
+        );
+        expect(response2.finishReason, FinishReason.stop);
+        expect(response2.text, 'done');
+        return observed;
+      }
+
+      test('counts a null output as answered', () async {
+        final observed = await restartWith(.response(null));
+
+        expect(observed?.toolResponse.name, 'restartTool');
+        expect(observed?.toolResponse.output, isNull);
+      });
+
+      test('carries parts and metadata', () async {
+        final observed = await restartWith(
+          .response(
+            'ok',
+            parts: [TextPart(text: 'extra')],
+            metadata: {'source': 'restart'},
+          ),
+        );
+
+        expect(observed?.toolResponse.output, 'ok');
+        expect(observed?.toolResponse.content, [
+          TextPart(text: 'extra').toJson(),
+        ]);
+        expect(observed?.metadata, {'source': 'restart'});
+      });
     });
 
     test('should access metadata in tool', () async {
@@ -587,9 +936,9 @@ void main() {
           capturedMetadata = context.toolRequest?.metadata ?? {};
           final resumed = context.resumed;
           if (resumed is! Map || resumed['approved'] != true) {
-            context.interrupt('NEEDS_APPROVAL');
+            return .interrupt('NEEDS_APPROVAL');
           }
-          return 'Metadata: ${context.toolRequest?.metadata}';
+          return .response('Metadata: ${context.toolRequest?.metadata}');
         },
       );
 
@@ -627,6 +976,94 @@ void main() {
         'interrupt': 'NEEDS_APPROVAL',
         'resumed': {'approved': true, 'secret': 'abc'},
       });
+    });
+
+    test(
+      'resume fails when last message is not a model tool request',
+      () async {
+        genkit.defineModel(
+          name: 'plainModel',
+          fn: (req, ctx) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'hi')],
+            ),
+          ),
+        );
+
+        final res = await genkit.generate(
+          model: modelRef('plainModel'),
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hello')],
+            ),
+          ],
+          interruptRespond: [
+            InterruptResponse(
+              ToolRequestPart(
+                toolRequest: ToolRequest(name: 'someTool', input: {}),
+              ),
+              'ok',
+            ),
+          ],
+        );
+
+        expect(res.finishReason, FinishReason.failed);
+        expect(res.error!.status, StatusCode.failedPrecondition.wireName);
+      },
+    );
+
+    test('restart fails without running the tool when last message is not a '
+        'model tool request', () async {
+      var modelCalls = 0;
+      var toolCalls = 0;
+
+      genkit.defineModel(
+        name: 'plainModel',
+        fn: (req, ctx) async {
+          modelCalls++;
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'hi')],
+            ),
+          );
+        },
+      );
+
+      genkit.defineTool(
+        name: 'sideEffectTool',
+        description: 'Counts its calls',
+        inputSchema: .map(.string(), .dynamicSchema()),
+        fn: (input, context) async {
+          toolCalls++;
+          return .response('done');
+        },
+      );
+
+      final res = await genkit.generate(
+        model: modelRef('plainModel'),
+        toolNames: ['sideEffectTool'],
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hello')],
+          ),
+        ],
+        interruptRestart: [
+          ToolRequestPart(
+            toolRequest: ToolRequest(name: 'sideEffectTool', input: {}),
+          ),
+        ],
+      );
+
+      expect(res.finishReason, FinishReason.failed);
+      expect(res.error!.status, StatusCode.failedPrecondition.wireName);
+      expect(toolCalls, 0);
+      expect(modelCalls, 0);
     });
   });
 }

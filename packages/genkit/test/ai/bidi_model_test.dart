@@ -12,6 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:test/test.dart';
 
@@ -37,7 +38,7 @@ void main() {
       );
       expect(model.name, 'myBidiModel');
       expect(
-        await genkit.registry.lookupAction('bidi-model', 'myBidiModel'),
+        await genkit.registry.lookupAction(.bidiModel, 'myBidiModel'),
         isNotNull,
       );
     });

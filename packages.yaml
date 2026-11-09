@@ -1,3 +1,19 @@
 packages:
   - packages/**
   - testapps/**
+
+# Minimum versions, applied by tools/version.dart. A publishable package whose
+# base version (pre-release stripped) is below its floor is bumped to the floor,
+# even with no new commits. A floor that has been reached does nothing and can
+# be deleted.
+floors:
+  genkit: 1.0.0
+  schemantic: 1.0.0
+  schemantic_builder: 1.0.0
+  genkit_google_genai: 1.0.0
+  genkit_vertexai: 1.0.0
+  genkit_openai: 1.0.0
+  genkit_anthropic: 1.0.0
+  genkit_mcp: 1.0.0
+  genkit_shelf: 1.0.0
+  genkit_middleware: 1.0.0

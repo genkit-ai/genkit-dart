@@ -12,7 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'package:json_schema_builder/json_schema_builder.dart' as jsb;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -100,47 +99,54 @@ void main() {
     });
 
     test('Generates correct JSON schema', () {
-      final expectedSchema = jsb.Schema.object(
-        properties: {
-          'title': jsb.Schema.string(),
-          'ingredients': jsb.Schema.list(
-            items: jsb.Schema.object(
-              properties: {
-                'name': jsb.Schema.string(),
-                'quantity': jsb.Schema.string(),
+      final expectedSchema = {
+        'type': 'object',
+        'properties': {
+          'title': {'type': 'string'},
+          'ingredients': {
+            'type': 'array',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+                'quantity': {'type': 'string'},
               },
-              required: ['name', 'quantity'],
-            ),
-          ),
-          'servings': jsb.Schema.integer(),
+              'required': ['name', 'quantity'],
+            },
+          },
+          'servings': {'type': 'integer'},
         },
-        required: ['title', 'ingredients', 'servings'],
-      );
+        'required': ['title', 'ingredients', 'servings'],
+      };
 
-      expect(Recipe.$schema.jsonSchema(), expectedSchema.value);
+      expect(Recipe.$schema.jsonSchema(), expectedSchema);
     });
 
     test('Generates correct JSON schema for annotated fields', () {
-      final expectedSchema = jsb.Schema.object(
-        properties: {
-          'title_key_in_json': jsb.Schema.string(
-            description: 'description set in json schema',
-          ),
-          'ingredients': jsb.Schema.list(
-            items: jsb.Schema.object(
-              properties: {
-                'name': jsb.Schema.string(),
-                'quantity': jsb.Schema.string(),
+      final expectedSchema = {
+        'type': 'object',
+        'properties': {
+          'title_key_in_json': {
+            'type': 'string',
+            'description': 'description set in json schema',
+          },
+          'ingredients': {
+            'type': 'array',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+                'quantity': {'type': 'string'},
               },
-              required: ['name', 'quantity'],
-            ),
-          ),
-          'servings': jsb.Schema.integer(),
+              'required': ['name', 'quantity'],
+            },
+          },
+          'servings': {'type': 'integer'},
         },
-        required: ['title_key_in_json', 'ingredients', 'servings'],
-      );
+        'required': ['title_key_in_json', 'ingredients', 'servings'],
+      };
 
-      expect(AnnotatedRecipe.$schema.jsonSchema(), expectedSchema.value);
+      expect(AnnotatedRecipe.$schema.jsonSchema(), expectedSchema);
     });
 
     test('Validates annotated schema correctly', () async {
@@ -178,32 +184,36 @@ void main() {
     });
 
     test('Generates correct JSON schema for enums', () {
-      final expectedSchema = jsb.Schema.object(
-        properties: {
-          'day': jsb.Schema.string(),
-          'mealType': jsb.Schema.string(
-            enumValues: ['breakfast', 'lunch', 'dinner'],
-          ),
+      final expectedSchema = {
+        'type': 'object',
+        'properties': {
+          'day': {'type': 'string'},
+          'mealType': {
+            'type': 'string',
+            'enum': ['breakfast', 'lunch', 'dinner'],
+          },
         },
-        required: ['day', 'mealType'],
-      );
+        'required': ['day', 'mealType'],
+      };
 
-      expect(MealPlan.$schema.jsonSchema(), expectedSchema.value);
+      expect(MealPlan.$schema.jsonSchema(), expectedSchema);
     });
 
     test('Generates correct JSON schema for nullable fields', () {
-      final expectedSchema = jsb.Schema.object(
-        properties: {
-          'optionalString': jsb.Schema.string(),
-          'optionalInt': jsb.Schema.integer(),
-          'optionalList': jsb.Schema.list(items: jsb.Schema.string()),
-          'optionalIngredient': jsb.Schema.fromMap(
-            Ingredient.$schema.jsonSchema(),
-          ),
+      final expectedSchema = {
+        'type': 'object',
+        'properties': {
+          'optionalString': {'type': 'string'},
+          'optionalInt': {'type': 'integer'},
+          'optionalList': {
+            'type': 'array',
+            'items': {'type': 'string'},
+          },
+          'optionalIngredient': Ingredient.$schema.jsonSchema(),
         },
-      );
+      };
 
-      expect(NullableFields.$schema.jsonSchema(), expectedSchema.value);
+      expect(NullableFields.$schema.jsonSchema(), expectedSchema);
     });
 
     test('Parses and accesses nullable data correctly', () {
@@ -245,23 +255,26 @@ void main() {
     });
 
     test('Generates correct JSON schema for complex objects', () {
-      final expectedSchema = jsb.Schema.object(
-        properties: {
-          'id': jsb.Schema.string(),
-          'createdAt': jsb.Schema.string(format: 'date-time'),
-          'price': jsb.Schema.number(),
-          'metadata': jsb.Schema.object(
-            additionalProperties: jsb.Schema.string(),
-          ),
-          'ratings': jsb.Schema.list(items: jsb.Schema.integer()),
-          'nestedNullable': jsb.Schema.fromMap(
-            NullableFields.$schema.jsonSchema(),
-          ),
+      final expectedSchema = {
+        'type': 'object',
+        'properties': {
+          'id': {'type': 'string'},
+          'createdAt': {'type': 'string', 'format': 'date-time'},
+          'price': {'type': 'number'},
+          'metadata': {
+            'type': 'object',
+            'additionalProperties': {'type': 'string'},
+          },
+          'ratings': {
+            'type': 'array',
+            'items': {'type': 'integer'},
+          },
+          'nestedNullable': NullableFields.$schema.jsonSchema(),
         },
-        required: ['id', 'createdAt', 'price', 'metadata', 'ratings'],
-      );
+        'required': ['id', 'createdAt', 'price', 'metadata', 'ratings'],
+      };
 
-      expect(ComplexObject.$schema.jsonSchema(), expectedSchema.value);
+      expect(ComplexObject.$schema.jsonSchema(), expectedSchema);
     });
 
     test('Parses and accesses complex object data correctly', () {
@@ -301,25 +314,26 @@ void main() {
     });
 
     test('Generates correct JSON schema for lists of complex objects', () {
-      final expectedSchema = jsb.Schema.object(
-        properties: {
-          'recipes': jsb.Schema.list(
-            items: jsb.Schema.fromMap(Recipe.$schema.jsonSchema()),
-          ),
-          'optionalIngredients': jsb.Schema.list(
-            items: jsb.Schema.object(
-              properties: {
-                'name': jsb.Schema.string(),
-                'quantity': jsb.Schema.string(),
+      final expectedSchema = {
+        'type': 'object',
+        'properties': {
+          'recipes': {'type': 'array', 'items': Recipe.$schema.jsonSchema()},
+          'optionalIngredients': {
+            'type': 'array',
+            'items': {
+              'type': 'object',
+              'properties': {
+                'name': {'type': 'string'},
+                'quantity': {'type': 'string'},
               },
-              required: ['name', 'quantity'],
-            ),
-          ),
+              'required': ['name', 'quantity'],
+            },
+          },
         },
-        required: ['recipes'],
-      );
+        'required': ['recipes'],
+      };
 
-      expect(Menu.$schema.jsonSchema(), expectedSchema.value);
+      expect(Menu.$schema.jsonSchema(), expectedSchema);
     });
 
     test('Parses and accesses lists of complex objects correctly', () {

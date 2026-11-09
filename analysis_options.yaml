@@ -17,6 +17,10 @@ analyzer:
     prefer_const_constructors: ignore
     unawaited_futures: ignore
     unreachable_from_main: ignore
+    # First-party packages, tests, and testapps deliberately consume Genkit's
+    # experimental surface (`package:genkit/experimental*.dart`). External users
+    # still see this warning via their own analysis config.
+    experimental_member_use: ignore
 
 linter:
   rules:

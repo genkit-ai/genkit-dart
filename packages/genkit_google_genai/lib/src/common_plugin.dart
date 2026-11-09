@@ -22,6 +22,7 @@ import 'package:schemantic/schemantic.dart';
 import 'aggregation.dart';
 import 'api_client.dart';
 import 'generated/generativelanguage.dart' as gcl;
+import 'known_models.dart';
 import 'model.dart';
 
 final logger = Logger('genkit_google_genai');
@@ -37,6 +38,9 @@ final commonModelInfo = ModelInfo(
   },
 );
 
+/// Fallback metadata for an un-curated `-tts` model name.
+final commonTtsModelInfo = ModelInfo(supports: geminiTtsSupports);
+
 abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]);
 
@@ -48,10 +52,33 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   /// capabilities for known models.
   Map<String, ModelInfo> get knownModels => const {};
 
-  /// Returns the capability metadata for [modelName], falling back to
-  /// [commonModelInfo] for names not in [knownModels].
+  /// Returns the capability metadata for [modelName].
+  ///
+  /// Names not in [knownModels] fall back to the profile of their
+  /// [GeminiModelFamily]: [commonTtsModelInfo] for `-tts` names and
+  /// [commonModelInfo] for everything else.
   ModelInfo modelInfoFor(String modelName) =>
-      knownModels[modelName] ?? commonModelInfo;
+      knownModels[modelName] ??
+      switch (GeminiModelFamily.of(modelName)) {
+        .tts => commonTtsModelInfo,
+        .text || .image => commonModelInfo,
+      };
+
+  /// Returns action metadata for every [knownModels] entry whose bare name is
+  /// not in [discoveredNames], so a curated model stays listed when model
+  /// discovery omits it or fails outright.
+  Iterable<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>
+  curatedModelMetadata({Set<String> discoveredNames = const {}}) {
+    return knownModels.entries
+        .where((entry) => !discoveredNames.contains(entry.key))
+        .map(
+          (entry) => modelMetadata(
+            '$name/${entry.key}',
+            customOptions: GeminiModelFamily.of(entry.key).customOptions,
+            info: entry.value,
+          ),
+        );
+  }
 
   Model createModel(String modelName, SchemanticType customOptions) {
     return Model(
@@ -66,7 +93,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         String? apiKey;
 
         final isJsonMode =
-            req!.output?.format == 'json' ||
+            req.output?.format == 'json' ||
             req.output?.contentType == 'application/json';
 
         if (customOptions == GeminiTtsOptions.$schema) {
@@ -78,6 +105,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             options,
             req.output?.schema,
             isJsonMode,
+            constrained: req.output?.constrained ?? false,
           );
           safetySettings = toGeminiSafetySettings(options.safetySettings);
           tools = toGeminiTools(
@@ -85,7 +113,11 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             codeExecution: options.codeExecution,
             googleSearch: options.googleSearch,
           );
-          toolConfig = toGeminiToolConfig(options.functionCallingConfig);
+          toolConfig = toGeminiToolConfig(
+            options.functionCallingConfig,
+            toolChoice: req.toolChoice,
+            hasFunctionTools: req.tools?.isNotEmpty ?? false,
+          );
         } else {
           final options = req.config == null
               ? GeminiOptions()
@@ -95,6 +127,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             options,
             req.output?.schema,
             isJsonMode,
+            constrained: req.output?.constrained ?? false,
           );
           safetySettings = toGeminiSafetySettings(options.safetySettings);
           tools = toGeminiTools(
@@ -102,12 +135,23 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             codeExecution: options.codeExecution,
             googleSearch: options.googleSearch,
           );
-          toolConfig = toGeminiToolConfig(options.functionCallingConfig);
+          toolConfig = toGeminiToolConfig(
+            options.functionCallingConfig,
+            toolChoice: req.toolChoice,
+            hasFunctionTools: req.tools?.isNotEmpty ?? false,
+          );
         }
 
         final service = await getApiClient(apiKey);
 
+        // Aborts the in-flight request on a plugin-owned client; an injected
+        // client's close() is a no-op, so cancellation there only lands at
+        // the next throwIfCancelled checkpoint.
+        final disposeCancel = ctx.cancel?.onCancel(service.client.close);
+
         try {
+          ctx.cancel?.throwIfCancelled();
+
           final systemMessage = req.messages
               .where((m) => m.role == Role.system)
               .firstOrNull;
@@ -138,6 +182,8 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
             );
             final chunks = <gcl.GenerateContentResponse>[];
             await for (final chunk in stream) {
+              ctx.cancel?.throwIfCancelled();
+
               chunks.add(chunk);
               if (chunk.candidates?.isNotEmpty == true) {
                 final (message, finishReason) = fromGeminiCandidate(
@@ -148,6 +194,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
                 );
               }
             }
+            ctx.cancel?.throwIfCancelled();
             final aggregated = aggregateResponses(chunks);
             if (aggregated.candidates?.isEmpty ?? true) {
               final blockReason = aggregated.promptFeedback?.blockReason;
@@ -155,11 +202,11 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
                 'No candidates returned from generative stream. Block reason: $blockReason',
               );
             }
-            final (message, finishReason) = fromGeminiCandidate(
-              aggregated.candidates!.first,
-            );
+            final candidate = aggregated.candidates!.first;
+            final (message, finishReason) = fromGeminiCandidate(candidate);
             return ModelResponse(
               finishReason: finishReason,
+              finishMessage: candidate.finishMessage,
               message: message,
               raw: aggregated.toJson(),
               usage: extractUsage(aggregated.usageMetadata),
@@ -169,17 +216,18 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
               generateRequest,
               model: 'models/$modelName',
             );
+            ctx.cancel?.throwIfCancelled();
             if (response.candidates?.isEmpty ?? true) {
               final blockReason = response.promptFeedback?.blockReason;
               throw Exception(
                 'No candidates returned from generateContent. Block reason: $blockReason',
               );
             }
-            final (message, finishReason) = fromGeminiCandidate(
-              response.candidates!.first,
-            );
+            final candidate = response.candidates!.first;
+            final (message, finishReason) = fromGeminiCandidate(candidate);
             return ModelResponse(
               finishReason: finishReason,
+              finishMessage: candidate.finishMessage,
               message: message,
               raw: response?.toJson(),
               usage: extractUsage(response.usageMetadata),
@@ -188,6 +236,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
+          disposeCancel?.call();
           service.client.close();
         }
       },
@@ -197,15 +246,12 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   Embedder createEmbedder(String embedderName);
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType == 'embedder') {
+  Action? resolve(ActionType actionType, String name) {
+    if (actionType == .embedder) {
       return createEmbedder(name);
     }
-    if (actionType == 'model') {
-      if (name.contains('-tts')) {
-        return createModel(name, GeminiTtsOptions.$schema);
-      }
-      return createModel(name, GeminiOptions.$schema);
+    if (actionType == .model) {
+      return createModel(name, GeminiModelFamily.of(name).customOptions);
     }
     return null;
   }
@@ -230,38 +276,87 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
     if (httpStatus != null) {
       return GenkitException(
         message ?? 'Google AI API Error: $httpStatus',
-        status: StatusCodes.fromHttpStatus(httpStatus),
-        underlyingException: e,
+        status: StatusCode.fromHttpStatus(httpStatus),
+        cause: e,
         stackTrace: stack,
       );
     }
 
     return GenkitException(
       'Google AI Error: $e',
-      status: StatusCodes.INTERNAL,
-      underlyingException: e,
+      status: StatusCode.internal,
+      cause: e,
       stackTrace: stack,
     );
   }
 }
 
 (Message, FinishReason) fromGeminiCandidate(gcl.Candidate candidate) {
-  final finishReason = FinishReason(
-    candidate.finishReason?.toLowerCase() ?? 'unspecified',
-  );
   final message = Message(
-    role: Role(candidate.content!.role!),
+    role: Role(candidate.content?.role ?? 'model'),
     content: candidate.content?.parts?.map(fromGeminiPart).toList() ?? [],
   );
-  return (message, finishReason);
+  return (message, _toFinishReason(candidate.finishReason));
+}
+
+/// Maps a Gemini finish reason onto Genkit's vocabulary.
+///
+/// No published list is complete: the discovery doc, protos, Gen AI SDKs and
+/// Firebase SDKs each lag the live API differently, so this is the union of
+/// all of them. A missing or `FINISH_REASON_UNSPECIFIED` reason maps to
+/// [FinishReason.unknown], so a turn that names no reason still returns its
+/// text. Any other unrecognized reason maps to [FinishReason.other]: new
+/// values tend to be blocks or failures, and `other` is abnormal, so output
+/// parsing is skipped and `finishMessage` explains why.
+FinishReason _toFinishReason(String? raw) {
+  switch (raw) {
+    case null:
+    case '':
+    case 'FINISH_REASON_UNSPECIFIED':
+      return FinishReason.unknown;
+    case 'STOP':
+      return FinishReason.stop;
+    case 'MAX_TOKENS':
+      return FinishReason.length;
+    case 'SAFETY':
+    case 'RECITATION':
+    case 'LANGUAGE':
+    case 'BLOCKLIST':
+    case 'PROHIBITED_CONTENT':
+    case 'SPII':
+    case 'IMAGE_SAFETY':
+    case 'IMAGE_PROHIBITED_CONTENT':
+    case 'IMAGE_RECITATION':
+    // Vertex only; reaches here via genkit_vertexai.
+    case 'MODEL_ARMOR':
+    // Only listed in the Gemini discovery doc so far.
+    case 'ESCALATION':
+    case 'PUP_LIMITED_DISABLED':
+      return FinishReason.blocked;
+    case 'MALFORMED_FUNCTION_CALL':
+    case 'UNEXPECTED_TOOL_CALL':
+    case 'TOO_MANY_TOOL_CALLS':
+    case 'NO_IMAGE':
+    case 'IMAGE_OTHER':
+    case 'MALFORMED_RESPONSE':
+    // Gemini 3 returns this when thought signatures are missing from the
+    // request; treat it as a non-fatal "other" like the Go plugin.
+    case 'MISSING_THOUGHT_SIGNATURE':
+    case 'OTHER':
+      return FinishReason.other;
+    default:
+      // Deliberately differs from Go/JS, which return `unknown` here.
+      return FinishReason.other;
+  }
 }
 
 @visibleForTesting
 gcl.GenerationConfig toGeminiSettings(
   GeminiOptions options,
   Map<String, dynamic>? outputSchema,
-  bool isJsonMode,
-) {
+  bool isJsonMode, {
+  bool constrained = false,
+}) {
   return gcl.GenerationConfig(
     candidateCount: options.candidateCount,
     stopSequences: options.stopSequences?.isEmpty ?? true
@@ -271,10 +366,13 @@ gcl.GenerationConfig toGeminiSettings(
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
+    seed: options.seed,
     responseMimeType: isJsonMode
         ? 'application/json'
-        : (options.responseMimeType ?? ''),
-    responseJsonSchema: outputSchema,
+        : (options.responseMimeType?.isEmpty ?? true
+              ? null
+              : options.responseMimeType),
+    responseJsonSchema: constrained && isJsonMode ? outputSchema : null,
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseLogprobs: options.responseLogprobs,
@@ -297,8 +395,9 @@ gcl.GenerationConfig toGeminiSettings(
 gcl.GenerationConfig toGeminiTtsSettings(
   GeminiTtsOptions options,
   Map<String, dynamic>? outputSchema,
-  bool isJsonMode,
-) {
+  bool isJsonMode, {
+  bool constrained = false,
+}) {
   return gcl.GenerationConfig(
     candidateCount: options.candidateCount,
     stopSequences: options.stopSequences?.isEmpty ?? true
@@ -308,12 +407,13 @@ gcl.GenerationConfig toGeminiTtsSettings(
     temperature: options.temperature,
     topP: options.topP,
     topK: options.topK,
+    seed: options.seed,
     responseMimeType: isJsonMode
         ? 'application/json'
         : (options.responseMimeType?.isEmpty ?? true
               ? null
               : options.responseMimeType),
-    responseJsonSchema: outputSchema,
+    responseJsonSchema: constrained && isJsonMode ? outputSchema : null,
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseLogprobs: options.responseLogprobs,
@@ -332,7 +432,7 @@ gcl.GenerationConfig toGeminiTtsSettings(
   );
 }
 
-Map<String, dynamic>? _toSpeechConfig(SpeechConfig? config) {
+Map<String, dynamic>? _toSpeechConfig(GeminiSpeechConfig? config) {
   if (config == null) return null;
   return {
     if (config.voiceConfig != null)
@@ -344,7 +444,7 @@ Map<String, dynamic>? _toSpeechConfig(SpeechConfig? config) {
   };
 }
 
-Map<String, dynamic>? _toThinkingConfig(ThinkingConfig? config) {
+Map<String, dynamic>? _toThinkingConfig(GeminiThinkingConfig? config) {
   if (config == null) return null;
   return {
     if (config.includeThoughts != null)
@@ -355,7 +455,7 @@ Map<String, dynamic>? _toThinkingConfig(ThinkingConfig? config) {
 }
 
 Map<String, dynamic>? _toMultiSpeakerVoiceConfig(
-  MultiSpeakerVoiceConfig? config,
+  GeminiMultiSpeakerVoiceConfig? config,
 ) {
   if (config == null) return null;
   return {
@@ -365,44 +465,52 @@ Map<String, dynamic>? _toMultiSpeakerVoiceConfig(
   };
 }
 
-Map<String, Object?> _toSpeakerVoiceConfig(SpeakerVoiceConfig config) {
+Map<String, Object?> _toSpeakerVoiceConfig(GeminiSpeakerVoiceConfig config) {
   return {
     'speaker': config.speaker,
     'voiceConfig': _toVoiceConfig(config.voiceConfig),
   };
 }
 
-Map<String, Object?>? _toVoiceConfig(VoiceConfig? config) {
+Map<String, Object?>? _toVoiceConfig(GeminiVoiceConfig? config) {
   if (config == null) return null;
   return {
     'prebuiltVoiceConfig': _toPrebuiltVoiceConfig(config.prebuiltVoiceConfig),
   };
 }
 
-Map<String, Object?>? _toPrebuiltVoiceConfig(PrebuiltVoiceConfig? config) {
+Map<String, Object?>? _toPrebuiltVoiceConfig(
+  GeminiPrebuiltVoiceConfig? config,
+) {
   if (config == null) return null;
   return {'voiceName': config.voiceName};
 }
 
 @visibleForTesting
 List<gcl.SafetySetting>? toGeminiSafetySettings(
-  List<SafetySettings>? safetySettings,
+  List<GeminiSafetySettings>? safetySettings,
 ) {
-  return safetySettings
-      ?.map(
-        (s) => gcl.SafetySetting(
-          category: s.category ?? 'HARM_CATEGORY_UNSPECIFIED',
-          threshold: s.threshold ?? 'HARM_BLOCK_THRESHOLD_UNSPECIFIED',
-        ),
-      )
-      .toList();
+  if (safetySettings == null) return null;
+  final settings = <gcl.SafetySetting>[];
+  for (final s in safetySettings) {
+    final category = s.category;
+    if (category == null || category == 'HARM_CATEGORY_UNSPECIFIED') {
+      logger.warning(
+        'Dropping safety setting with unset or UNSPECIFIED category: '
+        'the API rejects HARM_CATEGORY_UNSPECIFIED.',
+      );
+      continue;
+    }
+    settings.add(gcl.SafetySetting(category: category, threshold: s.threshold));
+  }
+  return settings;
 }
 
 @visibleForTesting
 List<gcl.Tool> toGeminiTools(
   List<ToolDefinition>? tools, {
   bool? codeExecution,
-  GoogleSearch? googleSearch,
+  GeminiGoogleSearch? googleSearch,
 }) {
   return [
     ...(tools?.map(_toGeminiTool) ?? []),
@@ -411,11 +519,35 @@ List<gcl.Tool> toGeminiTools(
   ];
 }
 
+/// Builds Gemini's `toolConfig` from the plugin-specific
+/// [functionCallingConfig] or, when that is absent, the portable Genkit
+/// [toolChoice] (`auto` / `required` / `none` map to Gemini's `AUTO` / `ANY` /
+/// `NONE`). The plugin config wins because it is strictly more expressive
+/// (allowed function names). Unknown [toolChoice] values are ignored.
+///
+/// [toolChoice] only applies when [hasFunctionTools] is true, i.e. the request
+/// declares Genkit tools. Built-in tools (Google Search, code execution) don't
+/// count: a function-calling mode with no function declarations is
+/// contradictory (`required` would demand a call to nothing).
 @visibleForTesting
 gcl.ToolConfig? toGeminiToolConfig(
-  FunctionCallingConfig? functionCallingConfig,
-) {
-  if (functionCallingConfig == null) return null;
+  GeminiFunctionCallingConfig? functionCallingConfig, {
+  ToolChoice? toolChoice,
+  bool hasFunctionTools = false,
+}) {
+  if (functionCallingConfig == null) {
+    if (!hasFunctionTools) return null;
+    final mode = switch (toolChoice?.value) {
+      'auto' => 'AUTO',
+      'required' => 'ANY',
+      'none' => 'NONE',
+      _ => null,
+    };
+    if (mode == null) return null;
+    return gcl.ToolConfig(
+      functionCallingConfig: gcl.FunctionCallingConfig(mode: mode),
+    );
+  }
   return gcl.ToolConfig(
     functionCallingConfig: gcl.FunctionCallingConfig(
       mode: functionCallingConfig.mode ?? 'MODE_UNSPECIFIED',
@@ -440,6 +572,11 @@ String toGeminiRole(Role role) {
   return 'user';
 }
 
+/// Whether [name] (bare or resource-prefixed) names an embedding model:
+/// any name containing `embedding`, such as `text-embedding-004`,
+/// `gemini-embedding-2`, or `multimodalembedding`.
+bool isEmbedderModelName(String name) => name.contains('embedding');
+
 @visibleForTesting
 List<gcl.Content> toGeminiContent(List<Message> messages) {
   return messages
@@ -452,7 +589,7 @@ List<gcl.Content> toGeminiContent(List<Message> messages) {
       .toList();
 }
 
-@visibleForTesting
+@internal
 gcl.Part toGeminiPart(Part p) {
   final thoughtSignature = p.metadata?['thoughtSignature'] != null
       ? p.metadata!['thoughtSignature'] as String
@@ -482,15 +619,32 @@ gcl.Part toGeminiPart(Part p) {
     );
   }
   if (p.isToolResponse) {
+    final tr = p.toolResponse!;
+    // Multipart tool content (images, media, etc.) becomes function-response
+    // parts. Gemini's FunctionResponse.parts only supports inline/file data
+    // (see js-genai `FunctionResponsePart`), so we map media parts to their
+    // `inlineData`/`fileData` shape and skip parts that cannot be represented
+    // there (e.g. text) which would otherwise be rejected by the API. The
+    // structured result still travels in `response.output`.
+    final contentParts = tr.content
+        ?.map((c) => Part.fromJson(c as Map<String, dynamic>))
+        .where((part) => part.isMedia)
+        .map((part) => toGeminiPart(part).toJson())
+        .toList();
     return gcl.Part(
-      functionResponse: gcl.FunctionResponse(
-        id: p.toolResponse!.ref ?? '',
-        name: _toGeminiToolName(p.toolResponse!.name),
-        response: {'output': p.toolResponse!.output},
-      ),
+      functionResponse: gcl.FunctionResponse.fromJson({
+        'id': tr.ref ?? '',
+        'name': _toGeminiToolName(tr.name),
+        'response': {'output': tr.output},
+        'parts': ?(contentParts == null || contentParts.isEmpty
+            ? null
+            : contentParts),
+      }),
+
       thoughtSignature: thoughtSignature,
     );
   }
+
   if (p.isMedia) {
     final media = p.media;
     if (media!.url.startsWith('data:')) {
@@ -538,7 +692,8 @@ gcl.Part toGeminiPart(Part p) {
       thoughtSignature: thoughtSignature,
     );
   }
-  throw UnimplementedError('Unsupported part type: $p');
+  final kind = p.toJson().keys.where((key) => key != 'metadata').join(', ');
+  throw UnimplementedError('Unsupported part type: $kind');
 }
 
 @visibleForTesting
@@ -558,7 +713,8 @@ Part fromGeminiPart(gcl.Part p) {
       toolRequest: ToolRequest(
         ref: p.functionCall!.id == '' ? null : p.functionCall!.id,
         name: _fromGeminiToolName(p.functionCall!.name ?? ''),
-        input: p.functionCall!.args,
+        // Gemini omits `args` when calling a tool that takes no arguments.
+        input: p.functionCall!.args ?? {},
       ),
       metadata: metadata,
     );
@@ -595,6 +751,13 @@ Part fromGeminiPart(gcl.Part p) {
       );
     }
   }
+  // Thinking models can send a thought signature in a part of its own, with
+  // no content. Keep it, so it goes back to the model on the next turn.
+  if (p.thoughtSignature != null) {
+    return p.thought == true
+        ? ReasoningPart(reasoning: '', metadata: metadata)
+        : TextPart(text: '', metadata: metadata);
+  }
   throw UnimplementedError('Unsupported part type: ${p.toJson()}');
 }
 
@@ -608,21 +771,31 @@ gcl.Tool _toGeminiTool(ToolDefinition tool) {
       gcl.FunctionDeclaration(
         name: _toGeminiToolName(tool.name),
         description: tool.description,
-        parametersJsonSchema: tool.inputSchema,
+        parametersJsonSchema: _constrainsInput(tool.inputSchema)
+            ? tool.inputSchema
+            : null,
       ),
     ],
   );
 }
 
+/// Whether [schema] says anything about the input. A schema with only
+/// `$schema` or `description`, such as the one `dynamicSchema()` produces,
+/// accepts any value, and Gemini expects `parametersJsonSchema` to describe
+/// an object, so it is left out, as the JS and Go plugins do.
+bool _constrainsInput(Map<String, dynamic>? schema) =>
+    schema != null &&
+    schema.keys.any((k) => k != r'$schema' && k != 'description');
+
 @visibleForTesting
 GenerationUsage? extractUsage(gcl.UsageMetadata? metadata) {
   if (metadata == null) return null;
   return GenerationUsage(
-    inputTokens: metadata.promptTokenCount?.toDouble(),
-    outputTokens: metadata.candidatesTokenCount?.toDouble(),
-    totalTokens: metadata.totalTokenCount?.toDouble(),
-    thoughtsTokens: metadata.thoughtsTokenCount?.toDouble(),
-    cachedContentTokens: metadata.cachedContentTokenCount?.toDouble(),
+    inputTokens: metadata.promptTokenCount,
+    outputTokens: metadata.candidatesTokenCount,
+    totalTokens: metadata.totalTokenCount,
+    thoughtsTokens: metadata.thoughtsTokenCount,
+    cachedContentTokens: metadata.cachedContentTokenCount,
     custom: {
       if (metadata.toolUsePromptTokenCount != null)
         'toolUsePromptTokenCount': metadata.toolUsePromptTokenCount,
@@ -642,11 +815,27 @@ http.Client httpClientFromApiKey(String? apiKey) {
   if (apiKey == null) {
     throw GenkitException(
       'apiKey must be set to an API key',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   final baseClient = CustomClient(defaultHeaders: headers);
   return baseClient;
+}
+
+/// Delegates to a caller-owned client but ignores `close()`, so a plugin's
+/// per-call cleanup never tears down an injected transport.
+class NonClosingClient extends http.BaseClient {
+  /// Wraps [_inner], which stays owned by whoever supplied it.
+  NonClosingClient(this._inner);
+
+  final http.Client _inner;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) =>
+      _inner.send(request);
+
+  @override
+  void close() {}
 }
 
 class CustomClient extends http.BaseClient {

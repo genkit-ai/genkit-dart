@@ -12,8 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
+import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
+import 'package:genkit_google_genai/src/api_client.dart';
 import 'package:genkit_google_genai/src/common_plugin.dart';
+import 'package:genkit_google_genai/src/google_api_client.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -42,7 +50,7 @@ void main() {
 
     test('maps thinking config', () {
       final options = GeminiOptions(
-        thinkingConfig: ThinkingConfig(
+        thinkingConfig: GeminiThinkingConfig(
           includeThoughts: true,
           thinkingBudget: 2048,
           thinkingLevel: 'HIGH',
@@ -72,7 +80,7 @@ void main() {
     test('maps safety settings correctly', () {
       final options = GeminiOptions(
         safetySettings: [
-          SafetySettings(
+          GeminiSafetySettings(
             category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
             threshold: 'BLOCK_ONLY_HIGH',
           ),
@@ -84,6 +92,131 @@ void main() {
       expect(settings, hasLength(1));
       expect(settings!.first.category, 'HARM_CATEGORY_DANGEROUS_CONTENT');
       expect(settings.first.threshold, 'BLOCK_ONLY_HIGH');
+    });
+
+    test('returns null for null input', () {
+      expect(toGeminiSafetySettings(null), isNull);
+    });
+
+    test('returns empty list for empty input', () {
+      expect(toGeminiSafetySettings([]), isEmpty);
+    });
+
+    test('drops an entry with unset category', () {
+      final settings = toGeminiSafetySettings([
+        GeminiSafetySettings(threshold: 'BLOCK_ONLY_HIGH'),
+        GeminiSafetySettings(
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'BLOCK_LOW_AND_ABOVE',
+        ),
+      ]);
+
+      expect(settings, hasLength(1));
+      expect(settings!.first.category, 'HARM_CATEGORY_HARASSMENT');
+    });
+
+    test('drops an entry with explicit HARM_CATEGORY_UNSPECIFIED', () {
+      final settings = toGeminiSafetySettings([
+        GeminiSafetySettings(
+          category: 'HARM_CATEGORY_UNSPECIFIED',
+          threshold: 'BLOCK_ONLY_HIGH',
+        ),
+      ]);
+
+      expect(settings, isEmpty);
+    });
+
+    test('drops an entry with neither category nor threshold', () {
+      expect(toGeminiSafetySettings([GeminiSafetySettings()]), isEmpty);
+    });
+
+    test('omits threshold from the wire body when unset', () {
+      final settings = toGeminiSafetySettings([
+        GeminiSafetySettings(category: 'HARM_CATEGORY_HATE_SPEECH'),
+      ]);
+
+      expect(settings, hasLength(1));
+      expect(settings!.first.toJson(), {
+        'category': 'HARM_CATEGORY_HATE_SPEECH',
+      });
+    });
+
+    test('warns once per dropped entry, kept entries stay silent', () {
+      final records = <LogRecord>[];
+      final subscription = Logger.root.onRecord.listen(records.add);
+      addTearDown(subscription.cancel);
+
+      toGeminiSafetySettings([
+        GeminiSafetySettings(threshold: 'BLOCK_ONLY_HIGH'),
+        GeminiSafetySettings(
+          category: 'HARM_CATEGORY_UNSPECIFIED',
+          threshold: 'BLOCK_ONLY_HIGH',
+        ),
+        GeminiSafetySettings(
+          category: 'HARM_CATEGORY_HARASSMENT',
+          threshold: 'BLOCK_LOW_AND_ABOVE',
+        ),
+      ]);
+
+      expect(records, hasLength(2));
+      for (final record in records) {
+        expect(record.level, Level.WARNING);
+        expect(record.loggerName, 'genkit_google_genai');
+        expect(record.message, contains('category'));
+      }
+    });
+  });
+
+  group('safety settings request body', () {
+    test('omits safetySettings key when every entry is dropped', () async {
+      Map<String, dynamic>? capturedBody;
+      final plugin = StubClientPlugin((request) async {
+        capturedBody = jsonDecode(request.body) as Map<String, dynamic>;
+        return http.Response(
+          jsonEncode({
+            'candidates': [
+              {
+                'content': {
+                  'role': 'model',
+                  'parts': [
+                    {'text': 'ok'},
+                  ],
+                },
+                'finishReason': 'STOP',
+              },
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      });
+
+      final model = plugin.createModel(
+        'gemini-2.5-flash',
+        GeminiOptions.$schema,
+      );
+      await model.call(
+        ModelRequest(
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'hi')],
+            ),
+          ],
+          config: {
+            'safetySettings': [
+              {
+                'category': 'HARM_CATEGORY_UNSPECIFIED',
+                'threshold': 'BLOCK_ONLY_HIGH',
+              },
+              {'threshold': 'BLOCK_ONLY_HIGH'},
+            ],
+          },
+        ),
+      );
+
+      expect(capturedBody, isNotNull);
+      expect(capturedBody, isNot(contains('safetySettings')));
     });
   });
 
@@ -97,7 +230,7 @@ void main() {
     });
 
     test('maps google search retrieval', () {
-      final options = GeminiOptions(googleSearch: GoogleSearch());
+      final options = GeminiOptions(googleSearch: GeminiGoogleSearch());
       final tools = toGeminiTools(null, googleSearch: options.googleSearch);
 
       expect(tools, hasLength(1));
@@ -108,7 +241,7 @@ void main() {
   group('toGeminiToolConfig', () {
     test('maps function calling config', () {
       final options = GeminiOptions(
-        functionCallingConfig: FunctionCallingConfig(
+        functionCallingConfig: GeminiFunctionCallingConfig(
           mode: 'ANY',
           allowedFunctionNames: ['foo'],
         ),
@@ -118,14 +251,51 @@ void main() {
       expect(config?.functionCallingConfig?.mode, 'ANY');
       expect(config?.functionCallingConfig?.allowedFunctionNames, ['foo']);
     });
+
+    test('maps the portable toolChoice when no config is given', () {
+      String? modeFor(ToolChoice choice) => toGeminiToolConfig(
+        null,
+        toolChoice: choice,
+        hasFunctionTools: true,
+      )?.functionCallingConfig?.mode;
+
+      expect(modeFor(.auto), 'AUTO');
+      expect(modeFor(.required), 'ANY');
+      expect(modeFor(.none), 'NONE');
+      expect(modeFor(ToolChoice('unknown')), isNull);
+      expect(toGeminiToolConfig(null, hasFunctionTools: true), isNull);
+    });
+
+    test('ignores toolChoice when there are no function tools', () {
+      expect(toGeminiToolConfig(null, toolChoice: .required), isNull);
+    });
+
+    test('functionCallingConfig takes precedence over toolChoice', () {
+      final config = toGeminiToolConfig(
+        GeminiFunctionCallingConfig(mode: 'ANY', allowedFunctionNames: ['foo']),
+        toolChoice: .none,
+        hasFunctionTools: true,
+      );
+
+      expect(config?.functionCallingConfig?.mode, 'ANY');
+      expect(config?.functionCallingConfig?.allowedFunctionNames, ['foo']);
+    });
+
+    test('an explicit functionCallingConfig applies without tools', () {
+      final config = toGeminiToolConfig(
+        GeminiFunctionCallingConfig(mode: 'NONE'),
+      );
+
+      expect(config?.functionCallingConfig?.mode, 'NONE');
+    });
   });
 
   group('toGeminiTtsSettings', () {
     test('maps speech config correctly', () {
       final options = GeminiTtsOptions(
-        speechConfig: SpeechConfig(
-          voiceConfig: VoiceConfig(
-            prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
+        speechConfig: GeminiSpeechConfig(
+          voiceConfig: GeminiVoiceConfig(
+            prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(voiceName: 'Puck'),
           ),
         ),
       );
@@ -150,5 +320,49 @@ void main() {
       expect(settings.temperature, 0.5);
       expect(settings.responseMimeType, 'audio/mp3');
     });
+
+    test('sends the schema only for a constrained JSON-mode request', () {
+      final schema = {'type': 'object'};
+      final options = GeminiTtsOptions();
+
+      expect(
+        toGeminiTtsSettings(
+          options,
+          schema,
+          true,
+          constrained: true,
+        ).responseJsonSchema,
+        schema,
+      );
+      expect(
+        toGeminiTtsSettings(options, schema, true).responseJsonSchema,
+        isNull,
+      );
+      expect(
+        toGeminiTtsSettings(
+          options,
+          schema,
+          false,
+          constrained: true,
+        ).responseJsonSchema,
+        isNull,
+      );
+    });
   });
+}
+
+class StubClientPlugin extends GoogleGenAiPluginImpl {
+  StubClientPlugin(this.handler);
+
+  final Future<http.Response> Function(http.Request) handler;
+
+  @override
+  Future<GenerativeLanguageBaseClient> getApiClient([
+    String? requestApiKey,
+  ]) async {
+    return GenerativeLanguageBaseClient(
+      baseUrl: 'https://test.invalid/',
+      client: MockClient(handler),
+    );
+  }
 }

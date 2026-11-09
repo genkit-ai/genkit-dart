@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:genkit/src/core/action.dart';
+import 'package:genkit/src/core/dynamic_action_provider.dart';
 import 'package:genkit/src/core/plugin.dart';
 import 'package:genkit/src/core/registry.dart';
 import 'package:test/test.dart';
@@ -42,7 +43,7 @@ class TestPlugin extends GenkitPlugin {
   }
 
   @override
-  Action? resolve(String actionType, String name) {
+  Action? resolve(ActionType actionType, String name) {
     if (resolvedAction != null && resolvedAction!.name == name) {
       return resolvedAction;
     }
@@ -64,19 +65,22 @@ void main() {
     test('register and get action', () async {
       final registry = Registry();
       final action = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         name: 'testAction',
         fn: (input, context) async => 'output',
       );
       registry.register(action);
-      final retrievedAction = await registry.lookupAction('test', 'testAction');
+      final retrievedAction = await registry.lookupAction(
+        ActionType('test'),
+        'testAction',
+      );
       expect(retrievedAction, same(action));
     });
 
     test('get returns null when action not found', () async {
       final registry = Registry();
       final retrievedAction = await registry.lookupAction(
-        'test',
+        ActionType('test'),
         'nonExistent',
       );
       expect(retrievedAction, isNull);
@@ -87,7 +91,7 @@ void main() {
       final plugin = TestPlugin('myPlugin');
       registry.registerPlugin(plugin);
       final retrievedAction = await registry.lookupAction(
-        'model',
+        .model,
         'myPlugin/nonExistent',
       );
       expect(retrievedAction, isNull);
@@ -96,7 +100,7 @@ void main() {
     test('get action from plugin', () async {
       final registry = Registry();
       final action = Action(
-        actionType: 'model',
+        actionType: .model,
         name: 'myModel',
         fn: (input, context) async => 'output',
       );
@@ -105,7 +109,7 @@ void main() {
 
       expect(plugin.initCount, 0);
       final retrievedAction = await registry.lookupAction(
-        'model',
+        .model,
         'myPlugin/myModel',
       );
       expect(plugin.initCount, 1);
@@ -114,7 +118,7 @@ void main() {
 
       // Verify that the action is now cached
       final cachedAction = await registry.lookupAction(
-        'model',
+        .model,
         'myPlugin/myModel',
       );
       expect(cachedAction, same(retrievedAction));
@@ -123,7 +127,7 @@ void main() {
     test('get action from plugin with slash in action name', () async {
       final registry = Registry();
       final action = Action(
-        actionType: 'model',
+        actionType: .model,
         name: 'zai-org/glm-5-maas',
         fn: (input, context) async => 'output',
       );
@@ -132,7 +136,7 @@ void main() {
 
       expect(plugin.initCount, 0);
       final retrievedAction = await registry.lookupAction(
-        'model',
+        .model,
         'openai/zai-org/glm-5-maas',
       );
       expect(plugin.initCount, 1);
@@ -143,14 +147,14 @@ void main() {
     test('list actions with plugins', () async {
       final registry = Registry();
       final directAction = Action(
-        actionType: 'flow',
+        actionType: .flow,
         name: 'directFlow',
         fn: (input, context) async => 'output',
       );
       registry.register(directAction);
 
       final pluginAction = Action(
-        actionType: 'flow',
+        actionType: .flow,
         name: 'pluginFlow',
         fn: (input, context) async => 'output',
       );
@@ -171,12 +175,12 @@ void main() {
       expect(plugin.initCount, 1);
       expect(actions.length, 2);
       expect(
-        actions.any((a) => a.actionType == 'flow' && a.name == 'directFlow'),
+        actions.any((a) => a.actionType == .flow && a.name == 'directFlow'),
         isTrue,
       );
       expect(
         actions.any(
-          (a) => a.actionType == 'flow' && a.name == 'myPlugin/pluginFlow',
+          (a) => a.actionType == .flow && a.name == 'myPlugin/pluginFlow',
         ),
         isTrue,
       );
@@ -185,7 +189,7 @@ void main() {
     test('list actions without plugins', () async {
       final registry = Registry();
       final action = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         name: 'testAction',
         fn: (input, context) async => 'output',
       );
@@ -198,7 +202,7 @@ void main() {
     test('list actions does not add duplicates', () async {
       final registry = Registry();
       final action = Action(
-        actionType: 'model',
+        actionType: .model,
         name: 'myModel',
         fn: (input, context) async => 'output',
       );
@@ -221,7 +225,7 @@ void main() {
       final plugin = TestPlugin(
         'myPlugin',
         listedActions: [
-          ActionMetadata(actionType: 'model', name: 'myPlugin/myModel'),
+          ActionMetadata(actionType: .model, name: 'myPlugin/myModel'),
         ],
       );
       registry.registerPlugin(plugin);
@@ -246,7 +250,7 @@ void main() {
       final plugin = TestPlugin(
         'myPlugin',
         listedActions: [
-          ActionMetadata(actionType: 'model', name: 'myPlugin/myModel'),
+          ActionMetadata(actionType: .model, name: 'myPlugin/myModel'),
         ],
         listDelay: Duration(milliseconds: 100),
       );
@@ -271,7 +275,7 @@ void main() {
       final plugin = TestPlugin(
         'myPlugin',
         listedActions: [
-          ActionMetadata(actionType: 'model', name: 'myPlugin/myModel'),
+          ActionMetadata(actionType: .model, name: 'myPlugin/myModel'),
         ],
       );
 
@@ -328,25 +332,25 @@ void main() {
       final child = Registry.childOf(parent);
 
       final parentAction = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         name: 'parentAction',
         fn: (input, context) async => 'parent',
       );
       parent.register(parentAction);
 
       final childAction = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         name: 'childAction',
         fn: (input, context) async => 'child',
       );
       child.register(childAction);
 
       expect(
-        await child.lookupAction('test', 'childAction'),
+        await child.lookupAction(ActionType('test'), 'childAction'),
         same(childAction),
       );
       expect(
-        await child.lookupAction('test', 'parentAction'),
+        await child.lookupAction(ActionType('test'), 'parentAction'),
         same(parentAction),
       );
     });
@@ -356,20 +360,23 @@ void main() {
       final child = Registry.childOf(parent);
 
       final parentAction = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         name: 'shared',
         fn: (input, context) async => 'parent',
       );
       parent.register(parentAction);
 
       final childAction = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         name: 'shared',
         fn: (input, context) async => 'child',
       );
       child.register(childAction);
 
-      expect(await child.lookupAction('test', 'shared'), same(childAction));
+      expect(
+        await child.lookupAction(ActionType('test'), 'shared'),
+        same(childAction),
+      );
     });
 
     test('listValues merges parent and local values', () {
@@ -385,6 +392,182 @@ void main() {
       expect(values, containsPair('/test/parentValue', 'parent'));
       expect(values, containsPair('/test/childValue', 'child'));
       expect(values, containsPair('/test/shared', 'child'));
+    });
+  });
+
+  group('parseRegistryKey', () {
+    test('parses a plugin-scoped key', () {
+      final parsed = parseRegistryKey('/model/googleai/gemini-flash-latest');
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, isNull);
+      expect(parsed.actionType, ActionType.model);
+      expect(parsed.actionName, 'gemini-flash-latest');
+    });
+
+    test('parses a nested action name', () {
+      final parsed = parseRegistryKey('/prompt/my-plugin/folder/my-prompt');
+      expect(parsed, isNotNull);
+      expect(parsed!.actionType, ActionType('prompt'));
+      expect(parsed.actionName, 'folder/my-prompt');
+    });
+
+    test('parses a util key', () {
+      final parsed = parseRegistryKey('/util/generate');
+      expect(parsed, isNotNull);
+      expect(parsed!.actionType, ActionType.util);
+      expect(parsed.actionName, 'generate');
+    });
+
+    test('parses a DAP key', () {
+      final parsed = parseRegistryKey(
+        '/dynamic-action-provider/my-host:tool.v2/weatherTool',
+      );
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, 'my-host');
+      expect(parsed.actionType, ActionType.tool);
+      expect(parsed.actionName, 'weatherTool');
+    });
+
+    test('preserves colons inside a DAP action name', () {
+      final parsed = parseRegistryKey(
+        '/dynamic-action-provider/my-host:resource/scheme://a:b/c',
+      );
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, 'my-host');
+      expect(parsed.actionType, ActionType('resource'));
+      // Everything after the first colon and the action type segment is the
+      // name, colons included.
+      expect(parsed.actionName, 'scheme://a:b/c');
+    });
+
+    test('parses a host-only DAP key', () {
+      final parsed = parseRegistryKey('/dynamic-action-provider/my-host');
+      expect(parsed, isNotNull);
+      expect(parsed!.dynamicActionHost, isNull);
+      expect(parsed.actionType, ActionType.dynamicActionProvider);
+      expect(parsed.actionName, 'my-host');
+    });
+
+    test('returns null for a malformed key', () {
+      expect(parseRegistryKey('/model'), isNull);
+      expect(parseRegistryKey('nope'), isNull);
+    });
+  });
+
+  group('lookupActionByKey', () {
+    test('resolves a plain registered action key', () async {
+      final registry = Registry();
+      final action = Action(
+        actionType: ActionType('test'),
+        name: 'testAction',
+        fn: (input, context) async => 'output',
+      );
+      registry.register(action);
+
+      final resolved = await registry.lookupActionByKey('/test/testAction');
+      expect(resolved, same(action));
+    });
+
+    test('resolves a plugin-namespaced key by its full name', () async {
+      final registry = Registry();
+      final action = Action(
+        actionType: .model,
+        name: 'myModel',
+        fn: (input, context) async => 'output',
+      );
+      registry.registerPlugin(TestPlugin('myPlugin', resolvedAction: action));
+
+      final resolved = await registry.lookupActionByKey(
+        '/model/myPlugin/myModel',
+      );
+      expect(resolved, isNotNull);
+      expect(resolved!.name, 'myModel');
+    });
+
+    test(
+      'resolves a dynamic-action-provider key through its provider',
+      () async {
+        final registry = Registry();
+        final tool = Action(
+          actionType: .tool,
+          name: 'weatherTool',
+          fn: (input, context) async => 'sunny',
+        );
+        final dap = DynamicActionProvider(
+          name: 'my-host',
+          listActionsFn: () => [
+            ActionMetadata(actionType: .tool, name: 'weatherTool'),
+          ],
+          getActionFn: (actionType, name) async =>
+              actionType == ActionType.tool && name == 'weatherTool'
+              ? tool
+              : null,
+        );
+        registry.register(dap);
+
+        final resolved = await registry.lookupActionByKey(
+          dapActionKey('my-host', ActionType.tool, 'weatherTool'),
+        );
+        expect(resolved, same(tool));
+      },
+    );
+
+    test('returns null for a wildcard dynamic-action-provider key', () async {
+      final registry = Registry();
+      final dap = DynamicActionProvider(
+        name: 'my-host',
+        listActionsFn: () => [
+          ActionMetadata(actionType: .tool, name: 'weatherTool'),
+        ],
+        getActionFn: (actionType, name) async => null,
+      );
+      registry.register(dap);
+
+      final resolved = await registry.lookupActionByKey(
+        dapActionKey('my-host', ActionType.tool, '*'),
+      );
+      expect(resolved, isNull);
+    });
+
+    test('returns null for a malformed key', () async {
+      final registry = Registry();
+      expect(await registry.lookupActionByKey('/model'), isNull);
+      expect(await registry.lookupActionByKey('nope'), isNull);
+    });
+  });
+
+  group('DynamicActionProvider cacheTtl', () {
+    DynamicActionProvider counting(List<int> calls, {Duration? cacheTtl}) =>
+        DynamicActionProvider(
+          name: 'host',
+          cacheTtl: cacheTtl,
+          listActionsFn: () {
+            calls.add(1);
+            return [ActionMetadata(actionType: .tool, name: 't')];
+          },
+        );
+
+    test('caches the listing by default', () async {
+      final calls = <int>[];
+      final dap = counting(calls);
+      await dap.listActions(skipTrace: true);
+      await dap.listActions(skipTrace: true);
+      expect(calls, hasLength(1));
+    });
+
+    test('Duration.zero disables caching', () async {
+      final calls = <int>[];
+      final dap = counting(calls, cacheTtl: Duration.zero);
+      await dap.listActions(skipTrace: true);
+      await dap.listActions(skipTrace: true);
+      expect(calls, hasLength(2));
+    });
+
+    test('a negative TTL is rejected', () {
+      expect(
+        () => counting([], cacheTtl: const Duration(seconds: -1)),
+        throwsArgumentError,
+      );
     });
   });
 }
@@ -403,7 +586,7 @@ class _FailingPlugin extends GenkitPlugin {
   Future<List<Action>> init() => _plugin.init();
 
   @override
-  Action? resolve(String actionType, String name) =>
+  Action? resolve(ActionType actionType, String name) =>
       _plugin.resolve(actionType, name);
 
   @override

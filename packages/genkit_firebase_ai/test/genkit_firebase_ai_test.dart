@@ -16,6 +16,7 @@ import 'package:firebase_ai/firebase_ai.dart' as m;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
+import 'package:genkit_firebase_ai/src/converters.dart';
 
 void main() {
   group('Schema Conversion', () {
@@ -96,84 +97,60 @@ void main() {
   });
 
   group('Tool Conversion', () {
-    test('converts tool definition', () {
-      final toolDef = ToolDefinition(
-        name: 'myTool',
-        description: 'desc',
-        inputSchema: {
-          'type': 'object',
-          'properties': {
-            'a': {'type': 'string'},
-          },
+    test('sends the tool input schema as parametersJsonSchema', () {
+      final inputSchema = {
+        'type': 'object',
+        'properties': {
+          'a': {'type': 'string'},
         },
-        outputSchema: {'type': 'string'},
-      );
-      final mTools = toGeminiTools([toolDef]);
-      expect(mTools, isNotNull);
-      expect(mTools!.length, 1);
-      final mTool = mTools.first;
-      expect(mTool, isA<m.Tool>());
-      expect(mTool.toJson(), {
+      };
+      final mTools = toGeminiTools([
+        ToolDefinition(
+          name: 'myTool',
+          description: 'desc',
+          inputSchema: inputSchema,
+          outputSchema: {'type': 'string'},
+        ),
+      ]);
+
+      expect(mTools!.single.toJson(), {
         'functionDeclarations': [
           {
             'name': 'myTool',
             'description': 'desc',
-            'parameters': {
-              'type': 'OBJECT',
-              'properties': {
-                'a': {'type': 'STRING', 'nullable': false},
-              },
-              'required': [],
-            },
+            'parametersJsonSchema': inputSchema,
           },
         ],
       });
     });
 
-    test('flattens schema', () {
-      final toolDef = ToolDefinition(
-        name: 'myTool',
-        description: 'desc',
-        inputSchema: {
-          '\$ref': '#/\$defs/WeatherToolInput',
-          '\$defs': {
-            'WeatherToolInput': {
-              'type': 'object',
-              'properties': {
-                'city': {
-                  'type': 'string',
-                  'description': 'The city to get the weather for',
-                },
-              },
-              'required': ['city'],
-            },
-          },
-          '\$schema': 'http://json-schema.org/draft-07/schema#',
-        },
-        outputSchema: {'type': 'string'},
-      );
-      final mTools = toGeminiTools([toolDef]);
-      expect(mTools, isNotNull);
-      expect(mTools!.length, 1);
-      final mTool = mTools.first;
-      expect(mTool, isA<m.Tool>());
-      expect(mTool.toJson(), {
+    test('a tool without an input schema sends no parameters', () {
+      final mTools = toGeminiTools([
+        ToolDefinition(name: 'myTool', description: 'desc'),
+      ]);
+
+      expect(mTools!.single.toJson(), {
         'functionDeclarations': [
-          {
-            'name': 'myTool',
-            'description': 'desc',
-            'parameters': {
-              'type': 'OBJECT',
-              'properties': {
-                'city': {
-                  'type': 'STRING',
-                  'description': 'The city to get the weather for',
-                  'nullable': false,
-                },
-              },
-              'required': ['city'],
-            },
+          {'name': 'myTool', 'description': 'desc'},
+        ],
+      });
+    });
+
+    test('a tool whose schema accepts any input sends no parameters', () {
+      final mTools = toGeminiTools([
+        ToolDefinition(
+          name: 'myTool',
+          description: 'desc',
+          inputSchema: {
+            r'$schema': 'http://json-schema.org/draft-07/schema#',
+            'description': 'anything',
           },
+        ),
+      ]);
+
+      expect(mTools!.single.toJson(), {
+        'functionDeclarations': [
+          {'name': 'myTool', 'description': 'desc'},
         ],
       });
     });
@@ -204,6 +181,18 @@ void main() {
     });
   });
 
+  group('Model Info', () {
+    test('generate models expose GeminiOptions as their options', () {
+      final model = firebaseAI().resolve(.model, 'gemini-3.8-flash') as Model;
+
+      expect(model.customOptions, same(GeminiOptions.$schema));
+      expect(
+        (model.metadata['model'] as Map<String, dynamic>)['customOptions'],
+        isA<Map<String, dynamic>>(),
+      );
+    });
+  });
+
   group('Configuration Mapping', () {
     test('toGeminiSettings maps options', () {
       final options = GeminiOptions(
@@ -214,22 +203,58 @@ void main() {
         topP: 0.9,
         responseMimeType: 'text/plain',
       );
-      final jsonSchema = {'type': 'string'};
-      final settings = toGeminiSettings(options, jsonSchema, false);
+      final settings = toGeminiSettings(options, null, false);
 
-      expect(settings.temperature, 0.7);
-      expect(settings.candidateCount, 2);
-      expect(settings.maxOutputTokens, 100);
-      expect(settings.topK, 10);
-      expect(settings.topP, 0.9);
-      expect(settings.responseMimeType, 'text/plain');
-      expect(settings.responseSchema, isNotNull);
+      // The sampling getters are deprecated from firebase_ai 5 (#596), so
+      // check the wire form instead.
+      expect(
+        settings.toJson(),
+        allOf(
+          containsPair('temperature', 0.7),
+          containsPair('candidateCount', 2),
+          containsPair('maxOutputTokens', 100),
+          containsPair('topK', 10),
+          containsPair('topP', 0.9),
+          containsPair('responseMimeType', 'text/plain'),
+        ),
+      );
     });
 
     test('toGeminiSettings overrides mimeType for JSON mode', () {
       final options = GeminiOptions(temperature: 0.5);
       final settings = toGeminiSettings(options, null, true);
       expect(settings.responseMimeType, 'application/json');
+    });
+
+    test('toGeminiSettings sends the output schema on a constrained JSON '
+        'request', () {
+      final settings = toGeminiSettings(
+        GeminiOptions(),
+        {'type': 'string'},
+        true,
+        constrained: true,
+      );
+      expect(settings.responseMimeType, 'application/json');
+      expect(settings.responseJsonSchema, {'type': 'string'});
+      expect(settings.responseSchema, isNull);
+    });
+
+    test('toGeminiSettings withholds the output schema when unconstrained', () {
+      final settings = toGeminiSettings(GeminiOptions(), {
+        'type': 'string',
+      }, true);
+      expect(settings.responseMimeType, 'application/json');
+      expect(settings.responseJsonSchema, isNull);
+      expect(settings.responseSchema, isNull);
+    });
+
+    test('toGeminiSettings keeps an explicitly configured responseSchema', () {
+      final settings = toGeminiSettings(
+        GeminiOptions(responseSchema: {'type': 'string'}),
+        null,
+        false,
+      );
+      expect(settings.responseSchema, isNotNull);
     });
 
     test('toGeminiToolConfig maps to AUTO by default', () {
@@ -259,6 +284,37 @@ void main() {
         ),
         isTrue,
       );
+    });
+
+    test('toGeminiToolConfig maps the portable toolChoice', () {
+      m.FunctionCallingMode? modeFor(ToolChoice choice) => toGeminiToolConfig(
+        null,
+        toolChoice: choice,
+        hasFunctionTools: true,
+      )?.functionCallingConfig?.mode;
+
+      expect(modeFor(.auto), m.FunctionCallingMode.auto);
+      expect(modeFor(.required), m.FunctionCallingMode.any);
+      expect(modeFor(.none), m.FunctionCallingMode.none);
+      expect(modeFor(ToolChoice('unknown')), isNull);
+    });
+
+    test('toGeminiToolConfig ignores toolChoice without function tools', () {
+      expect(toGeminiToolConfig(null, toolChoice: .required), isNull);
+    });
+
+    test('functionCallingConfig takes precedence over toolChoice', () {
+      final config = toGeminiToolConfig(
+        FunctionCallingConfig(mode: 'ANY', allowedFunctionNames: ['foo']),
+        toolChoice: .none,
+        hasFunctionTools: true,
+      );
+      expect(config?.functionCallingConfig?.mode, m.FunctionCallingMode.any);
+    });
+
+    test('an explicit functionCallingConfig applies without tools', () {
+      final config = toGeminiToolConfig(FunctionCallingConfig(mode: 'NONE'));
+      expect(config?.functionCallingConfig?.mode, m.FunctionCallingMode.none);
     });
   });
 }

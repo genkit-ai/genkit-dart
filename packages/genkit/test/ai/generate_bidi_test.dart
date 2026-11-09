@@ -14,6 +14,7 @@
 
 import 'dart:async';
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -46,7 +47,7 @@ void main() {
         description: 'Get weather',
         inputSchema: MyToolInput.$schema,
         fn: (input, context) async {
-          return 'Sunny in ${input.location}';
+          return .response('Sunny in ${input.location}');
         },
       );
 
@@ -154,5 +155,177 @@ void main() {
 
       expect(chunks.first.text, 'SYS V');
     });
+
+    // A cooperative cancel during a pending bidi tool call must propagate as a
+    // clean cancellation: it must NOT be turned into a fabricated
+    // `Error: ...cancelled` tool answer, and the follow-up `session.send(...)`
+    // must not crash on the already-closed input sink (a `StateError`).
+    test('cancel during a pending tool call does not fabricate a tool '
+        'answer or crash the session', () async {
+      final toolName = 'slowTool';
+      final modelName = 'cancelBidiModel';
+      final controller = CancellationController();
+      var modelSawToolMessage = false;
+
+      genkit.defineTool<MyToolInput, String>(
+        name: toolName,
+        description: 'A tool that observes cancellation',
+        inputSchema: MyToolInput.$schema,
+        fn: (input, context) async {
+          // Simulate the caller cancelling while this tool is in flight, then
+          // bail cooperatively like a well-behaved tool.
+          controller.cancel('stop it');
+          context.cancel?.throwIfCancelled();
+          return .response('unreachable');
+        },
+      );
+
+      genkit.defineBidiModel(
+        name: modelName,
+        fn: (input, context) async {
+          await for (final request in input) {
+            final msg = request.messages.first;
+            if (msg.role == Role.tool) {
+              modelSawToolMessage = true;
+            } else {
+              context.sendChunk(
+                ModelResponseChunk(
+                  content: [
+                    ToolRequestPart(
+                      toolRequest: ToolRequest(
+                        name: toolName,
+                        input: {'location': 'London'},
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }
+          }
+          return ModelResponse(finishReason: FinishReason.stop);
+        },
+      );
+
+      final session = await genkit.generateBidi(
+        model: modelName,
+        toolNames: [toolName],
+        cancel: controller.token,
+      );
+
+      Object? streamError;
+      final done = Completer<void>();
+      session.stream.listen(
+        (_) {},
+        onError: (Object e) {
+          streamError = e;
+          if (!done.isCompleted) done.complete();
+        },
+        onDone: () {
+          if (!done.isCompleted) done.complete();
+        },
+      );
+
+      session.send('check weather');
+      await done.future.timeout(Duration(seconds: 2));
+      await session.close();
+
+      // The cancellation surfaced as a CancelledException, not a StateError from
+      // a closed sink, and the model was never fed a fabricated tool answer.
+      expect(streamError, anyOf(isNull, isA<CancelledException>()));
+      expect(streamError, isNot(isA<StateError>()));
+      expect(
+        modelSawToolMessage,
+        isFalse,
+        reason: 'a cancelled tool must not answer the model',
+      );
+    });
+
+    // Interrupts are unary-only: a live bidi session has no resume path, so an
+    // interrupt must fail the session (surface an error on the stream) and must
+    // NOT answer the model with a tool message.
+    test(
+      'an interrupt fails the session and does not answer the model',
+      () async {
+        const toolName = 'confirm';
+        const modelName = 'interruptBidiModel';
+        var modelSawToolMessage = false;
+
+        genkit.defineTool<MyToolInput, String>(
+          name: toolName,
+          description: 'Requires confirmation',
+          inputSchema: MyToolInput.$schema,
+          fn: (input, context) async =>
+              .interrupt({'requiresConfirmation': true}),
+        );
+
+        genkit.defineBidiModel(
+          name: modelName,
+          fn: (input, context) async {
+            await for (final request in input) {
+              final msg = request.messages.first;
+              if (msg.role == Role.tool) {
+                // The bug being guarded against: an interrupt should never come
+                // back to the model as a tool response.
+                modelSawToolMessage = true;
+                context.sendChunk(
+                  ModelResponseChunk(content: [TextPart(text: 'kept going')]),
+                );
+              } else {
+                context.sendChunk(
+                  ModelResponseChunk(
+                    content: [
+                      ToolRequestPart(
+                        toolRequest: ToolRequest(
+                          name: toolName,
+                          input: {'location': 'London'},
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }
+            }
+            return ModelResponse(finishReason: FinishReason.stop);
+          },
+        );
+
+        final session = await genkit.generateBidi(
+          model: modelName,
+          toolNames: [toolName],
+        );
+
+        Object? streamError;
+        final done = Completer<void>();
+        session.stream.listen(
+          (_) {},
+          onError: (Object e) {
+            streamError = e;
+            if (!done.isCompleted) done.complete();
+          },
+          onDone: () {
+            if (!done.isCompleted) done.complete();
+          },
+        );
+
+        session.send('please confirm');
+        await done.future.timeout(Duration(seconds: 2));
+        await session.close();
+
+        expect(
+          streamError,
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.unimplemented,
+          ),
+          reason: 'interrupts must fail a bidi session',
+        );
+        expect(
+          modelSawToolMessage,
+          isFalse,
+          reason: 'the model must not receive a tool answer for an interrupt',
+        );
+      },
+    );
   });
 }

@@ -506,6 +506,21 @@ void main() {
       final parsed = Comprehensive.$schema.parse(json);
       expect(parsed.numberField, 20.0);
     });
+
+    test('Int field accepts a whole-number double', () {
+      // e.g. JSON produced by a runtime that encodes every number as a float.
+      final json = {'s_field': 'a', 'i_field': 10.0, 'n_field': 20};
+
+      final parsed = Comprehensive.$schema.parse(json);
+      expect(parsed.intField, 10);
+      expect(parsed.intField, isA<int>());
+    });
+
+    test('Nullable int field accepts a whole-number double', () {
+      final user = User.fromJson({'name': 'a', 'age': 42.0, 'isAdmin': false});
+      expect(user.age, 42);
+      expect(User.fromJson({'name': 'a', 'isAdmin': false}).age, isNull);
+    });
   });
 
   group('AnyOf Tests', () {

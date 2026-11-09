@@ -127,14 +127,10 @@ void main() {
       });
     }
 
-    test(
-      'works with long non-matching block',
-      () {
-        var longInput = '```'.padRight(4000, ' ');
-        expect(() => extractJson(longInput), throwsFormatException);
-      },
-      timeout: Timeout(const Duration(seconds: 5)),
-    );
+    test('works with long non-matching block', () {
+      var longInput = '```'.padRight(4000, ' ');
+      expect(() => extractJson(longInput), throwsFormatException);
+    }, timeout: Timeout(const Duration(seconds: 5)));
   });
 
   group('extractJson (partial)', () {

@@ -2,60 +2,29 @@
 
 Shelf integration for Genkit Dart.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Usage
 
-### Serving Flows
+Genkit's HTTP serving lives in `package:genkit/io.dart` (see the
+[genkit README](https://pub.dev/packages/genkit#serving-over-http)): register
+actions and agents on a `GenkitRouter`, then serve it standalone or from your
+own `dart:io` server. This package is the adapter for
+[shelf](https://pub.dev/packages/shelf) apps.
 
-The easiest way to serve your flows is using `startFlowServer`:
-
-```dart
-import 'package:genkit/genkit.dart';
-import 'package:genkit_shelf/genkit_shelf.dart';
-
-void main() async {
-  final ai = Genkit();
-
-  final flow = ai.defineFlow(
-    name: 'myFlow',
-    inputSchema: .string(),
-    outputSchema: .string(),
-    fn: (String input, _) async => 'Hello $input',
-  );
-
-  await startFlowServer(
-    flows: [flow],
-    port: 8080,
-  );
-}
-```
-
-### Serving Models
-
-You can also serve AI models (and other actions) using `startFlowServer` or `shelfHandler`:
+### Mounting a GenkitRouter
 
 ```dart
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/genkit_google_genai.dart';
-import 'package:genkit_shelf/genkit_shelf.dart';
-
-void main() async {
-  // Just an example, can use Anthropic, OpenAI, etc. models
-  final geminiApi = googleAI();
-  final geminiFlash = geminiApi.model('gemini-flash-latest');
-
-  await startFlowServer(
-    flows: [geminiFlash],
-    port: 8080,
-  );
-}
-```
-
-### Existing Shelf Application
-
-You can also integrate Genkit flows and actions (like models) into an existing Shelf application using `shelfHandler`. This allows you to use your own routing, middleware, and server configuration.
-
-```dart
-import 'package:genkit/genkit.dart';
+import 'package:genkit/io.dart';
 import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'package:genkit_shelf/genkit_shelf.dart';
 import 'package:shelf/shelf.dart';
@@ -72,116 +41,100 @@ void main() async {
     fn: (String input, _) async => 'Hello $input',
   );
 
-  final geminiApi = googleAI();
-  final geminiFlash = geminiApi.model('gemini-flash-latest');
+  // Just an example, can use Anthropic, OpenAI, etc. models
+  final geminiFlash = googleAI().model('gemini-flash-latest');
 
-  // Create a Shelf Router
-  final router = Router();
+  final genkit = GenkitRouter()
+    ..addAction(flow) // POST /api/myFlow
+    ..addAction(geminiFlash, contextProvider: bearerAuth); // POST /api/googleai/gemini-flash-latest
 
-  // Mount handlers
-  router.post('/myFlow', shelfHandler(flow));
-  router.post('/geminiFlash', shelfHandler(geminiFlash));
+  final app = Router()
+    ..get('/health', (Request request) => Response.ok('OK'))
+    ..mount('/api/', genkit.asShelfHandler());
 
-  // Add other application routes
-  router.get('/health', (Request request) => Response.ok('OK'));
+  final handler = const Pipeline()
+      .addMiddleware(logRequests())
+      .addHandler(app.call);
 
-  // Start the server
-  await io.serve(router.call, 'localhost', 8080);
+  await io.serve(handler, 'localhost', 8080);
 }
+```
+
+Unknown paths get a `404`, so a shelf `Cascade` falls through to the next
+handler. Streaming responses are passed through unbuffered.
+
+For browser clients on another origin, pass `CorsOptions` (the same options as
+`GenkitRouter.serve`). The defaults allow any origin and expose the
+`x-genkit-trace-id` / `x-genkit-span-id` headers:
+
+```dart
+final app = Router()
+  ..mount(
+    '/api/',
+    genkit.asShelfHandler(
+      cors: const CorsOptions(allowedOrigins: ['https://myapp.dev']),
+    ),
+  );
+```
+
+### Single actions
+
+`shelfHandler` serves one action on a route of your choosing:
+
+```dart
+router.post('/myFlow', shelfHandler(myFlow, contextProvider: bearerAuth));
 ```
 
 ### Authentication and ContextProvider
 
-You can secure your flows and models by providing a `contextProvider` to `shelfHandler`. This allows the server to verify headers (like `Authorization`) before executing the action, and pass that context down to the Genkit action.
+A `contextProvider` verifies the request before the action runs, and what it
+returns becomes the action context. It receives a framework-neutral
+`RequestData` (lowercased headers, method, parsed input), so the same function
+works with shelf, plain `dart:io`, or any other adapter.
 
 ```dart
-// 1. Define a flow that requires authentication
-final secureFlow = ai.defineFlow(
-  name: 'secureFlow',
-  inputSchema: .string(),
-  outputSchema: .string(),
-  fn: (input, ctx) async {
-    final userId = ctx.context?['userId'];
-    if (userId == null) throw Exception('Unauthorized');
-    return 'Hello $input, your ID is $userId!';
-  },
-);
-
-// 2. Define a model you want to secure
-final geminiApi = googleAI();
-final secureModel = geminiApi.model('gemini-flash-latest');
-
-final router = Router();
-
-// 3. Shared context provider for authentication
-Future<Map<String, dynamic>> authContextProvider(Request request) async {
-  final authHeader = request.headers['authorization'];
-  // checkUserToken is where you implement your custom auth logic
-  final user = await checkUserToken(authHeader);
-  if (user != null) {
-    return {'userId': user.id};
+Future<Map<String, dynamic>> bearerAuth(RequestData request) async {
+  final user = await checkUserToken(request.headers['authorization']);
+  if (user == null) {
+    throw GenkitException('Unauthorized', status: StatusCode.unauthenticated); // 401
   }
-  return {}; // Or throw an exception to reject early
+  return {'userId': user.id};
 }
-
-// 4. Secure the endpoints
-router.post('/secureFlow', shelfHandler(
-  secureFlow,
-  contextProvider: authContextProvider,
-));
-
-router.post('/secureModel', shelfHandler(
-  secureModel,
-  contextProvider: authContextProvider,
-));
 ```
 
-When consuming these remote endpoints from a client using `defineRemoteModel` or `defineRemoteAction`, you can pass the required headers:
+A thrown `GenkitException` is answered with its status; anything else with
+`403`.
+
+### Serving agents (experimental)
+
+`addAgent` comes from `package:genkit/experimental_io.dart` and works the same
+when the router is mounted into shelf:
 
 ```dart
-import 'package:genkit/client.dart';
+import 'package:genkit/experimental_io.dart';
+import 'package:genkit/io.dart';
+import 'package:genkit_shelf/genkit_shelf.dart';
 
-// Consuming a secure flow
-final remoteFlow = defineRemoteAction(
-  url: 'http://localhost:8080/secureFlow',
-  inputSchema: .string(),
-  outputSchema: .string(),
-);
+final genkit = GenkitRouter()
+  ..addAgent(weatherAgent) // turn + /getSnapshot + /abort
+  ..addAgent(statelessAgent); // turn only
 
-final response = await remoteFlow(
-  input: 'World',
-  headers: {'Authorization': 'Bearer ${await getUserToken()}'},
-);
-
-// Consuming a secure model
-final remoteModel = ai.defineRemoteModel(
-  name: 'remoteModel', 
-  url: 'http://localhost:8080/secureModel',
-  headers: (context) async => {'Authorization': 'Bearer ${await getUserToken()}'},
-);
-
-final generateResponse = await ai.generate(
-  model: remoteModel,
-  prompt: 'Hello!',
-);
+final app = Router()..mount('/api/', genkit.asShelfHandler());
 ```
-
-## Consuming Remote Models
-
-When you serve a model using `genkit_shelf`, you can consume it from another Genkit application using `defineRemoteModel`:
 
 ```dart
-final ai = Genkit();
-
-final remoteModel = ai.defineRemoteModel(
-  name: 'myRemoteModel',
-  url: 'http://localhost:8080/googleai/gemini-flash-latest',
-);
-
-final response = await ai.generate(
-  model: remoteModel,
-  prompt: 'Hello!',
-);
-
-print(response.text);
+final agent = remoteAgent(url: 'http://localhost:8080/api/weatherAgent');
+final res = await agent.chat().send(text: 'Weather in Paris?');
 ```
+
+## Migrating from 0.2.x
+
+| 0.2.x | Now |
+| --- | --- |
+| `startFlowServer(flows: [...], port: ..., cors: {...})` | `GenkitRouter()..addAction(...)`, then `serve(port: ..., cors: CorsOptions(...))`, all from `package:genkit/io.dart` (no shelf needed) |
+| `shelf_cors_headers` around Genkit routes | `genkit.asShelfHandler(cors: CorsOptions(...))` |
+| `FlowWithContextProvider(flow: f, context: p)` | `addAction(f, contextProvider: p)` |
+| `shelfHandler(action, contextProvider: ...)` | unchanged, but the provider takes `RequestData` instead of a shelf `Request` |
+| `ContextProvider` from `genkit_shelf` | `ContextProvider` from `package:genkit/io.dart` |
+
+If your server is already in production with Dart or Flutter clients on `package:genkit` 0.17 or earlier, set `sendLegacyErrorFrame: true` on the `GenkitRouter` (and on any `shelfHandler`/`ioHandler`) until those clients are updated. Without it, those older clients report a generic "stream finished" error instead of the server's message when a streamed call fails. Current Dart clients and JS/Python clients handle both frames.

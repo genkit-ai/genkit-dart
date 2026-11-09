@@ -76,7 +76,7 @@ class FilesystemPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<FilesystemOptions>(
+    generateMiddleware<FilesystemOptions>(
       name: 'filesystem',
       configSchema: FilesystemOptions.$schema,
       create: (config, ctx) {
@@ -102,41 +102,108 @@ GenerateMiddlewareRef<FilesystemOptions> filesystem({
 
 class FilesystemMiddleware extends GenerateMiddleware {
   final String rootDirectory;
-  final String _canonicalRoot;
   final List<Message> _messageQueue = [];
 
-  FilesystemMiddleware(this.rootDirectory)
-    : _canonicalRoot = _realPath(rootDirectory);
+  FilesystemMiddleware(this.rootDirectory);
 
-  /// Longest existing prefix, with symlinks resolved. Falls back to
-  /// [p.canonicalize] when the path does not exist yet (e.g. write_file).
-  static String _realPath(String path) {
-    var current = p.normalize(path);
-    final suffix = <String>[];
-    while (true) {
-      try {
-        final real = File(current).resolveSymbolicLinksSync();
-        return suffix.isEmpty ? real : p.join(real, p.joinAll(suffix.reversed));
-      } on FileSystemException {
-        final parent = p.dirname(current);
-        if (parent == current) {
-          return p.canonicalize(path);
-        }
-        suffix.add(p.basename(current));
-        current = parent;
-      }
-    }
+  late final String _lexicalRoot = p.canonicalize(rootDirectory);
+
+  // Resolved lazily (and once) so a root that doesn't exist yet still works,
+  // and so a root that is itself a symlink (e.g. macOS /tmp) compares equal to
+  // the real paths of its children.
+  late final String _realRoot = _realPath(_lexicalRoot) ?? _throwAccessDenied();
+
+  /// Resolves [relativePath] against [rootDirectory] and returns the real
+  /// (symlink-free) path, or throws if it points outside the root.
+  ///
+  /// There is an unavoidable gap between this check and the I/O that follows
+  /// (TOCTOU). None of the tools can create links, so the model can't exploit
+  /// it on its own; something else would have to swap a path for a link in
+  /// between.
+  String _resolvePath(String relativePath) =>
+      _resolvePathOrNull(relativePath) ?? _throwAccessDenied();
+
+  /// Like [_resolvePath], but returns null instead of throwing.
+  String? _resolvePathOrNull(String relativePath) {
+    // Lexical check first: cheap, and rejects `..` and absolute paths early.
+    final lexical = p.canonicalize(p.join(_lexicalRoot, relativePath));
+    if (!_isWithinOrEqual(_lexicalRoot, lexical)) return null;
+
+    // Then follow symlinks, so a link inside the root can't point outside it.
+    final real = _realPath(lexical);
+    if (real == null || !_isWithinOrEqual(_realRoot, real)) return null;
+    return real;
   }
 
-  String _resolvePath(String relativePath) {
-    // Resolve the configured root once in the constructor so Windows
-    // drive-letter / on-disk casing and non-canonical roots compare equal,
-    // and so a symlink inside the sandbox cannot escape it.
-    final resolved = _realPath(p.join(_canonicalRoot, relativePath));
-    if (!p.isWithin(_canonicalRoot, resolved) && resolved != _canonicalRoot) {
-      throw Exception('Access denied: Path is outside of root directory.');
+  static bool _isWithinOrEqual(String root, String path) =>
+      p.equals(root, path) || p.isWithin(root, path);
+
+  static Never _throwAccessDenied() => throw GenkitException(
+    'Access denied: Path is outside of root directory.',
+    status: StatusCode.permissionDenied,
+  );
+
+  /// Returns the real path of the absolute [path], following every symlink
+  /// along the way, or null if there are too many links (most likely a cycle).
+  ///
+  /// Walks one component at a time, like the OS does. Link targets are spliced
+  /// into the remaining components instead of being normalized, because a
+  /// `..` in a target applies to wherever the links before it lead, not to the
+  /// lexical parent. Components that don't exist yet (e.g. for `write_file`)
+  /// are kept as is. Dangling links are followed too, since writing through
+  /// one would create its (possibly outside) target.
+  static String? _realPath(String path) {
+    final pending = p.split(path);
+    // Symlink-free at every step, so `..` can be applied lexically.
+    var resolved = pending.removeAt(0);
+    var hops = 0;
+    while (pending.isNotEmpty) {
+      final part = pending.removeAt(0);
+      if (part == '.') continue;
+      if (part == '..') {
+        resolved = p.dirname(resolved);
+        continue;
+      }
+      final next = p.join(resolved, part);
+      // Check every component, even below a missing one: `missing/../link`
+      // climbs back into existing territory, and `link` must still be followed.
+      if (FileSystemEntity.typeSync(next, followLinks: false) ==
+          FileSystemEntityType.link) {
+        // Same limit as Linux's MAXSYMLINKS; also stops link cycles.
+        if (++hops > 40) return null;
+        final String target;
+        try {
+          target = Link(next).targetSync();
+        } on FileSystemException {
+          // Swapped or unreadable mid-walk. Failing closed also keeps the real
+          // path out of the error the model would see.
+          return null;
+        }
+        final targetParts = p.split(target);
+        if (p.isAbsolute(target)) resolved = targetParts.removeAt(0);
+        pending.insertAll(0, targetParts);
+        continue;
+      }
+      resolved = next;
     }
     return resolved;
+  }
+
+  /// Runs [body], reporting I/O errors against [path] (as the model gave it)
+  /// rather than the resolved path, which would reveal where an aliased root
+  /// really lives.
+  ///
+  /// Rethrown as a plain [FileSystemException]; subtypes such as
+  /// [PathNotFoundException] are not preserved.
+  static Future<T> _withModelPath<T>(
+    String path,
+    Future<T> Function() body,
+  ) async {
+    try {
+      return await body();
+    } on FileSystemException catch (e) {
+      throw FileSystemException(e.message, path, e.osError);
+    }
   }
 
   @override
@@ -151,28 +218,44 @@ class FilesystemMiddleware extends GenerateMiddleware {
         final dirPath = _resolvePath(input.dirPath ?? '');
         final recursive = input.recursive ?? false;
 
+        // [dir] is a real path, [base] is the same directory relative to the
+        // root (as the model sees it).
         Future<List<ListFileOutputItem>> list(String dir, String base) async {
           final results = <ListFileOutputItem>[];
           final d = Directory(dir);
           if (!await d.exists()) return results;
 
-          await for (final entity in d.list()) {
-            final name = p.basename(entity.path);
-            final relativePath = p.join(base, name);
-            final isDirectory = entity is Directory;
+          final entities = await _withModelPath(
+            base.isEmpty ? '.' : base,
+            () => d.list(followLinks: false).toList(),
+          );
+          for (final entity in entities) {
+            final relativePath = p.join(base, p.basename(entity.path));
+            var isDirectory = entity is Directory;
+            if (entity is Link) {
+              // Reported as a directory if it resolves to one inside the root,
+              // so the model can list it explicitly. Anything else (outside the
+              // root, dangling, a cycle) is a plain entry, so its target isn't
+              // revealed. Links are never recursed into: that rules out cycles
+              // and fan-out (links to siblings) without any bookkeeping.
+              final resolved = _resolvePathOrNull(relativePath);
+              isDirectory =
+                  resolved != null &&
+                  FileSystemEntity.isDirectorySync(resolved);
+            }
 
             results.add(
               ListFileOutputItem(path: relativePath, isDirectory: isDirectory),
             );
 
-            if (isDirectory && recursive) {
+            if (entity is Directory && recursive) {
               results.addAll(await list(entity.path, relativePath));
             }
           }
           return results;
         }
 
-        return await list(dirPath, input.dirPath ?? '');
+        return .response(await list(dirPath, input.dirPath ?? ''));
       },
     ),
     Tool<ReadFileInput, String>(
@@ -180,6 +263,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
       description: 'Reads the contents of a file',
       inputSchema: ReadFileInput.$schema,
       outputSchema: .string(),
+
       fn: (input, _) async {
         final filePath = _resolvePath(input.filePath);
         final file = File(filePath);
@@ -193,7 +277,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
         final parts = <Part>[];
 
         if (isImage) {
-          final bytes = await file.readAsBytes();
+          final bytes = await _withModelPath(input.filePath, file.readAsBytes);
           final base64String = base64Encode(bytes);
           final uri = 'data:$mimeType;base64,$base64String';
 
@@ -206,7 +290,10 @@ class FilesystemMiddleware extends GenerateMiddleware {
             ),
           );
         } else {
-          final content = await file.readAsString();
+          final content = await _withModelPath(
+            input.filePath,
+            file.readAsString,
+          );
           parts.add(
             TextPart(
               text:
@@ -243,7 +330,9 @@ class FilesystemMiddleware extends GenerateMiddleware {
           );
         }
 
-        return 'File ${input.filePath} read successfully, see contents below';
+        return .response(
+          'File ${input.filePath} read successfully, see contents below',
+        );
       },
     ),
     Tool<WriteFileInput, String>(
@@ -254,9 +343,11 @@ class FilesystemMiddleware extends GenerateMiddleware {
       fn: (input, _) async {
         final filePath = _resolvePath(input.filePath);
         final file = File(filePath);
-        await file.parent.create(recursive: true);
-        await file.writeAsString(input.content);
-        return 'File ${input.filePath} written successfully.';
+        await _withModelPath(input.filePath, () async {
+          await file.parent.create(recursive: true);
+          await file.writeAsString(input.content);
+        });
+        return .response('File ${input.filePath} written successfully.');
       },
     ),
     Tool<SearchAndReplaceInput, String>(
@@ -264,6 +355,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
       description: 'Replaces text in a file using search and replace blocks. ',
       inputSchema: SearchAndReplaceInput.$schema,
       outputSchema: .string(),
+
       fn: (input, _) async {
         final filePath = _resolvePath(input.filePath);
         final file = File(filePath);
@@ -271,7 +363,7 @@ class FilesystemMiddleware extends GenerateMiddleware {
           throw Exception('File does not exist: ${input.filePath}');
         }
 
-        var content = await file.readAsString();
+        var content = await _withModelPath(input.filePath, file.readAsString);
 
         for (final editBlock in input.edits) {
           const startMarker = '<<<<<<< SEARCH\n';
@@ -333,17 +425,19 @@ class FilesystemMiddleware extends GenerateMiddleware {
           content = content.replaceFirst(bestSearch, bestReplace!);
         }
 
-        await file.writeAsString(content);
-        return 'Successfully applied ${input.edits.length} edit(s) to ${input.filePath}.';
+        await _withModelPath(input.filePath, () => file.writeAsString(content));
+        return .response(
+          'Successfully applied ${input.edits.length} edit(s) to ${input.filePath}.',
+        );
       },
     ),
   ];
 
   @override
-  Future<GenerateResponseHelper> generate(
+  Future<GenerateResult> generate(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
@@ -383,20 +477,19 @@ class FilesystemMiddleware extends GenerateMiddleware {
         maxTurns: options.maxTurns,
         stepName: options.stepName,
       );
-      return next((
-        request: newOptions,
-        currentTurn: envelope.currentTurn,
-        messageIndex: messageIndex,
-      ), ctx);
+      return next(
+        envelope.copyWith(request: newOptions, messageIndex: messageIndex),
+        ctx,
+      );
     }
     return next(envelope, ctx);
   }
 
   @override
-  Future<ToolResponsePart> tool(
+  Future<ToolResult> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponsePart> Function(
+    Future<ToolResult> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
@@ -404,6 +497,12 @@ class FilesystemMiddleware extends GenerateMiddleware {
   ) async {
     try {
       return await next(request, ctx);
+    } on CancelledException {
+      // A cooperative cancellation must propagate so the generation loop can
+      // abort. Converting it into an error tool response (below) would let the
+      // loop continue and record a fabricated "cancelled" tool result in the
+      // resumable history.
+      rethrow;
     } catch (e) {
       // Check if this tool is one of ours
       if ([
@@ -428,13 +527,9 @@ class FilesystemMiddleware extends GenerateMiddleware {
           );
         }
 
-        // Return a response to satisfy the signature, but the model will primarily see the user message
-        return ToolResponsePart(
-          toolResponse: ToolResponse(
-            name: request.toolRequest.name,
-            output: 'Tool failed. See context for details.',
-          ),
-        );
+        // Answer the tool call too (the loop fills in the request's `ref` and
+        // `name`), but the model will primarily see the user message above.
+        return .response('Tool failed. See context for details.');
       }
       rethrow;
     }

@@ -67,12 +67,13 @@ base class _SharedChildTypeFactory extends SchemanticType<SharedChild> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'SharedChild',
-    definition: $Schema
-        .object(
-          properties: {'childId': $Schema.string()},
-          required: ['childId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'childId': <String, Object?>{'type': 'string'},
+      },
+      'required': ['childId'],
+    },
     dependencies: [],
   );
 }
@@ -114,7 +115,10 @@ base class _PartTypeFactory extends SchemanticType<Part> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Part',
-    definition: $Schema.object(properties: {}).value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{},
+    },
     dependencies: [],
   );
 }
@@ -212,17 +216,25 @@ base class _TextPartTypeFactory extends SchemanticType<TextPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TextPart',
-    definition: $Schema
-        .object(
-          properties: {
-            'text': $Schema.string(),
-            'data': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['text'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'text': <String, Object?>{'type': 'string'},
+        'data': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['text'],
+    },
     dependencies: [],
   );
 }

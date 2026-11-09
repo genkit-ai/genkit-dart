@@ -68,12 +68,13 @@ base class _GetWeatherInputTypeFactory extends SchemanticType<GetWeatherInput> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GetWeatherInput',
-    definition: $Schema
-        .object(
-          properties: {'location': $Schema.string()},
-          required: ['location'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'location': <String, Object?>{'type': 'string'},
+      },
+      'required': ['location'],
+    },
     dependencies: [],
   );
 }
@@ -134,15 +135,14 @@ base class _GetWeatherOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GetWeatherOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'weather': $Schema.string(),
-            'temperature': $Schema.string(),
-          },
-          required: ['weather', 'temperature'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'weather': <String, Object?>{'type': 'string'},
+        'temperature': <String, Object?>{'type': 'string'},
+      },
+      'required': ['weather', 'temperature'],
+    },
     dependencies: [],
   );
 }

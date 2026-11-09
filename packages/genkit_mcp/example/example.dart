@@ -41,7 +41,7 @@ Future<void> main() async {
     description: 'Greets a user by name.',
     inputSchema: GreetInput.$schema,
     fn: (input, _) async {
-      return 'Hello, ${input.name}!';
+      return .response('Hello, ${input.name}!');
     },
   );
 
@@ -89,7 +89,7 @@ Future<void> main() async {
     inputSchema: .map(.string(), .dynamicSchema()),
     fn: (input, _) async {
       await Future<void>.delayed(const Duration(milliseconds: 120));
-      return 'slow: ${input['value'] ?? ''}';
+      return .response('slow: ${input['value'] ?? ''}');
     },
   );
 
@@ -141,9 +141,7 @@ Future<void> main() async {
 
     final prompts = await client.getActivePrompts(clientAi);
     stdout.writeln('[client] prompts: ${prompts.map((p) => p.name).toList()}');
-    final prompt = prompts.firstWhere(
-      (p) => p.name == 'example-client/echoPrompt',
-    );
+    final prompt = prompts.firstWhere((p) => p.name.endsWith('/echoPrompt'));
     final request = await prompt.call({'input': 'hello'});
     stdout.writeln(
       '[client] echoPrompt => ${request.messages.first.content.first.text}',
@@ -190,6 +188,21 @@ Future<void> main() async {
       stdout.writeln('[client] slowEcho result => $content');
     }
 
+    // A server start owns one MCP protocol lifecycle. Restart it with a fresh
+    // transport before demonstrating a separate host connection.
+    await client.close();
+    client = null;
+    await server.close();
+    final hostTransport = await StreamableHttpServerTransport.bind(
+      address: InternetAddress.loopbackIPv4,
+      port: 0,
+    );
+    final hostServerUrl = Uri.parse(
+      'http://${hostTransport.address.address}:${hostTransport.port}/mcp',
+    );
+    await server.start(hostTransport);
+    stdout.writeln('[server] restarted on $hostServerUrl');
+
     // ----------------------------
     // 3) Connect via MCP host
     // ----------------------------
@@ -200,7 +213,7 @@ Future<void> main() async {
       hostAi,
       McpHostOptionsWithCache(
         name: 'example-host',
-        mcpServers: {'local': McpServerConfig(url: serverUrl)},
+        mcpServers: {'local': McpServerConfig(url: hostServerUrl)},
       ),
     );
 

@@ -14,16 +14,17 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'ai/embedder.dart';
 import 'ai/generate.dart';
-import 'ai/generate_bidi.dart';
 import 'ai/generate_middleware.dart';
 import 'ai/generate_types.dart';
 import 'ai/model.dart';
 import 'ai/tool.dart';
 import 'core/action.dart';
+import 'core/cancellation.dart';
 import 'core/registry.dart';
 import 'exception.dart';
 import 'o11y/instrumentation.dart';
@@ -33,7 +34,7 @@ import 'types.dart';
 /// Encapsulates Genkit's AI APIs.
 ///
 /// [GenkitAI] exposes the model-orchestration veneer ([generate],
-/// [generateStream], [generateBidi], [embed], [embedMany], [run]) on top of a
+/// [generateStream], [embed], [run]) on top of a
 /// [Registry]. It only requires a registry to operate, making it cheap to
 /// create ephemeral, throwaway instances (the registry holds all the state).
 /// The full framework entry point `Genkit` extends this class to add plugin
@@ -46,70 +47,24 @@ base class GenkitAI {
 
   /// Runs an AI operation within a new trace span.
   Future<Output> run<Output>(String name, Future<Output> Function() fn) {
-    return runInNewSpan(name, (_) => fn());
-  }
-
-  /// The tool resolution logic.
-  ///
-  /// Returns a new registry with embedded tools if necessary.
-  ({Registry registry, List<String>? toolNames}) _resolveTools(
-    Registry registry, {
-    List<Tool>? tools,
-    List<String>? toolNames,
-  }) {
-    if ((tools == null || tools.isEmpty) &&
-        (toolNames == null || toolNames.isEmpty)) {
-      return (registry: registry, toolNames: null);
-    }
-
-    final resolvedToolNames = <String>[...?toolNames];
-
-    if (tools == null || tools.isEmpty) {
-      return (registry: registry, toolNames: resolvedToolNames);
-    }
-
-    final childRegistry = Registry.childOf(registry);
-    for (final tool in tools) {
-      childRegistry.register(tool);
-      if (!resolvedToolNames.contains(tool.name)) {
-        resolvedToolNames.add(tool.name);
-      }
-    }
-    return (registry: childRegistry, toolNames: resolvedToolNames);
-  }
-
-  /// Starts a bi-directional generator session.
-  Future<GenerateBidiSession> generateBidi({
-    required String model,
-    dynamic config,
-    List<Tool>? tools,
-    List<String>? toolNames,
-    String? system,
-  }) {
-    final resolved = _resolveTools(
-      registry,
-      tools: tools,
-      toolNames: toolNames,
-    );
-    return runGenerateBidi(
-      resolved.registry,
-      modelName: model,
-      config: config,
-      tools: resolved.toolNames,
-      system: system,
+    return runInNewSpan(
+      name,
+      (_) => fn(),
+      actionType: ActionType.flowStep.value,
     );
   }
 
   /// Generates a response using the specified model and context.
-  Future<GenerateResponseHelper<Output>> generate<CustomOptions, Output>({
+  Future<GenerateResult<Output>> generate<Output, CustomOptions>({
     String? system,
     String? prompt,
+    List<Part>? promptParts,
     List<Message>? messages,
     ModelRef<CustomOptions>? model,
     CustomOptions? config,
     List<Tool>? tools,
     List<String>? toolNames,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
     SchemanticType<Output>? outputSchema,
@@ -121,6 +76,10 @@ base class GenkitAI {
     Map<String, dynamic>? context,
     StreamingCallback<GenerateResponseChunk<Output>>? onChunk,
     List<GenerateMiddlewareRef>? use,
+
+    /// Cooperative cancellation token, observed by the model call, tools, and
+    /// middleware to abort generation.
+    CancellationToken? cancel,
 
     /// Optional data to resume an interrupted generation session.
     ///
@@ -167,15 +126,16 @@ base class GenkitAI {
         if (outputNoInstructions == true) 'instructions': false,
       });
     }
-    final resolved = _resolveTools(
+    final resolved = resolveInlineTools(
       registry,
       tools: tools,
       toolNames: toolNames,
     );
-    final rawResponse = await generateHelper(
+    final result = await generateHelper(
       resolved.registry,
       system: system,
       prompt: prompt,
+      promptParts: promptParts,
       messages: messages,
       model: model,
       config: config,
@@ -185,6 +145,7 @@ base class GenkitAI {
       maxTurns: maxTurns,
       output: outputConfig,
       context: context,
+      cancel: cancel,
       middleware: use
           ?.map<GenerateMiddlewareOneof>(
             (mw) => (middlewareRef: mw, middlewareInstance: null),
@@ -194,53 +155,37 @@ base class GenkitAI {
       restart: interruptRestart,
       onChunk: onChunk == null
           ? null
-          : (c) {
-              if (outputSchema != null) {
-                onChunk.call(
-                  GenerateResponseChunk<Output>(
-                    c.rawChunk,
-                    previousChunks: List.from(c.previousChunks),
-                    output: c.output != null
-                        ? outputSchema.parse(c.output)
-                        : null,
-                  ),
-                );
-              } else {
-                onChunk.call(
-                  GenerateResponseChunk<Output>(
-                    c.rawChunk,
-                    previousChunks: List.from(c.previousChunks),
-                    output: c.output as Output?,
-                  ),
-                );
-              }
-            },
+          : (c) => onChunk(
+              GenerateResponseChunk<Output>(
+                c.modelChunk,
+                previousChunks: List.from(c.previousChunks),
+                output: parsePartialOutput(c.output, outputSchema),
+              ),
+            ),
     );
-    if (outputSchema != null) {
-      return GenerateResponseHelper(
-        rawResponse.rawResponse,
-        output: outputSchema.parse(rawResponse.output),
-      );
-    } else {
-      return GenerateResponseHelper(
-        rawResponse.rawResponse,
-        request: rawResponse.modelRequest,
-        output: rawResponse.output as Output?,
-      );
-    }
+    // An aborted response carries no output; `parseOutput` maps that to null,
+    // so the aborted response (with its resumable history) survives
+    // structured output calls too.
+    return GenerateResult(
+      result.modelResponse,
+      request: result.modelRequest,
+      output: parseOutput(result.output, outputSchema),
+      cause: result.cause,
+    );
   }
 
   /// Streams a response from the specified model.
-  ActionStream<GenerateResponseChunk<Output>, GenerateResponseHelper<Output>>
-  generateStream<CustomOptions, Output>({
+  ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>
+  generateStream<Output, CustomOptions>({
     String? system,
     String? prompt,
+    List<Part>? promptParts,
     List<Message>? messages,
     ModelRef<CustomOptions>? model,
     CustomOptions? config,
     List<Tool>? tools,
     List<String>? toolNames,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     bool? returnToolRequests,
     int? maxTurns,
     SchemanticType<Output>? outputSchema,
@@ -251,19 +196,20 @@ base class GenkitAI {
     String? outputContentType,
     Map<String, dynamic>? context,
     List<GenerateMiddlewareRef>? use,
+    CancellationToken? cancel,
     List<InterruptResponse>? interruptRespond,
     List<ToolRequestPart>? interruptRestart,
   }) {
     final streamController = StreamController<GenerateResponseChunk<Output>>();
     final actionStream =
-        ActionStream<
-          GenerateResponseChunk<Output>,
-          GenerateResponseHelper<Output>
-        >(streamController.stream);
+        ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>(
+          streamController.stream,
+        );
 
     generate(
           system: system,
           prompt: prompt,
+          promptParts: promptParts,
           messages: messages,
           model: model,
           config: config,
@@ -279,6 +225,7 @@ base class GenkitAI {
           outputNoInstructions: outputNoInstructions,
           outputContentType: outputContentType,
           use: use,
+          cancel: cancel,
           interruptRespond: interruptRespond,
           interruptRestart: interruptRestart,
           onChunk: (chunk) {
@@ -303,17 +250,37 @@ base class GenkitAI {
     return actionStream;
   }
 
-  /// Embeds multiple documents using the specified embedder.
-  Future<List<Embedding>> embedMany<CustomOptions>({
+  /// Embeds a single [document] or a list of [documents] (exactly one must be
+  /// given). An empty [documents] list is passed through to the embedder.
+  ///
+  /// Typically returns one [Embedding] per document, in order:
+  ///
+  /// ```dart
+  /// final [vector] = await ai.embed(embedder: e, document: doc);
+  /// final vectors = await ai.embed(embedder: e, documents: [a, b]);
+  /// ```
+  ///
+  /// Some embedders return several embeddings per document (e.g. Vertex AI's
+  /// `multimodalembedding` returns one per modality), so the result is not
+  /// always 1:1 with the input. Such embedders identify the source document
+  /// in each embedding's metadata (e.g. `documentIndex`); check the embedder's
+  /// docs before destructuring or zipping by position.
+  Future<List<Embedding>> embed<CustomOptions>({
     required EmbedderRef<CustomOptions> embedder,
-    required List<DocumentData> documents,
+    DocumentData? document,
+    List<DocumentData>? documents,
     CustomOptions? options,
   }) async {
-    final action = await registry.lookupAction('embedder', embedder.name);
+    if ((document == null) == (documents == null)) {
+      throw ArgumentError(
+        'Provide exactly one of document or documents to embed.',
+      );
+    }
+    final action = await registry.lookupAction(.embedder, embedder.name);
     if (action == null) {
       throw GenkitException(
         'Embedder ${embedder.name} not found',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       );
     }
 
@@ -321,25 +288,45 @@ base class GenkitAI {
         ? options as Map<String, dynamic>
         : (options as dynamic)?.toJson() as Map<String, dynamic>?;
 
-    final req = EmbedRequest(input: documents, options: resolvedOptions);
+    final req = EmbedRequest(
+      input: documents ?? [document!],
+      options: resolvedOptions,
+    );
 
     final response = await action(req) as EmbedResponse;
     return response.embeddings;
   }
+}
 
-  /// Embeds a single document or a list of documents.
-  Future<List<Embedding>> embed<CustomOptions>({
-    required EmbedderRef<CustomOptions> embedder,
-    DocumentData? document,
-    List<DocumentData>? documents,
-    CustomOptions? options,
-  }) async {
-    final docs = documents ?? (document != null ? [document] : []);
-    if (docs.isEmpty) {
-      throw ArgumentError(
-        'Either document or documents must be provided to embed.',
-      );
-    }
-    return embedMany(embedder: embedder, documents: docs, options: options);
+/// Resolves inline [Tool] objects into a (possibly child) registry plus the
+/// combined tool-name list, so callers can pass ad-hoc tools alongside
+/// registered tool names.
+///
+/// Returns a new child registry with the inline tools registered when any are
+/// supplied; otherwise the original registry is returned unchanged.
+@internal
+({Registry registry, List<String>? toolNames}) resolveInlineTools(
+  Registry registry, {
+  List<Tool>? tools,
+  List<String>? toolNames,
+}) {
+  if ((tools == null || tools.isEmpty) &&
+      (toolNames == null || toolNames.isEmpty)) {
+    return (registry: registry, toolNames: null);
   }
+
+  final resolvedToolNames = <String>[...?toolNames];
+
+  if (tools == null || tools.isEmpty) {
+    return (registry: registry, toolNames: resolvedToolNames);
+  }
+
+  final childRegistry = Registry.childOf(registry);
+  for (final tool in tools) {
+    childRegistry.register(tool);
+    if (!resolvedToolNames.contains(tool.name)) {
+      resolvedToolNames.add(tool.name);
+    }
+  }
+  return (registry: childRegistry, toolNames: resolvedToolNames);
 }

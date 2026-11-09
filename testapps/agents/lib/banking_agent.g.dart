@@ -77,15 +77,14 @@ base class _TransferMoneyInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TransferMoneyInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'amount': $Schema.number(),
-            'toAccount': $Schema.string(),
-          },
-          required: ['amount', 'toAccount'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'amount': <String, Object?>{'type': 'number'},
+        'toAccount': <String, Object?>{'type': 'string'},
+      },
+      'required': ['amount', 'toAccount'],
+    },
     dependencies: [],
   );
 }
@@ -146,15 +145,14 @@ base class _TransferMoneyOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TransferMoneyOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'success': $Schema.boolean(),
-            'transactionId': $Schema.string(),
-          },
-          required: ['success', 'transactionId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'success': <String, Object?>{'type': 'boolean'},
+        'transactionId': <String, Object?>{'type': 'string'},
+      },
+      'required': ['success', 'transactionId'],
+    },
     dependencies: [],
   );
 }

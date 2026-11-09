@@ -46,28 +46,10 @@ void main() {
       final listTool = tools.firstWhere((t) => t.name == 'list_files');
 
       final result = await listTool.runRaw({'dirPath': ''});
-      final list = result.result as List<ListFileOutputItem>;
+      final list = result.result.output as List<ListFileOutputItem>;
 
       expect(list.any((i) => i.path == 'file1.txt' && !i.isDirectory), isTrue);
       expect(list.any((i) => i.path == 'subdir' && i.isDirectory), isTrue);
-    });
-
-    test('list_files accepts a non-canonical root path as the sandbox root', () async {
-      await File(p.join(tempDir.path, 'file1.txt')).create();
-      final nested = Directory(p.join(tempDir.path, 'inner'))
-        ..createSync();
-      await File(p.join(nested.path, 'inner.txt')).create();
-
-      // `inner/../` canonicalizes to tempDir. Comparing the raw string
-      // against canonicalize(join(root, '')) used to throw Access denied.
-      final mw = FilesystemMiddleware(p.join(tempDir.path, 'inner', '..'));
-      final listTool = mw.tools.firstWhere((t) => t.name == 'list_files');
-
-      final result = await listTool.runRaw({'dirPath': ''});
-      final list = result.result as List<ListFileOutputItem>;
-
-      expect(list.any((i) => i.path == 'file1.txt' && !i.isDirectory), isTrue);
-      expect(list.any((i) => i.path == 'inner' && i.isDirectory), isTrue);
     });
 
     test('should read file content and inject message', () async {
@@ -228,53 +210,310 @@ void main() {
       expect(
         () => readTool.runRaw({'filePath': '../outside.txt'}),
         throwsA(
-          isA<Exception>().having(
-            (e) => e.toString(),
-            'message',
-            contains('Access denied'),
-          ),
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.permissionDenied)
+              .having((e) => e.message, 'message', contains('Access denied')),
         ),
       );
     });
 
-    test('rejects a symlink that points outside the sandbox', () async {
-      final outside = await Directory.systemTemp.createTemp('genkit_fs_out');
-      addTearDown(() async {
-        if (await outside.exists()) {
-          await outside.delete(recursive: true);
-        }
-      });
-      await File(p.join(outside.path, 'secret.txt')).writeAsString('leak');
-      await Link(p.join(tempDir.path, 'escape')).create(outside.path);
+    group('symlinks', () {
+      // Layout: tempDir/root is the sandbox, tempDir/outside is not.
+      late Directory root;
+      late Directory outside;
+      late FilesystemMiddleware mw;
 
-      final mw = FilesystemMiddleware(tempDir.path);
-      final readTool = mw.tools.firstWhere((t) => t.name == 'read_file');
+      Tool toolNamed(String name) => mw.tools.firstWhere((t) => t.name == name);
 
-      expect(
-        () => readTool.runRaw({'filePath': p.join('escape', 'secret.txt')}),
-        throwsA(
-          isA<Exception>().having(
-            (e) => e.toString(),
-            'message',
-            contains('Access denied'),
-          ),
-        ),
+      final deniedMatcher = throwsA(
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.permissionDenied)
+            .having((e) => e.message, 'message', contains('Access denied')),
       );
-    }, skip: Platform.isWindows ? 'requires unix-style symlinks' : null);
 
-    test('follows a symlink that stays inside the sandbox', () async {
-      final nested = Directory(p.join(tempDir.path, 'nested'))..createSync();
-      await File(p.join(nested.path, 'ok.txt')).writeAsString('safe');
-      await Link(p.join(tempDir.path, 'alias')).create(nested.path);
-
-      final mw = FilesystemMiddleware(tempDir.path);
-      final readTool = mw.tools.firstWhere((t) => t.name == 'read_file');
-      final result = await readTool.runRaw({
-        'filePath': p.join('alias', 'ok.txt'),
+      setUp(() async {
+        root = await Directory(p.join(tempDir.path, 'root')).create();
+        outside = await Directory(p.join(tempDir.path, 'outside')).create();
+        await File(p.join(outside.path, 'secret.txt')).writeAsString('secret');
+        mw = FilesystemMiddleware(root.path);
       });
 
-      expect(result.result, contains('read successfully'));
-    }, skip: Platform.isWindows ? 'requires unix-style symlinks' : null);
+      test('denies reading through a link to an outside file', () async {
+        await Link(
+          p.join(root.path, 'link.txt'),
+        ).create(p.join(outside.path, 'secret.txt'));
+
+        expect(
+          () => toolNamed('read_file').runRaw({'filePath': 'link.txt'}),
+          deniedMatcher,
+        );
+      });
+
+      test('denies reading through a link to an outside directory', () async {
+        await Link(p.join(root.path, 'dir')).create(outside.path);
+
+        expect(
+          () => toolNamed('read_file').runRaw({'filePath': 'dir/secret.txt'}),
+          deniedMatcher,
+        );
+        expect(
+          () => toolNamed('list_files').runRaw({'dirPath': 'dir'}),
+          deniedMatcher,
+        );
+      });
+
+      test('denies writing through a link to an outside file', () async {
+        await Link(
+          p.join(root.path, 'link.txt'),
+        ).create(p.join(outside.path, 'secret.txt'));
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'link.txt', 'content': 'pwned'}),
+          deniedMatcher,
+        );
+        expect(
+          File(p.join(outside.path, 'secret.txt')).readAsStringSync(),
+          'secret',
+        );
+      });
+
+      test('denies writing a new file under a linked directory', () async {
+        await Link(p.join(root.path, 'dir')).create(outside.path);
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'dir/new/file.txt', 'content': 'pwned'}),
+          deniedMatcher,
+        );
+        expect(Directory(p.join(outside.path, 'new')).existsSync(), isFalse);
+      });
+
+      test('denies writing through a dangling link', () async {
+        final target = p.join(outside.path, 'created.txt');
+        await Link(p.join(root.path, 'dangling.txt')).create(target);
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'dangling.txt', 'content': 'pwned'}),
+          deniedMatcher,
+        );
+        expect(File(target).existsSync(), isFalse);
+      });
+
+      test('denies search_and_replace through a link', () async {
+        await Link(
+          p.join(root.path, 'link.txt'),
+        ).create(p.join(outside.path, 'secret.txt'));
+
+        expect(
+          () => toolNamed('search_and_replace').runRaw({
+            'filePath': 'link.txt',
+            'edits': [
+              '<<<<<<< SEARCH\nsecret\n=======\npwned\n>>>>>>> REPLACE',
+            ],
+          }),
+          deniedMatcher,
+        );
+      });
+
+      Future<Map<String, bool>> listRecursive() async {
+        final result = await toolNamed(
+          'list_files',
+        ).runRaw({'dirPath': '', 'recursive': true});
+        return {
+          for (final item in result.result.output as List<ListFileOutputItem>)
+            item.path: item.isDirectory,
+        };
+      }
+
+      test('recursive listing does not descend into outside links', () async {
+        await File(p.join(root.path, 'a.txt')).create();
+        await Link(p.join(root.path, 'dir')).create(outside.path);
+        await Link(
+          p.join(root.path, 'dangling'),
+        ).create(p.join(outside.path, 'nope'));
+
+        expect(await listRecursive(), {
+          'a.txt': false,
+          'dir': false,
+          'dangling': false,
+        });
+      });
+
+      test('recursive listing flags links to directories inside the root '
+          'without descending into them', () async {
+        await Directory(p.join(root.path, 'real')).create();
+        await File(p.join(root.path, 'real', 'f.txt')).create();
+        await File(p.join(root.path, 'g.txt')).create();
+        await Link(p.join(root.path, 'ldir')).create('real');
+        await Link(p.join(root.path, 'lfile')).create('g.txt');
+        await Link(p.join(root.path, 'real', 'up')).create('..');
+        await Link(p.join(root.path, 'real', 'self')).create('.');
+
+        expect(await listRecursive(), {
+          'real': true,
+          'real/f.txt': false,
+          'real/up': true,
+          'real/self': true,
+          'g.txt': false,
+          'ldir': true,
+          'lfile': false,
+        });
+
+        // The link can still be listed explicitly.
+        final result = await toolNamed(
+          'list_files',
+        ).runRaw({'dirPath': 'ldir'});
+        expect(
+          (result.result.output as List<ListFileOutputItem>).map((i) => i.path),
+          unorderedEquals(['ldir/f.txt', 'ldir/up', 'ldir/self']),
+        );
+      });
+
+      test('applies `..` in a link target after the links before it', () async {
+        // The OS resolves `inner/..` to `real`, not to the root.
+        await Directory(
+          p.join(root.path, 'real', 'deep'),
+        ).create(recursive: true);
+        await Link(p.join(root.path, 'inner')).create('real/deep');
+        await Link(p.join(root.path, 'a')).create('inner/../x.txt');
+
+        await toolNamed(
+          'write_file',
+        ).runRaw({'filePath': 'a', 'content': 'via link'});
+        expect(
+          File(p.join(root.path, 'real', 'x.txt')).readAsStringSync(),
+          'via link',
+        );
+        expect(File(p.join(root.path, 'x.txt')).existsSync(), isFalse);
+      });
+
+      test('denies link cycles', () async {
+        await Link(p.join(root.path, 'l1')).create('l2');
+        await Link(p.join(root.path, 'l2')).create('l1');
+
+        expect(
+          () => toolNamed('read_file').runRaw({'filePath': 'l1'}),
+          deniedMatcher,
+        );
+        expect(await listRecursive(), {'l1': false, 'l2': false});
+      });
+
+      test('denies writing through a dangling chain of links', () async {
+        await Link(p.join(root.path, 'a')).create('b');
+        await Link(
+          p.join(root.path, 'b'),
+        ).create(p.join(outside.path, 'x', 'y.txt'));
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'a', 'content': 'pwned'}),
+          deniedMatcher,
+        );
+        expect(Directory(p.join(outside.path, 'x')).existsSync(), isFalse);
+      });
+
+      test('denies writing below a dangling directory link', () async {
+        await Link(
+          p.join(root.path, 'dl'),
+        ).create(p.join(outside.path, 'nope'));
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'dl/q/r.txt', 'content': 'pwned'}),
+          deniedMatcher,
+        );
+        expect(Directory(p.join(outside.path, 'nope')).existsSync(), isFalse);
+      });
+
+      test('I/O errors report the path the model gave', () async {
+        // With an aliased root, the resolved path would reveal the real
+        // location of the root.
+        final linkedRoot = Link(p.join(tempDir.path, 'linked-root'));
+        await linkedRoot.create(root.path);
+        mw = FilesystemMiddleware(linkedRoot.path);
+        await File(p.join(root.path, 'f.txt')).create();
+
+        await expectLater(
+          () => toolNamed(
+            'write_file',
+          ).runRaw({'filePath': 'f.txt/x', 'content': 'nope'}),
+          throwsA(
+            isA<FileSystemException>().having((e) => e.path, 'path', 'f.txt/x'),
+          ),
+        );
+      });
+
+      test('denies relative link targets that climb out of the root', () async {
+        // The other tests use absolute targets; this covers relative ones.
+        await Link(
+          p.join(root.path, 'rel.txt'),
+        ).create(p.join('..', 'outside', 'secret.txt'));
+
+        expect(
+          () => toolNamed('read_file').runRaw({'filePath': 'rel.txt'}),
+          deniedMatcher,
+        );
+      });
+
+      test('allows links that stay inside the root', () async {
+        await Directory(p.join(root.path, 'real')).create();
+        await File(p.join(root.path, 'real', 'f.txt')).writeAsString('inside');
+        await Link(
+          p.join(root.path, 'alias'),
+        ).create(p.join(root.path, 'real'));
+
+        await toolNamed(
+          'write_file',
+        ).runRaw({'filePath': 'alias/g.txt', 'content': 'written'});
+        expect(
+          File(p.join(root.path, 'real', 'g.txt')).readAsStringSync(),
+          'written',
+        );
+        await toolNamed('read_file').runRaw({'filePath': 'alias/f.txt'});
+      });
+
+      test('works when the root itself is a link', () async {
+        final linkedRoot = Link(p.join(tempDir.path, 'linked-root'));
+        await linkedRoot.create(root.path);
+        mw = FilesystemMiddleware(linkedRoot.path);
+
+        await toolNamed(
+          'write_file',
+        ).runRaw({'filePath': 'f.txt', 'content': 'ok'});
+        expect(File(p.join(root.path, 'f.txt')).readAsStringSync(), 'ok');
+        expect(
+          () => toolNamed(
+            'read_file',
+          ).runRaw({'filePath': '../outside/secret.txt'}),
+          deniedMatcher,
+        );
+      });
+
+      test('works with a relative root', () async {
+        // Relative to the current directory rather than changing it:
+        // Directory.current is process-wide and test files run concurrently.
+        mw = FilesystemMiddleware(p.relative(root.path));
+
+        await toolNamed(
+          'write_file',
+        ).runRaw({'filePath': 'f.txt', 'content': 'ok'});
+        expect(File(p.join(root.path, 'f.txt')).readAsStringSync(), 'ok');
+        await Link(
+          p.join(root.path, 'link.txt'),
+        ).create(p.join(outside.path, 'secret.txt'));
+        expect(
+          () => toolNamed('read_file').runRaw({'filePath': 'link.txt'}),
+          deniedMatcher,
+        );
+      });
+    });
 
     test('should write file', () async {
       final mw = FilesystemMiddleware(tempDir.path);
@@ -284,7 +523,7 @@ void main() {
         'filePath': 'new.txt',
         'content': 'new content',
       });
-      expect(result.result, contains('written successfully'));
+      expect(result.result.output, contains('written successfully'));
 
       final file = File(p.join(tempDir.path, 'new.txt'));
       expect(await file.readAsString(), 'new content');
@@ -315,7 +554,10 @@ hello universe
           'edits': [editBlock],
         });
 
-        expect(result.result, contains('Successfully applied 1 edit(s)'));
+        expect(
+          result.result.output,
+          contains('Successfully applied 1 edit(s)'),
+        );
         expect(await file.readAsString(), 'hello universe');
       });
 
@@ -336,7 +578,10 @@ there
           'edits': [editBlock1, editBlock2],
         });
 
-        expect(result.result, contains('Successfully applied 2 edit(s)'));
+        expect(
+          result.result.output,
+          contains('Successfully applied 2 edit(s)'),
+        );
         expect(await file.readAsString(), 'hi there');
       });
 
@@ -457,7 +702,7 @@ separator
             'edits': [complexEditBlock],
           });
 
-          expect(result.result, contains('Successfully applied'));
+          expect(result.result.output, contains('Successfully applied'));
 
           // 'code with\n=======\nseparator' was exactly found as search block,
           // and 'new code with\n=======\nseparator' is the replacement.
@@ -651,6 +896,56 @@ hi
       );
 
       expect(result.text, 'Error caught');
+    });
+
+    test('the error response keeps the tool request ref', () async {
+      // The model can issue parallel calls to the same tool; each response is
+      // matched to its request by `ref`, so the failure answer must carry it.
+      final mw = filesystem(rootDirectory: tempDir.path);
+      ToolResponse? received;
+
+      genkit.defineModel(
+        name: 'ref-model',
+        fn: (req, ctx) async {
+          final toolMessage = req.messages
+              .where((m) => m.role == Role.tool)
+              .firstOrNull;
+          if (toolMessage != null) {
+            received = toolMessage.content.first.toolResponse;
+            return ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: 'done')],
+              ),
+            );
+          }
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [
+                ToolRequestPart(
+                  toolRequest: ToolRequest(
+                    name: 'read_file',
+                    ref: 'call-1',
+                    input: {'filePath': 'nonexistent.txt'},
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+      await genkit.generate(
+        model: modelRef('ref-model'),
+        prompt: 'cause error',
+        use: [mw],
+      );
+
+      expect(received?.name, 'read_file');
+      expect(received?.ref, 'call-1');
     });
 
     test(

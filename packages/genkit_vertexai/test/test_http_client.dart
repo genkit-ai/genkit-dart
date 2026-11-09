@@ -22,6 +22,7 @@ class MockHttpClient extends http.BaseClient {
     this.returnInvalidTextPrediction = false,
     this.returnMissingMultimodalEmbedding = false,
     this.publisherModelsResponse,
+    this.publisherModelsStatus = 200,
   });
 
   final bool returnEmptyPredictions;
@@ -30,10 +31,19 @@ class MockHttpClient extends http.BaseClient {
 
   /// Overrides the JSON body returned for the publisher-models listing.
   final String? publisherModelsResponse;
+
+  /// HTTP status returned for the publisher-models listing.
+  final int publisherModelsStatus;
   final List<Uri> requestUrls = [];
   final List<String> requestBodies = [];
   Uri? lastUrl;
   String? lastBody;
+  bool closed = false;
+
+  @override
+  void close() {
+    closed = true;
+  }
 
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
@@ -64,7 +74,7 @@ class MockHttpClient extends http.BaseClient {
                 '{"publisherModels": [{"name": "publishers/google/models/gemini-2.5-pro"}, {"name": "publishers/google/models/text-embedding-005"}, {"name": "publishers/google/models/multimodalembedding"}]}',
           ),
         ),
-        200,
+        publisherModelsStatus,
         headers: {'content-type': 'application/json'},
       );
     }

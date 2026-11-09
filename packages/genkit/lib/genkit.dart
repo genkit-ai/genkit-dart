@@ -22,87 +22,65 @@
 /// @docImport 'src/core/flow.dart';
 library;
 
-export 'src/ai/agents/agent.dart'
-    show
-        Agent,
-        AgentFn,
-        AgentFnOptions,
-        ClientTransform,
-        SessionRunner,
-        TurnContext,
-        TurnResult,
-        validateResumeAgainstHistory;
-export 'src/ai/agents/agent_core.dart'
-    show
-        AgentApi,
-        AgentChat,
-        AgentChunk,
-        AgentError,
-        AgentInterrupt,
-        AgentResponse,
-        AgentSnapshot,
-        AgentTransport,
-        AgentTurn,
-        CancellationToken,
-        DetachedTask,
-        TurnStream;
-export 'src/ai/agents/json_patch.dart'
-    show JsonPatch, JsonPatchOperationMap, applyPatch, diff;
-export 'src/ai/agents/remote_agent.dart' show HeadersResolver, remoteAgent;
-export 'src/ai/agents/session.dart'
-    show
-        InMemorySessionStore,
-        Session,
-        SessionError,
-        SessionStore,
-        SnapshotChangeNotifier,
-        SnapshotMutator,
-        generateUuidV4,
-        getCurrentSession,
-        reserveSnapshotId,
-        runWithSession;
+// Agent, session, and snapshot APIs are experimental and live in
+// `package:genkit/experimental.dart` (and its `_client` / `_io` variants).
+// They are intentionally excluded from this stable surface so they can evolve
+// without a major version bump.
 
 export 'src/ai/embedder.dart'
     show Embedder, EmbedderRef, embedderMetadata, embedderRef;
+export 'src/ai/evaluator.dart' show Evaluator;
 
-export 'src/ai/formatters/types.dart';
-export 'src/ai/generate_bidi.dart' show GenerateBidiSession;
 export 'src/ai/generate_middleware.dart'
     show
         GenerateMiddleware,
         GenerateMiddlewareContext,
         GenerateMiddlewareDef,
         GenerateMiddlewareRef,
-        defineMiddleware,
+        GenerateTurnState,
+        generateMiddleware,
         middlewareRef;
 export 'src/ai/generate_types.dart'
-    show GenerateResponseChunk, GenerateResponseHelper, InterruptResponse;
-export 'src/ai/interrupt.dart' show ToolInterruptException;
-export 'src/ai/middleware/retry.dart'
-    show RetryMiddleware, RetryOptions, RetryPlugin, retry;
-export 'src/ai/model.dart'
-    show BidiModel, Model, ModelRef, modelMetadata, modelRef;
-export 'src/ai/prompt.dart'
-    show
-        ExecutablePrompt,
-        PromptAction,
-        PromptConfig,
-        PromptFn,
-        PromptGenerateOptions;
+    show GenerateResponseChunk, GenerateResult, InterruptResponse;
+export 'src/ai/middleware/retry.dart' show RetryMiddleware, RetryOptions, retry;
+export 'src/ai/middleware/simulate_constrained_generation.dart'
+    show SimulateConstrainedGenerationMiddleware, simulateConstrainedGeneration;
+// BidiModel / bidiModelRef live in the experimental surface
+// (`package:genkit/experimental.dart`) alongside generateBidi.
+export 'src/ai/model.dart' show Model, ModelRef, modelMetadata, modelRef;
+export 'src/ai/prompt.dart' show Prompt, PromptAction, PromptFn, PromptRef;
 export 'src/ai/resource.dart'
-    show
-        ResourceAction,
-        ResourceFn,
-        ResourceInput,
-        ResourceOutput,
-        createResourceMatcher;
+    show ResourceAction, ResourceFn, ResourceInput, ResourceOutput;
 export 'src/ai/template_helper.dart'
     show TemplateHelperFn, TemplateHelperOptions;
-export 'src/ai/tool.dart' show Tool, ToolFn, ToolFnArgs;
-export 'src/core/action.dart' show Action, ActionFnArg, ActionMetadata;
+export 'src/ai/tool.dart'
+    show
+        Interrupt,
+        Tool,
+        ToolFn,
+        ToolFnArg,
+        ToolInterruptResult,
+        ToolResponseResult,
+        ToolResult;
+export 'src/core/action.dart'
+    show
+        Action,
+        ActionFn,
+        ActionFnArg,
+        ActionMetadata,
+        ActionStream,
+        ActionType,
+        RawActionFn,
+        RunResult,
+        StreamingCallback,
+        TraceStartCallback;
+export 'src/core/cancellation.dart'
+    show CancellationController, CancellationToken, CancelledException;
 export 'src/core/dynamic_action_provider.dart' show DynamicActionProvider;
 export 'src/core/flow.dart';
-export 'src/exception.dart' show GenkitException, StatusCodes;
+export 'src/core/plugin.dart' show GenkitPlugin;
+export 'src/core/registry.dart' show Registry;
+export 'src/exception.dart' show GenkitException, StatusCode;
 export 'src/genkit_ai.dart' show GenkitAI;
 export 'src/genkit_class.dart';
 export 'src/schema_extensions.dart';

@@ -22,7 +22,7 @@ Future<String> Function() createAdcAccessTokenProvider({
   return () async {
     throw GenkitException(
       'Vertex ADC auth is only supported on Dart IO platforms.',
-      status: StatusCodes.UNIMPLEMENTED,
+      status: StatusCode.unimplemented,
     );
   };
 }
@@ -36,7 +36,7 @@ Future<String> Function() createServiceAccountAccessTokenProvider({
   return () async {
     throw GenkitException(
       'Vertex service account auth is only supported on Dart IO platforms.',
-      status: StatusCodes.UNIMPLEMENTED,
+      status: StatusCode.unimplemented,
     );
   };
 }

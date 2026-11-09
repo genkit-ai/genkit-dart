@@ -65,7 +65,7 @@ void main(List<String> args) {
     description: 'Multiplies two numbers',
     inputSchema: CalculatorInput.$schema,
     outputSchema: .integer(),
-    fn: (input, _) async => input.a * input.b,
+    fn: (input, _) async => .response(input.a * input.b),
   );
 
   ai.defineFlow(
@@ -93,8 +93,10 @@ void main(List<String> args) {
         // Assuming a model that supports thinking is available or aliased
         model: anthropic.model('claude-sonnet-4-5'),
         prompt: prompt,
-        onChunk: ctx.sendChunk,
-        config: AnthropicOptions(thinking: ThinkingConfig(budgetTokens: 2048)),
+        onChunk: (chunk) => ctx.sendChunk(chunk.modelChunk),
+        config: AnthropicOptions(
+          thinking: AnthropicThinkingConfig(budgetTokens: 2048),
+        ),
       );
       // The reasoning reasoning is in response.message.content
       // Here we just return the text response

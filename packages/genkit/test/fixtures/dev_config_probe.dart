@@ -1,0 +1,49 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+/// Probe app for `dev_config_dart_define_test.dart`.
+///
+/// It stands in for a Flutter app launched by `genkit start:flutter`: it
+/// configures nothing itself, so every dev-mode setting has to arrive through
+/// the process environment or a `--dart-define`. It reports the settings it
+/// resolved, and the test also watches which fake Dev UI endpoints it reaches.
+library;
+
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:genkit/genkit.dart';
+import 'package:genkit/src/o11y/telemetry/telemetry_platform.dart';
+import 'package:genkit/src/utils.dart' as utils;
+
+Future<void> main() async {
+  final ai = Genkit(promptDir: null);
+  final probeFlow = ai.defineFlow(
+    name: 'probeFlow',
+    fn: (String input, context) async => 'output: $input',
+  );
+  await probeFlow('ping');
+
+  final resolved = {
+    'isDevEnv': utils.isDevEnv,
+    'telemetryServer': genkitTelemetryServerUrl(),
+  };
+  stdout.writeln('probe-ready ${jsonEncode(resolved)}');
+
+  // Outlive the assertions without needing a shutdown handshake; the test kills
+  // the process once it has seen what it is waiting for.
+  await Future<void>.delayed(const Duration(seconds: 60));
+  await ai.shutdown();
+}

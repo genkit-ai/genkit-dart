@@ -2,7 +2,7 @@ name: _schema_generator
 description: Tool for updating Dart clases in pkg:genkit
 publish_to: none
 environment:
-  sdk: ^3.10.0
+  sdk: ^3.12.0
 resolution: workspace
 
 dependencies:

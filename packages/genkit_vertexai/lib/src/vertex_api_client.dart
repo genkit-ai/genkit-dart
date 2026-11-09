@@ -26,6 +26,10 @@ import 'known_models.dart';
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String? projectId;
   String? location;
+
+  /// HTTP transport for credential and API calls. It is never closed by the
+  /// plugin; the caller owns its lifecycle. Because close() is suppressed,
+  /// cancellation cannot abort an in-flight request on an injected client.
   http.Client? authClient;
 
   VertexAiPluginImpl({this.projectId, this.location, this.authClient});
@@ -60,7 +64,10 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
     final safeLocation = Uri.encodeComponent(resolvedLocation);
     final safeProjectId = Uri.encodeComponent(resolvedProjectId);
 
-    final tokenProvider = createAdcAccessTokenProvider(baseClient: authClient);
+    final caller = authClient;
+    final injected = caller == null ? null : NonClosingClient(caller);
+
+    final tokenProvider = createAdcAccessTokenProvider(baseClient: injected);
 
     final baseUrl = safeLocation == 'global'
         ? 'https://aiplatform.googleapis.com/'
@@ -69,10 +76,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
         'v1beta1/projects/$safeProjectId/locations/$safeLocation/publishers/google/';
 
     final headers = {'X-Goog-Api-Client': googleApiClientHeaderValue()};
-    final customClient = CustomClient(
-      defaultHeaders: headers,
-      inner: authClient,
-    );
+    final customClient = CustomClient(defaultHeaders: headers, inner: injected);
     final client = VertexAuthClient(tokenProvider, inner: customClient);
 
     return GenerativeLanguageBaseClient(
@@ -85,11 +89,16 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   @override
   Future<List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>>>
   list() async {
-    final service = await getApiClient();
     try {
-      final res = await service.listPublisherModels(
-        projectId: _getResolvedProjectId,
-      );
+      final service = await getApiClient();
+      final Map<String, dynamic> res;
+      try {
+        res = await service.listPublisherModels(
+          projectId: _getResolvedProjectId,
+        );
+      } finally {
+        service.client.close();
+      }
       final publisherModels = (res['publisherModels'] as List?) ?? [];
 
       final discoveredNames = <String>{};
@@ -103,29 +112,15 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
             final modelMap = m as Map<String, dynamic>;
             final modelName = (modelMap['name'] as String).split('/').last;
             discoveredNames.add(modelName);
-            final isTts = modelName.contains('-tts');
             return modelMetadata(
               '$name/$modelName',
-              customOptions: isTts
-                  ? GeminiTtsOptions.$schema
-                  : GeminiOptions.$schema,
-              modelInfo: modelInfoFor(modelName),
+              customOptions: GeminiModelFamily.of(modelName).customOptions,
+              info: modelInfoFor(modelName),
             );
           })
           .toList();
 
-      // Curated models are listed even when model discovery omits them.
-      final curated = knownModels.entries
-          .where((entry) => !discoveredNames.contains(entry.key))
-          .map(
-            (entry) => modelMetadata(
-              '$name/${entry.key}',
-              customOptions: entry.key.contains('-tts')
-                  ? GeminiTtsOptions.$schema
-                  : GeminiOptions.$schema,
-              modelInfo: entry.value,
-            ),
-          );
+      final curated = curatedModelMetadata(discoveredNames: discoveredNames);
 
       final embedders = listVertexEmbedders(
         pluginName: name,
@@ -134,13 +129,8 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
 
       return [...models, ...curated, ...embedders];
     } catch (e, stack) {
-      if (e is GenkitException) rethrow;
       logger.warning('Failed to list models: $e', e, stack);
-      throw handleException(e, stack);
-    } finally {
-      if (authClient == null) {
-        service.client.close();
-      }
+      return curatedModelMetadata().toList();
     }
   }
 
@@ -151,7 +141,6 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       embedderName: embedderName,
       getApiClient: getApiClient,
       handleException: handleException,
-      closeService: authClient == null,
     );
   }
 }

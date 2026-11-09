@@ -25,7 +25,7 @@ List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listVertexEmbedders({
       .whereType<Map>()
       .where((modelMap) {
         final name = modelMap['name'] as String?;
-        return name != null && name.contains('embedding');
+        return name != null && google.isEmbedderModelName(name);
       })
       .map((modelMap) {
         final modelName = (modelMap['name'] as String).split('/').last;
@@ -39,7 +39,7 @@ ActionMetadata<dynamic, dynamic, dynamic, dynamic> _vertexEmbedderMetadata(
 ) {
   final metadata = embedderMetadata(
     name,
-    customOptions: google.TextEmbedderOptions.$schema,
+    customOptions: google.GoogleGenAiEmbedderOptions.$schema,
   );
   return ActionMetadata(
     name: metadata.name,
@@ -56,19 +56,18 @@ Embedder createVertexEmbedder({
   required String embedderName,
   required Future<google.GenerativeLanguageBaseClient> Function() getApiClient,
   required GenkitException Function(Object, StackTrace) handleException,
-  required bool closeService,
 }) {
   return Embedder(
     name: '$pluginName/$embedderName',
     fn: (req, ctx) async {
-      if (req == null || req.input.isEmpty) {
+      if (req.input.isEmpty) {
         return EmbedResponse(embeddings: []);
       }
 
       final service = await getApiClient();
       try {
         final options = req.options != null
-            ? google.TextEmbedderOptions.fromJson(req.options!)
+            ? google.GoogleGenAiEmbedderOptions.fromJson(req.options!)
             : null;
 
         final embeddings = switch (_requestShapeFor(embedderName)) {
@@ -90,9 +89,7 @@ Embedder createVertexEmbedder({
       } catch (e, stack) {
         throw handleException(e, stack);
       } finally {
-        if (closeService) {
-          service.client.close();
-        }
+        service.client.close();
       }
     },
   );
@@ -109,13 +106,13 @@ List<Map<String, dynamic>> _requirePredictions(
   if (rawPredictions is! List || rawPredictions.isEmpty) {
     throw GenkitException(
       'Vertex AI returned no predictions.',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
     );
   }
   if (rawPredictions.length != expectedCount) {
     throw GenkitException(
       'Vertex AI returned ${rawPredictions.length} predictions for $expectedCount input documents.',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
     );
   }
 
@@ -123,7 +120,7 @@ List<Map<String, dynamic>> _requirePredictions(
     if (prediction is! Map) {
       throw GenkitException(
         'Vertex AI returned an invalid prediction payload.',
-        status: StatusCodes.INTERNAL,
+        status: StatusCode.internal,
       );
     }
     return prediction.cast<String, dynamic>();
@@ -152,7 +149,7 @@ Future<List<Embedding>> _runMultimodalPredictRequests({
   required google.GenerativeLanguageBaseClient service,
   required String embedderName,
   required List<DocumentData> docs,
-  required google.TextEmbedderOptions? options,
+  required google.GoogleGenAiEmbedderOptions? options,
 }) async {
   final instances = [
     for (var i = 0; i < docs.length; i++)
@@ -188,7 +185,7 @@ Future<List<Embedding>> _runTextPredictRequests({
   required google.GenerativeLanguageBaseClient service,
   required String embedderName,
   required List<DocumentData> docs,
-  required google.TextEmbedderOptions? options,
+  required google.GoogleGenAiEmbedderOptions? options,
 }) async {
   // Older text embedders still use the predict payload shape.
   final title = options?.title;
@@ -228,7 +225,7 @@ Embedding _textPredictionEmbedding(Map<String, dynamic> prediction) {
   if (values is! List) {
     throw GenkitException(
       'Vertex AI returned an invalid prediction payload.',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
     );
   }
 
@@ -273,7 +270,7 @@ _MultimodalInstance _toMultimodalInstance(
     if (instance.containsKey(mediaField.key)) {
       throw GenkitException(
         'Vertex multimodalembedding supports at most one ${mediaField.key} part per input document.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -295,7 +292,7 @@ _MultimodalInstance _toMultimodalInstance(
   if (instance.isEmpty) {
     throw GenkitException(
       'Vertex multimodalembedding requires text, image, or video input.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -315,7 +312,7 @@ MapEntry<String, Map<String, dynamic>> _toMultimodalMediaField(Media media) {
     if (data == null) {
       throw GenkitException(
         'Vertex multimodalembedding media inputs require a valid data URI.',
-        status: StatusCodes.INVALID_ARGUMENT,
+        status: StatusCode.invalidArgument,
       );
     }
 
@@ -334,7 +331,7 @@ MapEntry<String, Map<String, dynamic>> _toMultimodalMediaField(Media media) {
 
   throw GenkitException(
     'Vertex multimodalembedding media inputs must use gs:// URIs or inline data URIs.',
-    status: StatusCodes.INVALID_ARGUMENT,
+    status: StatusCode.invalidArgument,
   );
 }
 
@@ -354,7 +351,7 @@ String _multimodalFieldName(String? mimeType) {
   if (mimeType == null || mimeType.isEmpty) {
     throw GenkitException(
       'Vertex multimodalembedding media inputs require a MIME type.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -367,7 +364,7 @@ String _multimodalFieldName(String? mimeType) {
 
   throw GenkitException(
     'Unsupported Vertex multimodalembedding media MIME type: $mimeType',
-    status: StatusCodes.INVALID_ARGUMENT,
+    status: StatusCode.invalidArgument,
   );
 }
 
@@ -397,7 +394,7 @@ List<Embedding> _multimodalPredictionEmbeddings(
         if (videoEmbeddings == null || videoEmbeddings.isEmpty) {
           throw GenkitException(
             'Vertex multimodalembedding did not return a video embedding.',
-            status: StatusCodes.INTERNAL,
+            status: StatusCode.internal,
           );
         }
 
@@ -406,7 +403,7 @@ List<Embedding> _multimodalPredictionEmbeddings(
           if (videoEmbedding is! Map) {
             throw GenkitException(
               'Vertex multimodalembedding returned an invalid video embedding.',
-              status: StatusCodes.INTERNAL,
+              status: StatusCode.internal,
             );
           }
           embeddings.add(
@@ -437,7 +434,7 @@ Embedding _embeddingFromMultimodalValues(
   if (values == null) {
     throw GenkitException(
       'Vertex multimodalembedding did not return a ${expectedOutput.output.name} embedding.',
-      status: StatusCodes.INTERNAL,
+      status: StatusCode.internal,
     );
   }
 

@@ -15,7 +15,7 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart' hide FinishReason, Tool;
-import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/converters.dart';
 import 'package:openai_dart/openai_dart.dart' hide Model;
 import 'package:test/test.dart';
 

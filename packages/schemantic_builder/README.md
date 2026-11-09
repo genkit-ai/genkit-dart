@@ -7,6 +7,16 @@ abstract class definitions annotated with `@Schema`.
 This package is a development-time dependency. The runtime API lives in the
 `schemantic` package.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Installation
 
 Add `schemantic` as a regular dependency, and `schemantic_builder` plus

@@ -41,7 +41,7 @@ class SkillsPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<SkillsPluginOptions>(
+    generateMiddleware<SkillsPluginOptions>(
       name: 'skills',
       configSchema: SkillsPluginOptions.$schema,
       create: (config, ctx) =>
@@ -156,7 +156,7 @@ class SkillsMiddleware extends GenerateMiddleware {
 
           try {
             final content = await File(info.path).readAsString();
-            return content;
+            return .response(content);
           } catch (e) {
             _logger.severe('Failed to read skill content "$skillName"', e);
             throw Exception('Failed to read skill "$skillName": $e');
@@ -167,10 +167,10 @@ class SkillsMiddleware extends GenerateMiddleware {
   }
 
   @override
-  Future<GenerateResponseHelper> generate(
+  Future<GenerateResult> generate(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
@@ -294,11 +294,7 @@ class SkillsMiddleware extends GenerateMiddleware {
         stepName: options.stepName,
       );
 
-      return next((
-        request: newOptions,
-        currentTurn: envelope.currentTurn,
-        messageIndex: envelope.messageIndex,
-      ), ctx);
+      return next(envelope.copyWith(request: newOptions), ctx);
     }
 
     return next(envelope, ctx);

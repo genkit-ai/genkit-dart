@@ -28,7 +28,7 @@ base class Candidate {
   Candidate._(this._json);
 
   Candidate({
-    required double index,
+    required int index,
     required Message message,
     GenerationUsage? usage,
     required FinishReason finishReason,
@@ -50,11 +50,11 @@ base class Candidate {
   /// The JSON schema and type descriptor for [Candidate].
   static const SchemanticType<Candidate> $schema = _CandidateTypeFactory();
 
-  double get index {
-    return (_json['index'] as num).toDouble();
+  int get index {
+    return (_json['index'] as num).toInt();
   }
 
-  set index(double value) {
+  set index(int value) {
     _json['index'] = value;
   }
 
@@ -135,19 +135,21 @@ base class _CandidateTypeFactory extends SchemanticType<Candidate> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Candidate',
-    definition: $Schema
-        .object(
-          properties: {
-            'index': $Schema.number(),
-            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
-            'finishReason': $Schema.any(),
-            'finishMessage': $Schema.string(),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['index', 'message', 'finishReason'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'index': <String, Object?>{'type': 'integer'},
+        'message': <String, Object?>{r'$ref': r'#/$defs/Message'},
+        'usage': <String, Object?>{r'$ref': r'#/$defs/GenerationUsage'},
+        'finishReason': <String, Object?>{},
+        'finishMessage': <String, Object?>{'type': 'string'},
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['index', 'message', 'finishReason'],
+    },
     dependencies: [Message.$schema, GenerationUsage.$schema],
   );
 }
@@ -228,18 +230,21 @@ base class _MessageTypeFactory extends SchemanticType<Message> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Message',
-    definition: $Schema
-        .object(
-          properties: {
-            'role': $Schema.any(),
-            'content': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-            ),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['role', 'content'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'role': <String, Object?>{},
+        'content': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Part'},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['role', 'content'],
+    },
     dependencies: [Part.$schema],
   );
 }
@@ -361,19 +366,27 @@ base class _ToolDefinitionTypeFactory extends SchemanticType<ToolDefinition> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolDefinition',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'key': $Schema.string(),
-            'description': $Schema.string(),
-            'inputSchema': $Schema.object(additionalProperties: $Schema.any()),
-            'outputSchema': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['name', 'description'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'key': <String, Object?>{'type': 'string'},
+        'description': <String, Object?>{'type': 'string'},
+        'inputSchema': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'outputSchema': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['name', 'description'],
+    },
     dependencies: [],
   );
 }
@@ -415,7 +428,10 @@ base class _PartTypeFactory extends SchemanticType<Part> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Part',
-    definition: $Schema.object(properties: {}).value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{},
+    },
     dependencies: [],
   );
 }
@@ -513,17 +529,25 @@ base class _TextPartTypeFactory extends SchemanticType<TextPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TextPart',
-    definition: $Schema
-        .object(
-          properties: {
-            'text': $Schema.string(),
-            'data': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['text'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'text': <String, Object?>{'type': 'string'},
+        'data': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['text'],
+    },
     dependencies: [],
   );
 }
@@ -621,17 +645,25 @@ base class _MediaPartTypeFactory extends SchemanticType<MediaPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MediaPart',
-    definition: $Schema
-        .object(
-          properties: {
-            'media': $Schema.fromMap({'\$ref': r'#/$defs/Media'}),
-            'data': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['media'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'media': <String, Object?>{r'$ref': r'#/$defs/Media'},
+        'data': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['media'],
+    },
     dependencies: [Media.$schema],
   );
 }
@@ -731,17 +763,25 @@ base class _ToolRequestPartTypeFactory extends SchemanticType<ToolRequestPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolRequestPart',
-    definition: $Schema
-        .object(
-          properties: {
-            'toolRequest': $Schema.fromMap({'\$ref': r'#/$defs/ToolRequest'}),
-            'data': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['toolRequest'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'toolRequest': <String, Object?>{r'$ref': r'#/$defs/ToolRequest'},
+        'data': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['toolRequest'],
+    },
     dependencies: [ToolRequest.$schema],
   );
 }
@@ -842,17 +882,25 @@ base class _ToolResponsePartTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolResponsePart',
-    definition: $Schema
-        .object(
-          properties: {
-            'toolResponse': $Schema.fromMap({'\$ref': r'#/$defs/ToolResponse'}),
-            'data': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['toolResponse'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'toolResponse': <String, Object?>{r'$ref': r'#/$defs/ToolResponse'},
+        'data': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['toolResponse'],
+    },
     dependencies: [ToolResponse.$schema],
   );
 }
@@ -936,15 +984,23 @@ base class _DataPartTypeFactory extends SchemanticType<DataPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'DataPart',
-    definition: $Schema
-        .object(
-          properties: {
-            'data': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'data': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -1024,16 +1080,24 @@ base class _CustomPartTypeFactory extends SchemanticType<CustomPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'CustomPart',
-    definition: $Schema
-        .object(
-          properties: {
-            'data': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['custom'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'data': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['custom'],
+    },
     dependencies: [],
   );
 }
@@ -1133,17 +1197,25 @@ base class _ReasoningPartTypeFactory extends SchemanticType<ReasoningPart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ReasoningPart',
-    definition: $Schema
-        .object(
-          properties: {
-            'data': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-            'reasoning': $Schema.string(),
-          },
-          required: ['reasoning'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'data': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'reasoning': <String, Object?>{'type': 'string'},
+      },
+      'required': ['reasoning'],
+    },
     dependencies: [],
   );
 }
@@ -1243,17 +1315,28 @@ base class _ResourcePartTypeFactory extends SchemanticType<ResourcePart> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ResourcePart',
-    definition: $Schema
-        .object(
-          properties: {
-            'data': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-            'resource': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['resource'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'data': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'resource': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['resource'],
+    },
     dependencies: [],
   );
 }
@@ -1383,20 +1466,35 @@ base class _BaseDataPointTypeFactory extends SchemanticType<BaseDataPoint> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'BaseDataPoint',
-    definition: $Schema
-        .object(
-          properties: {
-            'input': $Schema.object(additionalProperties: $Schema.any()),
-            'output': $Schema.object(additionalProperties: $Schema.any()),
-            'context': $Schema.list(
-              items: $Schema.object(additionalProperties: $Schema.any()),
-            ),
-            'reference': $Schema.object(additionalProperties: $Schema.any()),
-            'testCaseId': $Schema.string(),
-            'traceIds': $Schema.list(items: $Schema.string()),
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'input': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'output': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'context': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{
+            'type': 'object',
+            'additionalProperties': <String, Object?>{},
           },
-        )
-        .value,
+        },
+        'reference': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'testCaseId': <String, Object?>{'type': 'string'},
+        'traceIds': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -1477,18 +1575,21 @@ base class _EvalRequestTypeFactory extends SchemanticType<EvalRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'EvalRequest',
-    definition: $Schema
-        .object(
-          properties: {
-            'dataset': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/BaseDataPoint'}),
-            ),
-            'evalRunId': $Schema.string(),
-            'options': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['dataset', 'evalRunId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'dataset': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/BaseDataPoint'},
+        },
+        'evalRunId': <String, Object?>{'type': 'string'},
+        'options': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['dataset', 'evalRunId'],
+    },
     dependencies: [BaseDataPoint.$schema],
   );
 }
@@ -1501,7 +1602,7 @@ base class EvalFnResponse {
   EvalFnResponse._(this._json);
 
   EvalFnResponse({
-    double? sampleIndex,
+    int? sampleIndex,
     required String testCaseId,
     String? traceId,
     String? spanId,
@@ -1522,11 +1623,11 @@ base class EvalFnResponse {
   static const SchemanticType<EvalFnResponse> $schema =
       _EvalFnResponseTypeFactory();
 
-  double? get sampleIndex {
-    return (_json['sampleIndex'] as num?)?.toDouble();
+  int? get sampleIndex {
+    return (_json['sampleIndex'] as num?)?.toInt();
   }
 
-  set sampleIndex(double? value) {
+  set sampleIndex(int? value) {
     if (value == null) {
       _json.remove('sampleIndex');
     } else {
@@ -1605,25 +1706,25 @@ base class _EvalFnResponseTypeFactory extends SchemanticType<EvalFnResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'EvalFnResponse',
-    definition: $Schema
-        .object(
-          properties: {
-            'sampleIndex': $Schema.number(),
-            'testCaseId': $Schema.string(),
-            'traceId': $Schema.string(),
-            'spanId': $Schema.string(),
-            'evaluation': $Schema.combined(
-              anyOf: [
-                $Schema.fromMap({'\$ref': r'#/$defs/Score'}),
-                $Schema.list(
-                  items: $Schema.fromMap({'\$ref': r'#/$defs/Score'}),
-                ),
-              ],
-            ),
-          },
-          required: ['testCaseId'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'sampleIndex': <String, Object?>{'type': 'integer'},
+        'testCaseId': <String, Object?>{'type': 'string'},
+        'traceId': <String, Object?>{'type': 'string'},
+        'spanId': <String, Object?>{'type': 'string'},
+        'evaluation': <String, Object?>{
+          'anyOf': [
+            <String, Object?>{r'$ref': r'#/$defs/Score'},
+            <String, Object?>{
+              'type': 'array',
+              'items': <String, Object?>{r'$ref': r'#/$defs/Score'},
+            },
+          ],
+        },
+      },
+      'required': ['testCaseId'],
+    },
     dependencies: [Score.$schema],
   );
 }
@@ -1637,7 +1738,7 @@ base class Score {
   Score({
     String? id,
     ScoreScore? score,
-    EvalStatusEnum? status,
+    EvalStatus? status,
     String? error,
     Map<String, dynamic>? details,
   }) {
@@ -1676,11 +1777,11 @@ base class Score {
     return _json['score'] as Object?;
   }
 
-  EvalStatusEnum? get status {
-    return _json['status'] as EvalStatusEnum?;
+  EvalStatus? get status {
+    return _json['status'] as EvalStatus?;
   }
 
-  set status(EvalStatusEnum? value) {
+  set status(EvalStatus? value) {
     if (value == null) {
       _json.remove('status');
     } else {
@@ -1744,19 +1845,25 @@ base class _ScoreTypeFactory extends SchemanticType<Score> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Score',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.string(),
-            'score': $Schema.combined(
-              anyOf: [$Schema.number(), $Schema.string(), $Schema.boolean()],
-            ),
-            'status': $Schema.any(),
-            'error': $Schema.string(),
-            'details': $Schema.object(additionalProperties: $Schema.any()),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'id': <String, Object?>{'type': 'string'},
+        'score': <String, Object?>{
+          'anyOf': [
+            <String, Object?>{'type': 'number'},
+            <String, Object?>{'type': 'string'},
+            <String, Object?>{'type': 'boolean'},
+          ],
+        },
+        'status': <String, Object?>{},
+        'error': <String, Object?>{'type': 'string'},
+        'details': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+    },
     dependencies: [],
   );
 }
@@ -1818,15 +1925,14 @@ base class _MediaTypeFactory extends SchemanticType<Media> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Media',
-    definition: $Schema
-        .object(
-          properties: {
-            'contentType': $Schema.string(),
-            'url': $Schema.string(),
-          },
-          required: ['url'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'contentType': <String, Object?>{'type': 'string'},
+        'url': <String, Object?>{'type': 'string'},
+      },
+      'required': ['url'],
+    },
     dependencies: [],
   );
 }
@@ -1918,17 +2024,16 @@ base class _ToolRequestTypeFactory extends SchemanticType<ToolRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolRequest',
-    definition: $Schema
-        .object(
-          properties: {
-            'ref': $Schema.string(),
-            'name': $Schema.string(),
-            'input': $Schema.any(),
-            'partial': $Schema.boolean(),
-          },
-          required: ['name'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'ref': <String, Object?>{'type': 'string'},
+        'name': <String, Object?>{'type': 'string'},
+        'input': <String, Object?>{},
+        'partial': <String, Object?>{'type': 'boolean'},
+      },
+      'required': ['name'],
+    },
     dependencies: [],
   );
 }
@@ -2017,17 +2122,19 @@ base class _ToolResponseTypeFactory extends SchemanticType<ToolResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolResponse',
-    definition: $Schema
-        .object(
-          properties: {
-            'ref': $Schema.string(),
-            'name': $Schema.string(),
-            'output': $Schema.any(),
-            'content': $Schema.list(items: $Schema.any()),
-          },
-          required: ['name', 'output'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'ref': <String, Object?>{'type': 'string'},
+        'name': <String, Object?>{'type': 'string'},
+        'output': <String, Object?>{},
+        'content': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{},
+        },
+      },
+      'required': ['name', 'output'],
+    },
     dependencies: [],
   );
 }
@@ -2141,17 +2248,25 @@ base class _ModelInfoTypeFactory extends SchemanticType<ModelInfo> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelInfo',
-    definition: $Schema
-        .object(
-          properties: {
-            'versions': $Schema.list(items: $Schema.string()),
-            'label': $Schema.string(),
-            'configSchema': $Schema.object(additionalProperties: $Schema.any()),
-            'supports': $Schema.object(additionalProperties: $Schema.any()),
-            'stage': $Schema.string(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'versions': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'label': <String, Object?>{'type': 'string'},
+        'configSchema': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'supports': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'stage': <String, Object?>{'type': 'string'},
+      },
+    },
     dependencies: [],
   );
 }
@@ -2167,7 +2282,7 @@ base class ModelRequest {
     required List<Message> messages,
     Map<String, dynamic>? config,
     List<ToolDefinition>? tools,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     OutputConfig? output,
     List<DocumentData>? docs,
   }) {
@@ -2175,7 +2290,7 @@ base class ModelRequest {
       'messages': messages.map((e) => e.toJson()).toList(),
       'config': ?config,
       'tools': ?tools?.map((e) => e.toJson()).toList(),
-      'toolChoice': ?toolChoice,
+      'toolChoice': ?toolChoice?.value,
       'output': ?output?.toJson(),
       'docs': ?docs?.map((e) => e.toJson()).toList(),
     };
@@ -2223,11 +2338,11 @@ base class ModelRequest {
     }
   }
 
-  String? get toolChoice {
-    return _json['toolChoice'] as String?;
+  ToolChoice? get toolChoice {
+    return _json['toolChoice'] as ToolChoice?;
   }
 
-  set toolChoice(String? value) {
+  set toolChoice(ToolChoice? value) {
     if (value == null) {
       _json.remove('toolChoice');
     } else {
@@ -2285,25 +2400,30 @@ base class _ModelRequestTypeFactory extends SchemanticType<ModelRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelRequest',
-    definition: $Schema
-        .object(
-          properties: {
-            'messages': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            ),
-            'config': $Schema.object(additionalProperties: $Schema.any()),
-            'tools': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
-            ),
-            'toolChoice': $Schema.string(),
-            'output': $Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
-            'docs': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-            ),
-          },
-          required: ['messages'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'messages': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Message'},
+        },
+        'config': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'tools': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/ToolDefinition'},
+        },
+        'toolChoice': <String, Object?>{},
+        'output': <String, Object?>{r'$ref': r'#/$defs/OutputConfig'},
+        'docs': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/DocumentData'},
+        },
+      },
+      'required': ['messages'],
+    },
     dependencies: [
       Message.$schema,
       ToolDefinition.$schema,
@@ -2324,6 +2444,7 @@ base class ModelResponse {
     Message? message,
     required FinishReason finishReason,
     String? finishMessage,
+    RuntimeError? error,
     double? latencyMs,
     GenerationUsage? usage,
     Map<String, dynamic>? custom,
@@ -2335,6 +2456,7 @@ base class ModelResponse {
       'message': ?message?.toJson(),
       'finishReason': finishReason.value,
       'finishMessage': ?finishMessage,
+      'error': ?error?.toJson(),
       'latencyMs': ?latencyMs,
       'usage': ?usage?.toJson(),
       'custom': ?custom,
@@ -2382,6 +2504,20 @@ base class ModelResponse {
       _json.remove('finishMessage');
     } else {
       _json['finishMessage'] = value;
+    }
+  }
+
+  RuntimeError? get error {
+    return _json['error'] == null
+        ? null
+        : RuntimeError.fromJson(_json['error'] as Map<String, dynamic>);
+  }
+
+  set error(RuntimeError? value) {
+    if (value == null) {
+      _json.remove('error');
+    } else {
+      _json['error'] = value.toJson();
     }
   }
 
@@ -2485,24 +2621,31 @@ base class _ModelResponseTypeFactory extends SchemanticType<ModelResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelResponse',
-    definition: $Schema
-        .object(
-          properties: {
-            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            'finishReason': $Schema.any(),
-            'finishMessage': $Schema.string(),
-            'latencyMs': $Schema.number(),
-            'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-            'raw': $Schema.object(additionalProperties: $Schema.any()),
-            'request': $Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
-            'operation': $Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
-          },
-          required: ['finishReason'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'message': <String, Object?>{r'$ref': r'#/$defs/Message'},
+        'finishReason': <String, Object?>{},
+        'finishMessage': <String, Object?>{'type': 'string'},
+        'error': <String, Object?>{r'$ref': r'#/$defs/RuntimeError'},
+        'latencyMs': <String, Object?>{'type': 'number'},
+        'usage': <String, Object?>{r'$ref': r'#/$defs/GenerationUsage'},
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'raw': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'request': <String, Object?>{r'$ref': r'#/$defs/GenerateRequest'},
+        'operation': <String, Object?>{r'$ref': r'#/$defs/Operation'},
+      },
+      'required': ['finishReason'],
+    },
     dependencies: [
       Message.$schema,
+      RuntimeError.$schema,
       GenerationUsage.$schema,
       GenerateRequest.$schema,
       Operation.$schema,
@@ -2552,7 +2695,7 @@ base class ModelResponseChunk {
   }
 
   int? get index {
-    return _json['index'] as int?;
+    return (_json['index'] as num?)?.toInt();
   }
 
   set index(int? value) {
@@ -2620,20 +2763,23 @@ base class _ModelResponseChunkTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ModelResponseChunk',
-    definition: $Schema
-        .object(
-          properties: {
-            'role': $Schema.any(),
-            'index': $Schema.integer(),
-            'content': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-            ),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-            'aggregated': $Schema.boolean(),
-          },
-          required: ['content'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'role': <String, Object?>{},
+        'index': <String, Object?>{'type': 'integer'},
+        'content': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Part'},
+        },
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'aggregated': <String, Object?>{'type': 'boolean'},
+      },
+      'required': ['content'],
+    },
     dependencies: [Part.$schema],
   );
 }
@@ -2697,15 +2843,108 @@ base class _MiddlewareRefTypeFactory extends SchemanticType<MiddlewareRef> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'MiddlewareRef',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'config': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['name'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'config': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['name'],
+    },
+    dependencies: [],
+  );
+}
+
+base class RuntimeError {
+  /// Creates a [RuntimeError] from a JSON map.
+  factory RuntimeError.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  RuntimeError._(this._json);
+
+  RuntimeError({
+    String? status,
+    required String message,
+    Map<String, dynamic>? details,
+  }) {
+    _json = {'status': ?status, 'message': message, 'details': ?details};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [RuntimeError].
+  static const SchemanticType<RuntimeError> $schema =
+      _RuntimeErrorTypeFactory();
+
+  String? get status {
+    return _json['status'] as String?;
+  }
+
+  set status(String? value) {
+    if (value == null) {
+      _json.remove('status');
+    } else {
+      _json['status'] = value;
+    }
+  }
+
+  String get message {
+    return _json['message'] as String;
+  }
+
+  set message(String value) {
+    _json['message'] = value;
+  }
+
+  Map<String, dynamic>? get details {
+    return (_json['details'] as Map?)?.cast<String, dynamic>();
+  }
+
+  set details(Map<String, dynamic>? value) {
+    if (value == null) {
+      _json.remove('details');
+    } else {
+      _json['details'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [RuntimeError] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _RuntimeErrorTypeFactory extends SchemanticType<RuntimeError> {
+  const _RuntimeErrorTypeFactory();
+
+  @override
+  RuntimeError parse(Object? json) {
+    return RuntimeError._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'RuntimeError',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'status': <String, Object?>{'type': 'string'},
+        'message': <String, Object?>{'type': 'string'},
+        'details': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['message'],
+    },
     dependencies: [],
   );
 }
@@ -2721,6 +2960,7 @@ base class GenerateResponse {
     Message? message,
     FinishReason? finishReason,
     String? finishMessage,
+    RuntimeError? error,
     double? latencyMs,
     GenerationUsage? usage,
     Map<String, dynamic>? custom,
@@ -2733,6 +2973,7 @@ base class GenerateResponse {
       'message': ?message?.toJson(),
       'finishReason': ?finishReason?.value,
       'finishMessage': ?finishMessage,
+      'error': ?error?.toJson(),
       'latencyMs': ?latencyMs,
       'usage': ?usage?.toJson(),
       'custom': ?custom,
@@ -2784,6 +3025,20 @@ base class GenerateResponse {
       _json.remove('finishMessage');
     } else {
       _json['finishMessage'] = value;
+    }
+  }
+
+  RuntimeError? get error {
+    return _json['error'] == null
+        ? null
+        : RuntimeError.fromJson(_json['error'] as Map<String, dynamic>);
+  }
+
+  set error(RuntimeError? value) {
+    if (value == null) {
+      _json.remove('error');
+    } else {
+      _json['error'] = value.toJson();
     }
   }
 
@@ -2902,26 +3157,34 @@ base class _GenerateResponseTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateResponse',
-    definition: $Schema
-        .object(
-          properties: {
-            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            'finishReason': $Schema.any(),
-            'finishMessage': $Schema.string(),
-            'latencyMs': $Schema.number(),
-            'usage': $Schema.fromMap({'\$ref': r'#/$defs/GenerationUsage'}),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-            'raw': $Schema.object(additionalProperties: $Schema.any()),
-            'request': $Schema.fromMap({'\$ref': r'#/$defs/GenerateRequest'}),
-            'operation': $Schema.fromMap({'\$ref': r'#/$defs/Operation'}),
-            'candidates': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Candidate'}),
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'message': <String, Object?>{r'$ref': r'#/$defs/Message'},
+        'finishReason': <String, Object?>{},
+        'finishMessage': <String, Object?>{'type': 'string'},
+        'error': <String, Object?>{r'$ref': r'#/$defs/RuntimeError'},
+        'latencyMs': <String, Object?>{'type': 'number'},
+        'usage': <String, Object?>{r'$ref': r'#/$defs/GenerationUsage'},
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'raw': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'request': <String, Object?>{r'$ref': r'#/$defs/GenerateRequest'},
+        'operation': <String, Object?>{r'$ref': r'#/$defs/Operation'},
+        'candidates': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Candidate'},
+        },
+      },
+    },
     dependencies: [
       Message.$schema,
+      RuntimeError.$schema,
       GenerationUsage.$schema,
       GenerateRequest.$schema,
       Operation.$schema,
@@ -2941,16 +3204,16 @@ base class GenerateRequest {
     required List<Message> messages,
     Map<String, dynamic>? config,
     List<ToolDefinition>? tools,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     OutputConfig? output,
     List<DocumentData>? docs,
-    double? candidates,
+    int? candidates,
   }) {
     _json = {
       'messages': messages.map((e) => e.toJson()).toList(),
       'config': ?config,
       'tools': ?tools?.map((e) => e.toJson()).toList(),
-      'toolChoice': ?toolChoice,
+      'toolChoice': ?toolChoice?.value,
       'output': ?output?.toJson(),
       'docs': ?docs?.map((e) => e.toJson()).toList(),
       'candidates': ?candidates,
@@ -2999,11 +3262,11 @@ base class GenerateRequest {
     }
   }
 
-  String? get toolChoice {
-    return _json['toolChoice'] as String?;
+  ToolChoice? get toolChoice {
+    return _json['toolChoice'] as ToolChoice?;
   }
 
-  set toolChoice(String? value) {
+  set toolChoice(ToolChoice? value) {
     if (value == null) {
       _json.remove('toolChoice');
     } else {
@@ -3039,11 +3302,11 @@ base class GenerateRequest {
     }
   }
 
-  double? get candidates {
-    return (_json['candidates'] as num?)?.toDouble();
+  int? get candidates {
+    return (_json['candidates'] as num?)?.toInt();
   }
 
-  set candidates(double? value) {
+  set candidates(int? value) {
     if (value == null) {
       _json.remove('candidates');
     } else {
@@ -3073,26 +3336,31 @@ base class _GenerateRequestTypeFactory extends SchemanticType<GenerateRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateRequest',
-    definition: $Schema
-        .object(
-          properties: {
-            'messages': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            ),
-            'config': $Schema.object(additionalProperties: $Schema.any()),
-            'tools': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolDefinition'}),
-            ),
-            'toolChoice': $Schema.string(),
-            'output': $Schema.fromMap({'\$ref': r'#/$defs/OutputConfig'}),
-            'docs': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-            ),
-            'candidates': $Schema.number(),
-          },
-          required: ['messages'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'messages': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Message'},
+        },
+        'config': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'tools': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/ToolDefinition'},
+        },
+        'toolChoice': <String, Object?>{},
+        'output': <String, Object?>{r'$ref': r'#/$defs/OutputConfig'},
+        'docs': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/DocumentData'},
+        },
+        'candidates': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['messages'],
+    },
     dependencies: [
       Message.$schema,
       ToolDefinition.$schema,
@@ -3110,20 +3378,20 @@ base class GenerationUsage {
   GenerationUsage._(this._json);
 
   GenerationUsage({
-    double? inputTokens,
-    double? outputTokens,
-    double? totalTokens,
-    double? inputCharacters,
-    double? outputCharacters,
-    double? inputImages,
-    double? outputImages,
-    double? inputVideos,
-    double? outputVideos,
-    double? inputAudioFiles,
-    double? outputAudioFiles,
+    int? inputTokens,
+    int? outputTokens,
+    int? totalTokens,
+    int? inputCharacters,
+    int? outputCharacters,
+    int? inputImages,
+    int? outputImages,
+    int? inputVideos,
+    int? outputVideos,
+    int? inputAudioFiles,
+    int? outputAudioFiles,
     Map<String, dynamic>? custom,
-    double? thoughtsTokens,
-    double? cachedContentTokens,
+    int? thoughtsTokens,
+    int? cachedContentTokens,
   }) {
     _json = {
       'inputTokens': ?inputTokens,
@@ -3149,11 +3417,11 @@ base class GenerationUsage {
   static const SchemanticType<GenerationUsage> $schema =
       _GenerationUsageTypeFactory();
 
-  double? get inputTokens {
-    return (_json['inputTokens'] as num?)?.toDouble();
+  int? get inputTokens {
+    return (_json['inputTokens'] as num?)?.toInt();
   }
 
-  set inputTokens(double? value) {
+  set inputTokens(int? value) {
     if (value == null) {
       _json.remove('inputTokens');
     } else {
@@ -3161,11 +3429,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get outputTokens {
-    return (_json['outputTokens'] as num?)?.toDouble();
+  int? get outputTokens {
+    return (_json['outputTokens'] as num?)?.toInt();
   }
 
-  set outputTokens(double? value) {
+  set outputTokens(int? value) {
     if (value == null) {
       _json.remove('outputTokens');
     } else {
@@ -3173,11 +3441,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get totalTokens {
-    return (_json['totalTokens'] as num?)?.toDouble();
+  int? get totalTokens {
+    return (_json['totalTokens'] as num?)?.toInt();
   }
 
-  set totalTokens(double? value) {
+  set totalTokens(int? value) {
     if (value == null) {
       _json.remove('totalTokens');
     } else {
@@ -3185,11 +3453,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get inputCharacters {
-    return (_json['inputCharacters'] as num?)?.toDouble();
+  int? get inputCharacters {
+    return (_json['inputCharacters'] as num?)?.toInt();
   }
 
-  set inputCharacters(double? value) {
+  set inputCharacters(int? value) {
     if (value == null) {
       _json.remove('inputCharacters');
     } else {
@@ -3197,11 +3465,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get outputCharacters {
-    return (_json['outputCharacters'] as num?)?.toDouble();
+  int? get outputCharacters {
+    return (_json['outputCharacters'] as num?)?.toInt();
   }
 
-  set outputCharacters(double? value) {
+  set outputCharacters(int? value) {
     if (value == null) {
       _json.remove('outputCharacters');
     } else {
@@ -3209,11 +3477,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get inputImages {
-    return (_json['inputImages'] as num?)?.toDouble();
+  int? get inputImages {
+    return (_json['inputImages'] as num?)?.toInt();
   }
 
-  set inputImages(double? value) {
+  set inputImages(int? value) {
     if (value == null) {
       _json.remove('inputImages');
     } else {
@@ -3221,11 +3489,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get outputImages {
-    return (_json['outputImages'] as num?)?.toDouble();
+  int? get outputImages {
+    return (_json['outputImages'] as num?)?.toInt();
   }
 
-  set outputImages(double? value) {
+  set outputImages(int? value) {
     if (value == null) {
       _json.remove('outputImages');
     } else {
@@ -3233,11 +3501,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get inputVideos {
-    return (_json['inputVideos'] as num?)?.toDouble();
+  int? get inputVideos {
+    return (_json['inputVideos'] as num?)?.toInt();
   }
 
-  set inputVideos(double? value) {
+  set inputVideos(int? value) {
     if (value == null) {
       _json.remove('inputVideos');
     } else {
@@ -3245,11 +3513,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get outputVideos {
-    return (_json['outputVideos'] as num?)?.toDouble();
+  int? get outputVideos {
+    return (_json['outputVideos'] as num?)?.toInt();
   }
 
-  set outputVideos(double? value) {
+  set outputVideos(int? value) {
     if (value == null) {
       _json.remove('outputVideos');
     } else {
@@ -3257,11 +3525,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get inputAudioFiles {
-    return (_json['inputAudioFiles'] as num?)?.toDouble();
+  int? get inputAudioFiles {
+    return (_json['inputAudioFiles'] as num?)?.toInt();
   }
 
-  set inputAudioFiles(double? value) {
+  set inputAudioFiles(int? value) {
     if (value == null) {
       _json.remove('inputAudioFiles');
     } else {
@@ -3269,11 +3537,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get outputAudioFiles {
-    return (_json['outputAudioFiles'] as num?)?.toDouble();
+  int? get outputAudioFiles {
+    return (_json['outputAudioFiles'] as num?)?.toInt();
   }
 
-  set outputAudioFiles(double? value) {
+  set outputAudioFiles(int? value) {
     if (value == null) {
       _json.remove('outputAudioFiles');
     } else {
@@ -3293,11 +3561,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get thoughtsTokens {
-    return (_json['thoughtsTokens'] as num?)?.toDouble();
+  int? get thoughtsTokens {
+    return (_json['thoughtsTokens'] as num?)?.toInt();
   }
 
-  set thoughtsTokens(double? value) {
+  set thoughtsTokens(int? value) {
     if (value == null) {
       _json.remove('thoughtsTokens');
     } else {
@@ -3305,11 +3573,11 @@ base class GenerationUsage {
     }
   }
 
-  double? get cachedContentTokens {
-    return (_json['cachedContentTokens'] as num?)?.toDouble();
+  int? get cachedContentTokens {
+    return (_json['cachedContentTokens'] as num?)?.toInt();
   }
 
-  set cachedContentTokens(double? value) {
+  set cachedContentTokens(int? value) {
     if (value == null) {
       _json.remove('cachedContentTokens');
     } else {
@@ -3339,26 +3607,28 @@ base class _GenerationUsageTypeFactory extends SchemanticType<GenerationUsage> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerationUsage',
-    definition: $Schema
-        .object(
-          properties: {
-            'inputTokens': $Schema.number(),
-            'outputTokens': $Schema.number(),
-            'totalTokens': $Schema.number(),
-            'inputCharacters': $Schema.number(),
-            'outputCharacters': $Schema.number(),
-            'inputImages': $Schema.number(),
-            'outputImages': $Schema.number(),
-            'inputVideos': $Schema.number(),
-            'outputVideos': $Schema.number(),
-            'inputAudioFiles': $Schema.number(),
-            'outputAudioFiles': $Schema.number(),
-            'custom': $Schema.object(additionalProperties: $Schema.any()),
-            'thoughtsTokens': $Schema.number(),
-            'cachedContentTokens': $Schema.number(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'inputTokens': <String, Object?>{'type': 'integer'},
+        'outputTokens': <String, Object?>{'type': 'integer'},
+        'totalTokens': <String, Object?>{'type': 'integer'},
+        'inputCharacters': <String, Object?>{'type': 'integer'},
+        'outputCharacters': <String, Object?>{'type': 'integer'},
+        'inputImages': <String, Object?>{'type': 'integer'},
+        'outputImages': <String, Object?>{'type': 'integer'},
+        'inputVideos': <String, Object?>{'type': 'integer'},
+        'outputVideos': <String, Object?>{'type': 'integer'},
+        'inputAudioFiles': <String, Object?>{'type': 'integer'},
+        'outputAudioFiles': <String, Object?>{'type': 'integer'},
+        'custom': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'thoughtsTokens': <String, Object?>{'type': 'integer'},
+        'cachedContentTokens': <String, Object?>{'type': 'integer'},
+      },
+    },
     dependencies: [],
   );
 }
@@ -3482,19 +3752,27 @@ base class _OperationTypeFactory extends SchemanticType<Operation> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Operation',
-    definition: $Schema
-        .object(
-          properties: {
-            'action': $Schema.string(),
-            'id': $Schema.string(),
-            'done': $Schema.boolean(),
-            'output': $Schema.object(additionalProperties: $Schema.any()),
-            'error': $Schema.object(additionalProperties: $Schema.any()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['id'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'action': <String, Object?>{'type': 'string'},
+        'id': <String, Object?>{'type': 'string'},
+        'done': <String, Object?>{'type': 'boolean'},
+        'output': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'error': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['id'],
+    },
     dependencies: [],
   );
 }
@@ -3596,16 +3874,18 @@ base class _OutputConfigTypeFactory extends SchemanticType<OutputConfig> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'OutputConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'format': $Schema.string(),
-            'schema': $Schema.object(additionalProperties: $Schema.any()),
-            'constrained': $Schema.boolean(),
-            'contentType': $Schema.string(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'format': <String, Object?>{'type': 'string'},
+        'schema': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'constrained': <String, Object?>{'type': 'boolean'},
+        'contentType': <String, Object?>{'type': 'string'},
+      },
+    },
     dependencies: [],
   );
 }
@@ -3674,17 +3954,20 @@ base class _DocumentDataTypeFactory extends SchemanticType<DocumentData> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'DocumentData',
-    definition: $Schema
-        .object(
-          properties: {
-            'content': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-            ),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['content'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'content': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Part'},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['content'],
+    },
     dependencies: [Part.$schema],
   );
 }
@@ -3702,7 +3985,7 @@ base class GenerateActionOptions {
     required List<Message> messages,
     List<String>? tools,
     List<String>? resources,
-    String? toolChoice,
+    ToolChoice? toolChoice,
     Map<String, dynamic>? config,
     GenerateActionOutputConfig? output,
     GenerateResumeOptions? resume,
@@ -3717,7 +4000,7 @@ base class GenerateActionOptions {
       'messages': messages.map((e) => e.toJson()).toList(),
       'tools': ?tools,
       'resources': ?resources,
-      'toolChoice': ?toolChoice,
+      'toolChoice': ?toolChoice?.value,
       'config': ?config,
       'output': ?output?.toJson(),
       'resume': ?resume?.toJson(),
@@ -3794,11 +4077,11 @@ base class GenerateActionOptions {
     }
   }
 
-  String? get toolChoice {
-    return _json['toolChoice'] as String?;
+  ToolChoice? get toolChoice {
+    return _json['toolChoice'] as ToolChoice?;
   }
 
-  set toolChoice(String? value) {
+  set toolChoice(ToolChoice? value) {
     if (value == null) {
       _json.remove('toolChoice');
     } else {
@@ -3863,7 +4146,7 @@ base class GenerateActionOptions {
   }
 
   int? get maxTurns {
-    return _json['maxTurns'] as int?;
+    return (_json['maxTurns'] as num?)?.toInt();
   }
 
   set maxTurns(int? value) {
@@ -3923,36 +4206,45 @@ base class _GenerateActionOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateActionOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'model': $Schema.string(),
-            'docs': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-            ),
-            'messages': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            ),
-            'tools': $Schema.list(items: $Schema.string()),
-            'resources': $Schema.list(items: $Schema.string()),
-            'toolChoice': $Schema.string(),
-            'config': $Schema.object(additionalProperties: $Schema.any()),
-            'output': $Schema.fromMap({
-              '\$ref': r'#/$defs/GenerateActionOutputConfig',
-            }),
-            'resume': $Schema.fromMap({
-              '\$ref': r'#/$defs/GenerateResumeOptions',
-            }),
-            'returnToolRequests': $Schema.boolean(),
-            'maxTurns': $Schema.integer(),
-            'stepName': $Schema.string(),
-            'use': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/MiddlewareRef'}),
-            ),
-          },
-          required: ['messages'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'model': <String, Object?>{'type': 'string'},
+        'docs': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/DocumentData'},
+        },
+        'messages': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Message'},
+        },
+        'tools': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'resources': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'toolChoice': <String, Object?>{},
+        'config': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'output': <String, Object?>{
+          r'$ref': r'#/$defs/GenerateActionOutputConfig',
+        },
+        'resume': <String, Object?>{r'$ref': r'#/$defs/GenerateResumeOptions'},
+        'returnToolRequests': <String, Object?>{'type': 'boolean'},
+        'maxTurns': <String, Object?>{'type': 'integer'},
+        'stepName': <String, Object?>{'type': 'string'},
+        'use': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/MiddlewareRef'},
+        },
+      },
+      'required': ['messages'],
+    },
     dependencies: [
       DocumentData.$schema,
       Message.$schema,
@@ -4051,19 +4343,23 @@ base class _GenerateResumeOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateResumeOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'respond': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolResponsePart'}),
-            ),
-            'restart': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolRequestPart'}),
-            ),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'respond': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/ToolResponsePart'},
+        },
+        'restart': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/ToolRequestPart'},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+    },
     dependencies: [ToolResponsePart.$schema, ToolRequestPart.$schema],
   );
 }
@@ -4199,20 +4495,25 @@ base class _GenerateActionOutputConfigTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'GenerateActionOutputConfig',
-    definition: $Schema
-        .object(
-          properties: {
-            'format': $Schema.string(),
-            'contentType': $Schema.string(),
-            'instructions': $Schema.combined(
-              anyOf: [$Schema.boolean(), $Schema.string()],
-            ),
-            'jsonSchema': $Schema.object(additionalProperties: $Schema.any()),
-            'constrained': $Schema.boolean(),
-            'defaultInstructions': $Schema.boolean(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'format': <String, Object?>{'type': 'string'},
+        'contentType': <String, Object?>{'type': 'string'},
+        'instructions': <String, Object?>{
+          'anyOf': [
+            <String, Object?>{'type': 'boolean'},
+            <String, Object?>{'type': 'string'},
+          ],
+        },
+        'jsonSchema': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+        'constrained': <String, Object?>{'type': 'boolean'},
+        'defaultInstructions': <String, Object?>{'type': 'boolean'},
+      },
+    },
     dependencies: [],
   );
 }
@@ -4284,17 +4585,20 @@ base class _EmbedRequestTypeFactory extends SchemanticType<EmbedRequest> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'EmbedRequest',
-    definition: $Schema
-        .object(
-          properties: {
-            'input': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/DocumentData'}),
-            ),
-            'options': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['input'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'input': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/DocumentData'},
+        },
+        'options': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['input'],
+    },
     dependencies: [DocumentData.$schema],
   );
 }
@@ -4348,16 +4652,16 @@ base class _EmbedResponseTypeFactory extends SchemanticType<EmbedResponse> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'EmbedResponse',
-    definition: $Schema
-        .object(
-          properties: {
-            'embeddings': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Embedding'}),
-            ),
-          },
-          required: ['embeddings'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'embeddings': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{r'$ref': r'#/$defs/Embedding'},
+        },
+      },
+      'required': ['embeddings'],
+    },
     dependencies: [Embedding.$schema],
   );
 }
@@ -4419,2577 +4723,20 @@ base class _EmbeddingTypeFactory extends SchemanticType<Embedding> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Embedding',
-    definition: $Schema
-        .object(
-          properties: {
-            'embedding': $Schema.list(items: $Schema.number()),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['embedding'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'embedding': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'number'},
+        },
+        'metadata': <String, Object?>{
+          'type': 'object',
+          'additionalProperties': <String, Object?>{},
+        },
+      },
+      'required': ['embedding'],
+    },
     dependencies: [],
-  );
-}
-
-base class ReflectionCancelActionParams {
-  /// Creates a [ReflectionCancelActionParams] from a JSON map.
-  factory ReflectionCancelActionParams.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionCancelActionParams._(this._json);
-
-  ReflectionCancelActionParams({required String traceId}) {
-    _json = {'traceId': traceId};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionCancelActionParams].
-  static const SchemanticType<ReflectionCancelActionParams> $schema =
-      _ReflectionCancelActionParamsTypeFactory();
-
-  String get traceId {
-    return _json['traceId'] as String;
-  }
-
-  set traceId(String value) {
-    _json['traceId'] = value;
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionCancelActionParams] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionCancelActionParamsTypeFactory
-    extends SchemanticType<ReflectionCancelActionParams> {
-  const _ReflectionCancelActionParamsTypeFactory();
-
-  @override
-  ReflectionCancelActionParams parse(Object? json) {
-    return ReflectionCancelActionParams._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionCancelActionParams',
-    definition: $Schema
-        .object(
-          properties: {'traceId': $Schema.string()},
-          required: ['traceId'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionCancelActionResponse {
-  /// Creates a [ReflectionCancelActionResponse] from a JSON map.
-  factory ReflectionCancelActionResponse.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionCancelActionResponse._(this._json);
-
-  ReflectionCancelActionResponse({required String message}) {
-    _json = {'message': message};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionCancelActionResponse].
-  static const SchemanticType<ReflectionCancelActionResponse> $schema =
-      _ReflectionCancelActionResponseTypeFactory();
-
-  String get message {
-    return _json['message'] as String;
-  }
-
-  set message(String value) {
-    _json['message'] = value;
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionCancelActionResponse] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionCancelActionResponseTypeFactory
-    extends SchemanticType<ReflectionCancelActionResponse> {
-  const _ReflectionCancelActionResponseTypeFactory();
-
-  @override
-  ReflectionCancelActionResponse parse(Object? json) {
-    return ReflectionCancelActionResponse._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionCancelActionResponse',
-    definition: $Schema
-        .object(
-          properties: {'message': $Schema.string()},
-          required: ['message'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionConfigureParams {
-  /// Creates a [ReflectionConfigureParams] from a JSON map.
-  factory ReflectionConfigureParams.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionConfigureParams._(this._json);
-
-  ReflectionConfigureParams({String? telemetryServerUrl}) {
-    _json = {'telemetryServerUrl': ?telemetryServerUrl};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionConfigureParams].
-  static const SchemanticType<ReflectionConfigureParams> $schema =
-      _ReflectionConfigureParamsTypeFactory();
-
-  String? get telemetryServerUrl {
-    return _json['telemetryServerUrl'] as String?;
-  }
-
-  set telemetryServerUrl(String? value) {
-    if (value == null) {
-      _json.remove('telemetryServerUrl');
-    } else {
-      _json['telemetryServerUrl'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionConfigureParams] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionConfigureParamsTypeFactory
-    extends SchemanticType<ReflectionConfigureParams> {
-  const _ReflectionConfigureParamsTypeFactory();
-
-  @override
-  ReflectionConfigureParams parse(Object? json) {
-    return ReflectionConfigureParams._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionConfigureParams',
-    definition: $Schema
-        .object(properties: {'telemetryServerUrl': $Schema.string()})
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionEndInputStreamParams {
-  /// Creates a [ReflectionEndInputStreamParams] from a JSON map.
-  factory ReflectionEndInputStreamParams.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionEndInputStreamParams._(this._json);
-
-  ReflectionEndInputStreamParams({required String requestId}) {
-    _json = {'requestId': requestId};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionEndInputStreamParams].
-  static const SchemanticType<ReflectionEndInputStreamParams> $schema =
-      _ReflectionEndInputStreamParamsTypeFactory();
-
-  String get requestId {
-    return _json['requestId'] as String;
-  }
-
-  set requestId(String value) {
-    _json['requestId'] = value;
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionEndInputStreamParams] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionEndInputStreamParamsTypeFactory
-    extends SchemanticType<ReflectionEndInputStreamParams> {
-  const _ReflectionEndInputStreamParamsTypeFactory();
-
-  @override
-  ReflectionEndInputStreamParams parse(Object? json) {
-    return ReflectionEndInputStreamParams._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionEndInputStreamParams',
-    definition: $Schema
-        .object(
-          properties: {'requestId': $Schema.string()},
-          required: ['requestId'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionListActionsResponse {
-  /// Creates a [ReflectionListActionsResponse] from a JSON map.
-  factory ReflectionListActionsResponse.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionListActionsResponse._(this._json);
-
-  ReflectionListActionsResponse({required Map<String, dynamic> actions}) {
-    _json = {'actions': actions};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionListActionsResponse].
-  static const SchemanticType<ReflectionListActionsResponse> $schema =
-      _ReflectionListActionsResponseTypeFactory();
-
-  Map<String, dynamic> get actions {
-    return (_json['actions'] as Map).cast<String, dynamic>();
-  }
-
-  set actions(Map<String, dynamic> value) {
-    _json['actions'] = value;
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionListActionsResponse] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionListActionsResponseTypeFactory
-    extends SchemanticType<ReflectionListActionsResponse> {
-  const _ReflectionListActionsResponseTypeFactory();
-
-  @override
-  ReflectionListActionsResponse parse(Object? json) {
-    return ReflectionListActionsResponse._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionListActionsResponse',
-    definition: $Schema
-        .object(
-          properties: {
-            'actions': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['actions'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionListValuesParams {
-  /// Creates a [ReflectionListValuesParams] from a JSON map.
-  factory ReflectionListValuesParams.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionListValuesParams._(this._json);
-
-  ReflectionListValuesParams({required String type}) {
-    _json = {'type': type};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionListValuesParams].
-  static const SchemanticType<ReflectionListValuesParams> $schema =
-      _ReflectionListValuesParamsTypeFactory();
-
-  String get type {
-    return _json['type'] as String;
-  }
-
-  set type(String value) {
-    _json['type'] = value;
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionListValuesParams] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionListValuesParamsTypeFactory
-    extends SchemanticType<ReflectionListValuesParams> {
-  const _ReflectionListValuesParamsTypeFactory();
-
-  @override
-  ReflectionListValuesParams parse(Object? json) {
-    return ReflectionListValuesParams._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionListValuesParams',
-    definition: $Schema
-        .object(properties: {'type': $Schema.string()}, required: ['type'])
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionListValuesResponse {
-  /// Creates a [ReflectionListValuesResponse] from a JSON map.
-  factory ReflectionListValuesResponse.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionListValuesResponse._(this._json);
-
-  ReflectionListValuesResponse({required Map<String, dynamic> values}) {
-    _json = {'values': values};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionListValuesResponse].
-  static const SchemanticType<ReflectionListValuesResponse> $schema =
-      _ReflectionListValuesResponseTypeFactory();
-
-  Map<String, dynamic> get values {
-    return (_json['values'] as Map).cast<String, dynamic>();
-  }
-
-  set values(Map<String, dynamic> value) {
-    _json['values'] = value;
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionListValuesResponse] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionListValuesResponseTypeFactory
-    extends SchemanticType<ReflectionListValuesResponse> {
-  const _ReflectionListValuesResponseTypeFactory();
-
-  @override
-  ReflectionListValuesResponse parse(Object? json) {
-    return ReflectionListValuesResponse._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionListValuesResponse',
-    definition: $Schema
-        .object(
-          properties: {
-            'values': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['values'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionRegisterParams {
-  /// Creates a [ReflectionRegisterParams] from a JSON map.
-  factory ReflectionRegisterParams.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionRegisterParams._(this._json);
-
-  ReflectionRegisterParams({
-    required String id,
-    required int pid,
-    String? name,
-    String? genkitVersion,
-    double? reflectionApiSpecVersion,
-    List<String>? envs,
-  }) {
-    _json = {
-      'id': id,
-      'pid': pid,
-      'name': ?name,
-      'genkitVersion': ?genkitVersion,
-      'reflectionApiSpecVersion': ?reflectionApiSpecVersion,
-      'envs': ?envs,
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionRegisterParams].
-  static const SchemanticType<ReflectionRegisterParams> $schema =
-      _ReflectionRegisterParamsTypeFactory();
-
-  String get id {
-    return _json['id'] as String;
-  }
-
-  set id(String value) {
-    _json['id'] = value;
-  }
-
-  int get pid {
-    return _json['pid'] as int;
-  }
-
-  set pid(int value) {
-    _json['pid'] = value;
-  }
-
-  String? get name {
-    return _json['name'] as String?;
-  }
-
-  set name(String? value) {
-    if (value == null) {
-      _json.remove('name');
-    } else {
-      _json['name'] = value;
-    }
-  }
-
-  String? get genkitVersion {
-    return _json['genkitVersion'] as String?;
-  }
-
-  set genkitVersion(String? value) {
-    if (value == null) {
-      _json.remove('genkitVersion');
-    } else {
-      _json['genkitVersion'] = value;
-    }
-  }
-
-  double? get reflectionApiSpecVersion {
-    return (_json['reflectionApiSpecVersion'] as num?)?.toDouble();
-  }
-
-  set reflectionApiSpecVersion(double? value) {
-    if (value == null) {
-      _json.remove('reflectionApiSpecVersion');
-    } else {
-      _json['reflectionApiSpecVersion'] = value;
-    }
-  }
-
-  List<String>? get envs {
-    return (_json['envs'] as List?)?.cast<String>();
-  }
-
-  set envs(List<String>? value) {
-    if (value == null) {
-      _json.remove('envs');
-    } else {
-      _json['envs'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionRegisterParams] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionRegisterParamsTypeFactory
-    extends SchemanticType<ReflectionRegisterParams> {
-  const _ReflectionRegisterParamsTypeFactory();
-
-  @override
-  ReflectionRegisterParams parse(Object? json) {
-    return ReflectionRegisterParams._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionRegisterParams',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.string(),
-            'pid': $Schema.integer(),
-            'name': $Schema.string(),
-            'genkitVersion': $Schema.string(),
-            'reflectionApiSpecVersion': $Schema.number(),
-            'envs': $Schema.list(items: $Schema.string()),
-          },
-          required: ['id', 'pid'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionRunActionParams {
-  /// Creates a [ReflectionRunActionParams] from a JSON map.
-  factory ReflectionRunActionParams.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionRunActionParams._(this._json);
-
-  ReflectionRunActionParams({
-    String? runtimeId,
-    required String key,
-    dynamic input,
-    dynamic init,
-    dynamic context,
-    Map<String, dynamic>? telemetryLabels,
-    bool? stream,
-    bool? streamInput,
-  }) {
-    _json = {
-      'runtimeId': ?runtimeId,
-      'key': key,
-      'input': ?input,
-      'init': ?init,
-      'context': ?context,
-      'telemetryLabels': ?telemetryLabels,
-      'stream': ?stream,
-      'streamInput': ?streamInput,
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionRunActionParams].
-  static const SchemanticType<ReflectionRunActionParams> $schema =
-      _ReflectionRunActionParamsTypeFactory();
-
-  String? get runtimeId {
-    return _json['runtimeId'] as String?;
-  }
-
-  set runtimeId(String? value) {
-    if (value == null) {
-      _json.remove('runtimeId');
-    } else {
-      _json['runtimeId'] = value;
-    }
-  }
-
-  String get key {
-    return _json['key'] as String;
-  }
-
-  set key(String value) {
-    _json['key'] = value;
-  }
-
-  dynamic get input {
-    return _json['input'] as dynamic;
-  }
-
-  set input(dynamic value) {
-    _json['input'] = value;
-  }
-
-  dynamic get init {
-    return _json['init'] as dynamic;
-  }
-
-  set init(dynamic value) {
-    _json['init'] = value;
-  }
-
-  dynamic get context {
-    return _json['context'] as dynamic;
-  }
-
-  set context(dynamic value) {
-    _json['context'] = value;
-  }
-
-  Map<String, dynamic>? get telemetryLabels {
-    return (_json['telemetryLabels'] as Map?)?.cast<String, dynamic>();
-  }
-
-  set telemetryLabels(Map<String, dynamic>? value) {
-    if (value == null) {
-      _json.remove('telemetryLabels');
-    } else {
-      _json['telemetryLabels'] = value;
-    }
-  }
-
-  bool? get stream {
-    return _json['stream'] as bool?;
-  }
-
-  set stream(bool? value) {
-    if (value == null) {
-      _json.remove('stream');
-    } else {
-      _json['stream'] = value;
-    }
-  }
-
-  bool? get streamInput {
-    return _json['streamInput'] as bool?;
-  }
-
-  set streamInput(bool? value) {
-    if (value == null) {
-      _json.remove('streamInput');
-    } else {
-      _json['streamInput'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionRunActionParams] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionRunActionParamsTypeFactory
-    extends SchemanticType<ReflectionRunActionParams> {
-  const _ReflectionRunActionParamsTypeFactory();
-
-  @override
-  ReflectionRunActionParams parse(Object? json) {
-    return ReflectionRunActionParams._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionRunActionParams',
-    definition: $Schema
-        .object(
-          properties: {
-            'runtimeId': $Schema.string(),
-            'key': $Schema.string(),
-            'input': $Schema.any(),
-            'init': $Schema.any(),
-            'context': $Schema.any(),
-            'telemetryLabels': $Schema.object(
-              additionalProperties: $Schema.any(),
-            ),
-            'stream': $Schema.boolean(),
-            'streamInput': $Schema.boolean(),
-          },
-          required: ['key', 'input', 'init', 'context'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionRunActionStateParams {
-  /// Creates a [ReflectionRunActionStateParams] from a JSON map.
-  factory ReflectionRunActionStateParams.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionRunActionStateParams._(this._json);
-
-  ReflectionRunActionStateParams({
-    required String requestId,
-    Map<String, dynamic>? state,
-  }) {
-    _json = {'requestId': requestId, 'state': ?state};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionRunActionStateParams].
-  static const SchemanticType<ReflectionRunActionStateParams> $schema =
-      _ReflectionRunActionStateParamsTypeFactory();
-
-  String get requestId {
-    return _json['requestId'] as String;
-  }
-
-  set requestId(String value) {
-    _json['requestId'] = value;
-  }
-
-  Map<String, dynamic>? get state {
-    return (_json['state'] as Map?)?.cast<String, dynamic>();
-  }
-
-  set state(Map<String, dynamic>? value) {
-    if (value == null) {
-      _json.remove('state');
-    } else {
-      _json['state'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionRunActionStateParams] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionRunActionStateParamsTypeFactory
-    extends SchemanticType<ReflectionRunActionStateParams> {
-  const _ReflectionRunActionStateParamsTypeFactory();
-
-  @override
-  ReflectionRunActionStateParams parse(Object? json) {
-    return ReflectionRunActionStateParams._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionRunActionStateParams',
-    definition: $Schema
-        .object(
-          properties: {
-            'requestId': $Schema.string(),
-            'state': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['requestId'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionSendInputStreamChunkParams {
-  /// Creates a [ReflectionSendInputStreamChunkParams] from a JSON map.
-  factory ReflectionSendInputStreamChunkParams.fromJson(
-    Map<String, dynamic> json,
-  ) => $schema.parse(json);
-
-  ReflectionSendInputStreamChunkParams._(this._json);
-
-  ReflectionSendInputStreamChunkParams({
-    required String requestId,
-    Map<String, dynamic>? chunk,
-  }) {
-    _json = {'requestId': requestId, 'chunk': ?chunk};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionSendInputStreamChunkParams].
-  static const SchemanticType<ReflectionSendInputStreamChunkParams> $schema =
-      _ReflectionSendInputStreamChunkParamsTypeFactory();
-
-  String get requestId {
-    return _json['requestId'] as String;
-  }
-
-  set requestId(String value) {
-    _json['requestId'] = value;
-  }
-
-  Map<String, dynamic>? get chunk {
-    return (_json['chunk'] as Map?)?.cast<String, dynamic>();
-  }
-
-  set chunk(Map<String, dynamic>? value) {
-    if (value == null) {
-      _json.remove('chunk');
-    } else {
-      _json['chunk'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionSendInputStreamChunkParams] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionSendInputStreamChunkParamsTypeFactory
-    extends SchemanticType<ReflectionSendInputStreamChunkParams> {
-  const _ReflectionSendInputStreamChunkParamsTypeFactory();
-
-  @override
-  ReflectionSendInputStreamChunkParams parse(Object? json) {
-    return ReflectionSendInputStreamChunkParams._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionSendInputStreamChunkParams',
-    definition: $Schema
-        .object(
-          properties: {
-            'requestId': $Schema.string(),
-            'chunk': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['requestId'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class ReflectionStreamChunkParams {
-  /// Creates a [ReflectionStreamChunkParams] from a JSON map.
-  factory ReflectionStreamChunkParams.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  ReflectionStreamChunkParams._(this._json);
-
-  ReflectionStreamChunkParams({required String requestId, dynamic chunk}) {
-    _json = {'requestId': requestId, 'chunk': ?chunk};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [ReflectionStreamChunkParams].
-  static const SchemanticType<ReflectionStreamChunkParams> $schema =
-      _ReflectionStreamChunkParamsTypeFactory();
-
-  String get requestId {
-    return _json['requestId'] as String;
-  }
-
-  set requestId(String value) {
-    _json['requestId'] = value;
-  }
-
-  dynamic get chunk {
-    return _json['chunk'] as dynamic;
-  }
-
-  set chunk(dynamic value) {
-    _json['chunk'] = value;
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [ReflectionStreamChunkParams] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ReflectionStreamChunkParamsTypeFactory
-    extends SchemanticType<ReflectionStreamChunkParams> {
-  const _ReflectionStreamChunkParamsTypeFactory();
-
-  @override
-  ReflectionStreamChunkParams parse(Object? json) {
-    return ReflectionStreamChunkParams._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'ReflectionStreamChunkParams',
-    definition: $Schema
-        .object(
-          properties: {'requestId': $Schema.string(), 'chunk': $Schema.any()},
-          required: ['requestId', 'chunk'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class AgentInit {
-  /// Creates a [AgentInit] from a JSON map.
-  factory AgentInit.fromJson(Map<String, dynamic> json) => $schema.parse(json);
-
-  AgentInit._(this._json);
-
-  AgentInit({String? sessionId, String? snapshotId, SessionState? state}) {
-    _json = {
-      'sessionId': ?sessionId,
-      'snapshotId': ?snapshotId,
-      'state': ?state?.toJson(),
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [AgentInit].
-  static const SchemanticType<AgentInit> $schema = _AgentInitTypeFactory();
-
-  String? get sessionId {
-    return _json['sessionId'] as String?;
-  }
-
-  set sessionId(String? value) {
-    if (value == null) {
-      _json.remove('sessionId');
-    } else {
-      _json['sessionId'] = value;
-    }
-  }
-
-  String? get snapshotId {
-    return _json['snapshotId'] as String?;
-  }
-
-  set snapshotId(String? value) {
-    if (value == null) {
-      _json.remove('snapshotId');
-    } else {
-      _json['snapshotId'] = value;
-    }
-  }
-
-  SessionState? get state {
-    return _json['state'] == null
-        ? null
-        : SessionState.fromJson(_json['state'] as Map<String, dynamic>);
-  }
-
-  set state(SessionState? value) {
-    if (value == null) {
-      _json.remove('state');
-    } else {
-      _json['state'] = value.toJson();
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [AgentInit] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _AgentInitTypeFactory extends SchemanticType<AgentInit> {
-  const _AgentInitTypeFactory();
-
-  @override
-  AgentInit parse(Object? json) {
-    return AgentInit._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentInit',
-    definition: $Schema
-        .object(
-          properties: {
-            'sessionId': $Schema.string(),
-            'snapshotId': $Schema.string(),
-            'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
-          },
-        )
-        .value,
-    dependencies: [SessionState.$schema],
-  );
-}
-
-base class AgentInput {
-  /// Creates a [AgentInput] from a JSON map.
-  factory AgentInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
-
-  AgentInput._(this._json);
-
-  AgentInput({bool? detach, Message? message, AgentResume? resume}) {
-    _json = {
-      'detach': ?detach,
-      'message': ?message?.toJson(),
-      'resume': ?resume?.toJson(),
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [AgentInput].
-  static const SchemanticType<AgentInput> $schema = _AgentInputTypeFactory();
-
-  bool? get detach {
-    return _json['detach'] as bool?;
-  }
-
-  set detach(bool? value) {
-    if (value == null) {
-      _json.remove('detach');
-    } else {
-      _json['detach'] = value;
-    }
-  }
-
-  Message? get message {
-    return _json['message'] == null
-        ? null
-        : Message.fromJson(_json['message'] as Map<String, dynamic>);
-  }
-
-  set message(Message? value) {
-    if (value == null) {
-      _json.remove('message');
-    } else {
-      _json['message'] = value.toJson();
-    }
-  }
-
-  AgentResume? get resume {
-    return _json['resume'] == null
-        ? null
-        : AgentResume.fromJson(_json['resume'] as Map<String, dynamic>);
-  }
-
-  set resume(AgentResume? value) {
-    if (value == null) {
-      _json.remove('resume');
-    } else {
-      _json['resume'] = value.toJson();
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [AgentInput] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _AgentInputTypeFactory extends SchemanticType<AgentInput> {
-  const _AgentInputTypeFactory();
-
-  @override
-  AgentInput parse(Object? json) {
-    return AgentInput._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'detach': $Schema.boolean(),
-            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            'resume': $Schema.fromMap({'\$ref': r'#/$defs/AgentResume'}),
-          },
-        )
-        .value,
-    dependencies: [Message.$schema, AgentResume.$schema],
-  );
-}
-
-base class AgentResume {
-  /// Creates a [AgentResume] from a JSON map.
-  factory AgentResume.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  AgentResume._(this._json);
-
-  AgentResume({
-    List<ToolResponsePart>? respond,
-    List<ToolRequestPart>? restart,
-  }) {
-    _json = {
-      'respond': ?respond?.map((e) => e.toJson()).toList(),
-      'restart': ?restart?.map((e) => e.toJson()).toList(),
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [AgentResume].
-  static const SchemanticType<AgentResume> $schema = _AgentResumeTypeFactory();
-
-  List<ToolResponsePart>? get respond {
-    return (_json['respond'] as List?)
-        ?.map((e) => ToolResponsePart.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  set respond(List<ToolResponsePart>? value) {
-    if (value == null) {
-      _json.remove('respond');
-    } else {
-      _json['respond'] = value.map((e) => e.toJson()).toList();
-    }
-  }
-
-  List<ToolRequestPart>? get restart {
-    return (_json['restart'] as List?)
-        ?.map((e) => ToolRequestPart.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  set restart(List<ToolRequestPart>? value) {
-    if (value == null) {
-      _json.remove('restart');
-    } else {
-      _json['restart'] = value.map((e) => e.toJson()).toList();
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [AgentResume] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _AgentResumeTypeFactory extends SchemanticType<AgentResume> {
-  const _AgentResumeTypeFactory();
-
-  @override
-  AgentResume parse(Object? json) {
-    return AgentResume._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentResume',
-    definition: $Schema
-        .object(
-          properties: {
-            'respond': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolResponsePart'}),
-            ),
-            'restart': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/ToolRequestPart'}),
-            ),
-          },
-        )
-        .value,
-    dependencies: [ToolResponsePart.$schema, ToolRequestPart.$schema],
-  );
-}
-
-base class AgentOutput {
-  /// Creates a [AgentOutput] from a JSON map.
-  factory AgentOutput.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  AgentOutput._(this._json);
-
-  AgentOutput({
-    String? sessionId,
-    String? snapshotId,
-    SessionState? state,
-    Message? message,
-    List<Artifact>? artifacts,
-    AgentFinishReason? finishReason,
-    AgentErrorInfo? error,
-  }) {
-    _json = {
-      'sessionId': ?sessionId,
-      'snapshotId': ?snapshotId,
-      'state': ?state?.toJson(),
-      'message': ?message?.toJson(),
-      'artifacts': ?artifacts?.map((e) => e.toJson()).toList(),
-      'finishReason': ?finishReason?.value,
-      'error': ?error?.toJson(),
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [AgentOutput].
-  static const SchemanticType<AgentOutput> $schema = _AgentOutputTypeFactory();
-
-  String? get sessionId {
-    return _json['sessionId'] as String?;
-  }
-
-  set sessionId(String? value) {
-    if (value == null) {
-      _json.remove('sessionId');
-    } else {
-      _json['sessionId'] = value;
-    }
-  }
-
-  String? get snapshotId {
-    return _json['snapshotId'] as String?;
-  }
-
-  set snapshotId(String? value) {
-    if (value == null) {
-      _json.remove('snapshotId');
-    } else {
-      _json['snapshotId'] = value;
-    }
-  }
-
-  SessionState? get state {
-    return _json['state'] == null
-        ? null
-        : SessionState.fromJson(_json['state'] as Map<String, dynamic>);
-  }
-
-  set state(SessionState? value) {
-    if (value == null) {
-      _json.remove('state');
-    } else {
-      _json['state'] = value.toJson();
-    }
-  }
-
-  Message? get message {
-    return _json['message'] == null
-        ? null
-        : Message.fromJson(_json['message'] as Map<String, dynamic>);
-  }
-
-  set message(Message? value) {
-    if (value == null) {
-      _json.remove('message');
-    } else {
-      _json['message'] = value.toJson();
-    }
-  }
-
-  List<Artifact>? get artifacts {
-    return (_json['artifacts'] as List?)
-        ?.map((e) => Artifact.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  set artifacts(List<Artifact>? value) {
-    if (value == null) {
-      _json.remove('artifacts');
-    } else {
-      _json['artifacts'] = value.map((e) => e.toJson()).toList();
-    }
-  }
-
-  AgentFinishReason? get finishReason {
-    return _json['finishReason'] as AgentFinishReason?;
-  }
-
-  set finishReason(AgentFinishReason? value) {
-    if (value == null) {
-      _json.remove('finishReason');
-    } else {
-      _json['finishReason'] = value;
-    }
-  }
-
-  AgentErrorInfo? get error {
-    return _json['error'] == null
-        ? null
-        : AgentErrorInfo.fromJson(_json['error'] as Map<String, dynamic>);
-  }
-
-  set error(AgentErrorInfo? value) {
-    if (value == null) {
-      _json.remove('error');
-    } else {
-      _json['error'] = value.toJson();
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [AgentOutput] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _AgentOutputTypeFactory extends SchemanticType<AgentOutput> {
-  const _AgentOutputTypeFactory();
-
-  @override
-  AgentOutput parse(Object? json) {
-    return AgentOutput._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'sessionId': $Schema.string(),
-            'snapshotId': $Schema.string(),
-            'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
-            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            'artifacts': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Artifact'}),
-            ),
-            'finishReason': $Schema.any(),
-            'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentErrorInfo'}),
-          },
-        )
-        .value,
-    dependencies: [
-      SessionState.$schema,
-      Message.$schema,
-      Artifact.$schema,
-      AgentErrorInfo.$schema,
-    ],
-  );
-}
-
-base class AgentErrorInfo {
-  /// Creates a [AgentErrorInfo] from a JSON map.
-  factory AgentErrorInfo.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  AgentErrorInfo._(this._json);
-
-  AgentErrorInfo({String? status, required String message, Object? details}) {
-    _json = {'status': ?status, 'message': message, 'details': ?details};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [AgentErrorInfo].
-  static const SchemanticType<AgentErrorInfo> $schema =
-      _AgentErrorInfoTypeFactory();
-
-  String? get status {
-    return _json['status'] as String?;
-  }
-
-  set status(String? value) {
-    if (value == null) {
-      _json.remove('status');
-    } else {
-      _json['status'] = value;
-    }
-  }
-
-  String get message {
-    return _json['message'] as String;
-  }
-
-  set message(String value) {
-    _json['message'] = value;
-  }
-
-  Object? get details {
-    return _json['details'] as Object?;
-  }
-
-  set details(Object? value) {
-    if (value == null) {
-      _json.remove('details');
-    } else {
-      _json['details'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [AgentErrorInfo] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _AgentErrorInfoTypeFactory extends SchemanticType<AgentErrorInfo> {
-  const _AgentErrorInfoTypeFactory();
-
-  @override
-  AgentErrorInfo parse(Object? json) {
-    return AgentErrorInfo._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentErrorInfo',
-    definition: $Schema
-        .object(
-          properties: {
-            'status': $Schema.string(),
-            'message': $Schema.string(),
-            'details': $Schema.any(),
-          },
-          required: ['message'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class AgentResult {
-  /// Creates a [AgentResult] from a JSON map.
-  factory AgentResult.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  AgentResult._(this._json);
-
-  AgentResult({
-    Message? message,
-    List<Artifact>? artifacts,
-    AgentFinishReason? finishReason,
-  }) {
-    _json = {
-      'message': ?message?.toJson(),
-      'artifacts': ?artifacts?.map((e) => e.toJson()).toList(),
-      'finishReason': ?finishReason?.value,
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [AgentResult].
-  static const SchemanticType<AgentResult> $schema = _AgentResultTypeFactory();
-
-  Message? get message {
-    return _json['message'] == null
-        ? null
-        : Message.fromJson(_json['message'] as Map<String, dynamic>);
-  }
-
-  set message(Message? value) {
-    if (value == null) {
-      _json.remove('message');
-    } else {
-      _json['message'] = value.toJson();
-    }
-  }
-
-  List<Artifact>? get artifacts {
-    return (_json['artifacts'] as List?)
-        ?.map((e) => Artifact.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  set artifacts(List<Artifact>? value) {
-    if (value == null) {
-      _json.remove('artifacts');
-    } else {
-      _json['artifacts'] = value.map((e) => e.toJson()).toList();
-    }
-  }
-
-  AgentFinishReason? get finishReason {
-    return _json['finishReason'] as AgentFinishReason?;
-  }
-
-  set finishReason(AgentFinishReason? value) {
-    if (value == null) {
-      _json.remove('finishReason');
-    } else {
-      _json['finishReason'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [AgentResult] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _AgentResultTypeFactory extends SchemanticType<AgentResult> {
-  const _AgentResultTypeFactory();
-
-  @override
-  AgentResult parse(Object? json) {
-    return AgentResult._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentResult',
-    definition: $Schema
-        .object(
-          properties: {
-            'message': $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            'artifacts': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Artifact'}),
-            ),
-            'finishReason': $Schema.any(),
-          },
-        )
-        .value,
-    dependencies: [Message.$schema, Artifact.$schema],
-  );
-}
-
-base class AgentStreamChunk {
-  /// Creates a [AgentStreamChunk] from a JSON map.
-  factory AgentStreamChunk.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  AgentStreamChunk._(this._json);
-
-  AgentStreamChunk({
-    ModelResponseChunk? modelChunk,
-    List<JsonPatchOperation>? customPatch,
-    Artifact? artifact,
-    TurnEnd? turnEnd,
-  }) {
-    _json = {
-      'modelChunk': ?modelChunk?.toJson(),
-      'customPatch': ?customPatch?.map((e) => e.toJson()).toList(),
-      'artifact': ?artifact?.toJson(),
-      'turnEnd': ?turnEnd?.toJson(),
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [AgentStreamChunk].
-  static const SchemanticType<AgentStreamChunk> $schema =
-      _AgentStreamChunkTypeFactory();
-
-  ModelResponseChunk? get modelChunk {
-    return _json['modelChunk'] == null
-        ? null
-        : ModelResponseChunk.fromJson(
-            _json['modelChunk'] as Map<String, dynamic>,
-          );
-  }
-
-  set modelChunk(ModelResponseChunk? value) {
-    if (value == null) {
-      _json.remove('modelChunk');
-    } else {
-      _json['modelChunk'] = value.toJson();
-    }
-  }
-
-  List<JsonPatchOperation>? get customPatch {
-    return (_json['customPatch'] as List?)
-        ?.map((e) => JsonPatchOperation.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  set customPatch(List<JsonPatchOperation>? value) {
-    if (value == null) {
-      _json.remove('customPatch');
-    } else {
-      _json['customPatch'] = value.map((e) => e.toJson()).toList();
-    }
-  }
-
-  Artifact? get artifact {
-    return _json['artifact'] == null
-        ? null
-        : Artifact.fromJson(_json['artifact'] as Map<String, dynamic>);
-  }
-
-  set artifact(Artifact? value) {
-    if (value == null) {
-      _json.remove('artifact');
-    } else {
-      _json['artifact'] = value.toJson();
-    }
-  }
-
-  TurnEnd? get turnEnd {
-    return _json['turnEnd'] == null
-        ? null
-        : TurnEnd.fromJson(_json['turnEnd'] as Map<String, dynamic>);
-  }
-
-  set turnEnd(TurnEnd? value) {
-    if (value == null) {
-      _json.remove('turnEnd');
-    } else {
-      _json['turnEnd'] = value.toJson();
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [AgentStreamChunk] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _AgentStreamChunkTypeFactory
-    extends SchemanticType<AgentStreamChunk> {
-  const _AgentStreamChunkTypeFactory();
-
-  @override
-  AgentStreamChunk parse(Object? json) {
-    return AgentStreamChunk._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentStreamChunk',
-    definition: $Schema
-        .object(
-          properties: {
-            'modelChunk': $Schema.fromMap({
-              '\$ref': r'#/$defs/ModelResponseChunk',
-            }),
-            'customPatch': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/JsonPatchOperation'}),
-            ),
-            'artifact': $Schema.fromMap({'\$ref': r'#/$defs/Artifact'}),
-            'turnEnd': $Schema.fromMap({'\$ref': r'#/$defs/TurnEnd'}),
-          },
-        )
-        .value,
-    dependencies: [
-      ModelResponseChunk.$schema,
-      JsonPatchOperation.$schema,
-      Artifact.$schema,
-      TurnEnd.$schema,
-    ],
-  );
-}
-
-base class AgentAbortRequest {
-  /// Creates a [AgentAbortRequest] from a JSON map.
-  factory AgentAbortRequest.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  AgentAbortRequest._(this._json);
-
-  AgentAbortRequest({required String snapshotId}) {
-    _json = {'snapshotId': snapshotId};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [AgentAbortRequest].
-  static const SchemanticType<AgentAbortRequest> $schema =
-      _AgentAbortRequestTypeFactory();
-
-  String get snapshotId {
-    return _json['snapshotId'] as String;
-  }
-
-  set snapshotId(String value) {
-    _json['snapshotId'] = value;
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [AgentAbortRequest] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _AgentAbortRequestTypeFactory
-    extends SchemanticType<AgentAbortRequest> {
-  const _AgentAbortRequestTypeFactory();
-
-  @override
-  AgentAbortRequest parse(Object? json) {
-    return AgentAbortRequest._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentAbortRequest',
-    definition: $Schema
-        .object(
-          properties: {'snapshotId': $Schema.string()},
-          required: ['snapshotId'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class AgentAbortResponse {
-  /// Creates a [AgentAbortResponse] from a JSON map.
-  factory AgentAbortResponse.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  AgentAbortResponse._(this._json);
-
-  AgentAbortResponse({required String snapshotId, SnapshotStatus? status}) {
-    _json = {'snapshotId': snapshotId, 'status': ?status?.value};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [AgentAbortResponse].
-  static const SchemanticType<AgentAbortResponse> $schema =
-      _AgentAbortResponseTypeFactory();
-
-  String get snapshotId {
-    return _json['snapshotId'] as String;
-  }
-
-  set snapshotId(String value) {
-    _json['snapshotId'] = value;
-  }
-
-  SnapshotStatus? get status {
-    return _json['status'] as SnapshotStatus?;
-  }
-
-  set status(SnapshotStatus? value) {
-    if (value == null) {
-      _json.remove('status');
-    } else {
-      _json['status'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [AgentAbortResponse] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _AgentAbortResponseTypeFactory
-    extends SchemanticType<AgentAbortResponse> {
-  const _AgentAbortResponseTypeFactory();
-
-  @override
-  AgentAbortResponse parse(Object? json) {
-    return AgentAbortResponse._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentAbortResponse',
-    definition: $Schema
-        .object(
-          properties: {'snapshotId': $Schema.string(), 'status': $Schema.any()},
-          required: ['snapshotId'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class AgentMetadata {
-  /// Creates a [AgentMetadata] from a JSON map.
-  factory AgentMetadata.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  AgentMetadata._(this._json);
-
-  AgentMetadata({
-    required AgentStateManagement stateManagement,
-    required bool abortable,
-    Map<String, dynamic>? stateSchema,
-  }) {
-    _json = {
-      'stateManagement': stateManagement.value,
-      'abortable': abortable,
-      'stateSchema': ?stateSchema,
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [AgentMetadata].
-  static const SchemanticType<AgentMetadata> $schema =
-      _AgentMetadataTypeFactory();
-
-  AgentStateManagement get stateManagement {
-    final value = _json['stateManagement'] as String;
-    return AgentStateManagement(value);
-  }
-
-  set stateManagement(AgentStateManagement value) {
-    _json['stateManagement'] = value.value;
-  }
-
-  bool get abortable {
-    return _json['abortable'] as bool;
-  }
-
-  set abortable(bool value) {
-    _json['abortable'] = value;
-  }
-
-  Map<String, dynamic>? get stateSchema {
-    return (_json['stateSchema'] as Map?)?.cast<String, dynamic>();
-  }
-
-  set stateSchema(Map<String, dynamic>? value) {
-    if (value == null) {
-      _json.remove('stateSchema');
-    } else {
-      _json['stateSchema'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [AgentMetadata] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _AgentMetadataTypeFactory extends SchemanticType<AgentMetadata> {
-  const _AgentMetadataTypeFactory();
-
-  @override
-  AgentMetadata parse(Object? json) {
-    return AgentMetadata._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'AgentMetadata',
-    definition: $Schema
-        .object(
-          properties: {
-            'stateManagement': $Schema.any(),
-            'abortable': $Schema.boolean(),
-            'stateSchema': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['stateManagement', 'abortable'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class TurnEnd {
-  /// Creates a [TurnEnd] from a JSON map.
-  factory TurnEnd.fromJson(Map<String, dynamic> json) => $schema.parse(json);
-
-  TurnEnd._(this._json);
-
-  TurnEnd({String? snapshotId, AgentFinishReason? finishReason}) {
-    _json = {'snapshotId': ?snapshotId, 'finishReason': ?finishReason?.value};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [TurnEnd].
-  static const SchemanticType<TurnEnd> $schema = _TurnEndTypeFactory();
-
-  String? get snapshotId {
-    return _json['snapshotId'] as String?;
-  }
-
-  set snapshotId(String? value) {
-    if (value == null) {
-      _json.remove('snapshotId');
-    } else {
-      _json['snapshotId'] = value;
-    }
-  }
-
-  AgentFinishReason? get finishReason {
-    return _json['finishReason'] as AgentFinishReason?;
-  }
-
-  set finishReason(AgentFinishReason? value) {
-    if (value == null) {
-      _json.remove('finishReason');
-    } else {
-      _json['finishReason'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [TurnEnd] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _TurnEndTypeFactory extends SchemanticType<TurnEnd> {
-  const _TurnEndTypeFactory();
-
-  @override
-  TurnEnd parse(Object? json) {
-    return TurnEnd._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'TurnEnd',
-    definition: $Schema
-        .object(
-          properties: {
-            'snapshotId': $Schema.string(),
-            'finishReason': $Schema.any(),
-          },
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class Artifact {
-  /// Creates a [Artifact] from a JSON map.
-  factory Artifact.fromJson(Map<String, dynamic> json) => $schema.parse(json);
-
-  Artifact._(this._json);
-
-  Artifact({
-    String? name,
-    required List<Part> parts,
-    Map<String, dynamic>? metadata,
-  }) {
-    _json = {
-      'name': ?name,
-      'parts': parts.map((e) => e.toJson()).toList(),
-      'metadata': ?metadata,
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [Artifact].
-  static const SchemanticType<Artifact> $schema = _ArtifactTypeFactory();
-
-  String? get name {
-    return _json['name'] as String?;
-  }
-
-  set name(String? value) {
-    if (value == null) {
-      _json.remove('name');
-    } else {
-      _json['name'] = value;
-    }
-  }
-
-  List<Part> get parts {
-    return (_json['parts'] as List)
-        .map((e) => Part.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  set parts(List<Part> value) {
-    _json['parts'] = value.map((e) => e.toJson()).toList();
-  }
-
-  Map<String, dynamic>? get metadata {
-    return (_json['metadata'] as Map?)?.cast<String, dynamic>();
-  }
-
-  set metadata(Map<String, dynamic>? value) {
-    if (value == null) {
-      _json.remove('metadata');
-    } else {
-      _json['metadata'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [Artifact] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _ArtifactTypeFactory extends SchemanticType<Artifact> {
-  const _ArtifactTypeFactory();
-
-  @override
-  Artifact parse(Object? json) {
-    return Artifact._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'Artifact',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'parts': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Part'}),
-            ),
-            'metadata': $Schema.object(additionalProperties: $Schema.any()),
-          },
-          required: ['parts'],
-        )
-        .value,
-    dependencies: [Part.$schema],
-  );
-}
-
-base class GetSnapshotDataInput {
-  /// Creates a [GetSnapshotDataInput] from a JSON map.
-  factory GetSnapshotDataInput.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  GetSnapshotDataInput._(this._json);
-
-  GetSnapshotDataInput({String? snapshotId, String? sessionId}) {
-    _json = {'snapshotId': ?snapshotId, 'sessionId': ?sessionId};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [GetSnapshotDataInput].
-  static const SchemanticType<GetSnapshotDataInput> $schema =
-      _GetSnapshotDataInputTypeFactory();
-
-  String? get snapshotId {
-    return _json['snapshotId'] as String?;
-  }
-
-  set snapshotId(String? value) {
-    if (value == null) {
-      _json.remove('snapshotId');
-    } else {
-      _json['snapshotId'] = value;
-    }
-  }
-
-  String? get sessionId {
-    return _json['sessionId'] as String?;
-  }
-
-  set sessionId(String? value) {
-    if (value == null) {
-      _json.remove('sessionId');
-    } else {
-      _json['sessionId'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [GetSnapshotDataInput] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _GetSnapshotDataInputTypeFactory
-    extends SchemanticType<GetSnapshotDataInput> {
-  const _GetSnapshotDataInputTypeFactory();
-
-  @override
-  GetSnapshotDataInput parse(Object? json) {
-    return GetSnapshotDataInput._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'GetSnapshotDataInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'snapshotId': $Schema.string(),
-            'sessionId': $Schema.string(),
-          },
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class JsonPatchOperation {
-  /// Creates a [JsonPatchOperation] from a JSON map.
-  factory JsonPatchOperation.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  JsonPatchOperation._(this._json);
-
-  JsonPatchOperation({
-    required JsonPatchOp op,
-    required String path,
-    String? from,
-    Object? value,
-  }) {
-    _json = {'op': op.value, 'path': path, 'from': ?from, 'value': ?value};
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [JsonPatchOperation].
-  static const SchemanticType<JsonPatchOperation> $schema =
-      _JsonPatchOperationTypeFactory();
-
-  JsonPatchOp get op {
-    final value = _json['op'] as String;
-    return JsonPatchOp(value);
-  }
-
-  set op(JsonPatchOp value) {
-    _json['op'] = value.value;
-  }
-
-  String get path {
-    return _json['path'] as String;
-  }
-
-  set path(String value) {
-    _json['path'] = value;
-  }
-
-  String? get from {
-    return _json['from'] as String?;
-  }
-
-  set from(String? value) {
-    if (value == null) {
-      _json.remove('from');
-    } else {
-      _json['from'] = value;
-    }
-  }
-
-  Object? get value {
-    return _json['value'] as Object?;
-  }
-
-  set value(Object? value) {
-    if (value == null) {
-      _json.remove('value');
-    } else {
-      _json['value'] = value;
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [JsonPatchOperation] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _JsonPatchOperationTypeFactory
-    extends SchemanticType<JsonPatchOperation> {
-  const _JsonPatchOperationTypeFactory();
-
-  @override
-  JsonPatchOperation parse(Object? json) {
-    return JsonPatchOperation._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'JsonPatchOperation',
-    definition: $Schema
-        .object(
-          properties: {
-            'op': $Schema.any(),
-            'path': $Schema.string(),
-            'from': $Schema.string(),
-            'value': $Schema.any(),
-          },
-          required: ['op', 'path'],
-        )
-        .value,
-    dependencies: [],
-  );
-}
-
-base class SessionSnapshot {
-  /// Creates a [SessionSnapshot] from a JSON map.
-  factory SessionSnapshot.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  SessionSnapshot._(this._json);
-
-  SessionSnapshot({
-    required String snapshotId,
-    String? sessionId,
-    String? parentId,
-    required String createdAt,
-    String? updatedAt,
-    String? heartbeatAt,
-    SnapshotStatus? status,
-    AgentFinishReason? finishReason,
-    AgentErrorInfo? error,
-    SessionState? state,
-  }) {
-    _json = {
-      'snapshotId': snapshotId,
-      'sessionId': ?sessionId,
-      'parentId': ?parentId,
-      'createdAt': createdAt,
-      'updatedAt': ?updatedAt,
-      'heartbeatAt': ?heartbeatAt,
-      'status': ?status?.value,
-      'finishReason': ?finishReason?.value,
-      'error': ?error?.toJson(),
-      'state': ?state?.toJson(),
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [SessionSnapshot].
-  static const SchemanticType<SessionSnapshot> $schema =
-      _SessionSnapshotTypeFactory();
-
-  String get snapshotId {
-    return _json['snapshotId'] as String;
-  }
-
-  set snapshotId(String value) {
-    _json['snapshotId'] = value;
-  }
-
-  String? get sessionId {
-    return _json['sessionId'] as String?;
-  }
-
-  set sessionId(String? value) {
-    if (value == null) {
-      _json.remove('sessionId');
-    } else {
-      _json['sessionId'] = value;
-    }
-  }
-
-  String? get parentId {
-    return _json['parentId'] as String?;
-  }
-
-  set parentId(String? value) {
-    if (value == null) {
-      _json.remove('parentId');
-    } else {
-      _json['parentId'] = value;
-    }
-  }
-
-  String get createdAt {
-    return _json['createdAt'] as String;
-  }
-
-  set createdAt(String value) {
-    _json['createdAt'] = value;
-  }
-
-  String? get updatedAt {
-    return _json['updatedAt'] as String?;
-  }
-
-  set updatedAt(String? value) {
-    if (value == null) {
-      _json.remove('updatedAt');
-    } else {
-      _json['updatedAt'] = value;
-    }
-  }
-
-  String? get heartbeatAt {
-    return _json['heartbeatAt'] as String?;
-  }
-
-  set heartbeatAt(String? value) {
-    if (value == null) {
-      _json.remove('heartbeatAt');
-    } else {
-      _json['heartbeatAt'] = value;
-    }
-  }
-
-  SnapshotStatus? get status {
-    return _json['status'] as SnapshotStatus?;
-  }
-
-  set status(SnapshotStatus? value) {
-    if (value == null) {
-      _json.remove('status');
-    } else {
-      _json['status'] = value;
-    }
-  }
-
-  AgentFinishReason? get finishReason {
-    return _json['finishReason'] as AgentFinishReason?;
-  }
-
-  set finishReason(AgentFinishReason? value) {
-    if (value == null) {
-      _json.remove('finishReason');
-    } else {
-      _json['finishReason'] = value;
-    }
-  }
-
-  AgentErrorInfo? get error {
-    return _json['error'] == null
-        ? null
-        : AgentErrorInfo.fromJson(_json['error'] as Map<String, dynamic>);
-  }
-
-  set error(AgentErrorInfo? value) {
-    if (value == null) {
-      _json.remove('error');
-    } else {
-      _json['error'] = value.toJson();
-    }
-  }
-
-  SessionState? get state {
-    return _json['state'] == null
-        ? null
-        : SessionState.fromJson(_json['state'] as Map<String, dynamic>);
-  }
-
-  set state(SessionState? value) {
-    if (value == null) {
-      _json.remove('state');
-    } else {
-      _json['state'] = value.toJson();
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [SessionSnapshot] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _SessionSnapshotTypeFactory extends SchemanticType<SessionSnapshot> {
-  const _SessionSnapshotTypeFactory();
-
-  @override
-  SessionSnapshot parse(Object? json) {
-    return SessionSnapshot._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'SessionSnapshot',
-    definition: $Schema
-        .object(
-          properties: {
-            'snapshotId': $Schema.string(),
-            'sessionId': $Schema.string(),
-            'parentId': $Schema.string(),
-            'createdAt': $Schema.string(),
-            'updatedAt': $Schema.string(),
-            'heartbeatAt': $Schema.string(),
-            'status': $Schema.any(),
-            'finishReason': $Schema.any(),
-            'error': $Schema.fromMap({'\$ref': r'#/$defs/AgentErrorInfo'}),
-            'state': $Schema.fromMap({'\$ref': r'#/$defs/SessionState'}),
-          },
-          required: ['snapshotId', 'createdAt'],
-        )
-        .value,
-    dependencies: [AgentErrorInfo.$schema, SessionState.$schema],
-  );
-}
-
-base class SessionState {
-  /// Creates a [SessionState] from a JSON map.
-  factory SessionState.fromJson(Map<String, dynamic> json) =>
-      $schema.parse(json);
-
-  SessionState._(this._json);
-
-  SessionState({
-    String? sessionId,
-    List<Message>? messages,
-    Object? custom,
-    List<Artifact>? artifacts,
-  }) {
-    _json = {
-      'sessionId': ?sessionId,
-      'messages': ?messages?.map((e) => e.toJson()).toList(),
-      'custom': ?custom,
-      'artifacts': ?artifacts?.map((e) => e.toJson()).toList(),
-    };
-  }
-
-  late final Map<String, dynamic> _json;
-
-  /// The JSON schema and type descriptor for [SessionState].
-  static const SchemanticType<SessionState> $schema =
-      _SessionStateTypeFactory();
-
-  String? get sessionId {
-    return _json['sessionId'] as String?;
-  }
-
-  set sessionId(String? value) {
-    if (value == null) {
-      _json.remove('sessionId');
-    } else {
-      _json['sessionId'] = value;
-    }
-  }
-
-  List<Message>? get messages {
-    return (_json['messages'] as List?)
-        ?.map((e) => Message.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  set messages(List<Message>? value) {
-    if (value == null) {
-      _json.remove('messages');
-    } else {
-      _json['messages'] = value.map((e) => e.toJson()).toList();
-    }
-  }
-
-  Object? get custom {
-    return _json['custom'] as Object?;
-  }
-
-  set custom(Object? value) {
-    if (value == null) {
-      _json.remove('custom');
-    } else {
-      _json['custom'] = value;
-    }
-  }
-
-  List<Artifact>? get artifacts {
-    return (_json['artifacts'] as List?)
-        ?.map((e) => Artifact.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-
-  set artifacts(List<Artifact>? value) {
-    if (value == null) {
-      _json.remove('artifacts');
-    } else {
-      _json['artifacts'] = value.map((e) => e.toJson()).toList();
-    }
-  }
-
-  @override
-  String toString() {
-    return _json.toString();
-  }
-
-  /// Serializes this [SessionState] to a JSON map.
-  Map<String, dynamic> toJson() {
-    return _json;
-  }
-}
-
-base class _SessionStateTypeFactory extends SchemanticType<SessionState> {
-  const _SessionStateTypeFactory();
-
-  @override
-  SessionState parse(Object? json) {
-    return SessionState._(json as Map<String, dynamic>);
-  }
-
-  @override
-  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
-    name: 'SessionState',
-    definition: $Schema
-        .object(
-          properties: {
-            'sessionId': $Schema.string(),
-            'messages': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Message'}),
-            ),
-            'custom': $Schema.any(),
-            'artifacts': $Schema.list(
-              items: $Schema.fromMap({'\$ref': r'#/$defs/Artifact'}),
-            ),
-          },
-        )
-        .value,
-    dependencies: [Message.$schema, Artifact.$schema],
   );
 }

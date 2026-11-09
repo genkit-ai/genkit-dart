@@ -11,6 +11,16 @@ A general-purpose Dart library for generating type-safe data classes and runtime
 - **Validation**: Validate JSON data against the generated schema at runtime.
 - **Recursive Schemas**: Easy support for recursive data structures (e.g., trees) using `$ref`.
 
+> **Building with a coding agent? Install the Genkit Dart skill first.**
+>
+> ```bash
+> npx skills add genkit-ai/skills --skill developing-genkit-dart
+> ```
+>
+> It teaches your agent the current Genkit Dart APIs and common gotchas.
+> Source, manual install and skills for other languages:
+> [genkit-ai/skills](https://github.com/genkit-ai/skills).
+
 ## Installation
 
 `schemantic` is the lightweight runtime package. To generate code from

@@ -1,3 +1,30 @@
+## 0.2.1
+
+ - updated internal dependencies.
+
+## 0.2.0
+
+### Breaking Changes
+
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+
+
+## 0.1.14
+
+ - updated internal dependencies.
+
+## 0.1.13
+
+ - updated internal dependencies.
+
+## 0.1.12
+
+ - updated internal dependencies.
+
 ## 0.1.11
 
  - updated internal dependencies.

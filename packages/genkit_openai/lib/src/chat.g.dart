@@ -41,6 +41,8 @@ base class OpenAIChatOptions {
     String? user,
     bool? jsonMode,
     String? visualDetailLevel,
+    String? reasoningEffort,
+    String? verbosity,
   }) {
     _json = {
       'version': ?version,
@@ -54,6 +56,8 @@ base class OpenAIChatOptions {
       'user': ?user,
       'jsonMode': ?jsonMode,
       'visualDetailLevel': ?visualDetailLevel,
+      'reasoningEffort': ?reasoningEffort,
+      'verbosity': ?verbosity,
     };
   }
 
@@ -107,7 +111,7 @@ base class OpenAIChatOptions {
 
   /// Maximum tokens to generate
   int? get maxTokens {
-    return _json['maxTokens'] as int?;
+    return (_json['maxTokens'] as num?)?.toInt();
   }
 
   /// Maximum tokens to generate
@@ -163,7 +167,7 @@ base class OpenAIChatOptions {
 
   /// Seed for deterministic sampling
   int? get seed {
-    return _json['seed'] as int?;
+    return (_json['seed'] as num?)?.toInt();
   }
 
   /// Seed for deterministic sampling
@@ -189,12 +193,28 @@ base class OpenAIChatOptions {
     }
   }
 
-  /// JSON mode
+  /// Forces `{"type": "json_object"}` on the request.
+  ///
+  /// Only consulted when Genkit's own output config says nothing about the
+  /// format. Any explicit `outputFormat` wins, including `'text'`, which
+  /// suppresses this rather than conflicting with it; `outputSchema` wins too
+  /// and additionally constrains the shape.
+  ///
+  /// OpenAI rejects json_object unless the conversation also asks for JSON, so
+  /// the prompt must say so. Prefer `outputSchema` where the shape is known.
   bool? get jsonMode {
     return _json['jsonMode'] as bool?;
   }
 
-  /// JSON mode
+  /// Forces `{"type": "json_object"}` on the request.
+  ///
+  /// Only consulted when Genkit's own output config says nothing about the
+  /// format. Any explicit `outputFormat` wins, including `'text'`, which
+  /// suppresses this rather than conflicting with it; `outputSchema` wins too
+  /// and additionally constrains the shape.
+  ///
+  /// OpenAI rejects json_object unless the conversation also asks for JSON, so
+  /// the prompt must say so. Prefer `outputSchema` where the shape is known.
   set jsonMode(bool? value) {
     if (value == null) {
       _json.remove('jsonMode');
@@ -214,6 +234,46 @@ base class OpenAIChatOptions {
       _json.remove('visualDetailLevel');
     } else {
       _json['visualDetailLevel'] = value;
+    }
+  }
+
+  /// How hard a reasoning model should think before answering.
+  ///
+  /// Which levels are accepted varies by model and host. A level newer than
+  /// `openai_dart` needs an SDK bump.
+  String? get reasoningEffort {
+    return _json['reasoningEffort'] as String?;
+  }
+
+  /// How hard a reasoning model should think before answering.
+  ///
+  /// Which levels are accepted varies by model and host. A level newer than
+  /// `openai_dart` needs an SDK bump.
+  set reasoningEffort(String? value) {
+    if (value == null) {
+      _json.remove('reasoningEffort');
+    } else {
+      _json['reasoningEffort'] = value;
+    }
+  }
+
+  /// How much the model should say in its answer.
+  ///
+  /// A GPT-5-family parameter, and unrelated to [reasoningEffort]: this
+  /// shortens or lengthens the reply, not the thinking behind it.
+  String? get verbosity {
+    return _json['verbosity'] as String?;
+  }
+
+  /// How much the model should say in its answer.
+  ///
+  /// A GPT-5-family parameter, and unrelated to [reasoningEffort]: this
+  /// shortens or lengthens the reply, not the thinking behind it.
+  set verbosity(String? value) {
+    if (value == null) {
+      _json.remove('verbosity');
+    } else {
+      _json['verbosity'] = value;
     }
   }
 
@@ -240,25 +300,52 @@ base class _OpenAIChatOptionsTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'OpenAIChatOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'version': $Schema.string(),
-            'temperature': $Schema.number(minimum: 0.0, maximum: 2.0),
-            'topP': $Schema.number(minimum: 0.0, maximum: 1.0),
-            'maxTokens': $Schema.integer(),
-            'stop': $Schema.list(items: $Schema.string()),
-            'presencePenalty': $Schema.number(minimum: -2.0, maximum: 2.0),
-            'frequencyPenalty': $Schema.number(minimum: -2.0, maximum: 2.0),
-            'seed': $Schema.integer(),
-            'user': $Schema.string(),
-            'jsonMode': $Schema.boolean(),
-            'visualDetailLevel': $Schema.string(
-              enumValues: ['auto', 'low', 'high'],
-            ),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'version': <String, Object?>{'type': 'string'},
+        'temperature': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.0,
+          'maximum': 2.0,
+        },
+        'topP': <String, Object?>{
+          'type': 'number',
+          'minimum': 0.0,
+          'maximum': 1.0,
+        },
+        'maxTokens': <String, Object?>{'type': 'integer'},
+        'stop': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'presencePenalty': <String, Object?>{
+          'type': 'number',
+          'minimum': -2.0,
+          'maximum': 2.0,
+        },
+        'frequencyPenalty': <String, Object?>{
+          'type': 'number',
+          'minimum': -2.0,
+          'maximum': 2.0,
+        },
+        'seed': <String, Object?>{'type': 'integer'},
+        'user': <String, Object?>{'type': 'string'},
+        'jsonMode': <String, Object?>{'type': 'boolean'},
+        'visualDetailLevel': <String, Object?>{
+          'type': 'string',
+          'enum': ['auto', 'low', 'high'],
+        },
+        'reasoningEffort': <String, Object?>{
+          'type': 'string',
+          'enum': ['none', 'minimal', 'low', 'medium', 'high', 'xhigh', 'max'],
+        },
+        'verbosity': <String, Object?>{
+          'type': 'string',
+          'enum': ['low', 'medium', 'high'],
+        },
+      },
+    },
     dependencies: [],
   );
 }

@@ -146,9 +146,9 @@ void main() {
         stream.toList(),
         throwsA(
           isA<GenkitException>().having(
-            (e) => e.statusCode,
-            'statusCode',
-            StatusCodes.INTERNAL.value,
+            (e) => e.status,
+            'status',
+            StatusCode.internal,
           ),
         ),
       );
@@ -157,9 +157,9 @@ void main() {
         stream.onResult,
         throwsA(
           isA<GenkitException>().having(
-            (e) => e.statusCode,
-            'statusCode',
-            StatusCodes.INTERNAL.value,
+            (e) => e.status,
+            'status',
+            StatusCode.internal,
           ),
         ),
       );
@@ -168,9 +168,9 @@ void main() {
         () => stream.result,
         throwsA(
           isA<GenkitException>().having(
-            (e) => e.statusCode,
-            'statusCode',
-            StatusCodes.INTERNAL.value,
+            (e) => e.status,
+            'status',
+            StatusCode.internal,
           ),
         ),
       );
@@ -224,9 +224,9 @@ void main() {
         },
         throwsA(
           isA<GenkitException>().having(
-            (e) => e.statusCode,
-            'statusCode',
-            StatusCodes.INTERNAL.value,
+            (e) => e.status,
+            'status',
+            StatusCode.internal,
           ),
         ),
       );

@@ -31,23 +31,24 @@ void main() {
       (action.metadata['model'] as Map).cast<String, dynamic>();
 
   group('known model resolution', () {
-    for (final model in vertexAiKnownGeminiModels) {
-      test('${model.id} resolves with curated metadata', () {
-        final action = plugin().resolve('model', model.id);
+    for (final MapEntry(key: id, value: curated)
+        in vertexAiKnownModels.entries) {
+      test('$id resolves with curated metadata', () {
+        final action = plugin().resolve(.model, id);
 
         expect(action, isNotNull);
         final info = modelInfoOf(action!);
-        expect(info['label'], model.label);
+        expect(info['label'], curated.label);
         expect(info['stage'], 'stable');
         expect(
           (info['supports'] as Map).cast<String, dynamic>(),
-          model.info.supports,
+          curated.supports,
         );
       });
     }
 
     test('unknown model falls back to common metadata', () {
-      final action = plugin().resolve('model', 'gemini-unknown-model');
+      final action = plugin().resolve(.model, 'gemini-unknown-model');
 
       expect(action, isNotNull);
       final info = modelInfoOf(action!);
@@ -56,16 +57,107 @@ void main() {
       // Model defaults the label to the action name when not curated.
       expect(info['label'], 'vertexai/gemini-unknown-model');
     });
+
+    test('un-curated Vertex -tts name resolves with the TTS profile', () {
+      final action = plugin().resolve(.model, 'gemini-2.5-flash-tts') as Model;
+
+      expect(action.customOptions, same(GeminiTtsOptions.$schema));
+      final info = modelInfoOf(action);
+      expect(info['supports'], {
+        'multiturn': false,
+        'media': false,
+        'tools': false,
+        'toolChoice': false,
+        'systemRole': false,
+        'constrained': false,
+        'output': ['media'],
+      });
+      expect(info.containsKey('stage'), isFalse);
+    });
+
+    test('gemma is uncurated on Vertex and takes the Gemini path', () {
+      final action = plugin().resolve(.model, 'gemma-4-31b-it') as Model;
+
+      expect(action.customOptions, same(GeminiOptions.$schema));
+      final info = modelInfoOf(action);
+      expect(info['supports'], commonModelInfo.supports);
+      expect(info.containsKey('stage'), isFalse);
+      expect(info['label'], 'vertexai/gemma-4-31b-it');
+    });
+  });
+
+  group('vertexAiKnownModels', () {
+    test('curates the Gemini text and image set, not Gemma or TTS', () {
+      expect(vertexAiKnownModels, isNotEmpty);
+      expect(vertexAiKnownModels.keys, everyElement(startsWith('gemini-')));
+      expect(
+        vertexAiKnownModels.keys.where((id) => id.contains('-tts')),
+        isEmpty,
+      );
+      expect(
+        vertexAiKnownModels.keys.where(
+          (id) => GeminiModelFamily.of(id) == GeminiModelFamily.image,
+        ),
+        isNotEmpty,
+      );
+    });
+
+    test('picks up new Gemini API text entries but not their TTS', () {
+      expect(vertexAiKnownModels, contains('gemini-3.8-flash'));
+      expect(knownGeminiModels, contains('gemini-3.8-flash-tts'));
+      expect(vertexAiKnownModels, isNot(contains('gemini-3.8-flash-tts')));
+    });
+
+    test('shares the Gemini API entries rather than copying them', () {
+      for (final MapEntry(:key, :value) in vertexAiKnownModels.entries) {
+        if (!knownGeminiModels.containsKey(key)) continue; // Vertex-only
+        expect(value, same(knownGeminiModels[key]), reason: key);
+      }
+    });
+
+    test('keeps 2.5 Pro and Flash, which only Vertex still serves', () {
+      for (final id in ['gemini-2.5-pro', 'gemini-2.5-flash']) {
+        expect(knownGeminiModels, isNot(contains(id)), reason: id);
+        expect(vertexAiKnownModels[id]?.stage, 'stable', reason: id);
+        expect(
+          vertexAiKnownModels[id]?.supports,
+          GeminiModelFamily.text.supports,
+          reason: id,
+        );
+      }
+    });
   });
 
   group('list', () {
+    test('gives a discovered Vertex -tts model the TTS profile', () async {
+      final client = MockHttpClient(
+        publisherModelsResponse:
+            '{"publisherModels": ['
+            '{"name": "publishers/google/models/gemini-2.5-flash-tts"}]}',
+      );
+      final actions = await plugin(client: client).list();
+      final discovered = actions.firstWhere(
+        (a) => a.name == 'vertexai/gemini-2.5-flash-tts',
+      );
+
+      final info = (discovered.metadata['model'] as Map)
+          .cast<String, dynamic>();
+      expect(info['supports'], geminiTtsSupports);
+      expect(info.containsKey('stage'), isFalse);
+      final options = (info['customOptions'] as Map).cast<String, dynamic>();
+      expect(options['properties'], contains('speechConfig'));
+    });
+
     test('includes curated models missing from discovery', () async {
-      final actions = await plugin().list();
+      final client = MockHttpClient(
+        publisherModelsResponse: '{"publisherModels": []}',
+      );
+      final actions = await plugin(client: client).list();
       final names = actions.map((a) => a.name).toList();
 
       expect(names, contains('vertexai/gemini-2.5-pro'));
-      for (final model in vertexAiKnownGeminiModels) {
-        expect(names, contains('vertexai/${model.id}'));
+      for (final id in vertexAiKnownModels.keys) {
+        expect(names, contains('vertexai/$id'));
       }
 
       final curated = actions.firstWhere(
@@ -100,5 +192,44 @@ void main() {
       expect(info['label'], 'Gemini 3.5 Flash');
       expect(info['stage'], 'stable');
     });
+
+    test('falls back to the curated catalog when discovery fails', () async {
+      final client = MockHttpClient(
+        publisherModelsStatus: 500,
+        publisherModelsResponse:
+            '{"error": {"message": "boom", "status": "INTERNAL"}}',
+      );
+      final actions = await plugin(client: client).list();
+      final names = actions.map((a) => a.name).toList();
+
+      for (final id in vertexAiKnownModels.keys) {
+        expect(names, contains('vertexai/$id'));
+      }
+      expect(names.where((n) => n.contains('embedding')), isEmpty);
+      final curated = actions.firstWhere(
+        (a) => a.name == 'vertexai/gemini-3.5-flash',
+      );
+      final info = (curated.metadata['model'] as Map).cast<String, dynamic>();
+      expect(info['label'], 'Gemini 3.5 Flash');
+      expect(info['stage'], 'stable');
+    });
+
+    test(
+      'falls back to the curated catalog when the project id is invalid',
+      () async {
+        final client = MockHttpClient();
+        final actions = await VertexAiPluginImpl(
+          projectId: 'not a valid project id',
+          location: 'us-central1',
+          authClient: client,
+        ).list();
+        final names = actions.map((a) => a.name).toList();
+
+        expect(client.requestUrls, isEmpty);
+        for (final id in vertexAiKnownModels.keys) {
+          expect(names, contains('vertexai/$id'));
+        }
+      },
+    );
   });
 }

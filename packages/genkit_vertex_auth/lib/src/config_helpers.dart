@@ -28,14 +28,14 @@ void validateVertexConfigBasics({
   if (projectId != null && projectId.trim().isEmpty) {
     throw GenkitException(
       'Vertex $providerName requires a non-empty projectId.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
   if (location.trim().isEmpty) {
     throw GenkitException(
       'Vertex $providerName requires a non-empty location.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -43,14 +43,14 @@ void validateVertexConfigBasics({
   if (!locationPattern.hasMatch(location.trim())) {
     throw GenkitException(
       'Vertex $providerName location may only contain letters, numbers, and hyphens.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
   if (accessToken != null && accessTokenProvider != null) {
     throw GenkitException(
       'Provide either accessToken or accessTokenProvider, not both.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }
@@ -81,7 +81,7 @@ String resolveVertexProjectId({
     'Vertex $providerName requires a GCP project ID. '
     'Set projectId in $configTypeName or set '
     'GOOGLE_CLOUD_PROJECT/GCLOUD_PROJECT.',
-    status: StatusCodes.INVALID_ARGUMENT,
+    status: StatusCode.invalidArgument,
   );
 }
 
@@ -98,7 +98,7 @@ Future<String> resolveVertexAccessToken({
     throw GenkitException(
       'Vertex $providerName requires an OAuth access token. '
       'Set accessToken or accessTokenProvider.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
   return token.trim();
@@ -112,7 +112,7 @@ void validateVertexEndpointId({
   if (endpointId.trim().isEmpty) {
     throw GenkitException(
       'Vertex $providerName requires a non-empty endpointId.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
@@ -120,7 +120,7 @@ void validateVertexEndpointId({
   if (!endpointPattern.hasMatch(endpointId.trim())) {
     throw GenkitException(
       'Vertex $providerName endpointId may only contain letters, numbers, underscores, and hyphens.',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 }

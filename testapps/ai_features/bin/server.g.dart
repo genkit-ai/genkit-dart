@@ -47,7 +47,7 @@ base class TransferMoneyInput {
   }
 
   int get amount {
-    return _json['amount'] as int;
+    return (_json['amount'] as num).toInt();
   }
 
   set amount(int value) {
@@ -77,19 +77,20 @@ base class _TransferMoneyInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TransferMoneyInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'toAccountId': $Schema.string(
-              description: 'the account id of the transfer destination',
-            ),
-            'amount': $Schema.integer(
-              description: 'the amount in integer cents (100 = 1 USD)',
-            ),
-          },
-          required: ['toAccountId', 'amount'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'toAccountId': <String, Object?>{
+          'type': 'string',
+          'description': 'the account id of the transfer destination',
+        },
+        'amount': <String, Object?>{
+          'type': 'integer',
+          'description': 'the amount in integer cents (100 = 1 USD)',
+        },
+      },
+      'required': ['toAccountId', 'amount'],
+    },
     dependencies: [],
   );
 }
@@ -154,17 +155,20 @@ base class _TransferMoneyOutputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'TransferMoneyOutput',
-    definition: $Schema
-        .object(
-          properties: {
-            'status': $Schema.string(
-              description: 'the outcome of the transfer',
-            ),
-            'message': $Schema.string(description: 'message'),
-          },
-          required: ['status'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'status': <String, Object?>{
+          'type': 'string',
+          'description': 'the outcome of the transfer',
+        },
+        'message': <String, Object?>{
+          'type': 'string',
+          'description': 'message',
+        },
+      },
+      'required': ['status'],
+    },
     dependencies: [],
   );
 }
@@ -229,20 +233,21 @@ base class _AskQuestionInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'AskQuestionInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'choices': $Schema.list(
-              description: 'the choices to display to the user',
-              items: $Schema.string(),
-            ),
-            'allowOther': $Schema.boolean(
-              description: 'when true, allow write-ins',
-            ),
-          },
-          required: ['choices'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'choices': <String, Object?>{
+          'type': 'array',
+          'description': 'the choices to display to the user',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'allowOther': <String, Object?>{
+          'type': 'boolean',
+          'description': 'when true, allow write-ins',
+        },
+      },
+      'required': ['choices'],
+    },
     dependencies: [],
   );
 }

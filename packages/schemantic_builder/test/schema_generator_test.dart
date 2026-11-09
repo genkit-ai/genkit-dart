@@ -165,8 +165,12 @@ abstract class $Product {
           'a|lib/a.schemantic.g.part': decodedMatches(
             allOf(
               contains("return _json['product_id'] as String;"),
-              contains(
-                "'product_id': \$Schema.string(description: 'The unique identifier')",
+              matches(
+                RegExp(
+                  r"'product_id': <String, Object\?>\{\s*"
+                  r"'type': 'string',\s*"
+                  r"'description': 'The unique identifier',\s*\}",
+                ),
               ),
             ),
           ),
@@ -197,7 +201,7 @@ abstract class $Item {
               contains(
                 "return Status.values.byName(_json['status'] as String);",
               ),
-              contains("enumValues: ['active', 'inactive']"),
+              contains("'enum': ['active', 'inactive']"),
             ),
           ),
         },
@@ -235,7 +239,7 @@ abstract class $Config {
               contains("'type': 'string'"),
               contains("'type': 'integer'"),
               contains("'type': 'boolean'"),
-              contains('Schema.fromMap'),
+              isNot(contains(r'$Schema')),
             ),
           ),
         },
@@ -266,13 +270,108 @@ abstract class $Outer {
         {
           'a|lib/a.schemantic.g.part': decodedMatches(
             allOf(
-              contains('Schema.fromMap({'),
-              contains("'allOf':"),
-              contains(r"Schema.fromMap({'\$ref': r'#/$defs/Inner'})"),
+              contains("'allOf': ["),
+              contains(r"<String, Object?>{r'$ref': r'#/$defs/Inner'}"),
               contains("'default': {'val': 'default'}"),
             ),
           ),
         },
+      );
+    });
+
+    test('treats dart:core DateTime as a date-time string', () async {
+      await _testBuilderWithNoFail(
+        {
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
+          'a|lib/a.dart': r'''
+import 'package:schemantic/schemantic.dart';
+
+part 'a.g.dart';
+
+@Schema()
+abstract class $Event {
+  DateTime get at;
+}
+''',
+        },
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
+            allOf(
+              contains("return DateTime.parse(_json['at'] as String);"),
+              contains("_json['at'] = value.toIso8601String();"),
+              matches(
+                RegExp(
+                  r"'at': <String, Object\?>\{\s*"
+                  r"'type': 'string',\s*"
+                  r"'format': 'date-time',?\s*\}",
+                ),
+              ),
+            ),
+          ),
+        },
+      );
+    });
+
+    test('does not treat a user class named DateTime as dart:core', () async {
+      await _testBuilderWithNoFail(
+        {
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
+          'a|lib/a.dart': r'''
+import 'dart:core' hide DateTime;
+
+import 'package:schemantic/schemantic.dart';
+
+part 'a.g.dart';
+
+class DateTime {}
+
+@Schema()
+abstract class $Event {
+  DateTime? get at;
+}
+''',
+        },
+        {
+          'a|lib/a.schemantic.g.part': decodedMatches(
+            allOf(
+              isNot(contains('DateTime.parse')),
+              isNot(contains('toIso8601String')),
+              isNot(contains("'date-time'")),
+            ),
+          ),
+        },
+      );
+    });
+
+    test('rejects a field-less class that only implements schemas', () async {
+      final errors = <String>[];
+      await testBuilder(
+        schemaBuilder(BuilderOptions({})),
+        {
+          'schemantic|lib/schemantic.dart': schematicBuilderLib,
+          'a|lib/a.dart': r'''
+import 'package:schemantic/schemantic.dart';
+
+part 'a.g.dart';
+
+@Schema()
+abstract class $Cat {
+  String get name;
+}
+
+@Schema()
+abstract class $Pet implements $Cat {}
+''',
+        },
+        onLog: (log) {
+          if (log.level >= Level.SEVERE) errors.add(log.message);
+        },
+      );
+      expect(
+        errors,
+        contains(
+          contains('cannot be a union of the schema types it implements'),
+        ),
       );
     });
   });

@@ -18,17 +18,20 @@ import 'dart:io';
 
 import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
+import 'package:schemantic/schemantic.dart';
 
 import '../../ai/generate_middleware.dart';
 import '../../ai/model.dart';
 import '../../exception.dart';
+import '../../o11y/instrumentation_setup.dart'
+    show enableDevInstrumentationForServer;
 import '../../schema.dart';
-import '../../utils.dart';
+import '../../version.dart';
+import '../action.dart';
 import '../registry.dart';
 
 final _logger = Logger('genkit.reflection.v1');
 
-const genkitVersion = '0.1.0';
 const genkitReflectionApiSpecVersion = '1';
 
 class Status {
@@ -66,6 +69,11 @@ class ReflectionServerV1 {
   final List<String> configuredEnvs;
   final String? name;
 
+  /// Id advertised in the runtime file and required by the health check.
+  ///
+  /// Empty uses `<pid>-<port>`.
+  final String runtimeId;
+
   HttpServer? _server;
   String? runtimeFilePath;
 
@@ -75,6 +83,7 @@ class ReflectionServerV1 {
     this.bodyLimit = '30mb',
     this.configuredEnvs = const ['dev'],
     this.name,
+    this.runtimeId = '',
   });
 
   Future<void> start() async {
@@ -106,12 +115,10 @@ class ReflectionServerV1 {
       request.response.headers.add('x-genkit-version', genkitVersion);
       try {
         if (request.method == 'GET' && request.uri.path == '/api/__health') {
-          await registry.listActions();
-          request.response
-            ..write('OK')
-            ..close();
+          await _handleHealth(request);
         } else if (request.method == 'POST' &&
             request.uri.path == '/api/notify') {
+          await _handleNotify(request);
           request.response
             ..write('OK')
             ..close();
@@ -148,11 +155,49 @@ class ReflectionServerV1 {
     await _writeRuntimeFile();
   }
 
+  /// The CLI prunes a runtime file on any non-200 health response, which is
+  /// how a dead process's stale file gets removed once its port is reused.
+  Future<void> _handleHealth(HttpRequest request) async {
+    final id = request.uri.queryParameters['id'];
+    if (id != null && id.isNotEmpty && id != _advertisedRuntimeId) {
+      request.response
+        ..statusCode = HttpStatus.serviceUnavailable
+        ..write('Invalid runtime ID')
+        ..close();
+      return;
+    }
+    await registry.listActions();
+    request.response
+      ..write('OK')
+      ..close();
+  }
+
+  /// Applies the CLI telemetry handshake sent to `POST /api/notify`.
+  ///
+  /// When the request body carries a non-empty `telemetryServerUrl` and no
+  /// `GENKIT_TELEMETRY_SERVER` env var is set, this enables the built-in dev
+  /// instrumentation so traces reach the CLI-provided telemetry server. The env
+  /// var takes precedence. Any decoding error is ignored (best-effort dev-only).
+  Future<void> _handleNotify(HttpRequest request) async {
+    try {
+      final body = await _jsonDecodeStream(request);
+      final url = body['telemetryServerUrl'];
+      if (url is String && url.isNotEmpty) {
+        enableDevInstrumentationForServer(url);
+      }
+    } catch (e) {
+      _logger.fine('Ignoring malformed /api/notify body: $e');
+    }
+  }
+
   Future<void> _handleActions(HttpRequest request) async {
-    final actions = await registry.listActions();
+    // Use resolvable actions so dynamic action providers expand into their
+    // individual tools/prompts/resources for the Dev UI.
+    final actions = await registry.listResolvableActions();
     final convertedActions = <String, dynamic>{};
-    for (final action in actions) {
-      final key = getKey(action.actionType, action.name);
+    for (final entry in actions.entries) {
+      final action = entry.value;
+      final key = action.key ?? entry.key;
       convertedActions[key] = {
         'key': key,
         'name': action.name,
@@ -160,8 +205,8 @@ class ReflectionServerV1 {
         'metadata': action.metadata,
         if (action.inputSchema != null)
           'inputSchema': toJsonSchema(type: action.inputSchema),
-        if (action.outputSchema != null)
-          'outputSchema': toJsonSchema(type: action.outputSchema),
+        if (_manifestOutputSchema(action) != null)
+          'outputSchema': toJsonSchema(type: _manifestOutputSchema(action)),
       };
     }
     request.response
@@ -232,10 +277,9 @@ class ReflectionServerV1 {
         ..close();
       return;
     }
-    final action = await registry.lookupAction(
-      parts[1],
-      parts.sublist(2).join('/'),
-    );
+    // Resolve by full key so dynamic-action-provider keys (surfaced to the Dev
+    // UI by listResolvableActions) resolve through their provider.
+    final action = await registry.lookupActionByKey(key);
 
     if (action == null) {
       request.response
@@ -250,8 +294,14 @@ class ReflectionServerV1 {
     void onTraceStart({required String traceId, required String spanId}) {
       if (headersFlushed) return;
       try {
-        request.response.headers.add('x-genkit-trace-id', traceId);
-        request.response.headers.add('x-genkit-span-id', spanId);
+        // Skip trace/span headers when uninstrumented (empty ids): a blank
+        // `x-genkit-trace-id` looks like a broken exporter to clients.
+        if (traceId.isNotEmpty) {
+          request.response.headers.add('x-genkit-trace-id', traceId);
+        }
+        if (spanId.isNotEmpty) {
+          request.response.headers.add('x-genkit-span-id', spanId);
+        }
         request.response.headers.add('x-genkit-version', genkitVersion);
         // Force headers to be sent immediately
         request.response.headers.chunkedTransferEncoding = true;
@@ -289,7 +339,7 @@ class ReflectionServerV1 {
         );
         final response = RunActionResponse(
           result: result.result,
-          telemetry: {'traceId': result.traceId},
+          telemetry: _telemetry(result.traceId),
         );
         request.response.write(jsonEncode(response.toJson()));
         await request.response.close();
@@ -297,7 +347,7 @@ class ReflectionServerV1 {
         _logger.severe('Error running action: $e', stack);
         final errorResponse = RunActionResponse(
           error: Status(
-            code: StatusCodes.INTERNAL.value,
+            code: StatusCode.internal.value,
             message: e.toString(),
             details: {'stack': stack.toString()},
           ),
@@ -321,14 +371,14 @@ class ReflectionServerV1 {
         );
         final response = RunActionResponse(
           result: result.result,
-          telemetry: {'traceId': result.traceId},
+          telemetry: _telemetry(result.traceId),
         );
         request.response.write(jsonEncode(response.toJson()));
         await request.response.close();
       } catch (e, stack) {
         _logger.severe('Error running action: $e', stack);
         final errorResponse = Status(
-          code: StatusCodes.INTERNAL.value,
+          code: StatusCode.internal.value,
           message: e.toString(),
           details: {'stack': stack.toString()},
         );
@@ -347,27 +397,32 @@ class ReflectionServerV1 {
     await _server?.close(force: true);
     _server = null;
     runtimeFilePath = null;
-    print('Reflection server stopped.');
+    _logger.info('Reflection server stopped.');
   }
 
   int get actualPort => _server?.port ?? 0;
 
-  String get _runtimeId => '$pid${_server != null ? '-${_server!.port}' : ''}';
+  String get _pidPortId => '$pid${_server != null ? '-${_server!.port}' : ''}';
+
+  String get _advertisedRuntimeId => runtimeId.isEmpty ? _pidPortId : runtimeId;
 
   Future<void> _writeRuntimeFile() async {
     try {
       final rootDir = await _findProjectRoot();
       if (rootDir == null) {
-        print('Could not find project root (pubspec.yaml not found)');
+        _logger.warning(
+          'Could not find project root (pubspec.yaml not found); the Genkit '
+          'tooling will not discover this runtime.',
+        );
         return;
       }
       final runtimesDir = p.join(rootDir, '.genkit', 'runtimes');
       final date = DateTime.now();
       final time = date.millisecondsSinceEpoch;
       final timestamp = date.toIso8601String();
-      runtimeFilePath = p.join(runtimesDir, '$_runtimeId-$time.json');
+      runtimeFilePath = p.join(runtimesDir, '$_pidPortId-$time.json');
       final fileContent = jsonEncode({
-        'id': getConfigVar('GENKIT_RUNTIME_ID') ?? _runtimeId,
+        'id': _advertisedRuntimeId,
         'pid': pid,
         'name': name ?? pid.toString(),
         'reflectionServerUrl': 'http://localhost:${_server!.port}',
@@ -402,6 +457,18 @@ class ReflectionServerV1 {
   }
 }
 
+/// Returns the schema to advertise as an action's output schema in the
+/// manifest.
+///
+/// For [Action]s this is [Action.manifestOutputSchema], which lets tools
+/// surface their user-declared output schema instead of the internal
+/// `ToolResult` wrapper. Plain [ActionMetadata] falls back to
+/// [ActionMetadata.outputSchema].
+SchemanticType? _manifestOutputSchema(ActionMetadata action) {
+  if (action is Action) return action.manifestOutputSchema;
+  return action.outputSchema;
+}
+
 Future<String?> _findProjectRoot() async {
   var current = Directory.current.path;
   while (current != p.dirname(current)) {
@@ -417,5 +484,10 @@ Future<String?> _findProjectRoot() async {
 Future<Map<String, dynamic>> _jsonDecodeStream(Stream<List<int>> stream) async {
   return await _jsonStreamDecoder.bind(stream).single as Map<String, dynamic>;
 }
+
+/// Builds the `telemetry` payload, omitting an empty (uninstrumented) traceId
+/// so clients don't mistake a blank id for a broken exporter.
+Map<String, dynamic>? _telemetry(String traceId) =>
+    traceId.isEmpty ? null : {'traceId': traceId};
 
 final _jsonStreamDecoder = utf8.decoder.fuse(json.decoder);

@@ -33,47 +33,164 @@ abstract class $CalculatorInput {
   int get b;
 }
 
+/// A 32x32 solid red PNG.
+const _redSquarePng =
+    'data:image/png;base64,'
+    'iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAIAAAD8GO2jAAAAJ0lEQVR42u3NsQkAAAjAsP7/'
+    'tF7hIASyp6lTCQQCgUAgEAgEgi/BAjLD/C5w/SM9AAAAAElFTkSuQmCC';
+
 void main() {
   // Check if API key is available
   final apiKey =
       Platform.environment['GOOGLE_GENAI_API_KEY'] ??
       Platform.environment['GEMINI_API_KEY'];
-  final configs = [
-    if (apiKey != null)
-      (
-        name: 'Google AI',
-        plugin: googleAI(apiKey: apiKey),
-        gemini: googleAI.gemini,
-        textEmbedding: googleAI.textEmbedding,
-        modelName: 'gemini-flash-latest',
-        embedderName: 'gemini-embedding-001',
-      ),
-  ];
-
-  if (configs.isEmpty) {
+  if (apiKey == null) {
     print('Skipping live tests: No API key found');
     return;
   }
+
+  group('Google AI Integration (Live)', () {
+    late Genkit ai;
+
+    setUp(() {
+      ai = Genkit(plugins: [googleAI(apiKey: apiKey)]);
+    });
+
+    test('should list models', () async {
+      final actions = await ai.registry.listActions();
+      final modelsAndEmbedders = actions.where(
+        (a) => a.actionType == .model || a.actionType == .embedder,
+      );
+      expect(modelsAndEmbedders.isNotEmpty, isTrue);
+    });
+
+    test('should embed text', () async {
+      final embeddings = await ai.embed(
+        embedder: googleAI.textEmbedding('gemini-embedding-001'),
+        documents: [
+          DocumentData(content: [TextPart(text: 'Hello world')]),
+        ],
+      );
+
+      expect(embeddings, isNotNull);
+      expect(embeddings.length, 1);
+      expect(embeddings.first.embedding, isNotEmpty);
+      expect(embeddings.first.embedding.length, 3072);
+    });
+
+    test('should embed multiple texts', () async {
+      final embeddings = await ai.embed(
+        embedder: googleAI.textEmbedding('gemini-embedding-001'),
+        documents: [
+          DocumentData(content: [TextPart(text: 'Hello')]),
+          DocumentData(content: [TextPart(text: 'World')]),
+        ],
+      );
+
+      expect(embeddings.length, 2);
+      expect(embeddings[0].embedding, isNotEmpty);
+      expect(embeddings[1].embedding, isNotEmpty);
+    });
+
+    test('should embed with options', () async {
+      final embeddings = await ai.embed(
+        embedder: googleAI.textEmbedding('gemini-embedding-001'),
+        documents: [
+          DocumentData(content: [TextPart(text: 'Hello')]),
+        ],
+        options: GoogleGenAiEmbedderOptions(
+          outputDimensionality: 256,
+          taskType: 'RETRIEVAL_DOCUMENT',
+        ),
+      );
+
+      expect(embeddings.length, 1);
+      expect(embeddings.first.embedding.length, 256);
+    });
+
+    test('should discover gemini-embedding-* as embedders only', () async {
+      final actions = await ai.registry.listActions();
+      bool isGeminiEmbedding(ActionMetadata a) =>
+          a.name.startsWith('googleai/gemini-embedding-');
+
+      expect(
+        actions.where((a) => a.actionType == .embedder && isGeminiEmbedding(a)),
+        isNotEmpty,
+      );
+      expect(
+        actions.where((a) => a.actionType == .model && isGeminiEmbedding(a)),
+        isEmpty,
+      );
+    });
+
+    test('should embed text with gemini-embedding-2', () async {
+      final embeddings = await ai.embed(
+        embedder: googleAI.textEmbedding('gemini-embedding-2'),
+        documents: [
+          DocumentData(content: [TextPart(text: 'Hello world')]),
+        ],
+      );
+
+      expect(embeddings.length, 1);
+      expect(embeddings.first.embedding, isNotEmpty);
+    });
+
+    test('should embed an image with gemini-embedding-2', () async {
+      final embeddings = await ai.embed(
+        embedder: googleAI.textEmbedding('gemini-embedding-2'),
+        documents: [
+          DocumentData(
+            content: [MediaPart(media: Media(url: _redSquarePng))],
+          ),
+        ],
+      );
+
+      expect(embeddings.length, 1);
+      expect(embeddings.first.embedding, isNotEmpty);
+    });
+
+    test('should embed mixed text and image with gemini-embedding-2', () async {
+      final embeddings = await ai.embed(
+        embedder: googleAI.textEmbedding('gemini-embedding-2'),
+        documents: [
+          DocumentData(
+            content: [
+              TextPart(text: 'A red square'),
+              MediaPart(media: Media(url: _redSquarePng)),
+            ],
+          ),
+        ],
+      );
+
+      expect(embeddings.length, 1);
+      expect(embeddings.first.embedding, isNotEmpty);
+    });
+  });
+
+  final configs = [
+    (
+      name: 'Google AI',
+      model: googleAI.gemini,
+      modelName: 'gemini-flash-latest',
+    ),
+    (
+      name: 'Google AI Gemma',
+      model: googleAI.gemma,
+      modelName: 'gemma-4-31b-it',
+    ),
+  ];
 
   for (final config in configs) {
     group('${config.name} Integration (Live)', () {
       late Genkit ai;
 
       setUp(() {
-        ai = Genkit(plugins: [config.plugin]);
-      });
-
-      test('should list models', () async {
-        final actions = await ai.registry.listActions();
-        final modelsAndEmbedders = actions.where(
-          (a) => a.actionType == 'model' || a.actionType == 'embedder',
-        );
-        expect(modelsAndEmbedders.isNotEmpty, isTrue);
+        ai = Genkit(plugins: [googleAI(apiKey: apiKey)]);
       });
 
       test('should generate simple text', () async {
         final response = await ai.generate(
-          model: config.gemini(config.modelName),
+          model: config.model(config.modelName),
           prompt: 'Say hello to World',
           config: GeminiOptions(temperature: 0),
         );
@@ -82,7 +199,7 @@ void main() {
 
       test('should stream text', () async {
         final response = ai.generateStream(
-          model: config.gemini(config.modelName),
+          model: config.model(config.modelName),
           prompt: 'Count to 15',
         );
 
@@ -97,7 +214,7 @@ void main() {
 
       test('should generate structured output', () async {
         final response = await ai.generate(
-          model: config.gemini(config.modelName),
+          model: config.model(config.modelName),
           prompt: 'Generate a person named John Doe, age 30',
           outputSchema: Person.$schema,
         );
@@ -109,7 +226,7 @@ void main() {
 
       test('should stream structured output', () async {
         final response = ai.generateStream(
-          model: config.gemini(config.modelName),
+          model: config.model(config.modelName),
           prompt: 'Generate a person named Jane Doe, age 25',
           outputSchema: Person.$schema,
         );
@@ -126,60 +243,69 @@ void main() {
           description: 'Multiplies two numbers',
           inputSchema: CalculatorInput.$schema,
           outputSchema: .integer(),
-          fn: (CalculatorInput input, _) async => input.a * input.b,
+          fn: (CalculatorInput input, _) async => .response(input.a * input.b),
         );
 
         final response = await ai.generate(
-          model: config.gemini(config.modelName),
+          model: config.model(config.modelName),
           prompt: 'What is 123 * 456?',
           tools: [tool],
         );
 
-        expect(response.text, contains('56088')); // 123*456 = 56088
+        // The model renders the tool result with thousands separators.
+        expect(response.text.replaceAll(',', ''), contains('56088'));
       });
 
-      test('should embed text', () async {
-        final embeddings = await ai.embedMany(
-          embedder: config.textEmbedding(config.embedderName),
-          documents: [
-            DocumentData(content: [TextPart(text: 'Hello world')]),
-          ],
+      test('should honour a system message', () async {
+        final response = await ai.generate(
+          model: config.model(config.modelName),
+          system: 'Always answer with the single word BANANA, nothing else.',
+          prompt: 'What is the capital of France?',
+          config: GeminiOptions(temperature: 0),
         );
 
-        expect(embeddings, isNotNull);
-        expect(embeddings.length, 1);
-        expect(embeddings.first.embedding, isNotEmpty);
-        expect(embeddings.first.embedding.length, 3072);
+        expect(response.text.toUpperCase(), contains('BANANA'));
       });
 
-      test('should embed multiple texts', () async {
-        final embeddings = await ai.embedMany(
-          embedder: config.textEmbedding(config.embedderName),
-          documents: [
-            DocumentData(content: [TextPart(text: 'Hello')]),
-            DocumentData(content: [TextPart(text: 'World')]),
-          ],
+      test('should accept a temperature above 1.0', () async {
+        final response = await ai.generate(
+          model: config.model(config.modelName),
+          prompt: 'Say hello to World',
+          config: GeminiOptions(temperature: 1.5),
         );
 
-        expect(embeddings.length, 2);
-        expect(embeddings[0].embedding, isNotEmpty);
-        expect(embeddings[1].embedding, isNotEmpty);
+        expect(response.text, isNotEmpty);
       });
 
-      test('should embed with options', () async {
-        final embeddings = await ai.embedMany(
-          embedder: config.textEmbedding(config.embedderName),
-          documents: [
-            DocumentData(content: [TextPart(text: 'Hello')]),
-          ],
-          options: TextEmbedderOptions(
-            outputDimensionality: 256,
-            taskType: 'RETRIEVAL_DOCUMENT',
+      test('should replay its own reasoning parts in history', () async {
+        final first = await ai.generate(
+          model: config.model(config.modelName),
+          prompt: 'My favourite colour is heliotrope. Acknowledge that.',
+          config: GeminiOptions(
+            temperature: 0,
+            thinkingConfig: GeminiThinkingConfig(includeThoughts: true),
           ),
         );
 
-        expect(embeddings.length, 1);
-        expect(embeddings.first.embedding.length, 256);
+        final history = first.messages;
+        if (!history.any((m) => m.content.any((p) => p.isReasoning))) {
+          markTestSkipped(
+            'no reasoning part was returned, replay not exercised',
+          );
+          return;
+        }
+
+        final second = await ai.generate(
+          model: config.model(config.modelName),
+          messages: history,
+          prompt: 'What is my favourite colour? Answer with one word.',
+          config: GeminiOptions(
+            temperature: 0,
+            thinkingConfig: GeminiThinkingConfig(includeThoughts: true),
+          ),
+        );
+
+        expect(second.text.toLowerCase(), contains('heliotrope'));
       });
     });
   }

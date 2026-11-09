@@ -31,6 +31,7 @@
 ///   3. Synthesize a final response (main model, streamed to the client).
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
@@ -146,7 +147,7 @@ final researchAgent = ai.defineCustomAgent(
       );
 
       await for (final chunk in synthesisStream) {
-        options.sendChunk(AgentStreamChunk(modelChunk: chunk.rawChunk));
+        options.sendChunk(AgentStreamChunk(modelChunk: chunk.modelChunk));
       }
 
       final synthesisResponse = await synthesisStream.onResult;

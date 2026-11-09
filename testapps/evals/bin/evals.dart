@@ -43,7 +43,7 @@ void main(List<String> args) async {
             evaluation: EvalFnResponseEvaluation.score(
               Score(
                 score: ScoreScore.bool(true),
-                status: EvalStatusEnum.PASS,
+                status: EvalStatus.pass,
                 details: {'reasoning': 'something, something, something....'},
               ),
             ),

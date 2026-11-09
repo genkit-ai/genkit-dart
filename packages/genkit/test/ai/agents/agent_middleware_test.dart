@@ -12,8 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugin.dart';
 import 'package:test/test.dart';
 
 /// A middleware that acts as a "kit": it contributes a tool and appends a
@@ -29,15 +29,15 @@ class _KitMiddleware extends GenerateMiddleware {
     Tool<void, String>(
       name: 'kit_tool',
       description: 'A tool contributed by the kit middleware.',
-      fn: (input, ctx) async => 'ok',
+      fn: (input, ctx) async => .response('ok'),
     ),
   ];
 
   @override
-  Future<GenerateResponseHelper> generate(
+  Future<GenerateResult> generate(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
@@ -79,11 +79,7 @@ class _KitMiddleware extends GenerateMiddleware {
       stepName: options.stepName,
     );
 
-    return next((
-      request: newOptions,
-      currentTurn: envelope.currentTurn,
-      messageIndex: envelope.messageIndex,
-    ), ctx);
+    return next(envelope.copyWith(request: newOptions), ctx);
   }
 }
 
@@ -93,7 +89,7 @@ class _KitPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<void>(
+    generateMiddleware<void>(
       name: 'kit',
       create: (config, ctx) => _KitMiddleware(),
     ),

@@ -19,9 +19,15 @@ import 'dart:io';
 
 import 'package:genkit/src/ai/generate_middleware.dart';
 import 'package:genkit/src/ai/model.dart';
+import 'package:genkit/src/ai/tool.dart';
 import 'package:genkit/src/core/action.dart';
 import 'package:genkit/src/core/reflection/reflection_v1.dart';
 import 'package:genkit/src/core/registry.dart';
+import 'package:genkit/src/o11y/direct_http_instrumentation.dart';
+import 'package:genkit/src/o11y/instrumentation.dart'
+    show configureInstrumentation, resetInstrumentation;
+import 'package:genkit/src/o11y/telemetry/span_data.dart';
+import 'package:genkit/src/version.dart';
 import 'package:http/http.dart' as http;
 import 'package:test/test.dart';
 
@@ -42,6 +48,9 @@ void main() {
         content['reflectionServerUrl'],
         'http://localhost:${server.actualPort}',
       );
+      // The CLI / Dev UI reads this to check compatibility; it must be the
+      // package's real version, not a stale hardcoded one.
+      expect(content['genkitVersion'], 'dart/$genkitVersion');
 
       await server.stop();
 
@@ -62,6 +71,34 @@ void main() {
       await server1.stop();
       await server2.stop();
     });
+
+    test('GET /api/__health with an overridden runtime id', () async {
+      final server = ReflectionServerV1(
+        Registry(),
+        port: 0,
+        runtimeId: 'probe-runtime',
+      );
+      await server.start();
+      addTearDown(server.stop);
+
+      final url = 'http://localhost:${server.actualPort}';
+      final runtime = jsonDecode(
+        await File(server.runtimeFilePath!).readAsString(),
+      );
+      expect(runtime['id'], 'probe-runtime');
+
+      final overridden = await http.get(
+        Uri.parse('$url/api/__health?id=probe-runtime'),
+      );
+      expect(overridden.statusCode, 200);
+      expect(overridden.body, 'OK');
+
+      final pidPort = await http.get(
+        Uri.parse('$url/api/__health?id=$pid-${server.actualPort}'),
+      );
+      expect(pidPort.statusCode, 503);
+      expect(pidPort.body, 'Invalid runtime ID');
+    });
   });
 
   group('ReflectionServer API', () {
@@ -72,7 +109,7 @@ void main() {
     setUp(() async {
       registry = Registry();
       final testAction = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         inputSchema: .string(),
         outputSchema: .string(),
         streamSchema: .string(),
@@ -90,10 +127,39 @@ void main() {
       server = ReflectionServerV1(registry, port: 0);
       await server.start();
       url = 'http://localhost:${server.actualPort}';
+      // Instrument so runAction produces real trace/span ids to assert on.
+      configureInstrumentation(DirectHttpInstrumentation(_DiscardSink()));
     });
 
     tearDown(() async {
+      resetInstrumentation();
       await server.stop();
+    });
+
+    test('GET /api/__health without id', () async {
+      final response = await http.get(Uri.parse('$url/api/__health'));
+      expect(response.statusCode, 200);
+      expect(response.body, 'OK');
+    });
+
+    test('GET /api/__health with its own pid-port id', () async {
+      final ownId = '$pid-${server.actualPort}';
+      final runtime = jsonDecode(
+        await File(server.runtimeFilePath!).readAsString(),
+      );
+      expect(runtime['id'], ownId);
+
+      final response = await http.get(Uri.parse('$url/api/__health?id=$ownId'));
+      expect(response.statusCode, 200);
+      expect(response.body, 'OK');
+    });
+
+    test('GET /api/__health with a different id', () async {
+      final response = await http.get(
+        Uri.parse('$url/api/__health?id=not-this-runtime'),
+      );
+      expect(response.statusCode, 503);
+      expect(response.body, 'Invalid runtime ID');
     });
 
     test('GET /api/actions', () async {
@@ -105,8 +171,29 @@ void main() {
       expect(action['name'], 'testAction');
     });
 
+    test(
+      'GET /api/actions advertises a tool\'s declared output schema',
+      () async {
+        registry.register(
+          Tool<String, String>(
+            name: 'echoTool',
+            description: 'echoes input',
+            inputSchema: .string(),
+            outputSchema: .string(),
+            fn: (input, _) => .response(input),
+          ),
+        );
+
+        final response = await http.get(Uri.parse('$url/api/actions'));
+        expect(response.statusCode, 200);
+        final body = jsonDecode(response.body);
+        // The declared String schema, not the ToolResult<String> wrapper.
+        expect(body['/tool.v2/echoTool']['outputSchema']['type'], 'string');
+      },
+    );
+
     test('GET /api/values for middleware', () async {
-      final def = defineMiddleware<dynamic>(
+      final def = generateMiddleware<dynamic>(
         name: 'retry',
         create: (config, ctx) => throw UnimplementedError(),
       );
@@ -166,13 +253,13 @@ void main() {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       expect(body['result'], 'output for testInput');
       expect(body['telemetry'], isNotNull);
-      expect(body['telemetry']['traceId'], isA<String>());
+      expect(body['telemetry']['traceId'], isNotEmpty);
     });
 
     test('POST /api/runAction forwards init to the action handler', () async {
       Object? receivedInit;
       final initAction = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         inputSchema: .string(),
         outputSchema: .string(),
         initSchema: .map(.string(), .string()),
@@ -205,7 +292,7 @@ void main() {
       var invoked = false;
       Object? receivedInit = 'sentinel';
       final initAction = Action(
-        actionType: 'test',
+        actionType: ActionType('test'),
         inputSchema: .string(),
         outputSchema: .string(),
         // A non-nullable init schema. A missing init must NOT be validated
@@ -260,7 +347,36 @@ void main() {
       final finalResponse = chunks[2] as Map<String, dynamic>;
       expect(finalResponse['result'], 'output for testInput');
       expect(finalResponse['telemetry'], isNotNull);
-      expect(finalResponse['telemetry']['traceId'], isA<String>());
+      expect(finalResponse['telemetry']['traceId'], isNotEmpty);
+    });
+
+    test('POST /api/runAction omits telemetry when uninstrumented', () async {
+      // No instrumentation configured for this action: trace ids are empty, so
+      // the server must omit the telemetry payload rather than send a blank id.
+      resetInstrumentation();
+      final response = await http.post(
+        Uri.parse('$url/api/runAction'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'key': '/test/testAction', 'input': 'testInput'}),
+      );
+      expect(response.statusCode, 200);
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      expect(body['result'], 'output for testInput');
+      expect(body.containsKey('telemetry'), isFalse);
+      expect(response.headers.containsKey('x-genkit-trace-id'), isFalse);
     });
   });
+}
+
+/// A [TelemetrySink] that drops telemetry; used to instrument tests without
+/// exporting.
+class _DiscardSink implements TelemetrySink {
+  @override
+  void export(List<GenkitSpanData> spans) {}
+
+  @override
+  void exportLogs(List<GenkitLogData> logs) {}
+
+  @override
+  void shutdown() {}
 }

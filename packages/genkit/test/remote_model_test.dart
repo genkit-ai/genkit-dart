@@ -251,5 +251,82 @@ void main() {
         ),
       ).called(1);
     });
+
+    test('passes declared info through', () {
+      final declared = ai.defineRemoteModel(
+        name: 'declared-remote-model',
+        url: remoteUrl,
+        httpClient: mockClient,
+        info: ModelInfo(supports: {'constrained': 'none'}),
+      );
+      expect(
+        ((declared.metadata['model'] as Map<String, dynamic>)['supports']
+            as Map<String, dynamic>)['constrained'],
+        'none',
+      );
+    });
+
+    test('a constrained request reaches the remote intact', () async {
+      // Forwarded as-is, whatever the metadata says: the serving side decides
+      // what to do with the schema.
+      ai.defineRemoteModel(
+        name: 'constrained-remote-model',
+        url: remoteUrl,
+        httpClient: mockClient,
+      );
+
+      String? sentBody;
+      when(
+        mockClient.post(
+          Uri.parse(remoteUrl),
+          headers: anyNamed('headers'),
+          body: anyNamed('body'),
+        ),
+      ).thenAnswer((invocation) async {
+        sentBody = invocation.namedArguments[#body] as String;
+        return http.Response(
+          jsonEncode({
+            'result': ModelResponse(
+              finishReason: FinishReason.stop,
+              message: Message(
+                role: Role.model,
+                content: [TextPart(text: '{"foo": "bar"}')],
+              ),
+            ).toJson(),
+          }),
+          200,
+        );
+      });
+
+      final generateAction = await ai.registry.lookupAction(.util, 'generate');
+      await generateAction!(
+        GenerateActionOptions(
+          model: 'constrained-remote-model',
+          messages: [
+            Message(
+              role: Role.user,
+              content: [TextPart(text: 'describe something')],
+            ),
+          ],
+          output: GenerateActionOutputConfig(
+            format: 'json',
+            constrained: true,
+            jsonSchema: {
+              'type': 'object',
+              'properties': {
+                'foo': {'type': 'string'},
+              },
+            },
+          ),
+        ),
+      );
+
+      final sent = jsonDecode(sentBody!) as Map<String, dynamic>;
+      final data = sent['data'] as Map<String, dynamic>;
+      final output = data['output'] as Map<String, dynamic>;
+      expect(output['constrained'], isTrue);
+      expect(output['schema'], isNotNull);
+      expect(sentBody, isNot(contains('conform to the following')));
+    });
   });
 }

@@ -1,0 +1,191 @@
+// Copyright 2025 Google LLC
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+// GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format width=80
+
+part of 'http_server_example.dart';
+
+// **************************************************************************
+// SchemaGenerator
+// **************************************************************************
+
+base class HelloInput {
+  /// Creates a [HelloInput] from a JSON map.
+  factory HelloInput.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  HelloInput._(this._json);
+
+  HelloInput({required String name}) {
+    _json = {'name': name};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [HelloInput].
+  static const SchemanticType<HelloInput> $schema = _HelloInputTypeFactory();
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [HelloInput] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _HelloInputTypeFactory extends SchemanticType<HelloInput> {
+  const _HelloInputTypeFactory();
+
+  @override
+  HelloInput parse(Object? json) {
+    return HelloInput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'HelloInput',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name'],
+    },
+    dependencies: [],
+  );
+}
+
+base class HelloOutput {
+  /// Creates a [HelloOutput] from a JSON map.
+  factory HelloOutput.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  HelloOutput._(this._json);
+
+  HelloOutput({required String greeting}) {
+    _json = {'greeting': greeting};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [HelloOutput].
+  static const SchemanticType<HelloOutput> $schema = _HelloOutputTypeFactory();
+
+  String get greeting {
+    return _json['greeting'] as String;
+  }
+
+  set greeting(String value) {
+    _json['greeting'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [HelloOutput] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _HelloOutputTypeFactory extends SchemanticType<HelloOutput> {
+  const _HelloOutputTypeFactory();
+
+  @override
+  HelloOutput parse(Object? json) {
+    return HelloOutput._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'HelloOutput',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'greeting': <String, Object?>{'type': 'string'},
+      },
+      'required': ['greeting'],
+    },
+    dependencies: [],
+  );
+}
+
+base class CountChunk {
+  /// Creates a [CountChunk] from a JSON map.
+  factory CountChunk.fromJson(Map<String, dynamic> json) => $schema.parse(json);
+
+  CountChunk._(this._json);
+
+  CountChunk({required int count}) {
+    _json = {'count': count};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [CountChunk].
+  static const SchemanticType<CountChunk> $schema = _CountChunkTypeFactory();
+
+  int get count {
+    return (_json['count'] as num).toInt();
+  }
+
+  set count(int value) {
+    _json['count'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [CountChunk] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _CountChunkTypeFactory extends SchemanticType<CountChunk> {
+  const _CountChunkTypeFactory();
+
+  @override
+  CountChunk parse(Object? json) {
+    return CountChunk._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'CountChunk',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'count': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['count'],
+    },
+    dependencies: [],
+  );
+}

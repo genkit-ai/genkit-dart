@@ -1,5 +1,8 @@
 name: Flutter CI
 
+permissions:
+  contents: read
+
 on:
   push:
     branches: [ main ]
@@ -14,10 +17,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           channel: 'stable'
 
@@ -41,6 +44,11 @@ jobs:
       - name: Run genkit_firebase_ai Analyzer
         working-directory: packages/genkit_firebase_ai
         run: flutter analyze
+
+      # Lives here, not in dart_ci, because genkit_firebase_ai needs Flutter
+      # to resolve.
+      - name: Check for conflicting package exports
+        run: dart run tools/check_plugin_exports.dart
 
       - name: "testapps/firebase_ai: build_runner"
         working-directory: testapps/firebase_ai

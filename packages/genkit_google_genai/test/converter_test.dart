@@ -21,6 +21,31 @@ import 'package:test/test.dart';
 
 void main() {
   group('toGeminiPart', () {
+    test('unsupported part errors omit payload and metadata values', () {
+      final part = Part.fromJson({
+        'data': {'ssn': 'private-unsupported-part-payload'},
+        'metadata': {'note': 'private-unsupported-part-metadata'},
+      });
+
+      expect(
+        () => toGeminiPart(part),
+        throwsA(
+          isA<UnimplementedError>()
+              .having((e) => e.message, 'kind', 'Unsupported part type: data')
+              .having(
+                (e) => e.toString(),
+                'payload absent',
+                isNot(contains('private-unsupported-part-payload')),
+              )
+              .having(
+                (e) => e.toString(),
+                'metadata absent',
+                isNot(contains('private-unsupported-part-metadata')),
+              ),
+        ),
+      );
+    });
+
     test('converts text part', () {
       final part = TextPart(text: 'hello');
       final geminiPart = toGeminiPart(part);
@@ -74,6 +99,53 @@ void main() {
         expect(geminiPart.fileData!.mimeType, '');
       },
     );
+
+    test('converts a tool response to a functionResponse', () {
+      final part = ToolResponsePart(
+        toolResponse: ToolResponse(
+          ref: 'ref-1',
+          name: 'getWeather',
+          output: {'temp': 72},
+        ),
+      );
+      final geminiPart = toGeminiPart(part);
+      expect(geminiPart.functionResponse, isNotNull);
+      expect(geminiPart.functionResponse!.name, 'getWeather');
+      expect(geminiPart.functionResponse!.response, {
+        'output': {'temp': 72},
+      });
+      // No multipart content, so no `parts` should be emitted.
+      expect(geminiPart.functionResponse!.toJson().containsKey('parts'), false);
+    });
+
+    test(
+      'maps multipart tool-response content into functionResponse parts',
+      () {
+        final part = ToolResponsePart(
+          toolResponse: ToolResponse(
+            name: 'screenshot',
+            output: {'result': 'captured'},
+            content: [
+              MediaPart(
+                media: Media(
+                  contentType: 'image/png',
+                  url: 'data:image/png;base64,SGVsbG8=',
+                ),
+              ).toJson(),
+            ],
+          ),
+        );
+        final geminiPart = toGeminiPart(part);
+        final fnResponse = geminiPart.functionResponse!;
+        expect(fnResponse.name, 'screenshot');
+        expect(fnResponse.response, {
+          'output': {'result': 'captured'},
+        });
+        final parts = fnResponse.toJson()['parts'] as List;
+        expect(parts, hasLength(1));
+        expect((parts.first as Map)['inlineData'], isNotNull);
+      },
+    );
   });
 
   group('fromGeminiPart', () {
@@ -86,6 +158,19 @@ void main() {
       final media = (geminiPart as MediaPart).media;
       expect(media.contentType, 'audio/mp3');
       expect(media.url, 'data:audio/mp3;base64,SGVsbG8=');
+    });
+
+    test('converts a functionCall without args to an empty input', () {
+      // Gemini omits `args` when it calls a tool that takes no arguments.
+      final part = gcl.Part.fromJson({
+        'functionCall': {'name': 'noArgTool'},
+      });
+      final genkitPart = fromGeminiPart(part);
+      expect(genkitPart, isA<ToolRequestPart>());
+      final toolRequest = (genkitPart as ToolRequestPart).toolRequest;
+      expect(toolRequest.name, 'noArgTool');
+      expect(toolRequest.input, isNotNull);
+      expect(toolRequest.input, isEmpty);
     });
   });
 
@@ -165,6 +250,34 @@ void main() {
       final genkitPart = fromGeminiPart(part);
       expect(genkitPart, isA<ToolRequestPart>());
       expect(genkitPart.metadata?['thoughtSignature'], signatureBase64);
+    });
+
+    test('fromGeminiPart keeps a part with only a thoughtSignature', () {
+      final genkitPart = fromGeminiPart(
+        gcl.Part(thoughtSignature: signatureBase64),
+      );
+      expect(genkitPart, isA<TextPart>());
+      expect((genkitPart as TextPart).text, isEmpty);
+      expect(genkitPart.metadata?['thoughtSignature'], signatureBase64);
+
+      // The signature goes back to the model on the next turn.
+      expect(toGeminiPart(genkitPart).thoughtSignature, signatureBase64);
+    });
+
+    test(
+      'fromGeminiPart keeps a thought part with only a thoughtSignature',
+      () {
+        final genkitPart = fromGeminiPart(
+          gcl.Part(thought: true, thoughtSignature: signatureBase64),
+        );
+        expect(genkitPart, isA<ReasoningPart>());
+        expect((genkitPart as ReasoningPart).reasoning, isEmpty);
+        expect(genkitPart.metadata?['thoughtSignature'], signatureBase64);
+      },
+    );
+
+    test('fromGeminiPart still rejects an empty part', () {
+      expect(() => fromGeminiPart(gcl.Part()), throwsUnimplementedError);
     });
   });
 

@@ -27,6 +27,7 @@
 /// the transfer through.
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
@@ -72,7 +73,7 @@ final transferMoney = ai.defineTool(
     // Enforce approval inside the tool so the model cannot be talked into
     // skipping it. Restarting with `transferApproved: true` clears this gate.
     if (input.amount > transferApprovalThreshold && !approved) {
-      ctx.interrupt({
+      return .interrupt({
         'message':
             'Transfer of \$${input.amount} to ${input.toAccount} requires '
             'your approval.',
@@ -81,9 +82,11 @@ final transferMoney = ai.defineTool(
       });
     }
 
-    return TransferMoneyOutput(
-      success: true,
-      transactionId: 'txn-${DateTime.now().millisecondsSinceEpoch}',
+    return .response(
+      TransferMoneyOutput(
+        success: true,
+        transactionId: 'txn-${DateTime.now().millisecondsSinceEpoch}',
+      ),
     );
   },
 );

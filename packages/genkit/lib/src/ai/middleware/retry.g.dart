@@ -30,12 +30,12 @@ base class RetryOptions {
 
   RetryOptions({
     int? maxRetries,
-    List<StatusCodes>? statuses,
+    List<String>? statuses,
     int? initialDelayMs,
     int? maxDelayMs,
     double? backoffFactor,
     bool? noJitter,
-    bool? retryModel,
+    bool? noRetryModel,
     bool? retryTools,
   }) {
     _json = {
@@ -45,7 +45,7 @@ base class RetryOptions {
       'maxDelayMs': ?maxDelayMs,
       'backoffFactor': ?backoffFactor,
       'noJitter': ?noJitter,
-      'retryModel': ?retryModel,
+      'noRetryModel': ?noRetryModel,
       'retryTools': ?retryTools,
     };
   }
@@ -57,7 +57,7 @@ base class RetryOptions {
       _RetryOptionsTypeFactory();
 
   int? get maxRetries {
-    return _json['maxRetries'] as int?;
+    return (_json['maxRetries'] as num?)?.toInt();
   }
 
   set maxRetries(int? value) {
@@ -68,11 +68,11 @@ base class RetryOptions {
     }
   }
 
-  List<StatusCodes>? get statuses {
-    return (_json['statuses'] as List?)?.cast<StatusCodes>();
+  List<String>? get statuses {
+    return (_json['statuses'] as List?)?.cast<String>();
   }
 
-  set statuses(List<StatusCodes>? value) {
+  set statuses(List<String>? value) {
     if (value == null) {
       _json.remove('statuses');
     } else {
@@ -81,7 +81,7 @@ base class RetryOptions {
   }
 
   int? get initialDelayMs {
-    return _json['initialDelayMs'] as int?;
+    return (_json['initialDelayMs'] as num?)?.toInt();
   }
 
   set initialDelayMs(int? value) {
@@ -93,7 +93,7 @@ base class RetryOptions {
   }
 
   int? get maxDelayMs {
-    return _json['maxDelayMs'] as int?;
+    return (_json['maxDelayMs'] as num?)?.toInt();
   }
 
   set maxDelayMs(int? value) {
@@ -128,15 +128,15 @@ base class RetryOptions {
     }
   }
 
-  bool? get retryModel {
-    return _json['retryModel'] as bool?;
+  bool? get noRetryModel {
+    return _json['noRetryModel'] as bool?;
   }
 
-  set retryModel(bool? value) {
+  set noRetryModel(bool? value) {
     if (value == null) {
-      _json.remove('retryModel');
+      _json.remove('noRetryModel');
     } else {
-      _json['retryModel'] = value;
+      _json['noRetryModel'] = value;
     }
   }
 
@@ -174,42 +174,24 @@ base class _RetryOptionsTypeFactory extends SchemanticType<RetryOptions> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RetryOptions',
-    definition: $Schema
-        .object(
-          properties: {
-            'maxRetries': $Schema.integer(),
-            'statuses': $Schema.list(
-              items: $Schema.string(
-                enumValues: [
-                  'OK',
-                  'CANCELLED',
-                  'UNKNOWN',
-                  'INVALID_ARGUMENT',
-                  'DEADLINE_EXCEEDED',
-                  'NOT_FOUND',
-                  'ALREADY_EXISTS',
-                  'PERMISSION_DENIED',
-                  'UNAUTHENTICATED',
-                  'RESOURCE_EXHAUSTED',
-                  'FAILED_PRECONDITION',
-                  'ABORTED',
-                  'OUT_OF_RANGE',
-                  'UNIMPLEMENTED',
-                  'INTERNAL',
-                  'UNAVAILABLE',
-                  'DATA_LOSS',
-                ],
-              ),
-            ),
-            'initialDelayMs': $Schema.integer(),
-            'maxDelayMs': $Schema.integer(),
-            'backoffFactor': $Schema.number(),
-            'noJitter': $Schema.boolean(),
-            'retryModel': $Schema.boolean(),
-            'retryTools': $Schema.boolean(),
-          },
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'maxRetries': <String, Object?>{'type': 'integer'},
+        'statuses': <String, Object?>{
+          'type': 'array',
+          'description':
+              'Canonical status names that trigger a retry (e.g. UNAVAILABLE).',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'initialDelayMs': <String, Object?>{'type': 'integer'},
+        'maxDelayMs': <String, Object?>{'type': 'integer'},
+        'backoffFactor': <String, Object?>{'type': 'number'},
+        'noJitter': <String, Object?>{'type': 'boolean'},
+        'noRetryModel': <String, Object?>{'type': 'boolean'},
+        'retryTools': <String, Object?>{'type': 'boolean'},
+      },
+    },
     dependencies: [],
   );
 }

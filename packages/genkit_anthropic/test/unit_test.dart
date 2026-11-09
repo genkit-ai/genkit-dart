@@ -127,12 +127,408 @@ void main() {
       expect(blocks.first, isA<sdk.ImageInputBlock>());
     });
 
-    test('should filter ReasoningPart from input', () {
+    test('should map PDF data URI to a base64 document block', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:application/pdf;base64,JVBERi0xLjQ=',
+              contentType: 'application/pdf',
+            ),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final blocks = result.blocks;
+      expect(blocks.length, 1);
+      final block = blocks.first as sdk.DocumentInputBlock;
+      final source = block.source as sdk.Base64PdfSource;
+      expect(source.data, 'JVBERi0xLjQ=');
+    });
+
+    test('should map PDF data URI without contentType to a document block', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(url: 'data:application/pdf;base64,JVBERi0xLjQ='),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.DocumentInputBlock;
+      final source = block.source as sdk.Base64PdfSource;
+      expect(source.data, 'JVBERi0xLjQ=');
+    });
+
+    test('should map remote PDF URL to a URL document source', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'https://example.com/paper.pdf',
+              contentType: 'application/pdf',
+            ),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.DocumentInputBlock;
+      final source = block.source as sdk.UrlPdfSource;
+      expect(source.url, 'https://example.com/paper.pdf');
+    });
+
+    test('should strip media type parameters from PDF contentType', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'https://example.com/paper.pdf',
+              contentType: 'application/pdf; charset=utf-8',
+            ),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.DocumentInputBlock;
+      final source = block.source as sdk.UrlPdfSource;
+      expect(source.url, 'https://example.com/paper.pdf');
+    });
+
+    test('should take image media type from the data URI', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(url: 'data:image/jpeg;base64,/9j/4AAQSkZJRg=='),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.ImageInputBlock;
+      final source = block.source as sdk.Base64ImageSource;
+      expect(source.mediaType, sdk.ImageMediaType.jpeg);
+      expect(source.data, '/9j/4AAQSkZJRg==');
+    });
+
+    test('should ignore media type parameters in a data URL', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(url: 'data:image/png;charset=utf-8;base64,AAAA'),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.ImageInputBlock;
+      final source = block.source as sdk.Base64ImageSource;
+      expect(source.mediaType, sdk.ImageMediaType.png);
+      expect(source.data, 'AAAA');
+    });
+
+    test('should use parameter-stripped contentType when data URL has no '
+        'media type', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:;base64,AAAA',
+              contentType: 'image/png; charset=utf-8',
+            ),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.ImageInputBlock;
+      final source = block.source as sdk.Base64ImageSource;
+      expect(source.mediaType, sdk.ImageMediaType.png);
+      expect(source.data, 'AAAA');
+    });
+
+    test('should strip whitespace from a wrapped base64 payload', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(url: 'data:application/pdf;base64,JVBERi0x\nLjQ='),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.DocumentInputBlock;
+      final source = block.source as sdk.Base64PdfSource;
+      expect(source.data, 'JVBERi0xLjQ=');
+    });
+
+    test('should throw INVALID_ARGUMENT for a data URL without a comma', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:application/pdf',
+              contentType: 'application/pdf',
+            ),
+          ),
+        ],
+      );
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+    });
+
+    test('should throw INVALID_ARGUMENT for a non-base64 data URL', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:application/pdf,%25PDF-1.4',
+              contentType: 'application/pdf',
+            ),
+          ),
+        ],
+      );
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+    });
+
+    test('should throw INVALID_ARGUMENT for a remote URL with unsupported '
+        'contentType', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'https://example.com/notes.txt',
+              contentType: 'text/plain',
+            ),
+          ),
+        ],
+      );
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+    });
+
+    test('should map remote URL without contentType to an image URL block', () {
+      final input = Message(
+        role: Role.user,
+        content: [MediaPart(media: Media(url: 'https://example.com/picture'))],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.ImageInputBlock;
+      final source = block.source as sdk.UrlImageSource;
+      expect(source.url, 'https://example.com/picture');
+    });
+
+    test('should prefer the data URL mime over contentType', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
+              contentType: 'image/png',
+            ),
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      final block = result.blocks.single as sdk.ImageInputBlock;
+      final source = block.source as sdk.Base64ImageSource;
+      expect(source.mediaType, sdk.ImageMediaType.jpeg);
+    });
+
+    test('should treat media types case-insensitively', () {
+      final pdfInput = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'https://example.com/paper.pdf',
+              contentType: 'Application/PDF',
+            ),
+          ),
+        ],
+      );
+      final pdfBlock =
+          toAnthropicMessage(pdfInput).blocks.single as sdk.DocumentInputBlock;
+      expect(pdfBlock.source, isA<sdk.UrlPdfSource>());
+
+      final imageInput = Message(
+        role: Role.user,
+        content: [
+          MediaPart(media: Media(url: 'data:IMAGE/JPEG;base64,/9j/4AAQ=')),
+        ],
+      );
+      final imageBlock =
+          toAnthropicMessage(imageInput).blocks.single as sdk.ImageInputBlock;
+      expect(
+        (imageBlock.source as sdk.Base64ImageSource).mediaType,
+        sdk.ImageMediaType.jpeg,
+      );
+    });
+
+    for (final (mime, expected) in [
+      ('image/png', sdk.ImageMediaType.png),
+      ('image/jpeg', sdk.ImageMediaType.jpeg),
+      ('image/jpg', sdk.ImageMediaType.jpeg),
+      ('image/gif', sdk.ImageMediaType.gif),
+      ('image/webp', sdk.ImageMediaType.webp),
+    ]) {
+      test('should map $mime data URI to ${expected.name} media type', () {
+        final input = Message(
+          role: Role.user,
+          content: [MediaPart(media: Media(url: 'data:$mime;base64,AAAA'))],
+        );
+        final result = toAnthropicMessage(input);
+        final block = result.blocks.single as sdk.ImageInputBlock;
+        expect((block.source as sdk.Base64ImageSource).mediaType, expected);
+      });
+    }
+
+    test('should throw INVALID_ARGUMENT for unsupported media types', () {
+      final input = Message(
+        role: Role.user,
+        content: [
+          MediaPart(
+            media: Media(
+              url: 'data:text/plain;base64,aGVsbG8=',
+              contentType: 'text/plain',
+            ),
+          ),
+        ],
+      );
+      expect(
+        () => toAnthropicMessage(input),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+    });
+
+    test('should send a signed ReasoningPart back as a thinking block', () {
+      final input = Message(
+        role: Role.model,
+        content: [
+          ReasoningPart(
+            reasoning: 'thinking...',
+            metadata: {'thoughtSignature': 'sig_123'},
+          ),
+          TextPart(text: 'Hello'),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      expect(result.blocks.length, 2);
+
+      // Anthropic requires the thinking block first in the assistant turn.
+      final thinking = result.blocks.first.toJson();
+      expect(thinking['type'], 'thinking');
+      expect(thinking['thinking'], 'thinking...');
+      expect(thinking['signature'], 'sig_123');
+    });
+
+    test('should send a redacted ReasoningPart back as a redacted block', () {
+      final input = Message(
+        role: Role.model,
+        content: [
+          ReasoningPart(
+            reasoning: '',
+            metadata: {'redactedThinking': 'opaque_payload'},
+          ),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      expect(result.blocks.length, 1);
+
+      final redacted = result.blocks.first.toJson();
+      expect(redacted['type'], 'redacted_thinking');
+      expect(redacted['data'], 'opaque_payload');
+    });
+
+    test('a part claiming both keys is sent as the redacted block', () {
+      // Only reachable from a hand-built part: the two keys land on disjoint
+      // part types coming back from the API. Redacted wins because its
+      // payload is the half that cannot be reconstructed - a thought whose
+      // signature was lost can be produced again, an opaque payload cannot.
+      final input = Message(
+        role: Role.model,
+        content: [
+          ReasoningPart(
+            reasoning: 'a real thought',
+            metadata: {
+              'thoughtSignature': 'sig_123',
+              'redactedThinking': 'opaque_payload',
+            },
+          ),
+        ],
+      );
+
+      final result = toAnthropicMessage(input);
+      expect(result.blocks.length, 1);
+
+      final block = result.blocks.first.toJson();
+      expect(block['type'], 'redacted_thinking');
+      expect(block['data'], 'opaque_payload');
+    });
+
+    test('should drop a ReasoningPart with no signature', () {
+      // Anthropic rejects an unsigned thinking block, so dropping it is the
+      // only recoverable option.
+      final input = Message(
+        role: Role.model,
+        content: [
+          ReasoningPart(reasoning: 'thinking...'),
+          TextPart(text: 'Hello'),
+        ],
+      );
+      final result = toAnthropicMessage(input);
+      expect(result.blocks.length, 1);
+      expect(result.blocks.first, isA<sdk.TextInputBlock>());
+    });
+
+    test('should filter ReasoningPart from a user message', () {
+      // Thinking blocks are only valid on assistant turns.
       final input = Message(
         role: Role.user,
         content: [
           TextPart(text: 'Hello'),
-          ReasoningPart(reasoning: 'thinking...'),
+          ReasoningPart(
+            reasoning: 'thinking...',
+            metadata: {'thoughtSignature': 'sig_123'},
+          ),
         ],
       );
       final result = toAnthropicMessage(input);
@@ -178,7 +574,7 @@ void main() {
       expect(part.toolRequest!.ref, 'call_123');
     });
 
-    test('should map ThinkingBlock to ReasoningPart with signature', () {
+    test('should map ThinkingBlock to ReasoningPart with thoughtSignature', () {
       final input = sdk.Message(
         id: 'msg_123',
         role: sdk.MessageRole.assistant,
@@ -196,10 +592,55 @@ void main() {
       // Use JSON check for ReasoningPart due to schemantic type erasure in generic lists
       final reasoningPart = result.content[0].toJson();
       expect(reasoningPart['reasoning'], 'Hmm');
-      expect((reasoningPart['metadata'] as Map?)?['signature'], 'sig_123');
+      expect(
+        (reasoningPart['metadata'] as Map?)?['thoughtSignature'],
+        'sig_123',
+      );
 
       final textPart = result.content[1].toJson();
       expect(textPart['text'], 'Hello');
+    });
+
+    test('should map RedactedThinkingBlock to a CustomPart', () {
+      final input = sdk.Message(
+        id: 'msg_123',
+        role: sdk.MessageRole.assistant,
+        content: [
+          sdk.RedactedThinkingBlock(data: 'opaque_payload'),
+          sdk.TextBlock(text: 'Hello'),
+        ],
+        model: 'claude-3-5-sonnet',
+        usage: sdk.Usage(inputTokens: 10, outputTokens: 5),
+      );
+
+      final result = fromAnthropicMessage(input);
+      // The empty-text filter must not swallow the payload-only part.
+      expect(result.content.length, 2);
+
+      // A CustomPart, matching Genkit JS: there is no reasoning text to
+      // carry, so consumers do not see an empty ReasoningPart either.
+      expect(result.content[0].custom?['redactedThinking'], 'opaque_payload');
+      expect(result.content[0].isReasoning, isFalse);
+    });
+
+    test('should round-trip thinking blocks back onto the wire unmodified', () {
+      final original = sdk.Message(
+        id: 'msg_123',
+        role: sdk.MessageRole.assistant,
+        content: [
+          sdk.ThinkingBlock(thinking: 'Hmm', signature: 'sig_123'),
+          sdk.RedactedThinkingBlock(data: 'opaque_payload'),
+          sdk.TextBlock(text: 'Hello'),
+        ],
+        model: 'claude-3-5-sonnet',
+        usage: sdk.Usage(inputTokens: 10, outputTokens: 5),
+      );
+
+      final blocks = toAnthropicMessage(fromAnthropicMessage(original)).blocks;
+      expect(blocks.length, 3);
+      expect(blocks[0].toJson(), original.content[0].toJson());
+      expect(blocks[1].toJson(), original.content[1].toJson());
+      expect(blocks[2].toJson()['type'], 'text');
     });
 
     test('should map return_output tool to TextPart with JSON', () {
@@ -353,9 +794,9 @@ void main() {
     test('maps normal usage', () {
       final usage = sdk.Usage(inputTokens: 100, outputTokens: 50);
       final result = mapUsage(usage);
-      expect(result.inputTokens, 100.0);
-      expect(result.outputTokens, 50.0);
-      expect(result.totalTokens, 150.0);
+      expect(result.inputTokens, 100);
+      expect(result.outputTokens, 50);
+      expect(result.totalTokens, 150);
     });
 
     test('maps null usage to zeros', () {

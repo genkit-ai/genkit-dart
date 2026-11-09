@@ -1,3 +1,73 @@
+## 1.0.1
+
+ - updated internal dependencies.
+
+## 1.0.0
+
+### Breaking Changes
+
+ - prefix exported option types with provider (#572)
+ - rename GenkitException.underlyingException to cause; drop statusCode (#548)
+ - use Duration for retry delays; rename retryModel to noRetryModel (#549)
+ - type usage counts and indexes as int (#546)
+ - make GenerateResult and GenerateResponseChunk read-only views (#547)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - align naming of ToolFnArg, ModelInfo params and RemoteAction.close (#537)
+ - register retry middleware by default and remove RetryPlugin (#531)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - type toolChoice as an open enum instead of String (#493)
+ - map toolChoice `required` to Anthropic's `any` (#492)
+ - simulate constrained generation when a model lacks native support (#453)
+
+### Features
+
+ - claim native structured output for every Claude model (#518)
+ - Allow providing a custom `http.Client` to the Anthropic plugin for managing HTTP requests (#226)
+ - add beta/stable API selection and native structured outputs (#402)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+
+
+## 0.4.0
+
+### Breaking Changes
+
+ - re-send thinking blocks on multi-turn requests (#400)
+
+### Fixes
+
+ - map 529 overloaded to UNAVAILABLE (#459)
+
+
+## 0.3.2-wip
+
+ - Raise the anthropic_sdk_dart floor to 8.0.0, for the typed thinking input blocks.
+
+## 0.3.1
+
+ - updated internal dependencies.
+
+## 0.3.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+### Features
+
+ - add promptParts parameter to generate functions (#398)
+ - extend curated catalog to the JS/Go union with two-tier capability profiles (#391)
+ - curated known-model metadata for Claude models (#322)
+
+### Fixes
+
+ - handle model-specific thinking defaults (#396)
+ - send PDF media as document blocks, not image/png (#390)
+
+
 ## 0.2.11
 
 ### Fixes

@@ -19,12 +19,17 @@ import '../../client.dart';
 import '../../genkit.dart';
 
 /// Defines a remote Genkit model.
+///
+/// Requests are forwarded as is, so the serving model must accept tools with
+/// non-object input schemas (e.g. `.string()`). Genkit models do this
+/// automatically; when adopting such tools, update the server before the
+/// client.
 Model remoteModel({
   required String name,
   required String url,
   FutureOr<Map<String, String>?> Function(Map<String, dynamic> context)?
   headers,
-  ModelInfo? modelInfo,
+  ModelInfo? info,
   http.Client? httpClient,
 }) {
   final remoteAction =
@@ -36,13 +41,9 @@ Model remoteModel({
         streamSchema: ModelResponseChunk.$schema,
       );
 
-  return Model(
+  return Model.proxy(
       name: name,
       fn: (request, context) async {
-        if (request == null) {
-          throw ArgumentError('Model request cannot be null');
-        }
-
         final resolvedHeaders = await headers?.call(context.context ?? {});
 
         if (context.streamingRequested) {
@@ -61,21 +62,8 @@ Model remoteModel({
         return await remoteAction(input: request, headers: resolvedHeaders);
       },
     )
-    ..metadata.addAll(
-      modelMetadata(
-        name,
-        modelInfo:
-            modelInfo ??
-            ModelInfo(
-              supports: {
-                'multiturn': true,
-                'media': true,
-                'tools': true,
-                'toolChoice': true,
-                'systemRole': true,
-                'constrained': true,
-              },
-            ),
-      ).metadata,
-    );
+    // A caller that omits [info] gets `modelMetadata`'s defaults. The
+    // request is forwarded as-is either way; the serving side decides what to
+    // do with an output schema.
+    ..metadata.addAll(modelMetadata(name, info: info).metadata);
 }

@@ -14,6 +14,7 @@
 
 import 'dart:convert';
 
+import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
 /// Safely casts [value] to a `Map<String, dynamic>`.
@@ -52,31 +53,77 @@ dynamic extractMcpMeta(Object? source) {
   return null;
 }
 
-/// Processes a raw MCP tool result into a more usable form.
+/// Converts an MCP tool result into a Genkit [ToolResult].
 ///
-/// Attempts to parse JSON text, return structured content, or return the
-/// original result as-is depending on the content type.
-dynamic processToolResult(Map<String, dynamic> result) {
+/// Uses the same mapping as `processMultipartResult` in the Genkit JS MCP
+/// plugin:
+///
+/// * The output is `structuredContent` when present. Otherwise it is the text
+///   content (with any embedded text resources appended), decoded as JSON
+///   when it looks like JSON, or `null` when there is no text.
+/// * `image` and `audio` content and embedded blob resources become
+///   [MediaPart]s, and `resource_link` content becomes [ResourcePart]s, in the
+///   response `parts`. Media without a `mimeType` uses
+///   `application/octet-stream`.
+/// * Error results become `{'error': '<text>'}`.
+ToolResult<dynamic> processToolResult(Map<String, dynamic> result) {
   final content = asListOfMaps(result['content']);
+  final meta = result['_meta'];
+  final metadata = meta is Map ? asMap(meta) : null;
   if (result['isError'] == true) {
-    return {'error': _toText(content)};
+    return .response({'error': _toText(content)}, metadata: metadata);
   }
-  if (content.isEmpty) return result;
-  final allText = content.every((c) => c['text'] is String);
-  if (allText) {
-    final text = _toText(content);
-    final trimmed = text.trimLeft();
+
+  final parts = <Part>[];
+  var textOutput = '';
+  // `mimeType` is optional on embedded resources; without a fallback the URL
+  // would be `data:null;...`, which providers can't interpret.
+  MediaPart media(String data, Object? mimeType) {
+    final type = mimeType is String && mimeType.isNotEmpty
+        ? mimeType
+        : 'application/octet-stream';
+    return MediaPart(
+      media: Media(url: 'data:$type;base64,$data', contentType: type),
+    );
+  }
+
+  for (final block in content) {
+    switch (block['type']) {
+      case 'text':
+        textOutput += block['text'] as String? ?? '';
+      case 'image' || 'audio' when block['data'] is String:
+        parts.add(media(block['data'] as String, block['mimeType']));
+      case 'resource_link' when block['uri'] is String:
+        parts.add(ResourcePart(resource: {'uri': block['uri']}));
+      case 'resource':
+        final resource = asMap(block['resource']);
+        if (resource['text'] case final String text when text.isNotEmpty) {
+          textOutput +=
+              '${textOutput.isEmpty ? '' : '\n\n'}'
+              'Resource (${resource['uri']}):\n$text';
+        } else if (resource['blob'] case final String blob
+            when blob.isNotEmpty) {
+          parts.add(media(blob, resource['mimeType']));
+        }
+    }
+  }
+
+  Object? output = result['structuredContent'];
+  if (!result.containsKey('structuredContent') && textOutput.isNotEmpty) {
+    output = textOutput;
+    final trimmed = textOutput.trimLeft();
     if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
       try {
-        return jsonDecode(text);
-      } catch (_) {
-        return text;
-      }
+        output = jsonDecode(textOutput);
+      } catch (_) {}
     }
-    return text;
   }
-  if (content.length == 1) return content.first;
-  return result;
+
+  return .response(
+    output,
+    parts: parts.isEmpty ? null : parts,
+    metadata: metadata,
+  );
 }
 
 /// Concatenates text parts from a list of MCP content blocks.
@@ -191,4 +238,15 @@ Map<String, dynamic>? extractObjectSchema(Object? schema) {
     }
   }
   return null;
+}
+
+/// Rejects a negative MCP cache TTL. [Duration.zero] is the "disabled" value.
+void checkCacheTtl(Duration? ttl) {
+  if (ttl != null && ttl.isNegative) {
+    throw ArgumentError.value(
+      ttl,
+      'cacheTtl',
+      'must not be negative; use Duration.zero to disable caching',
+    );
+  }
 }

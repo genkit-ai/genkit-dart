@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit/plugin.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -24,6 +23,11 @@ abstract class $TestToolInput {
   String get name;
 }
 
+@Schema()
+abstract class $TagOptions {
+  String get tag;
+}
+
 class TestMiddleware extends GenerateMiddleware {
   final List<String> log;
   final String name;
@@ -31,10 +35,10 @@ class TestMiddleware extends GenerateMiddleware {
   TestMiddleware(this.log, this.name);
 
   @override
-  Future<GenerateResponseHelper> generate(
+  Future<GenerateResult> generate(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
@@ -63,10 +67,10 @@ class TestMiddleware extends GenerateMiddleware {
   }
 
   @override
-  Future<ToolResponsePart> tool(
+  Future<ToolResult> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponsePart> Function(
+    Future<ToolResult> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
@@ -122,11 +126,11 @@ void main() {
 
     test('should execute middleware in order', () async {
       final log = <String>[];
-      final mw1 = defineMiddleware(
+      final mw1 = generateMiddleware(
         name: 'mw1',
         create: (c, ctx) => TestMiddleware(log, 'mw1'),
       );
-      final mw2 = defineMiddleware(
+      final mw2 = generateMiddleware(
         name: 'mw2',
         create: (c, ctx) => TestMiddleware(log, 'mw2'),
       );
@@ -176,7 +180,7 @@ void main() {
         inputSchema: TestToolInput.$schema,
         fn: (input, ctx) async {
           log.add('tool:exec');
-          return 'bar';
+          return .response('bar');
         },
       );
 
@@ -244,7 +248,7 @@ void main() {
     });
 
     test('should intercept model request', () async {
-      final interceptor = defineMiddleware(
+      final interceptor = generateMiddleware(
         name: 'interceptor',
         create: (_, _) => InterceptorMiddleware(),
       );
@@ -281,7 +285,7 @@ void main() {
     test('should pass a GenkitAI instance in the middleware context', () async {
       GenerateMiddlewareContext? capturedCtx;
 
-      final mw = defineMiddleware(
+      final mw = generateMiddleware(
         name: 'ctx-capture-mw',
         create: (config, ctx) {
           capturedCtx = ctx;
@@ -337,7 +341,7 @@ void main() {
       );
 
       String? nestedResult;
-      final mw = defineMiddleware(
+      final mw = generateMiddleware(
         name: 'nested-mw',
         create: (config, ctx) => FunctionMiddleware(
           generateFn: (envelope, mctx, next) async {
@@ -366,7 +370,7 @@ void main() {
       final log = <String>[];
 
       // Register a middleware definition manually (as a plugin would).
-      final def = defineMiddleware<dynamic>(
+      final def = generateMiddleware<dynamic>(
         name: 'reg-mw',
         create: (config, ctx) =>
             TestMiddleware(log, 'reg-mw-${config ?? 'none'}'),
@@ -406,6 +410,222 @@ void main() {
       );
     });
 
+    group('ai.defineGenerateMiddleware', () {
+      final log = <String>[];
+
+      setUp(() {
+        log.clear();
+        genkit = Genkit(isDevEnv: false);
+        genkit.defineModel(
+          name: 'echo',
+          fn: (req, ctx) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'ok')],
+            ),
+          ),
+        );
+      });
+
+      GenerateMiddlewareDef<TagOptions> defineTagging() =>
+          genkit.defineGenerateMiddleware<TagOptions>(
+            name: 'tagging',
+            configSchema: TagOptions.$schema,
+            create: (config, ctx) =>
+                TestMiddleware(log, config?.tag ?? 'untagged'),
+          );
+
+      test('registers it and builds refs by calling it', () async {
+        final tagging = defineTagging();
+
+        await genkit.generate(
+          model: modelRef('echo'),
+          prompt: 'hi',
+          use: [tagging(TagOptions(tag: 'a'))],
+        );
+        await genkit.generate(
+          model: modelRef('echo'),
+          prompt: 'hi',
+          use: [tagging()],
+        );
+
+        expect(log, contains('a:generate:start'));
+        expect(log, contains('untagged:generate:start'));
+        expect(
+          genkit.registry.lookupValue<GenerateMiddlewareDef>(
+            'middleware',
+            'tagging',
+          ),
+          same(tagging),
+        );
+      });
+
+      test('parses a JSON ref config with the config schema', () async {
+        final tagging = defineTagging();
+        // A ref with a JSON config (e.g. from a .prompt file or the Dev UI)
+        // is parsed with the config schema.
+        await genkit.generate(
+          model: modelRef('echo'),
+          prompt: 'hi',
+          use: [
+            middlewareRef(name: tagging.name, config: {'tag': 'json'}),
+          ],
+        );
+        expect(log, contains('json:generate:start'));
+      });
+
+      test('creates a fresh instance per generate call', () async {
+        var created = 0;
+        final counting = genkit.defineGenerateMiddleware<void>(
+          name: 'counting',
+          create: (_, _) {
+            created++;
+            return TestMiddleware(log, 'c$created');
+          },
+        );
+
+        for (var i = 0; i < 2; i++) {
+          await genkit.generate(
+            model: modelRef('echo'),
+            prompt: 'hi',
+            use: [counting()],
+          );
+        }
+        expect(created, 2);
+      });
+
+      test('replaces a plugin middleware with the same name', () async {
+        await genkit.shutdown(); // the group's instance; tearDown gets this one
+        genkit = Genkit(
+          isDevEnv: false,
+          plugins: [
+            MiddlewarePlugin([
+              generateMiddleware<TagOptions>(
+                name: 'tagging',
+                create: (_, _) => TestMiddleware(log, 'plugin'),
+              ),
+            ]),
+          ],
+        );
+        genkit.defineModel(
+          name: 'echo',
+          fn: (req, ctx) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'ok')],
+            ),
+          ),
+        );
+        final tagging = defineTagging();
+
+        await genkit.generate(
+          model: modelRef('echo'),
+          prompt: 'hi',
+          use: [tagging(TagOptions(tag: 'app'))],
+        );
+        expect(log, contains('app:generate:start'));
+        expect(log, isNot(contains('plugin:generate:start')));
+      });
+
+      test('a generateMiddleware def from a plugin is callable', () async {
+        final tagging = generateMiddleware<TagOptions>(
+          name: 'tagging',
+          configSchema: TagOptions.$schema,
+          create: (config, ctx) =>
+              TestMiddleware(log, config?.tag ?? 'untagged'),
+        );
+        await genkit.shutdown(); // the group's instance; tearDown gets this one
+        genkit = Genkit(
+          isDevEnv: false,
+          plugins: [
+            MiddlewarePlugin([tagging]),
+          ],
+        );
+        genkit.defineModel(
+          name: 'echo',
+          fn: (req, ctx) async => ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: 'ok')],
+            ),
+          ),
+        );
+
+        await genkit.generate(
+          model: modelRef('echo'),
+          prompt: 'hi',
+          use: [tagging(TagOptions(tag: 'plugin'))],
+        );
+        expect(log, contains('plugin:generate:start'));
+      });
+
+      Matcher throwsInvalidArgument(String message) => throwsA(
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.invalidArgument)
+            .having((e) => e.message, 'message', contains(message)),
+      );
+
+      test('rejects a typed config meant for the middleware it replaced', () {
+        // Replaces the built-in `retry`, whose refs carry RetryOptions.
+        genkit.defineGenerateMiddleware<TagOptions>(
+          name: 'retry',
+          create: (config, ctx) => TestMiddleware(log, config!.tag),
+        );
+
+        expect(
+          genkit.generate(
+            model: modelRef('echo'),
+            prompt: 'hi',
+            use: [retry(maxRetries: 2)],
+          ),
+          throwsInvalidArgument(
+            "Middleware 'retry' expects a config of type TagOptions, "
+            'got RetryOptions.',
+          ),
+        );
+      });
+
+      test('rejects a JSON config when there is no config schema', () {
+        genkit.defineGenerateMiddleware<TagOptions>(
+          name: 'noSchema',
+          create: (config, ctx) => TestMiddleware(log, config!.tag),
+        );
+
+        expect(
+          genkit.generate(
+            model: modelRef('echo'),
+            prompt: 'hi',
+            use: [
+              middlewareRef(name: 'noSchema', config: {'tag': 'json'}),
+            ],
+          ),
+          throwsInvalidArgument('It has no configSchema'),
+        );
+      });
+
+      test(
+        'passes a JSON config through when the options type is a Map',
+        () async {
+          genkit.defineGenerateMiddleware<Map<String, dynamic>>(
+            name: 'mapConfig',
+            create: (config, ctx) => TestMiddleware(log, '${config!['tag']}'),
+          );
+
+          await genkit.generate(
+            model: modelRef('echo'),
+            prompt: 'hi',
+            use: [
+              middlewareRef(name: 'mapConfig', config: {'tag': 'map'}),
+            ],
+          );
+          expect(log, contains('map:generate:start'));
+        },
+      );
+    });
+
     test('should inject tools from middleware', () async {
       final log = <String>[];
 
@@ -415,11 +635,11 @@ void main() {
         inputSchema: TestToolInput.$schema,
         fn: (input, ctx) async {
           log.add('tool:exec');
-          return 'injected-result';
+          return .response('injected-result');
         },
       );
 
-      final mw = defineMiddleware(
+      final mw = generateMiddleware(
         name: 'injected-tool-mw',
         create: (_, _) => ToolInjectingMiddleware([injectedTool]),
       );
@@ -474,7 +694,7 @@ void main() {
       final mw1 = TestMiddleware(log, 'mw1');
       var toolCallCount = 0;
 
-      final mdef1 = defineMiddleware(name: 'mw1', create: (_, _) => mw1);
+      final mdef1 = generateMiddleware(name: 'mw1', create: (_, _) => mw1);
 
       genkit = Genkit(
         isDevEnv: false,
@@ -522,9 +742,9 @@ void main() {
           log.add('tool:exec');
           if (toolCallCount == 0) {
             toolCallCount++;
-            ctx.interrupt('PLZ_RESTART');
+            return .interrupt('PLZ_RESTART');
           }
-          return 'bar';
+          return .response('bar');
         },
       );
 
@@ -578,30 +798,53 @@ void main() {
       );
     });
 
+    test('GenerateTurnState.toString summarizes the request', () {
+      final state = GenerateTurnState(
+        request: GenerateActionOptions(
+          model: 'echo',
+          messages: [
+            Message(
+              role: .user,
+              content: [TextPart(text: 'a very long prompt')],
+            ),
+          ],
+        ),
+        currentTurn: 2,
+        messageIndex: 1,
+      );
+      expect(
+        state.toString(),
+        'GenerateTurnState(currentTurn: 2, messageIndex: 1, '
+        'messages: 1, model: echo)',
+      );
+    });
+
     test(
       'should pass and respect envelope updates in generate middleware',
       () async {
         var receivedIndex = -1;
         var receivedTurn = -1;
 
-        final envChecker = defineMiddleware(
+        final envChecker = generateMiddleware(
           name: 'env-checker',
           create: (_, _) => FunctionMiddleware(
             generateFn: (envelope, ctx, next) async {
               receivedIndex = envelope.messageIndex;
               receivedTurn = envelope.currentTurn;
-              return next((
-                request: envelope.request,
-                currentTurn: envelope.currentTurn + 2,
-                messageIndex: envelope.messageIndex + 5,
-              ), ctx);
+              return next(
+                envelope.copyWith(
+                  currentTurn: envelope.currentTurn + 2,
+                  messageIndex: envelope.messageIndex + 5,
+                ),
+                ctx,
+              );
             },
           ),
         );
 
         var checkIndex = -1;
         var checkTurn = -1;
-        final envValidator = defineMiddleware(
+        final envValidator = generateMiddleware(
           name: 'env-validator',
           create: (_, _) => FunctionMiddleware(
             generateFn: (envelope, ctx, next) async {
@@ -682,11 +925,11 @@ void main() {
         genkit.defineTool(
           name: 'myTool',
           description: 'a tool',
-          fn: (input, ctx) async => 'tool output',
+          fn: (input, ctx) async => .response('tool output'),
         );
 
         final capturedOptions = <GenerateActionOptions>[];
-        final middleware = defineMiddleware(
+        final middleware = generateMiddleware(
           name: 'captureOptions',
           create: (config, ctx) => _CaptureMiddleware(capturedOptions),
         );
@@ -716,7 +959,7 @@ void main() {
 
       test('resume flow should preserve middleware', () async {
         final capturedOptions = <GenerateActionOptions>[];
-        final middleware = defineMiddleware(
+        final middleware = generateMiddleware(
           name: 'captureOptionsResume',
           create: (config, ctx) => _CaptureMiddleware(capturedOptions),
         );
@@ -762,9 +1005,7 @@ void main() {
         genkit.defineTool(
           name: 'interruptTool',
           description: 'interrupts',
-          fn: (input, ctx) async {
-            throw ToolInterruptException('interrupt');
-          },
+          fn: (input, ctx) async => .interrupt('interrupt'),
         );
 
         final response1 = await genkit.generate(
@@ -806,7 +1047,7 @@ void main() {
 
       test('generate should preserve middleware (use) in options', () async {
         final capturedOptions = <GenerateActionOptions>[];
-        final middleware = defineMiddleware(
+        final middleware = generateMiddleware(
           name: 'captureOptionsMiddleware',
           create: (config, ctx) => _CaptureMiddleware(capturedOptions),
         );
@@ -844,7 +1085,7 @@ void main() {
         'generate action should resolve middleware from options.use',
         () async {
           final capturedOptions = <GenerateActionOptions>[];
-          final middleware = defineMiddleware(
+          final middleware = generateMiddleware(
             name: 'captureOptionsAction',
             create: (config, ctx) => _CaptureMiddleware(capturedOptions),
           );
@@ -866,7 +1107,7 @@ void main() {
           );
 
           final generateAction = (await genkit.registry.lookupAction(
-            'util',
+            .util,
             'generate',
           ))!;
 
@@ -897,10 +1138,10 @@ class _CaptureMiddleware extends GenerateMiddleware {
   _CaptureMiddleware(this.capturedOptions);
 
   @override
-  Future<GenerateResponseHelper> generate(
+  Future<GenerateResult> generate(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
@@ -912,10 +1153,10 @@ class _CaptureMiddleware extends GenerateMiddleware {
 }
 
 class FunctionMiddleware extends GenerateMiddleware {
-  final Future<GenerateResponseHelper> Function(
+  final Future<GenerateResult> Function(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )
@@ -926,10 +1167,10 @@ class FunctionMiddleware extends GenerateMiddleware {
   FunctionMiddleware({this.generateFn});
 
   @override
-  Future<GenerateResponseHelper> generate(
+  Future<GenerateResult> generate(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
-    Future<GenerateResponseHelper> Function(
+    Future<GenerateResult> Function(
       GenerateTurnState envelope,
       ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx,
     )

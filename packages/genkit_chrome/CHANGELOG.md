@@ -1,3 +1,40 @@
+## 0.2.1
+
+ - updated internal dependencies.
+
+## 0.2.0
+
+### Breaking Changes
+
+ - type usage counts and indexes as int (#546)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - align naming of ToolFnArg, ModelInfo params and RemoteAction.close (#537)
+ - make constrained generation simulation an opt-in middleware (#519)
+ - add class modifiers to the core public classes (#487)
+ - simulate constrained generation when a model lacks native support (#453)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+ - add example/ programs to genkit_chrome, genkit_firebase_ai, genkit_google_cloud (#505)
+
+
+## 0.1.2
+
+ - updated internal dependencies.
+
+## 0.1.1
+
+ - updated internal dependencies.
+
+## 0.1.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+
 ## 0.0.12
 
  - updated internal dependencies.

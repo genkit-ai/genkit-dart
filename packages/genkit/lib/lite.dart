@@ -25,39 +25,64 @@ import 'dart:async';
 
 import 'package:schemantic/schemantic.dart';
 
+import 'src/ai/formatters/formatters.dart';
 import 'src/ai/generate.dart';
 import 'src/ai/generate_middleware.dart';
 import 'src/ai/generate_types.dart';
 import 'src/ai/model.dart';
 import 'src/ai/tool.dart';
 import 'src/core/action.dart';
+import 'src/core/cancellation.dart';
 import 'src/core/registry.dart';
 import 'src/types.dart';
 
+export 'src/ai/generate_types.dart'
+    show GenerateResponseChunk, GenerateResult, InterruptResponse;
 export 'src/ai/remote_model.dart' show remoteModel;
+export 'src/ai/tool.dart'
+    show
+        Interrupt,
+        Tool,
+        ToolFn,
+        ToolFnArg,
+        ToolInterruptResult,
+        ToolResponseResult,
+        ToolResult;
+export 'src/core/action.dart' show ActionStream, StreamingCallback;
+export 'src/core/cancellation.dart'
+    show CancellationController, CancellationToken;
 export 'src/schema_extensions.dart';
 export 'src/types.dart';
 
-Future<GenerateResponseHelper> generate<C>({
+/// Generates a response from [model].
+///
+/// Pass [outputSchema] to get typed structured output: `response.output` (and
+/// each streamed chunk's `output`) is then parsed into `Output`.
+Future<GenerateResult<Output>> generate<Output, C>({
   String? system,
   String? prompt,
+  List<Part>? promptParts,
   List<Message>? messages,
   required Model<C> model,
   C? config,
   List<Tool>? tools,
   List<String>? toolNames,
-  String? toolChoice,
+  ToolChoice? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
-  SchemanticType? outputSchema,
+  SchemanticType<Output>? outputSchema,
   String? outputFormat,
   bool? outputConstrained,
   String? outputInstructions,
   bool? outputNoInstructions,
   String? outputContentType,
   Map<String, dynamic>? context,
-  StreamingCallback<GenerateResponseChunk>? onChunk,
+  StreamingCallback<GenerateResponseChunk<Output>>? onChunk,
   List<GenerateMiddleware>? use,
+
+  /// Cooperative cancellation token, observed by the model call, tools, and
+  /// middleware to abort generation.
+  CancellationToken? cancel,
 
   /// Optional data to resume an interrupted generation session.
   ///
@@ -88,6 +113,7 @@ Future<GenerateResponseHelper> generate<C>({
   }
 
   final registry = Registry();
+  configureFormats(registry);
   registry.register(model);
   tools?.forEach(registry.register);
   GenerateActionOutputConfig? outputConfig;
@@ -106,10 +132,11 @@ Future<GenerateResponseHelper> generate<C>({
       if (outputNoInstructions == true) 'instructions': false,
     });
   }
-  return generateHelper(
+  final raw = await generateHelper(
     registry,
     system: system,
     prompt: prompt,
+    promptParts: promptParts,
     messages: messages,
     model: model,
     config: config,
@@ -119,27 +146,45 @@ Future<GenerateResponseHelper> generate<C>({
     maxTurns: maxTurns,
     output: outputConfig,
     context: context,
-    onChunk: onChunk,
+    cancel: cancel,
+    onChunk: onChunk == null
+        ? null
+        : (c) => onChunk(
+            GenerateResponseChunk<Output>(
+              c.modelChunk,
+              previousChunks: List.from(c.previousChunks),
+              output: parsePartialOutput(c.output, outputSchema),
+            ),
+          ),
     middleware: use
         ?.map((mw) => (middlewareInstance: mw, middlewareRef: null))
         .toList(),
     resume: interruptRespond,
     restart: interruptRestart,
   );
+  return GenerateResult<Output>(
+    raw.modelResponse,
+    request: raw.modelRequest,
+    output: parseOutput(raw.output, outputSchema),
+    cause: raw.cause,
+  );
 }
 
-ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
+/// Streams a response from [model]; see [generate].
+ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>>
+generateStream<Output, C>({
   required Model<C> model,
   String? system,
   String? prompt,
+  List<Part>? promptParts,
   List<Message>? messages,
   C? config,
   List<Tool>? tools,
   List<String>? toolNames,
-  String? toolChoice,
+  ToolChoice? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
-  SchemanticType? outputSchema,
+  SchemanticType<Output>? outputSchema,
   String? outputFormat,
   bool? outputConstrained,
   String? outputInstructions,
@@ -147,54 +192,47 @@ ActionStream<GenerateResponseChunk, GenerateResponseHelper> generateStream<C>({
   String? outputContentType,
   Map<String, dynamic>? context,
   List<GenerateMiddleware>? use,
+  CancellationToken? cancel,
   List<InterruptResponse>? interruptRespond,
   List<ToolRequestPart>? interruptRestart,
 }) {
-  final streamController = StreamController<GenerateResponseChunk>();
-  final actionStream =
-      ActionStream<GenerateResponseChunk, GenerateResponseHelper>(
-        streamController.stream,
-      );
-
-  generate(
-        system: system,
-        prompt: prompt,
-        messages: messages,
-        model: model,
-        config: config,
-        tools: tools,
-        toolNames: toolNames,
-        toolChoice: toolChoice,
-        returnToolRequests: returnToolRequests,
-        maxTurns: maxTurns,
-        outputSchema: outputSchema,
-        outputFormat: outputFormat,
-        outputConstrained: outputConstrained,
-        outputInstructions: outputInstructions,
-        outputNoInstructions: outputNoInstructions,
-        outputContentType: outputContentType,
-        context: context,
-        onChunk: (chunk) {
-          if (streamController.isClosed) return;
-          streamController.add(chunk);
-        },
-        use: use,
-        interruptRespond: interruptRespond,
-        interruptRestart: interruptRestart,
-      )
-      .then((result) {
-        actionStream.setResult(result);
-        if (!streamController.isClosed) {
-          streamController.close();
-        }
-      })
-      .catchError((Object e, StackTrace s) {
-        actionStream.setError(e, s);
-        if (!streamController.isClosed) {
-          streamController.addError(e, s);
-          streamController.close();
-        }
-      });
-
-  return actionStream;
+  final chunks = StreamController<GenerateResponseChunk<Output>>();
+  final result = generate<Output, C>(
+    system: system,
+    prompt: prompt,
+    promptParts: promptParts,
+    messages: messages,
+    model: model,
+    config: config,
+    tools: tools,
+    toolNames: toolNames,
+    toolChoice: toolChoice,
+    returnToolRequests: returnToolRequests,
+    maxTurns: maxTurns,
+    outputSchema: outputSchema,
+    outputFormat: outputFormat,
+    outputConstrained: outputConstrained,
+    outputInstructions: outputInstructions,
+    outputNoInstructions: outputNoInstructions,
+    outputContentType: outputContentType,
+    context: context,
+    cancel: cancel,
+    onChunk: (chunk) {
+      if (!chunks.isClosed) chunks.add(chunk);
+    },
+    use: use,
+    interruptRespond: interruptRespond,
+    interruptRestart: interruptRestart,
+  );
+  // Close the chunk stream once generation settles, surfacing a failure on
+  // the stream as well as on `onResult`.
+  result.then(
+    (_) => chunks.close(),
+    onError: (Object e, StackTrace s) {
+      chunks
+        ..addError(e, s)
+        ..close();
+    },
+  );
+  return ActionStream.withResult(chunks.stream, result);
 }

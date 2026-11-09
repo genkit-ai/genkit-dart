@@ -1,3 +1,83 @@
+## 1.0.1
+
+### Fixes
+
+ - support primitive tool input schemas (#653)
+
+
+## 1.0.0
+
+### Breaking Changes
+
+ - rename GenkitException.underlyingException to cause; drop statusCode (#548)
+ - type usage counts and indexes as int (#546)
+ - make GenerateResult and GenerateResponseChunk read-only views (#547)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - rename GenerateResponseHelper to GenerateResult and drop redundant members (#534)
+ - stop exporting the model catalogs (#525)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - remove embedMany in favor of embed (#535)
+ - align naming of ToolFnArg, ModelInfo params and RemoteAction.close (#537)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - make constrained generation simulation an opt-in middleware (#519)
+ - stop exporting implementation helpers (#502)
+ - simulate constrained generation when a model lacks native support (#453)
+
+### Features
+
+ - support reasoning effort, verbosity and reasoning output (#430)
+ - support whisper on OpenAI stt (#406)
+ - add text-to-speech support (#405)
+
+### Fixes
+
+ - honor the portable toolChoice option (#495)
+ - xai and deepseek review comments (#476)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+
+
+## 0.5.0
+
+### Breaking Changes
+
+ - send json_object for schemaless JSON output (#415)
+ - curated model catalog and typed refs (#422)
+ - graceful `failed` responses (model + tool errors) + rerunnable failed snapshots (#413)
+ - add cancellation support for action calls and generate API (#397)
+
+### Features
+
+ - ship embedders with a curated per-model catalog (#429)
+
+### Fixes
+
+ - do not require network or an API key at startup (#414)
+
+### Other Changes
+
+ - cover the OpenAI-compatible path with a fake host (#419)
+
+
+## 0.4.1
+
+ - updated internal dependencies.
+
+## 0.4.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+### Fixes
+
+ - reject non-object tool input schemas with a clear error (#374)
+ - populate usage metadata for streaming and non-streaming responses (#373)
+ - stop dropping tools and mark o-series models as tool-capable (#370)
+
+
 ## 0.3.7
 
  - updated internal dependencies.

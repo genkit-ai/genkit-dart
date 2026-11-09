@@ -13,21 +13,162 @@
 // limitations under the License.
 
 import 'package:genkit/plugin.dart';
+import 'package:schemantic/schemantic.dart';
+
+import 'model.dart';
+
+// The curated catalog is internal metadata, not API: it only enriches the
+// labels, stages and capabilities of names that resolve anyway. Entries are
+// added and removed with the upstream model list in any release, which is why
+// neither enum is exported. Callers name models by string
+// (`googleAI.gemini('gemini-flash-latest')`).
+
+/// The multimodal capability profile curated text and image models advertise.
+///
+/// Mirrors the `Multimodal` preset the Go plugin uses for its curated model
+/// list: multiturn chat, media input/output, tool calling with tool choice, a
+/// system role, and native constrained generation.
+// Unmodifiable: one instance backs every curated model in both enums, so
+// accidental mutation through action metadata must fail loudly.
+final _multimodalSupports = Map<String, dynamic>.unmodifiable({
+  'multiturn': true,
+  'media': true,
+  'tools': true,
+  'toolChoice': true,
+  'systemRole': true,
+  'constrained': true,
+});
+
+/// The capability profile every `-tts` Gemini model advertises, curated or
+/// not.
+///
+/// Text-to-speech models emit audio only: no multiturn history, no media
+/// input, no tools, no system role and no constrained generation.
+final geminiTtsSupports = Map<String, dynamic>.unmodifiable({
+  'multiturn': false,
+  'media': false,
+  'tools': false,
+  'toolChoice': false,
+  'systemRole': false,
+  'constrained': false,
+  'output': List<String>.unmodifiable(['media']),
+});
+
+/// The generation modality a Gemini model name denotes.
+///
+/// The family decides which capability profile and which options schema a
+/// model gets, whether or not the name is curated.
+enum GeminiModelFamily {
+  /// Conversational text models, including Gemma.
+  text,
+
+  /// Image-generating models (`gemini-*-image*`).
+  image,
+
+  /// Text-to-speech models (`gemini-*-tts*`).
+  tts;
+
+  /// Classifies a bare model name by its Gemini modality marker.
+  ///
+  /// `-tts` wins over `-image`, and any name outside the `gemini-` namespace
+  /// is text.
+  static GeminiModelFamily of(String modelName) {
+    if (!modelName.startsWith('gemini-')) return text;
+    if (modelName.contains('-tts')) return tts;
+    if (modelName.contains('-image')) return image;
+    return text;
+  }
+
+  /// The capability profile a model of this family advertises.
+  Map<String, dynamic> get supports => switch (this) {
+    text || image => _multimodalSupports,
+    tts => geminiTtsSupports,
+  };
+
+  /// The request options schema a model of this family accepts.
+  SchemanticType get customOptions => switch (this) {
+    text || image => GeminiOptions.$schema,
+    tts => GeminiTtsOptions.$schema,
+  };
+}
+
+// Kept in step with the Gemini API model list: an entry stays until it 404s
+// on both the Gemini API and Vertex. 2.5 Pro and Flash 404 on the Gemini API
+// but are still GA on Vertex, so genkit_vertexai curates those itself. The 2.5
+// TTS previews are out (Gemini API only, replaced by the 3.8 TTS models).
 
 /// Gemini models the Google generative-AI plugins curate capability metadata
 /// for.
 ///
 /// Each value pairs a bare model [id] (no plugin prefix) with a display
-/// [label]; [info] builds the shared multimodal capability preset. Other model
-/// names still resolve dynamically via the plugin's `commonModelInfo`
-/// fallback, so this enum only enriches the names listed here.
+/// [label] and a [family]; [info] builds the capability preset for
+/// that family. Other model names still resolve dynamically via the plugin's
+/// `modelInfoFor` fallback, so this enum only enriches the names listed here.
 enum KnownGeminiModel {
+  gemini31ProPreview('gemini-3.1-pro-preview', 'Gemini 3.1 Pro Preview'),
+  gemini3FlashPreview('gemini-3-flash-preview', 'Gemini 3 Flash Preview'),
+  gemini38Flash('gemini-3.8-flash', 'Gemini 3.8 Flash'),
+  gemini37Flash('gemini-3.7-flash', 'Gemini 3.7 Flash'),
+  gemini36Flash('gemini-3.6-flash', 'Gemini 3.6 Flash'),
   gemini35Flash('gemini-3.5-flash', 'Gemini 3.5 Flash'),
+  gemini35FlashLite('gemini-3.5-flash-lite', 'Gemini 3.5 Flash Lite'),
   gemini31FlashLite('gemini-3.1-flash-lite', 'Gemini 3.1 Flash Lite'),
-  gemini31FlashImage('gemini-3.1-flash-image', 'Gemini 3.1 Flash Image'),
-  gemini3ProImage('gemini-3-pro-image', 'Gemini 3 Pro Image');
+  gemini25FlashLite('gemini-2.5-flash-lite', 'Gemini 2.5 Flash Lite'),
+  gemini31FlashImage(
+    'gemini-3.1-flash-image',
+    'Gemini 3.1 Flash Image',
+    family: .image,
+  ),
+  gemini31FlashLiteImage(
+    'gemini-3.1-flash-lite-image',
+    'Gemini 3.1 Flash Lite Image',
+    family: .image,
+  ),
+  gemini3ProImage('gemini-3-pro-image', 'Gemini 3 Pro Image', family: .image),
+  gemini25FlashImage(
+    'gemini-2.5-flash-image',
+    'Gemini 2.5 Flash Image',
+    family: .image,
+  ),
+  gemini38FlashTts(
+    'gemini-3.8-flash-tts',
+    'Gemini 3.8 Flash TTS',
+    family: .tts,
+  ),
+  gemini38FlashLiteTts(
+    'gemini-3.8-flash-lite-tts',
+    'Gemini 3.8 Flash Lite TTS',
+    family: .tts,
+  ),
+  gemini31FlashTtsPreview(
+    'gemini-3.1-flash-tts-preview',
+    'Gemini 3.1 Flash TTS Preview',
+    family: .tts,
+  );
 
-  const KnownGeminiModel(this.id, this.label);
+  const KnownGeminiModel(this.id, this.label, {this.family = .text});
+
+  /// Bare model name (no plugin prefix).
+  final String id;
+
+  /// Human-readable label surfaced in listings.
+  final String label;
+
+  /// The modality this model generates in.
+  final GeminiModelFamily family;
+
+  /// The capability profile for this model.
+  ModelInfo get info =>
+      ModelInfo(label: label, supports: family.supports, stage: 'stable');
+}
+
+/// Gemma models the Gemini API serves, curated the same way as
+/// [KnownGeminiModel].
+enum KnownGemmaModel {
+  gemma431b('gemma-4-31b-it', 'Gemma 4 31B'),
+  gemma426bA4b('gemma-4-26b-a4b-it', 'Gemma 4 26B A4B');
+
+  const KnownGemmaModel(this.id, this.label);
 
   /// Bare model name (no plugin prefix).
   final String id;
@@ -36,33 +177,18 @@ enum KnownGeminiModel {
   final String label;
 
   /// The multimodal capability profile for this model.
-  ///
-  /// Mirrors the `Multimodal` preset the Go plugin uses for its curated model
-  /// list: multiturn chat, media input/output, tool calling with tool choice,
-  /// a system role, and native constrained generation.
-  ModelInfo get info => ModelInfo(
-    label: label,
-    // Unmodifiable: curated entries are shared across every resolution of the
-    // model, so accidental mutation through action metadata must fail loudly.
-    supports: Map.unmodifiable({
-      'multiturn': true,
-      'media': true,
-      'tools': true,
-      'toolChoice': true,
-      'systemRole': true,
-      'constrained': true,
-    }),
-    stage: 'stable',
-  );
+  ModelInfo get info =>
+      ModelInfo(label: label, supports: _multimodalSupports, stage: 'stable');
 }
 
-/// Curated capability metadata for known Gemini models, keyed by bare model
-/// name (no plugin prefix).
+/// Curated capability metadata for the Gemini and Gemma models known to the
+/// Google generative-AI plugins, keyed by bare model name (no plugin prefix).
 ///
-/// Derived from [KnownGeminiModel]; models are still resolved from raw strings,
-/// this map only enriches known names with per-model metadata instead of the
-/// shared `commonModelInfo` fallback. Plugins expose a subset via
-/// `CommonGoogleGenPlugin.knownModels`.
+/// Derived from [KnownGeminiModel] and [KnownGemmaModel]; models are still
+/// resolved from raw strings, this map only enriches known names with per-model
+/// metadata instead of the shared `commonModelInfo` fallback. Plugins expose a
+/// subset via `CommonGoogleGenPlugin.knownModels`.
 final knownGeminiModels = <String, ModelInfo>{
   for (final model in KnownGeminiModel.values) model.id: model.info,
+  for (final model in KnownGemmaModel.values) model.id: model.info,
 };

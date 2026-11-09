@@ -20,6 +20,7 @@
 /// the system persona on each render so the two branches feel distinct.
 library;
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 
 import 'genkit.dart';

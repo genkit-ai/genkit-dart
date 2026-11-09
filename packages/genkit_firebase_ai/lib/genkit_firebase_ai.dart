@@ -12,44 +12,235 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// ignore_for_file: invalid_use_of_visible_for_testing_member, deprecated_member_use
-
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_ai/firebase_ai.dart' as fai;
-import 'package:firebase_app_check/firebase_app_check.dart' as fac;
-import 'package:firebase_auth/firebase_auth.dart' as fauth;
 import 'package:firebase_core/firebase_core.dart' as fcore;
+// Live (bidi) model support builds on Genkit's experimental surface. Like
+// `package:genkit/experimental.dart`, `BidiModel` is NOT covered by
+// semantic-versioning stability guarantees and may change in any MINOR release.
+import 'package:genkit/experimental.dart' show BidiModel;
 import 'package:genkit/plugin.dart';
+import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
-import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'src/aggregation.dart';
+import 'src/converters.dart';
+import 'src/error_mapping.dart';
+import 'src/known_models.dart';
+import 'src/live.dart';
 
 part 'genkit_firebase_ai.g.dart';
 
 final _logger = Logger('genkit_firebase_ai');
 
+/// The capabilities of a Gemini text model.
+///
+/// Each model now advertises its own label, stage and capabilities in its
+/// `metadata['model']`, and image, TTS and Live models differ from these.
+@Deprecated(
+  "Read a model's capabilities from its metadata['model'] instead. Image, "
+  'TTS and Live models differ from these.',
+)
+final firebaseAiModelInfo = ModelInfo(
+  supports: {
+    'multiturn': true,
+    'media': true,
+    'tools': true,
+    'toolChoice': true,
+    'systemRole': true,
+    'constrained': true,
+  },
+);
+
+// firebase_ai 5 deprecates these for Gemini 3.x, but they still work on
+// older models and are portable Genkit options, so they stay through 1.0
+// (#596).
+const _ignoredByGemini3 =
+    'Gemini 3 and newer models ignore this and manage sampling themselves.';
+const _rejectedByGemini3 =
+    'Gemini 3 and newer models may reject requests that set this with a 400 '
+    'error.';
+const _notForGemini3 =
+    'Not supported on Gemini 3 and newer models. Make parallel requests '
+    'instead.';
+// Live sends its config in the WebSocket setup message, so a rejected field
+// closes the socket rather than returning a 400.
+const _liveNotForGemini3 = 'Gemini 3 and newer models may not support this.';
+
 @Schema()
 abstract class $GeminiOptions {
   List<String>? get stopSequences;
   int? get maxOutputTokens;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get temperature;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get topP;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   int? get topK;
+
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
+  @Field(description: _rejectedByGemini3)
   double? get presencePenalty;
+
+  /// Gemini 3 and newer models may reject requests that set this with a 400
+  /// error.
+  @Field(description: _rejectedByGemini3)
   double? get frequencyPenalty;
   List<String>? get responseModalities;
   String? get responseMimeType;
+  @Field(
+    description:
+        'OpenAPI-subset schema the response must conform to. Ignored when '
+        'responseJsonSchema is set or the request has a constrained JSON '
+        'output schema.',
+  )
   Map<String, dynamic>? get responseSchema;
+  @Field(
+    description:
+        'JSON Schema the response must conform to, sent to Gemini unchanged. '
+        'Requires responseMimeType "application/json". Takes precedence over '
+        'responseSchema when both are set. Ignored when the request has a '
+        'constrained JSON output schema, which is sent instead.',
+  )
   Map<String, dynamic>? get responseJsonSchema;
   $ThinkingConfig? get thinkingConfig;
+
+  /// Not supported on Gemini 3 and newer models. Make parallel requests
+  /// instead.
+  @Field(description: _notForGemini3)
   int? get candidateCount;
   bool? get codeExecution;
   $FunctionCallingConfig? get functionCallingConfig;
-  bool? get responseLogprobs;
-  int? get logprobs;
+  @Field(
+    description:
+        'Per-category thresholds for blocking harmful content. Each entry '
+        'needs a category and a threshold.',
+  )
+  List<$GeminiSafetySettings>? get safetySettings;
+  @Field(description: 'Grounds responses in Google Search results.')
+  $GeminiGoogleSearch? get googleSearch;
+  @Field(description: 'Lets the model read the URLs given in the prompt.')
+  $GeminiUrlContext? get urlContext;
+  @Field(
+    description:
+        'Grounds responses in Google Maps data. Pass the user location in '
+        'retrievalConfig.',
+  )
+  $GeminiGoogleMaps? get googleMaps;
+  @Field(description: 'Location and language for Google Maps grounding.')
+  $GeminiRetrievalConfig? get retrievalConfig;
+  @Field(description: 'Voice and language for text-to-speech models.')
+  $SpeechConfig? get speechConfig;
+  @Field(description: 'Aspect ratio and size for image generation models.')
+  $GeminiImageConfig? get imageConfig;
+  @StringField(
+    enumValues: [
+      'MEDIA_RESOLUTION_LOW',
+      'MEDIA_RESOLUTION_MEDIUM',
+      'MEDIA_RESOLUTION_HIGH',
+    ],
+    description:
+        'Resolution for media inputs. A media part can set its own in '
+        'metadata.mediaResolution, which also takes '
+        'MEDIA_RESOLUTION_ULTRA_HIGH.',
+  )
+  String? get mediaResolution;
+}
+
+@Schema()
+abstract class $GeminiImageConfig {
+  @StringField(
+    enumValues: [
+      '1:1',
+      '9:16',
+      '16:9',
+      '3:4',
+      '4:3',
+      '2:3',
+      '3:2',
+      '4:5',
+      '5:4',
+      '1:4',
+      '4:1',
+      '1:8',
+      '8:1',
+      '21:9',
+    ],
+  )
+  String? get aspectRatio;
+
+  @StringField(enumValues: ['512', '1K', '2K', '4K'])
+  String? get imageSize;
+}
+
+@Schema()
+abstract class $GeminiGoogleSearch {}
+
+@Schema()
+abstract class $GeminiUrlContext {}
+
+@Schema()
+abstract class $GeminiGoogleMaps {}
+
+@Schema()
+abstract class $GeminiRetrievalConfig {
+  $GeminiLatLng? get latLng;
+  String? get languageCode;
+}
+
+@Schema()
+abstract class $GeminiLatLng {
+  double? get latitude;
+  double? get longitude;
+}
+
+@Schema()
+abstract class $GeminiSafetySettings {
+  @StringField(
+    description:
+        'The HARM_CATEGORY_IMAGE_* categories are Agent Platform only; the '
+        'Gemini Developer API rejects them.',
+    enumValues: [
+      'HARM_CATEGORY_HARASSMENT',
+      'HARM_CATEGORY_HATE_SPEECH',
+      'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      'HARM_CATEGORY_DANGEROUS_CONTENT',
+      'HARM_CATEGORY_IMAGE_HATE',
+      'HARM_CATEGORY_IMAGE_DANGEROUS_CONTENT',
+      'HARM_CATEGORY_IMAGE_HARASSMENT',
+      'HARM_CATEGORY_IMAGE_SEXUALLY_EXPLICIT',
+    ],
+  )
+  String? get category;
+
+  @StringField(
+    enumValues: [
+      'BLOCK_LOW_AND_ABOVE',
+      'BLOCK_MEDIUM_AND_ABOVE',
+      'BLOCK_ONLY_HIGH',
+      'BLOCK_NONE',
+      'OFF',
+    ],
+  )
+  String? get threshold;
+
+  @StringField(
+    enumValues: ['SEVERITY', 'PROBABILITY'],
+    description:
+        'Whether the threshold applies to the probability or the severity '
+        'score. Agent Platform only; the Gemini Developer API rejects it.',
+  )
+  String? get method;
 }
 
 @Schema()
@@ -63,6 +254,14 @@ abstract class $FunctionCallingConfig {
 abstract class $ThinkingConfig {
   int? get thinkingBudget;
   bool? get includeThoughts;
+
+  @StringField(
+    enumValues: ['MINIMAL', 'LOW', 'MEDIUM', 'HIGH'],
+    description:
+        'Thinking level for Gemini 3 and newer models, which use it in place '
+        'of thinkingBudget. Cannot be set together with thinkingBudget.',
+  )
+  String? get thinkingLevel;
 }
 
 @Schema()
@@ -78,6 +277,26 @@ abstract class $VoiceConfig {
 @Schema()
 abstract class $SpeechConfig {
   $VoiceConfig? get voiceConfig;
+  @Field(
+    description:
+        'Voices for a multi-speaker conversation, with exactly two '
+        'speakers. Cannot be set together with voiceConfig.',
+  )
+  $MultiSpeakerVoiceConfig? get multiSpeakerVoiceConfig;
+  @Field(description: 'BCP-47 language code, for example en-US.')
+  String? get languageCode;
+}
+
+@Schema()
+abstract class $MultiSpeakerVoiceConfig {
+  List<$SpeakerVoiceConfig>? get speakerVoiceConfigs;
+}
+
+@Schema()
+abstract class $SpeakerVoiceConfig {
+  @Field(description: 'The speaker name used in the prompt.')
+  String? get speaker;
+  $VoiceConfig? get voiceConfig;
 }
 
 @Schema()
@@ -86,29 +305,54 @@ abstract class $LiveGenerationConfig {
   $SpeechConfig? get speechConfig;
   List<String>? get stopSequences;
   int? get maxOutputTokens;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get temperature;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   double? get topP;
+
+  /// Gemini 3 and newer models ignore this and manage sampling themselves.
+  @Field(description: _ignoredByGemini3)
   int? get topK;
+
+  /// Gemini 3 and newer models may not support this.
+  @Field(description: _liveNotForGemini3)
   double? get presencePenalty;
+
+  /// Gemini 3 and newer models may not support this.
+  @Field(description: _liveNotForGemini3)
   double? get frequencyPenalty;
 }
 
+/// The Gemini API backend that the Firebase AI plugin calls.
 sealed class FirebaseAiProvider {
   const FirebaseAiProvider();
 
+  /// The Gemini Developer API.
   const factory FirebaseAiProvider.googleAI() = _GoogleAIProvider;
-  const factory FirebaseAiProvider.vertexAI({String? location}) =
-      _VertexAIProvider;
+
+  /// The Agent Platform Gemini API in [location].
+  ///
+  /// When [location] is omitted the Firebase AI SDK default, `global`, is used.
+  /// Preview models are only available on `global`. Agent Platform Live models
+  /// such as `gemini-live-2.5-flash-native-audio` are not available on
+  /// `global`, so apps that use them, or that need data residency, must pass a
+  /// regional location such as `'us-central1'`.
+  const factory FirebaseAiProvider.agentPlatform({String? location}) =
+      _AgentPlatformProvider;
 }
 
 class _GoogleAIProvider extends FirebaseAiProvider {
   const _GoogleAIProvider();
 }
 
-class _VertexAIProvider extends FirebaseAiProvider {
+class _AgentPlatformProvider extends FirebaseAiProvider {
   final String? location;
 
-  const _VertexAIProvider({this.location});
+  const _AgentPlatformProvider({this.location});
 }
 
 const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
@@ -116,19 +360,26 @@ const FirebaseGenAiPluginHandle firebaseAI = FirebaseGenAiPluginHandle();
 class FirebaseGenAiPluginHandle {
   const FirebaseGenAiPluginHandle();
 
+  /// Creates the Firebase AI plugin.
+  ///
+  /// [httpClient] is used for every `generateContent` and
+  /// `streamGenerateContent` request. Useful for proxies, instrumentation, or a
+  /// mock transport in tests.
+  /// Live (bidi) models connect over a WebSocket and do not use it. The caller
+  /// owns it: the plugin never closes a client it was given, so close it
+  /// yourself once you are done with the plugin. When omitted, the plugin
+  /// creates one client on first use and shares it across requests.
   GenkitPlugin call({
     fcore.FirebaseApp? app,
-    fac.FirebaseAppCheck? appCheck,
-    fauth.FirebaseAuth? auth,
     bool? useLimitedUseAppCheckTokens,
     FirebaseAiProvider provider = const FirebaseAiProvider.googleAI(),
+    http.Client? httpClient,
   }) {
     return _FirebaseGenAiPlugin(
       app: app,
-      appCheck: appCheck,
-      auth: auth,
       useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
       provider: provider,
+      httpClient: httpClient,
     );
   }
 
@@ -141,154 +392,221 @@ class FirebaseGenAiPluginHandle {
 }
 
 class _FirebaseGenAiPlugin extends GenkitPlugin {
-  final fcore.FirebaseApp? _app;
-  final fac.FirebaseAppCheck? _appCheck;
-  final fauth.FirebaseAuth? _auth;
-  final bool? _useLimitedUseAppCheckTokens;
-  final FirebaseAiProvider _provider;
+  final fcore.FirebaseApp? app;
+  final bool? useLimitedUseAppCheckTokens;
+  final FirebaseAiProvider provider;
+  final http.Client? httpClient;
+
+  // firebase_ai 4.x builds an http.Client per GenerativeModel and never closes
+  // it, and the plugin builds a model per request, so one client is shared to
+  // keep connections reused. It is never closed: plugins have no dispose hook,
+  // and Flutter apps can exit with an open connection pool.
+  late final http.Client _httpClient = httpClient ?? http.Client();
 
   @override
   String get name => 'firebaseai';
 
   _FirebaseGenAiPlugin({
-    fcore.FirebaseApp? app,
-    fac.FirebaseAppCheck? appCheck,
-    fauth.FirebaseAuth? auth,
-    bool? useLimitedUseAppCheckTokens,
-    FirebaseAiProvider provider = const FirebaseAiProvider.googleAI(),
-  }) : _app = app,
-       _appCheck = appCheck,
-       _auth = auth,
-       _useLimitedUseAppCheckTokens = useLimitedUseAppCheckTokens,
-       _provider = provider;
+    this.app,
+    this.useLimitedUseAppCheckTokens,
+    this.provider = const FirebaseAiProvider.googleAI(),
+    this.httpClient,
+  });
 
   fai.FirebaseAI get _firebaseAI {
-    return switch (_provider) {
-      _VertexAIProvider(:final location) => fai.FirebaseAI.vertexAI(
-        app: _app,
-        appCheck: _appCheck,
-        auth: _auth,
-        useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+    return switch (provider) {
+      _AgentPlatformProvider(:final location) => fai.FirebaseAI.agentPlatform(
+        app: app,
         location: location,
+        useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
       ),
       _GoogleAIProvider() => fai.FirebaseAI.googleAI(
-        app: _app,
-        appCheck: _appCheck,
-        auth: _auth,
-        useLimitedUseAppCheckTokens: _useLimitedUseAppCheckTokens,
+        app: app,
+        useLimitedUseAppCheckTokens: useLimitedUseAppCheckTokens,
       ),
     };
   }
 
   @override
   Future<List<Action>> init() async {
+    // Pre-registered so they show up in the Developer UI; any other model name
+    // still resolves on demand (see [resolve]).
+    final agentPlatform = provider is _AgentPlatformProvider;
     return [
-      _createModel('gemini-flash-latest'),
-      _createModel('gemini-2.5-pro'),
-      _createBidiModel('gemini-2.5-flash-native-audio-preview-12-2025'),
+      for (final model in KnownFirebaseAiModel.values)
+        if (model.servedOn(agentPlatform: agentPlatform))
+          model.live ? _createBidiModel(model.id) : _createModel(model.id),
     ];
   }
 
   @override
-  Action? resolve(String actionType, String name) {
-    if (actionType == 'model') return _createModel(name);
-    if (actionType == 'bidi-model') return _createBidiModel(name);
+  Action? resolve(ActionType actionType, String name) {
+    if (actionType == .model) return _createModel(name);
+    if (actionType == .bidiModel) return _createBidiModel(name);
     return null;
   }
 
   Model _createModel(String modelName) {
     return Model(
       name: 'firebaseai/$modelName',
+      metadata: {'model': modelInfoFor(modelName).toJson()},
+      customOptions: GeminiOptions.$schema,
       fn: (req, ctx) async {
         final isJsonMode =
-            req!.output?.format == 'json' ||
+            req.output?.format == 'json' ||
             req.output?.contentType == 'application/json';
 
+        // The JSON round trip types nested maps written as Dart literals (e.g.
+        // an empty `{}`) the way the generated getters expect.
         final options = req.config == null
             ? GeminiOptions()
-            : GeminiOptions.$schema.parse(req.config!);
-
-        final model = _firebaseAI.generativeModel(
-          model: modelName,
-          generationConfig: toGeminiSettings(
-            options,
-            req.output?.schema,
-            isJsonMode,
-          ),
-          tools: toGeminiTools(req.tools, codeExecution: options.codeExecution),
-          toolConfig: toGeminiToolConfig(options.functionCallingConfig),
-        );
-
-        if (ctx.streamingRequested) {
-          final stream = model.generateContentStream(
-            toGeminiContent(req.messages),
-          );
-          final chunks = <fai.GenerateContentResponse>[];
-          await for (final chunk in stream) {
-            chunks.add(chunk);
-            if (chunk.candidates.isNotEmpty) {
-              final (message, finishReason) = fromGeminiCandidate(
-                chunk.candidates.first,
+            : readConfig(
+                () => GeminiOptions.$schema.parse(
+                  jsonDecode(jsonEncode(req.config)),
+                ),
               );
-              ctx.sendChunk(
-                ModelResponseChunk(index: 0, content: message.content),
+
+        final nonSystem = req.messages
+            .where((m) => m.role != Role.system)
+            .toList();
+        // Gemini rejects empty `contents`, so a system-only request keeps its
+        // text as the user turn, as it did before systemInstruction was sent.
+        final systemOnly = nonSystem.isEmpty;
+        final contents = toGeminiContent(systemOnly ? req.messages : nonSystem);
+
+        // Per request, because `IOClient` keeps its listeners on the trigger
+        // until it completes, and a reused token's `whenCancelled` may never.
+        final abort = Completer<void>();
+        final disposeCancel = ctx.cancel?.onCancel(abort.complete);
+        try {
+          ctx.cancel?.throwIfCancelled();
+          final transport = _StatusRecordingClient(
+            _httpClient,
+            abortTrigger: ctx.cancel == null ? null : abort.future,
+          );
+          final model = _firebaseAI.generativeModel(
+            model: modelName,
+            safetySettings: toGeminiSafetySettings(
+              options,
+              developerApi: provider is _GoogleAIProvider,
+            ),
+            generationConfig: toGeminiSettings(
+              options,
+              req.output?.schema,
+              isJsonMode,
+              constrained: req.output?.constrained ?? false,
+            ),
+            tools: readConfig(
+              () => toGeminiTools(
+                req.tools,
+                codeExecution: options.codeExecution,
+                googleSearch: options.googleSearch != null,
+                urlContext: options.urlContext != null,
+                googleMaps: options.googleMaps != null,
+              ),
+            ),
+            toolConfig: readConfig(
+              () => toGeminiToolConfig(
+                options.functionCallingConfig,
+                toolChoice: req.toolChoice,
+                hasFunctionTools: req.tools?.isNotEmpty ?? false,
+                retrievalConfig: options.retrievalConfig,
+              ),
+            ),
+            systemInstruction: systemOnly
+                ? null
+                : toGeminiSystemInstruction(req.messages),
+            httpClient: transport,
+          );
+          GenkitException mapError(Object e, StackTrace stack) {
+            // An aborted request surfaces as a transport error; report the
+            // cancellation instead.
+            if ((e, ctx.cancel) case (
+              http.RequestAbortedException(),
+              final cancel?,
+            )) {
+              return CancelledException(reason: cancel.reason, token: cancel);
+            }
+            return toGenkitException(
+              e,
+              stack,
+              httpStatus: transport.lastStatusCode,
+              errorStatus: transport.lastError?.status,
+              errorMessage: transport.lastError?.message,
+            );
+          }
+
+          if (ctx.streamingRequested) {
+            if ((options.candidateCount ?? 1) > 1) {
+              // firebase_ai drops each candidate's `index`, so streamed chunks
+              // could not be told apart and would be merged (#656).
+              throw GenkitException(
+                'Streaming with candidateCount > 1 is not supported. A '
+                'non-streaming request returns only the first candidate in '
+                'text and message; the rest are in raw.',
+                status: StatusCode.invalidArgument,
               );
             }
+            final stream = model
+                .generateContentStream(contents)
+                .handleError((Object e, StackTrace s) => throw mapError(e, s));
+            final chunks = <fai.GenerateContentResponse>[];
+            await for (final chunk in stream) {
+              ctx.cancel?.throwIfCancelled();
+              chunks.add(chunk);
+              if (chunk.candidates.isNotEmpty) {
+                final (message, finishReason) = fromGeminiCandidate(
+                  chunk.candidates.first,
+                );
+                ctx.sendChunk(
+                  ModelResponseChunk(index: 0, content: message.content),
+                );
+              }
+            }
+            ctx.cancel?.throwIfCancelled();
+            final aggregated = aggregateResponses(chunks);
+            if (aggregated.candidates.isEmpty) {
+              throw noCandidatesException(aggregated.promptFeedback);
+            }
+            final (message, finishReason) = fromGeminiCandidate(
+              aggregated.candidates.first,
+            );
+            return ModelResponse(
+              finishReason: finishReason,
+              finishMessage: aggregated.candidates.first.finishMessage,
+              custom: candidateCustom(aggregated.candidates.first),
+              message: message,
+              raw: rawResponse(aggregated),
+              usage: extractUsage(aggregated.usageMetadata),
+            );
+          } else {
+            final fai.GenerateContentResponse response;
+            try {
+              response = await model.generateContent(contents);
+            } catch (e, stack) {
+              throw mapError(e, stack);
+            }
+            ctx.cancel?.throwIfCancelled();
+
+            if (response.candidates.isEmpty) {
+              throw noCandidatesException(response.promptFeedback);
+            }
+
+            final (message, finishReason) = fromGeminiCandidate(
+              response.candidates.first,
+            );
+
+            return ModelResponse(
+              finishReason: finishReason,
+              finishMessage: response.candidates.first.finishMessage,
+              custom: candidateCustom(response.candidates.first),
+              message: message,
+              raw: rawResponse(response),
+              usage: extractUsage(response.usageMetadata),
+            );
           }
-          final aggregated = aggregateResponses(chunks);
-          final (message, finishReason) = fromGeminiCandidate(
-            aggregated.candidates.first,
-          );
-          return ModelResponse(
-            finishReason: finishReason,
-            message: message,
-            raw: {
-              'candidates': aggregated.candidates
-                  .map(
-                    (c) => {
-                      'content': c.content.parts.length,
-                      'finishReason': c.finishReason?.name,
-                    },
-                  )
-                  .toList(),
-            },
-            usage: extractUsage(aggregated.usageMetadata),
-          );
-        } else {
-          final response = await model.generateContent(
-            toGeminiContent(req.messages),
-          );
-
-          if (response.candidates.isEmpty) {
-            // TODO: Consider inspecting response.promptFeedback for the block reason.
-            throw GenkitException('Model returned no candidates.');
-          }
-
-          final (message, finishReason) = fromGeminiCandidate(
-            response.candidates.first,
-          );
-
-          final raw = <String, dynamic>{
-            // Recreate structure
-            'candidates': response.candidates
-                .map(
-                  (c) => {
-                    'content': c
-                        .content
-                        .parts
-                        .length, // content.toJson() might not exist or be simple
-                    'finishReason': c.finishReason?.name,
-                  },
-                )
-                .toList(),
-          };
-
-          return ModelResponse(
-            finishReason: finishReason,
-            message: message,
-            raw: raw,
-            usage: extractUsage(response.usageMetadata),
-          );
+        } finally {
+          disposeCancel?.call();
         }
       },
     );
@@ -297,44 +615,15 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
   BidiModel _createBidiModel(String modelName) {
     return BidiModel(
       name: 'firebaseai/$modelName',
+      metadata: {'model': modelInfoFor(modelName, live: true).toJson()},
+      customOptions: LiveGenerationConfig.$schema,
       fn: (stream, ctx) async {
-        final configMap = ctx.init?.config;
         final tools = toGeminiTools(ctx.init?.tools);
-        final systemMessage = ctx.init?.messages
-            .where((m) => m.role == Role.system)
-            .firstOrNull;
-        final systemInstruction = systemMessage != null
-            ? fai.Content(
-                'system',
-                systemMessage.content.map(toGeminiPart).toList(),
-              )
-            : null;
-
-        final liveConfig = fai.LiveGenerationConfig(
-          responseModalities: (configMap?['responseModalities'] as List?)?.map((
-            e,
-          ) {
-            return fai.ResponseModalities.values.byName(
-              (e as String).toLowerCase(),
-            );
-          }).toList(),
-          speechConfig: configMap?['speechConfig'] != null
-              ? fai.SpeechConfig(
-                  voiceName:
-                      (((configMap!['speechConfig'] as Map)['voiceConfig']
-                                  as Map)['prebuiltVoiceConfig']
-                              as Map)['voiceName']
-                          as String,
-                )
-              : null,
-          maxOutputTokens: configMap?['maxOutputTokens'] as int?,
-          temperature: (configMap?['temperature'] as num?)?.toDouble(),
-          topP: (configMap?['topP'] as num?)?.toDouble(),
-          topK: configMap?['topK'] as int?,
-          presencePenalty: (configMap?['presencePenalty'] as num?)?.toDouble(),
-          frequencyPenalty: (configMap?['frequencyPenalty'] as num?)
-              ?.toDouble(),
+        final systemInstruction = toGeminiSystemInstruction(
+          ctx.init?.messages ?? const [],
         );
+
+        final liveConfig = toLiveGenerationConfig(ctx.init?.config);
 
         final model = _firebaseAI.liveGenerativeModel(
           model: modelName,
@@ -351,422 +640,148 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
             'Modalities: ${liveConfig.responseModalities!.map((e) => e.name).toList()}',
           );
         }
-        var session = await model.connect();
+        final fai.LiveSession session;
+        try {
+          session = await model.connect();
+        } catch (e, stack) {
+          throw toGenkitException(e, stack);
+        }
         _logger.info('Connected to model: $modelName');
 
-        // Send initial history
-        final initialMessages =
-            ctx.init?.messages.where((m) => m.role != Role.system).toList() ??
-            [];
-        for (final msg in initialMessages) {
-          await _sendToSession(session, msg);
-        }
-
-        final sub = ctx.inputStream!.listen(
-          (chunk) async {
-            for (final msg in chunk.messages) {
-              await _sendToSession(session, msg);
-            }
-          },
-          onError: (e) {
-            _logger.severe('InputStream error', e);
-          },
-          onDone: () {
-            _logger.info('InputStream done');
-            session.close();
-          },
+        await runLiveSession(
+          session,
+          history:
+              ctx.init?.messages.where((m) => m.role != Role.system) ??
+              const [],
+          input: stream,
+          onChunk: ctx.sendChunk,
+          cancel: ctx.cancel,
         );
-
-        final receiveFuture = () async {
-          try {
-            await for (final event in session.receive()) {
-              _logger.fine('Session receive loop: $event');
-              final chunk = _fromGeminiLiveEvent(event);
-              if (chunk != null) ctx.sendChunk(chunk);
-            }
-            _logger.fine('Session receive loop finished naturally');
-          } catch (e, s) {
-            _logger.warning('Error in Live session receive loop', e, s);
-          }
-        }();
-
-        await receiveFuture;
-        await sub.cancel();
-        _logger.fine('Closing session');
-        session.close();
-        // Session closed in receiveFuture usually, but ensure it here?
-        // Actually session.close() is called on inputStream done.
-        // If receive loop finishes, we might want to stop input stream?
-        // Usually Bidi sessions end when input ends OR model ends.
 
         return ModelResponse(finishReason: FinishReason.stop);
       },
     );
   }
-
-  Future<void> _sendToSession(fai.LiveSession session, Message msg) async {
-    _logger.fine('Sending message: ${msg.role} parts: ${msg.content.length}');
-
-    final contentParts = msg.content.map(toGeminiPart).toList();
-
-    for (final part in contentParts) {
-      try {
-        if (part is fai.InlineDataPart) {
-          // TODO: Check mimeType for video vs audio
-          await session.sendAudioRealtime(part);
-        } else if (part is fai.FunctionResponse) {
-          await session.sendToolResponse([part]);
-        } else {
-          // Fallback for others
-          await session.send(
-            input: fai.Content(toGeminiRole(msg.role), [part]),
-            turnComplete: true,
-          );
-        }
-      } catch (e) {
-        _logger.severe('Error sending part: $part', e);
-        rethrow;
-      }
-    }
-  }
 }
 
-/// Maps a Genkit [Role] to the role string expected by the Gemini API.
+/// Records the HTTP status and the error body's gRPC status of the last
+/// response, which `firebase_ai` drops from the exceptions it throws.
 ///
-/// Gemini's Content API only understands `user` and `model` roles. Tool
-/// (function response) messages must be sent with the `user` role for
-/// compatibility.
-@visibleForTesting
-String toGeminiRole(Role role) {
-  if (role == Role.model) return 'model';
-  // user, tool and anything else map to 'user'.
-  return 'user';
-}
+/// When [abortTrigger] completes, the in-flight request is aborted. That needs
+/// a client that honours [http.Abortable], as `IOClient` and `BrowserClient`
+/// do; with any other client, cancellation lands at the next checkpoint.
+class _StatusRecordingClient extends http.BaseClient {
+  _StatusRecordingClient(this._inner, {this.abortTrigger});
 
-@visibleForTesting
-Iterable<fai.Content> toGeminiContent(List<Message> messages) {
-  return messages.map(
-    (msg) => fai.Content(
-      toGeminiRole(msg.role),
-      msg.content.map(toGeminiPart).toList(),
-    ),
-  );
-}
+  final http.Client _inner;
 
-@visibleForTesting
-fai.Part toGeminiPart(Part p) {
-  final isThought = p.metadata?['isThought'] == true;
-  final thoughtSignature = p.metadata?['thoughtSignature'] as String?;
+  final Future<void>? abortTrigger;
 
-  // firebase_ai does not officially expose thoughtSignature in its public constructors
-  // yet. It only exposes them via `.forTest` constructors meant for internal testing.
-  // We use them here but defensively fallback to standard constructors if they
-  // are ever removed or changed.
-  if (p.isReasoning) {
-    try {
-      return fai.TextPart.forTest(
-        p.reasoning!,
-        isThought: true,
-        thoughtSignature: thoughtSignature,
-      );
-    } catch (_) {
-      return fai.TextPart(p.reasoning!, isThought: true);
+  /// [request] as an [http.AbortableRequest] tied to [abortTrigger].
+  /// `firebase_ai` sends plain [http.Request]s.
+  http.BaseRequest _abortable(http.BaseRequest request) {
+    if ((abortTrigger, request) case (
+      final trigger?,
+      final http.Request plain,
+    ) when plain is! http.Abortable) {
+      return http.AbortableRequest(
+          plain.method,
+          plain.url,
+          abortTrigger: trigger,
+        )
+        ..headers.addAll(plain.headers)
+        ..bodyBytes = plain.bodyBytes
+        ..followRedirects = plain.followRedirects
+        ..maxRedirects = plain.maxRedirects
+        ..persistentConnection = plain.persistentConnection;
     }
+    return request;
   }
-  if (p.isText) {
-    try {
-      return fai.TextPart.forTest(
-        p.text!,
-        isThought: isThought,
-        thoughtSignature: thoughtSignature,
-      );
-    } catch (_) {
-      return fai.TextPart(p.text!, isThought: isThought);
+
+  int? lastStatusCode;
+
+  /// The `error` of a non-200 body or of an error chunk in an SSE stream.
+  ({String? status, String? message})? lastError;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final response = await _inner.send(_abortable(request));
+    lastStatusCode = response.statusCode;
+    lastError = null;
+    if (response.statusCode != 200) {
+      final body = await response.stream.toBytes();
+      lastError = _errorOf(utf8.decode(body, allowMalformed: true));
+      return _withBody(response, Stream.value(body), body.length);
     }
-  }
-  if (p.isMedia) {
-    final media = p.media!;
-    if (media.url.startsWith('data:')) {
-      final uri = Uri.parse(media.url);
-      if (uri.data != null) {
-        try {
-          return fai.InlineDataPart.forTest(
-            media.contentType ?? 'application/octet-stream',
-            uri.data!.contentAsBytes(),
-            isThought: isThought,
-            thoughtSignature: thoughtSignature,
-          );
-        } catch (_) {
-          return fai.InlineDataPart(
-            media.contentType ?? 'application/octet-stream',
-            uri.data!.contentAsBytes(),
-            isThought: isThought,
-          );
+    if (request.url.queryParameters['alt'] != 'sse') return response;
+
+    final lines = const LineSplitter().startChunkedConversion(
+      _CallbackSink((line) {
+        if (lastError == null &&
+            line.startsWith('data: ') &&
+            line.contains('"error"')) {
+          lastError = _errorOf(line.substring('data: '.length));
         }
-      }
-    }
-    // Assume HTTP/S or other URLs are File URIs
-    try {
-      return fai.FileData.forTest(
-        media.contentType ?? 'application/octet-stream',
-        media.url,
-        isThought: isThought,
-        thoughtSignature: thoughtSignature,
-      );
-    } catch (_) {
-      return fai.FileData(
-        media.contentType ?? 'application/octet-stream',
-        media.url,
-        isThought: isThought,
-      );
-    }
-  }
-  if (p.isToolResponse) {
-    final toolResponse = p.toolResponse!;
-    return fai.FunctionResponse(
-      toolResponse.name,
-      {'result': toolResponse.output},
-      id: toolResponse.ref,
-      isThought: isThought,
+      }),
     );
-  }
-  if (p.isToolRequest) {
-    final toolRequest = p.toolRequest!;
-    try {
-      return fai.FunctionCall.forTest(
-        toolRequest.name,
-        toolRequest.input is Map
-            ? (toolRequest.input as Map).cast<String, Object?>()
-            : <String, Object?>{},
-        id: toolRequest.ref,
-        isThought: isThought,
-        thoughtSignature: thoughtSignature,
-      );
-    } catch (_) {
-      return fai.FunctionCall(
-        toolRequest.name,
-        toolRequest.input is Map
-            ? (toolRequest.input as Map).cast<String, Object?>()
-            : <String, Object?>{},
-        id: toolRequest.ref,
-        isThought: isThought,
-      );
-    }
-  }
-  throw UnimplementedError('Part type $p not supported yet');
-}
-
-@visibleForTesting
-(Message, FinishReason) fromGeminiCandidate(fai.Candidate candidate) {
-  final finishReason = FinishReason(candidate.finishReason?.name ?? 'unknown');
-  final message = Message(
-    role: Role(candidate.content.role ?? 'model'),
-    content: candidate.content.parts.map(fromGeminiPart).toList(),
-  );
-  return (message, finishReason);
-}
-
-@visibleForTesting
-Part fromGeminiPart(fai.Part p) {
-  final pJson = p.toJson() as Map<String, dynamic>;
-  final thoughtSignature = pJson['thoughtSignature'] as String?;
-
-  final metadata = <String, dynamic>{
-    if (p.isThought == true) 'isThought': true,
-    'thoughtSignature': ?thoughtSignature,
-  };
-
-  if (p is fai.TextPart) {
-    if (p.isThought == true) {
-      return ReasoningPart(reasoning: p.text, metadata: metadata);
-    }
-    return TextPart(text: p.text, metadata: metadata);
-  }
-  if (p is fai.FunctionCall) {
-    return ToolRequestPart(
-      toolRequest: ToolRequest(name: p.name, input: p.args, ref: p.id),
-      metadata: metadata,
-    );
-  }
-  if (p is fai.InlineDataPart) {
-    final base64 = base64Encode(p.bytes);
-    return MediaPart(
-      media: Media(
-        url: 'data:${p.mimeType};base64,$base64',
-        contentType: p.mimeType,
+    final sniffer = const Utf8Decoder(
+      allowMalformed: true,
+    ).startChunkedConversion(lines);
+    // The sniffer sees each chunk before firebase_ai does, so the status is
+    // recorded by the time firebase_ai throws on the error chunk.
+    final stream = response.stream.transform(
+      StreamTransformer<List<int>, List<int>>.fromHandlers(
+        handleData: (bytes, sink) {
+          sniffer.add(bytes);
+          sink.add(bytes);
+        },
+        handleDone: (sink) {
+          sniffer.close();
+          sink.close();
+        },
       ),
-      metadata: metadata,
     );
+    return _withBody(response, stream, response.contentLength);
   }
-  throw UnimplementedError('Part type $p not supported yet in response');
 }
 
-ModelResponseChunk? _fromGeminiLiveEvent(fai.LiveServerResponse event) {
-  final liveParts = event.message is fai.LiveServerContent
-      ? (event.message as fai.LiveServerContent).modelTurn?.parts
-      : event.message is fai.LiveServerToolCall
-      ? (event.message as fai.LiveServerToolCall).functionCalls
-            as List<fai.Part>
-      : null;
-  if (liveParts == null) return null;
-  // We only care about content updates for now
-  final parts = liveParts.map(fromGeminiPart).toList();
+http.StreamedResponse _withBody(
+  http.StreamedResponse response,
+  Stream<List<int>> body,
+  int? contentLength,
+) => http.StreamedResponse(
+  body,
+  response.statusCode,
+  contentLength: contentLength,
+  request: response.request,
+  headers: response.headers,
+  isRedirect: response.isRedirect,
+  persistentConnection: response.persistentConnection,
+  reasonPhrase: response.reasonPhrase,
+);
 
-  return ModelResponseChunk(index: 0, content: parts);
+class _CallbackSink implements Sink<String> {
+  _CallbackSink(this._onData);
+
+  final void Function(String) _onData;
+
+  @override
+  void add(String data) => _onData(data);
+
+  @override
+  void close() {}
 }
 
-@visibleForTesting
-List<fai.Tool>? toGeminiTools(
-  List<ToolDefinition>? tools, {
-  bool? codeExecution,
-}) {
-  if ((tools == null || tools.isEmpty) && codeExecution != true) return null;
-
-  return [
-    if (tools != null) ...(tools.map(_toGeminiTool)),
-    if (codeExecution == true) fai.Tool.codeExecution(),
-  ];
-}
-
-fai.Tool _toGeminiTool(ToolDefinition tool) {
-  final rawSchema = tool.inputSchema;
-
-  final flattened = rawSchema?.flatten() ?? <String, dynamic>{};
-
-  final propertiesMap = flattened['properties'] as Map<String, dynamic>? ?? {};
-  final requiredList =
-      (flattened['required'] as List<dynamic>?)?.cast<String>() ?? [];
-
-  final parameters = propertiesMap.map((key, value) {
-    return MapEntry(key, toGeminiSchema(value as Map<String, dynamic>));
-  });
-
-  final optionalParameters = propertiesMap.keys
-      .where((k) => !requiredList.contains(k))
-      .toList();
-
-  return fai.Tool.functionDeclarations([
-    fai.FunctionDeclaration(
-      tool.name,
-      tool.description,
-      parameters: parameters,
-      optionalParameters: optionalParameters,
-    ),
-  ]);
-}
-
-@visibleForTesting
-fai.Schema toGeminiSchema(Map<String, dynamic> json) =>
-    _toGeminiSchemaInternal(json.flatten());
-
-fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
-  final type = json['type']; // dynamic
-  final description = json['description'] as String?;
-  final nullable = json['nullable'] as bool? ?? false;
-  // TODO: Handle enum
-
-  // Simple type handling
-  String? typeStr;
-  if (type is String) {
-    typeStr = type;
-  }
-
-  switch (typeStr) {
-    case 'string':
-      return fai.Schema.string(description: description, nullable: nullable);
-    case 'number':
-      return fai.Schema.number(description: description, nullable: nullable);
-    case 'integer':
-      return fai.Schema.integer(description: description, nullable: nullable);
-    case 'boolean':
-      return fai.Schema.boolean(description: description, nullable: nullable);
-    case 'array':
-      return fai.Schema.array(
-        description: description,
-        nullable: nullable,
-        items: json['items'] != null
-            ? _toGeminiSchemaInternal(json['items'] as Map<String, dynamic>)
-            : fai.Schema.string(),
+({String? status, String? message})? _errorOf(String json) {
+  try {
+    if (jsonDecode(json) case {'error': final Map<String, dynamic> error}) {
+      return (
+        status: error['status'] as String?,
+        message: error['message'] as String?,
       );
-    case 'object':
-      if (json.containsKey('properties')) {
-        final properties = (json['properties'] as Map<String, dynamic>?)?.map(
-          (k, v) =>
-              MapEntry(k, _toGeminiSchemaInternal(v as Map<String, dynamic>)),
-        );
-        return fai.Schema.object(
-          properties: properties ?? {},
-          description: description,
-          nullable: nullable,
-        );
-      } else {
-        return fai.Schema(
-          fai.SchemaType.object,
-          description: description,
-          nullable: nullable,
-        );
-      }
-    default:
-      return fai.Schema.string(description: description, nullable: nullable);
+    }
+  } on FormatException {
+    return null;
   }
-}
-
-@visibleForTesting
-fai.GenerationConfig toGeminiSettings(
-  GeminiOptions options,
-  Map<String, dynamic>? outputSchema,
-  bool isJsonMode,
-) {
-  return fai.GenerationConfig(
-    candidateCount: options.candidateCount,
-    stopSequences: options.stopSequences ?? [],
-    maxOutputTokens: options.maxOutputTokens,
-    temperature: options.temperature,
-    topP: options.topP,
-    topK: options.topK,
-    responseMimeType: isJsonMode
-        ? 'application/json'
-        : (options.responseMimeType ?? ''),
-    responseSchema: outputSchema != null
-        ? toGeminiSchema(outputSchema)
-        : (options.responseSchema != null
-              ? toGeminiSchema(options.responseSchema!)
-              : null),
-    presencePenalty: options.presencePenalty,
-    frequencyPenalty: options.frequencyPenalty,
-    responseModalities: options.responseModalities
-        ?.map((e) => fai.ResponseModalities.values.byName(e.toLowerCase()))
-        .toList(),
-    thinkingConfig: options.thinkingConfig == null
-        ? null
-        : fai.ThinkingConfig(
-            includeThoughts: options.thinkingConfig!.includeThoughts ?? false,
-            thinkingBudget: options.thinkingConfig!.thinkingBudget,
-          ),
-  );
-}
-
-@visibleForTesting
-fai.ToolConfig? toGeminiToolConfig(
-  FunctionCallingConfig? functionCallingConfig,
-) {
-  if (functionCallingConfig == null) return null;
-  final mConfig = switch (functionCallingConfig.mode?.toUpperCase()) {
-    'ANY' => fai.FunctionCallingConfig.any(
-      functionCallingConfig.allowedFunctionNames?.toSet() ?? {},
-    ),
-    'NONE' => fai.FunctionCallingConfig.none(),
-    _ => fai.FunctionCallingConfig.auto(),
-  };
-  return fai.ToolConfig(functionCallingConfig: mConfig);
-}
-
-@visibleForTesting
-GenerationUsage? extractUsage(fai.UsageMetadata? metadata) {
-  if (metadata == null) return null;
-  return GenerationUsage(
-    inputTokens: metadata.promptTokenCount?.toDouble() ?? 0,
-    outputTokens: metadata.candidatesTokenCount?.toDouble() ?? 0,
-    totalTokens: metadata.totalTokenCount?.toDouble() ?? 0,
-  );
+  return null;
 }

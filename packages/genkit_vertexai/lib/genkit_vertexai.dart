@@ -20,23 +20,33 @@ import 'src/vertex_api_client.dart';
 
 export 'package:genkit_google_genai/genkit_google_genai.dart'
     show
+        GeminiFileSearch,
+        GeminiFunctionCallingConfig,
+        GeminiGoogleSearch,
+        GeminiMultiSpeakerVoiceConfig,
         GeminiOptions,
+        GeminiPrebuiltVoiceConfig,
+        GeminiSafetySettings,
+        GeminiSpeakerVoiceConfig,
+        GeminiSpeechConfig,
+        GeminiThinkingConfig,
         GeminiTtsOptions,
-        GoogleSearch,
-        MultiSpeakerVoiceConfig,
-        PrebuiltVoiceConfig,
-        SafetySettings,
-        SpeakerVoiceConfig,
-        SpeechConfig,
-        TextEmbedderOptions,
-        ThinkingConfig,
-        VoiceConfig;
+        GeminiVoiceConfig,
+        GoogleGenAiEmbedderOptions;
 
 const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 
 class VertexAiPluginHandle {
   const VertexAiPluginHandle();
 
+  /// Creates the Vertex AI plugin. [projectId] falls back to
+  /// `GOOGLE_CLOUD_PROJECT`/`GCLOUD_PROJECT`, and [location] defaults to
+  /// `global`.
+  ///
+  /// [authClient] replaces the default transport for credential and API calls.
+  /// It is never closed by the plugin; the caller owns its lifecycle. Because
+  /// close() is suppressed, cancellation cannot abort an in-flight request on
+  /// an injected client.
   GenkitPlugin call({
     String? projectId,
     String? location,
@@ -53,10 +63,10 @@ class VertexAiPluginHandle {
     return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
   }
 
-  EmbedderRef<TextEmbedderOptions> textEmbedding(String name) {
+  EmbedderRef<GoogleGenAiEmbedderOptions> textEmbedding(String name) {
     return embedderRef(
       'vertexai/$name',
-      customOptions: TextEmbedderOptions.$schema,
+      customOptions: GoogleGenAiEmbedderOptions.$schema,
     );
   }
 }

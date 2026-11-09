@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import 'exporter_impl.dart';
-
-void configureCollectorExporter() {
-  const telemetryServer = String.fromEnvironment('GENKIT_TELEMETRY_SERVER');
-  if (telemetryServer.isNotEmpty) {
-    setupExporter(telemetryServer);
-  }
+/// The Genkit telemetry server base URL from the `GENKIT_TELEMETRY_SERVER`
+/// compile-time environment, or `null` when it is not set.
+String? genkitTelemetryServerUrl() {
+  const server = String.fromEnvironment('GENKIT_TELEMETRY_SERVER');
+  return server.isEmpty ? null : server;
 }

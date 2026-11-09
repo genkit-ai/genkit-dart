@@ -65,7 +65,7 @@ void main() {
       test('should list models', () async {
         final actions = await ai.registry.listActions();
         final modelsAndEmbedders = actions.where(
-          (a) => a.actionType == 'model' || a.actionType == 'embedder',
+          (a) => a.actionType == .model || a.actionType == .embedder,
         );
         expect(modelsAndEmbedders.isNotEmpty, isTrue);
       });
@@ -125,7 +125,7 @@ void main() {
           description: 'Multiplies two numbers',
           inputSchema: CalculatorInput.$schema,
           outputSchema: .integer(),
-          fn: (CalculatorInput input, _) async => input.a * input.b,
+          fn: (CalculatorInput input, _) async => .response(input.a * input.b),
         );
 
         final response = await ai.generate(
@@ -138,7 +138,7 @@ void main() {
       });
 
       test('should embed text', () async {
-        final embeddings = await ai.embedMany(
+        final embeddings = await ai.embed(
           embedder: config.textEmbedding(config.embedderName),
           documents: [
             DocumentData(content: [TextPart(text: 'Hello world')]),
@@ -152,7 +152,7 @@ void main() {
       });
 
       test('should embed multiple texts', () async {
-        final embeddings = await ai.embedMany(
+        final embeddings = await ai.embed(
           embedder: config.textEmbedding(config.embedderName),
           documents: [
             DocumentData(content: [TextPart(text: 'Hello')]),
@@ -166,12 +166,12 @@ void main() {
       });
 
       test('should embed with options', () async {
-        final embeddings = await ai.embedMany(
+        final embeddings = await ai.embed(
           embedder: config.textEmbedding(config.embedderName),
           documents: [
             DocumentData(content: [TextPart(text: 'Hello')]),
           ],
-          options: TextEmbedderOptions(
+          options: GoogleGenAiEmbedderOptions(
             outputDimensionality: 256,
             taskType: 'RETRIEVAL_DOCUMENT',
           ),
@@ -182,7 +182,7 @@ void main() {
       });
 
       test('should embed text and image with multimodal embedder', () async {
-        final embeddings = await ai.embedMany(
+        final embeddings = await ai.embed(
           embedder: config.textEmbedding('multimodalembedding'),
           documents: [
             DocumentData(

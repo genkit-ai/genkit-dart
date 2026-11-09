@@ -14,7 +14,11 @@
 
 import 'dart:async';
 
+import 'package:meta/meta.dart';
+import 'package:schemantic/schemantic.dart';
+
 import '../core/action.dart';
+import '../core/cancellation.dart';
 import '../core/dynamic_action_provider.dart';
 import '../core/registry.dart';
 import '../exception.dart';
@@ -26,13 +30,21 @@ import '../types.dart';
 import 'formatters/formatters.dart';
 import 'generate_middleware.dart';
 import 'generate_types.dart';
-import 'interrupt.dart';
 import 'model.dart';
 import 'tool.dart';
+import 'tool_resolution.dart';
 
 const _defaultMaxTurns = 5;
 
-typedef _ToolStatus = ({Object? output, ToolInterruptException? interrupt});
+/// Per-request outcome of a tool call within a turn. `interrupted` marks an
+/// interrupt, whose payload is `interruptData` (`true` when none was given).
+typedef _ToolStatus = ({
+  Object? output,
+  List<dynamic>? content,
+  Map<String, dynamic>? metadata,
+  bool interrupted,
+  Object? interruptData,
+});
 
 typedef GenerateAction =
     Action<GenerateActionOptions, ModelResponse, ModelResponseChunk, void>;
@@ -40,7 +52,7 @@ typedef GenerateAction =
 /// Defines the utility 'generate' action.
 GenerateAction defineGenerateAction(Registry registry) {
   return Action(
-    actionType: 'util',
+    actionType: .util,
     name: 'generate',
     inputSchema: GenerateActionOptions.$schema,
     outputSchema: ModelResponse.$schema,
@@ -49,7 +61,7 @@ GenerateAction defineGenerateAction(Registry registry) {
       if (options == null) {
         throw GenkitException(
           'Generate action called with null options',
-          status: StatusCodes.INVALID_ARGUMENT,
+          status: StatusCode.invalidArgument,
         );
       }
       final response = await runGenerateAction(
@@ -63,17 +75,50 @@ GenerateAction defineGenerateAction(Registry registry) {
   );
 }
 
+/// Converts a [Tool] into the [ToolDefinition] sent to the model.
+///
+/// The wire name is shortened to the last path segment (so a namespaced or
+/// DAP-provided tool like `my-server/weatherTool` is presented to the model as
+/// `weatherTool`); the full name is preserved in `metadata.originalName` and
+/// the resolution key is copied onto [ToolDefinition.key] so provenance
+/// survives into the request trace. Mirrors JS's `toToolDefinition`.
 ToolDefinition toToolDefinition(Tool tool) {
+  final originalName = tool.name;
+  final name = shortToolName(originalName);
+
   return ToolDefinition(
-    name: tool.name,
+    name: name,
+    key: tool.key,
     description: tool.description!,
+    // Non-object schemas are wrapped later, at the model boundary (see
+    // `ToolInputWrapping`), so the request trace shows the declared schema.
     inputSchema: tool.inputSchema?.jsonSchema != null
         ? toJsonSchema(type: tool.inputSchema)
         : null,
-    outputSchema: tool.outputSchema?.jsonSchema != null
-        ? toJsonSchema(type: tool.outputSchema)
+    outputSchema: tool.toolOutputSchema?.jsonSchema != null
+        ? toJsonSchema(type: tool.toolOutputSchema)
         : null,
+    metadata: originalName != name ? {'originalName': originalName} : null,
   );
+}
+
+/// Raises [GenkitException] when two tools resolve to the same wire (short)
+/// name, which would make the model's tool request ambiguous. Mirrors JS's
+/// `assertValidToolNames`.
+void _assertValidToolNames(Iterable<Tool> tools) {
+  final seen = <String, String>{};
+  for (final tool in tools) {
+    final full = tool.name;
+    final short = shortToolName(full);
+    final existing = seen[short];
+    if (existing != null && existing != full) {
+      throw GenkitException(
+        "Cannot provide two tools with the same name: '$full' and '$existing'",
+        status: StatusCode.invalidArgument,
+      );
+    }
+    seen[short] = full;
+  }
 }
 
 /// Base class for model-specific configuration.
@@ -99,23 +144,21 @@ abstract class GenerateConfig {}
         if (def == null) {
           throw GenkitException(
             'Middleware ${mw.middlewareRef!.name} not found',
-            status: StatusCodes.NOT_FOUND,
+            status: StatusCode.notFound,
           );
         }
 
-        final config = mw.middlewareRef!.config;
-        final parsedConfig =
-            (config is Map<String, dynamic> && def.configSchema != null)
-            ? def.configSchema!.parse(config)
-            : config;
-
         resolvedMiddleware.add(
-          def.create(parsedConfig, (ai: GenkitAI(registry))),
+          createMiddlewareFromRef(
+            def,
+            mw.middlewareRef!.config,
+            GenerateMiddlewareContext(ai: GenkitAI(registry)),
+          ),
         );
       } else {
         throw GenkitException(
           'Invalid middleware type: ${mw.runtimeType}. Expected GenerateMiddleware or GenerateMiddlewareRef.',
-          status: StatusCodes.INVALID_ARGUMENT,
+          status: StatusCode.invalidArgument,
         );
       }
     }
@@ -139,6 +182,7 @@ Future<
     Registry registry,
     List<ToolDefinition> toolDefs,
     Set<String> activeToolNames,
+    Map<String, Tool> toolMap,
   })
 >
 _resolveTools(
@@ -148,59 +192,55 @@ _resolveTools(
 ) async {
   var toolDefs = <ToolDefinition>[];
   final activeToolNames = <String>{};
+  // Keyed by the short (wire) name so the model's tool request resolves back to
+  // the concrete tool even when its full name was namespaced (e.g. a DAP tool
+  // `my-server/weatherTool` presented to the model as `weatherTool`).
+  final toolMap = <String, Tool>{};
+  final resolvedTools = <Tool>[];
   var currentRegistry = registry;
+
+  void addTool(Tool tool) {
+    resolvedTools.add(tool);
+    activeToolNames.add(tool.name);
+    toolMap[shortToolName(tool.name)] = tool;
+    toolDefs.add(toToolDefinition(tool));
+  }
 
   if (requestedTools != null) {
     if (requestedTools.any((t) => t.contains(':'))) {
       currentRegistry = Registry.childOf(registry);
     }
     for (var toolName in requestedTools) {
-      final colonIdx = toolName.indexOf(':');
-      if (colonIdx != -1) {
-        final dapName = toolName.substring(0, colonIdx);
-        var actionMatcher = toolName.substring(colonIdx + 1);
-        if (actionMatcher.startsWith('tool/')) {
-          actionMatcher = actionMatcher.substring('tool/'.length);
-        }
+      // A DAP reference is either the full Dev UI registry key
+      // (`/dynamic-action-provider/<host>:<type>/<name>`) or the shorthand
+      // (`<host>:tool/<name>`, `<host>:*`, etc.). See parseDapToolRef.
+      final dapRef = parseDapToolRef(toolName);
+      if (dapRef != null) {
         final dap =
             await currentRegistry.lookupAction(
-                  'dynamic-action-provider',
-                  dapName,
+                  .dynamicActionProvider,
+                  dapRef.host,
                 )
                 as DynamicActionProvider?;
 
         if (dap != null) {
-          if (actionMatcher.endsWith('*')) {
-            final prefix = actionMatcher.substring(0, actionMatcher.length - 1);
-            final actions = await dap.listActions();
-            for (final action in actions) {
-              if (action.actionType == 'tool' &&
-                  (prefix.isEmpty || action.name.startsWith(prefix))) {
-                final fullAction = await dap.getAction(action.name);
-                if (fullAction != null && fullAction is Tool) {
-                  currentRegistry.register(fullAction);
-                  activeToolNames.add(fullAction.name);
-                  toolDefs.add(toToolDefinition(fullAction));
-                }
-              }
-            }
-          } else {
-            final fullAction = await dap.getAction(actionMatcher);
-            if (fullAction != null && fullAction is Tool) {
-              currentRegistry.register(fullAction);
-              activeToolNames.add(fullAction.name);
-              toolDefs.add(toToolDefinition(fullAction));
-            }
+          for (final action in await resolveDapActions(dap, dapRef)) {
+            currentRegistry.register(action);
+            // Only tools are attached to the model's tool slot; prompts and
+            // resources are registered so they remain resolvable by key.
+            if (action is Tool) addTool(action);
           }
           continue;
         }
       }
 
-      activeToolNames.add(toolName);
-      final tool =
-          await currentRegistry.lookupAction('tool', toolName) as Tool?;
+      final tool = await currentRegistry.lookupAction(.tool, toolName) as Tool?;
       if (tool != null) {
-        toolDefs.add(toToolDefinition(tool));
+        addTool(tool);
+      } else {
+        // Preserve the requested name so downstream lookups still surface a
+        // "tool not found" for an unresolved reference.
+        activeToolNames.add(toolName);
       }
     }
   }
@@ -210,50 +250,259 @@ _resolveTools(
       .toList();
   for (final tool in middlewareTools) {
     if (!activeToolNames.contains(tool.name)) {
-      activeToolNames.add(tool.name);
-      toolDefs.add(toToolDefinition(tool));
+      addTool(tool);
     }
   }
+
+  // Guard against two tools colliding on the same wire name before generation.
+  _assertValidToolNames(resolvedTools);
 
   return (
     registry: currentRegistry,
     toolDefs: toolDefs,
     activeToolNames: activeToolNames,
+    toolMap: toolMap,
   );
 }
 
-Future<GenerateResponseHelper> _runGenerateLoop(
+/// Finish reasons that skip output parsing and are treated as terminal by the
+/// typed helpers: the model did not produce a normal completion, so running its
+/// (missing or partial) output through a schema parser would only mask the
+/// reason the caller needs to see. Mirrors Go's `FinishReason.isAbnormal`.
+extension _AbnormalFinish on FinishReason {
+  bool get isAbnormal => const {
+    'blocked',
+    'aborted',
+    'failed',
+    'interrupted',
+    'other',
+  }.contains(value);
+}
+
+/// Maps a thrown value to the structured [RuntimeError] carried on an abnormal
+/// response's `error` field. Preserves a [GenkitException]'s status; anything
+/// else is reported as `INTERNAL`. The structured `error` is the serializable
+/// view; the raw thrown object rides along on [GenerateResult.cause]
+/// for in-process inspection. Mirrors Go's `responseError`, which carries only
+/// the classified status and message (no nested details).
+RuntimeError _toRuntimeError(Object cause) {
+  if (cause is GenkitException) {
+    return RuntimeError(status: cause.status.wireName, message: cause.message);
+  }
+  return RuntimeError(
+    status: StatusCode.internal.wireName,
+    message: cause.toString(),
+  );
+}
+
+/// Classifies a tool's error for the loop. A genuine tool failure becomes an
+/// INTERNAL [GenkitException] whose message names the tool, wrapping the
+/// original as `cause` so callers can still reach it (and
+/// `response.cause`). Mirrors Go's `toolFailureError` and `ErrToolFailed`: a
+/// tool's failure is not a failure of the caller's request, so the tool's own
+/// status must not become the whole generation's.
+GenkitException _toolFailureError(String toolName, Object cause) {
+  final detail = cause is GenkitException ? cause.message : cause.toString();
+  return GenkitException(
+    'tool "$toolName" failed: $detail',
+    status: StatusCode.internal,
+    cause: cause,
+  );
+}
+
+/// Builds an abnormal-finish [GenerateResult] carrying [history] as the
+/// resumable message list and [error] as the structured cause. Used for every
+/// non-success terminal the loop resolves to rather than throws: a model or tool
+/// failure ([FinishReason.failed]) and a cooperative stop such as a cancel or a
+/// `maxTurns` overrun ([FinishReason.aborted]).
+///
+/// Mirrors Go's `failurePartial`: the message is dropped so nothing
+/// half-finished rides along (the caller resumes from `response.messages`), and
+/// `error` is set on both the failed and aborted paths so a caller reading
+/// `response.error` after seeing an abnormal finish reason always gets a
+/// payload. [base], when non-null, supplies the accounting the turn already
+/// earned (usage/custom/raw/latency/operation) so a failure still reports what
+/// the run spent before it broke.
+GenerateResult _abnormalResponse({
+  required FinishReason finishReason,
+  required List<Message> history,
+  required RuntimeError error,
+  String? finishMessage,
+  Map<String, dynamic>? config,
+  ModelResponse? base,
+  Object? cause,
+}) {
+  final request = ModelRequest(messages: history, config: config);
+  return GenerateResult(
+    ModelResponse(
+      finishReason: finishReason,
+      finishMessage: finishMessage ?? error.message,
+      error: error,
+      usage: base?.usage,
+      custom: base?.custom,
+      raw: base?.raw,
+      latencyMs: base?.latencyMs,
+      operation: base?.operation,
+      // Stamp the request onto the ModelResponse too (not just the helper) so
+      // the resumable history survives the reflection boundary (the registered
+      // `generate` util action returns `response.modelResponse`, dropping the
+      // helper's own `_request`).
+      request: GenerateRequest(messages: history, config: config),
+    ),
+    request: request,
+    output: null,
+    cause: cause,
+  );
+}
+
+/// Builds an aborted response for a cooperative stop (a cancel or a `maxTurns`
+/// overrun). Carries an ABORTED-classed error, or a [GenkitException]'s own
+/// status when a genuine failure raced the cancel, so this path reports an
+/// `error` like the failed path does. [reason] is a status message string, the
+/// exception that raced the cancel, or null.
+GenerateResult _abortedResponse({
+  required List<Message> history,
+  Map<String, dynamic>? config,
+  Object? reason,
+  ModelResponse? base,
+}) {
+  final message = reason is String
+      ? reason
+      : (reason?.toString() ?? 'Generation was cancelled');
+  final error = reason is GenkitException
+      ? _toRuntimeError(reason)
+      : RuntimeError(status: StatusCode.aborted.wireName, message: message);
+  return _abnormalResponse(
+    finishReason: FinishReason.aborted,
+    history: history,
+    error: error,
+    finishMessage: message,
+    config: config,
+    base: base,
+    // Only a genuine thrown object is a `cause`; a plain status message is not.
+    cause: reason is String ? null : reason,
+  );
+}
+
+/// Builds a failed response for a model or tool error: the loop resolves with
+/// [FinishReason.failed] and no message, carrying [cause] as the structured
+/// `error` (and the raw object on `cause`), so the caller can inspect
+/// `response.error` and resume from `response.messages`.
+GenerateResult _failedResponse({
+  required List<Message> history,
+  required Object cause,
+  Map<String, dynamic>? config,
+  ModelResponse? base,
+}) {
+  return _abnormalResponse(
+    finishReason: FinishReason.failed,
+    history: history,
+    error: _toRuntimeError(cause),
+    config: config,
+    base: base,
+    cause: cause,
+  );
+}
+
+/// Decides whether an exception [e] raised during a generation turn should be
+/// converted into an aborted response, or rethrown.
+///
+/// Returns a [GenerateResult] (the abort) when:
+/// - [e] is a [CancelledException] produced by *this* turn's [cancel] token
+///   (matched by identity, or by the token being cancelled), or
+/// - [cancel] is cancelled and [e] is a generic failure surfaced because the
+///   plugin honored cancellation by tearing down its transport (e.g. a
+///   `SocketException` from a closed HTTP client). In that case the original
+///   error is preserved as the finish reason so a genuine failure that merely
+///   raced the cancel is not silently masked.
+///
+/// Returns `null` when the caller should rethrow: a [CancelledException] from an
+/// unrelated token (e.g. a tool's own internal timeout) is a real failure, not
+/// an abort of this generation.
+///
+/// All abort sites pass the same [history] shape (the turn's accumulated,
+/// pre-format-injection `options.messages`) so the resumable state a caller
+/// feeds back does not depend on *when* the cancel fired.
+GenerateResult? _abortResponseIfCancelled(
+  Object e,
+  CancellationToken? cancel, {
+  required List<Message> history,
+  Map<String, dynamic>? config,
+}) {
+  if (cancel == null) return null;
+  if (e is CancelledException) {
+    if (identical(e.token, cancel) || cancel.isCancelled) {
+      return _abortedResponse(
+        history: history,
+        config: config,
+        reason: cancel.reason,
+      );
+    }
+    return null;
+  }
+  if (cancel.isCancelled) {
+    return _abortedResponse(
+      history: history,
+      config: config,
+      reason: cancel.reason ?? e,
+    );
+  }
+  return null;
+}
+
+Future<GenerateResult> _runGenerateLoop(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
   required List<GenerateMiddleware> resolvedMiddleware,
-  required Future<GenerateResponseHelper> Function(GenerateTurnState envelope)
+  required Future<GenerateResult> Function(GenerateTurnState envelope)
   composedGenerate,
   int currentTurn = 0,
   int messageIndex = 0,
 }) async {
+  // Cooperative checkpoint at the start of every turn so a cancel between turns
+  // resolves with an aborted response carrying the last-good history (rather
+  // than throwing), letting the caller resume from `response.messages`.
+  if (ctx.cancel?.isCancelled ?? false) {
+    return _abortedResponse(
+      history: options.messages,
+      config: options.config,
+      reason: ctx.cancel?.reason,
+    );
+  }
+  // Setup-phase faults (a missing/unknown model here, a bad option) throw with
+  // no response, matching Go: they are caller mistakes raised before the request
+  // resolves, not a run that broke mid-flight. Everything after the request
+  // resolves - a model call, a tool, a middleware hook - resolves to a
+  // `failed`/`aborted` response instead of throwing. The split is by *when* the
+  // fault is a caller mistake vs a run failure, not by call-stack depth.
   if (options.model == null) {
     throw GenkitException(
       'Model must be provided',
-      status: StatusCodes.INVALID_ARGUMENT,
+      status: StatusCode.invalidArgument,
     );
   }
 
-  // Check turn limits
+  // Check turn limits. Treat exceeding the limit like a cooperative abort:
+  // resolve with an aborted response carrying the history so far, so the caller
+  // can inspect/resume rather than catching an exception.
   final maxTurns = options.maxTurns ?? _defaultMaxTurns;
   if (currentTurn >= maxTurns) {
-    throw GenkitException(
-      'Reached max turns of $maxTurns. Adjust maxTurns option to increase the max number of turns.',
-      status: StatusCodes.ABORTED,
+    return _abortedResponse(
+      history: options.messages,
+      config: options.config,
+      reason:
+          'Reached max turns of $maxTurns. Adjust maxTurns option to increase '
+          'the max number of turns.',
     );
   }
 
   final modelName = options.model!;
-  final model = await registry.lookupAction('model', modelName) as Model?;
+  final model = await registry.lookupAction(.model, modelName) as Model?;
   if (model == null) {
     throw GenkitException(
       'Model $modelName not found',
-      status: StatusCodes.NOT_FOUND,
+      status: StatusCode.notFound,
     );
   }
 
@@ -268,6 +517,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   );
   registry = resolved.registry;
   final toolDefs = resolved.toolDefs;
+  final toolMap = resolved.toolMap;
 
   final request = ModelRequest(
     messages: requestOptions.messages,
@@ -290,10 +540,16 @@ Future<GenerateResponseHelper> _runGenerateLoop(
     ModelRequest req,
     ActionFnArg<ModelResponseChunk, ModelRequest, void> c,
   ) {
+    // Cooperative checkpoint right before the (potentially expensive) model
+    // call. Middleware wrapping `model` runs before this and can observe
+    // `c.cancel` itself.
+    c.cancel?.throwIfCancelled();
+
     return model(
       req,
       onChunk: c.streamingRequested ? c.sendChunk : null,
       context: c.context,
+      cancel: c.cancel,
     );
   }
 
@@ -313,7 +569,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       resolvedMiddleware,
     );
     if (resumed.interruptedResponse != null) {
-      return GenerateResponseHelper(
+      return GenerateResult(
         resumed.interruptedResponse!,
         request: currentRequest,
         output: null,
@@ -325,40 +581,68 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   var currentChunkRole = Role.model;
   var modelHasSentChunks = false;
 
-  // Execute model with middleware
-  var response = await composedModel(currentRequest, (
-    streamingRequested: ctx.streamingRequested,
-    sendChunk: (chunk) {
-      final currentRole = chunk.role ?? Role.model;
-      if (currentRole != currentChunkRole && modelHasSentChunks) messageIndex++;
-      currentChunkRole = currentRole;
-      modelHasSentChunks = true;
+  // Execute model with middleware. If the turn is cancelled mid-call, resolve
+  // with an aborted response carrying this turn's input history (the partial
+  // model output already went out as stream chunks and is intentionally not
+  // part of the resumable history). We catch broadly because a plugin that
+  // honors cancellation by tearing down its transport (e.g. closing the HTTP
+  // client) may surface a transport error rather than a `CancelledException`;
+  // we only convert when the token is actually cancelled, otherwise rethrow.
+  final ModelResponse response;
+  try {
+    response = await composedModel(
+      currentRequest,
+      ActionFnArg(
+        streamingRequested: ctx.streamingRequested,
+        sendChunk: (chunk) {
+          final currentRole = chunk.role ?? Role.model;
+          if (currentRole != currentChunkRole && modelHasSentChunks) {
+            messageIndex++;
+          }
+          currentChunkRole = currentRole;
+          modelHasSentChunks = true;
 
-      ctx.sendChunk(
-        ModelResponseChunk(
-          index: chunk.index ?? messageIndex,
-          content: chunk.content,
-          role: currentChunkRole,
-          custom: chunk.custom,
-          aggregated: chunk.aggregated,
-        ),
-      );
-    },
-    context: ctx.context,
-    inputStream: null,
-    init: null,
-  ));
+          ctx.sendChunk(
+            ModelResponseChunk(
+              index: chunk.index ?? messageIndex,
+              content: chunk.content,
+              role: currentChunkRole,
+              custom: chunk.custom,
+              aggregated: chunk.aggregated,
+            ),
+          );
+        },
+        context: ctx.context,
+        cancel: ctx.cancel,
+      ),
+    );
+  } catch (e) {
+    // A cancel of this turn's token resolves to an aborted response carrying
+    // the last-good history. A genuine model error resolves to a failed
+    // response carrying the same last-good history (the failing turn's own
+    // partial output is dropped), so the caller can inspect `response.error`
+    // and resume from `response.messages` - mirroring the abort path and Go's
+    // `failurePartial`.
+    final aborted = _abortResponseIfCancelled(
+      e,
+      ctx.cancel,
+      history: options.messages,
+      config: options.config,
+    );
+    if (aborted != null) return aborted;
+    return _failedResponse(
+      history: options.messages,
+      config: options.config,
+      cause: e,
+    );
+  }
 
   final parser = format
       ?.handler(requestOptions.output?.jsonSchema)
       .parseMessage;
 
   if (requestOptions.returnToolRequests ?? false) {
-    return GenerateResponseHelper(
-      response,
-      request: currentRequest,
-      output: null,
-    );
+    return GenerateResult(response, request: currentRequest, output: null);
   }
 
   final toolRequests = response.message?.content
@@ -367,19 +651,76 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       .toList();
 
   if (toolRequests == null || toolRequests.isEmpty) {
-    return GenerateResponseHelper(
-      response,
-      request: currentRequest,
-      output: _parseOutput(response.message, parser),
-    );
+    // Skip output parsing on an abnormal finish (blocked, failed, ...): the
+    // model did not complete normally, so the response passes through as-is and
+    // the caller reads the finish reason rather than a schema error. Mirrors
+    // Go's `FinishReason.isAbnormal` guard.
+    if (parser == null || response.finishReason.isAbnormal) {
+      return GenerateResult(response, request: currentRequest, output: null);
+    }
+    try {
+      return GenerateResult(
+        response,
+        request: currentRequest,
+        output: _parseOutput(response.message, parser),
+      );
+    } catch (e) {
+      // The model finished but its output does not match the expected schema.
+      // The response rides back with its original message and finish reason
+      // intact (the raw output is often exactly what the caller needs) under an
+      // INTERNAL error, rather than throwing out of `generate`. Mirrors Go's
+      // `ErrInvalidOutput` parse-failure path.
+      response.error = RuntimeError(
+        status: StatusCode.internal.wireName,
+        message: 'model failed to generate output matching expected schema: $e',
+      );
+      return GenerateResult(
+        response,
+        request: currentRequest,
+        output: null,
+        cause: e,
+      );
+    }
   }
 
-  final execution = await _executeTools(
-    registry,
-    toolRequests,
-    ctx.context,
-    middleware: resolvedMiddleware,
-  );
+  final ({
+    List<ToolResponsePart> toolResponses,
+    bool interrupted,
+    Map<String, _ToolStatus> toolStatus,
+  })
+  execution;
+  try {
+    execution = await _executeTools(
+      registry,
+      toolRequests,
+      ctx.context,
+      cancel: ctx.cancel,
+      middleware: resolvedMiddleware,
+      toolMap: toolMap,
+    );
+  } catch (e) {
+    // A tool cancelled mid-execution: resolve with the last-good history (this
+    // turn's input), discarding the model message whose tool requests were left
+    // unanswered so the history stays a clean resume point. A tool error that is
+    // not a cancel resolves to a failed response carrying that same clean
+    // history, so the caller can inspect `response.error` and resume.
+    final aborted = _abortResponseIfCancelled(
+      e,
+      ctx.cancel,
+      history: options.messages,
+      config: options.config,
+    );
+    if (aborted != null) return aborted;
+    return _failedResponse(
+      history: options.messages,
+      config: options.config,
+      cause: e,
+      // The model already answered this turn; carry its accounting (usage,
+      // custom, raw, latency) onto the failed response so what the turn spent
+      // before the tool broke is still reported.
+      base: response,
+    );
+  }
   final toolResponses = execution.toolResponses;
   final toolStatus = execution.toolStatus;
   final interrupted = execution.interrupted;
@@ -391,11 +732,7 @@ Future<GenerateResponseHelper> _runGenerateLoop(
       originalResponse: response,
     );
 
-    return GenerateResponseHelper(
-      newResponse,
-      request: currentRequest,
-      output: null,
-    );
+    return GenerateResult(newResponse, request: currentRequest, output: null);
   }
 
   // If the loop will continue, stream out the tool response message so clients
@@ -432,14 +769,16 @@ Future<GenerateResponseHelper> _runGenerateLoop(
   );
 
   // Recursively call composedGenerate for the next turn
-  return composedGenerate((
-    request: nextOptions,
-    currentTurn: currentTurn + 1,
-    messageIndex: messageIndex + 2,
-  ));
+  return composedGenerate(
+    GenerateTurnState(
+      request: nextOptions,
+      currentTurn: currentTurn + 1,
+      messageIndex: messageIndex + 2,
+    ),
+  );
 }
 
-Future<GenerateResponseHelper> runGenerateAction(
+Future<GenerateResult> runGenerateAction(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
@@ -455,11 +794,11 @@ Future<GenerateResponseHelper> runGenerateAction(
       return _runGenerateAction(registry, options, ctx, middleware: middleware);
     },
     input: options,
-    actionType: 'util',
+    actionType: ActionType.util.value,
   );
 }
 
-Future<GenerateResponseHelper> _runGenerateAction(
+Future<GenerateResult> _runGenerateAction(
   Registry registry,
   GenerateActionOptions options,
   ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> ctx, {
@@ -503,13 +842,13 @@ Future<GenerateResponseHelper> _runGenerateAction(
   final generateRegistry = resolved.registry;
   final resolvedMiddleware = resolved.middleware;
 
-  late Future<GenerateResponseHelper> Function(
+  late Future<GenerateResult> Function(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
   )
   composedGenerate;
 
-  Future<GenerateResponseHelper> coreGenerate(
+  Future<GenerateResult> coreGenerate(
     GenerateTurnState envelope,
     ActionFnArg<ModelResponseChunk, GenerateActionOptions, void> c,
   ) async {
@@ -519,12 +858,51 @@ Future<GenerateResponseHelper> _runGenerateAction(
     final toolStatus = <String, _ToolStatus>{};
 
     if (resumeRestart.isNotEmpty) {
-      final execution = await _executeTools(
-        generateRegistry,
-        resumeRestart.cast<ToolRequestPart>().toList(),
-        c.context,
-        middleware: resolvedMiddleware,
-      );
+      final ({
+        List<ToolResponsePart> toolResponses,
+        bool interrupted,
+        Map<String, _ToolStatus> toolStatus,
+      })
+      execution;
+      try {
+        // Validate before running any restarted tool so a bad resume doesn't
+        // trigger tool side effects. `_resolveResume` re-checks on the next
+        // pass, which also covers respond-only resumes.
+        _assertResumable(opts.messages);
+        final restartTools = await _resolveTools(
+          generateRegistry,
+          opts.tools,
+          resolvedMiddleware,
+        );
+        execution = await _executeTools(
+          restartTools.registry,
+          resumeRestart.cast<ToolRequestPart>().toList(),
+          c.context,
+          cancel: c.cancel,
+          middleware: resolvedMiddleware,
+          toolMap: restartTools.toolMap,
+        );
+      } catch (e) {
+        // A cancel during the restart tool execution resolves to an aborted
+        // response (like the two sites inside `_runGenerateLoop`); any other
+        // error (a throwing restarted tool) resolves to a failed response
+        // carrying the last-good history, rather than escaping `generate()` as a
+        // throw. `coreGenerate` runs before the loop's own entry checkpoint, so
+        // without this an already-cancelled restart would surface a
+        // `CancelledException` to the caller.
+        final aborted = _abortResponseIfCancelled(
+          e,
+          c.cancel,
+          history: opts.messages,
+          config: opts.config,
+        );
+        if (aborted != null) return aborted;
+        return _failedResponse(
+          history: opts.messages,
+          config: opts.config,
+          cause: e,
+        );
+      }
       toolStatus.addAll(execution.toolStatus);
 
       if (execution.interrupted) {
@@ -536,32 +914,17 @@ Future<GenerateResponseHelper> _runGenerateAction(
               'One or more restarted tools triggered interrupts while resuming generation. The model was not called.',
         );
 
-        return GenerateResponseHelper(
+        return GenerateResult(
           newResponse,
           request: ModelRequest(messages: opts.messages, config: opts.config),
           output: null,
         );
       }
 
-      // Map outputs back to respondents
-      final respond = opts.resume?.respond?.toList() ?? [];
-      for (final entry in toolStatus.entries) {
-        if (entry.value.interrupt == null && entry.value.output != null) {
-          final reqPart = resumeRestart.firstWhere((p) {
-            final t = p.toolRequest;
-            return (t.ref ?? t.name) == entry.key;
-          });
-          respond.add(
-            ToolResponsePart(
-              toolResponse: ToolResponse(
-                ref: reqPart.toolRequest.ref,
-                name: reqPart.toolRequest.name,
-                output: entry.value.output,
-              ),
-            ),
-          );
-        }
-      }
+      // Restarted tools become responses for the next pass. `_executeTools`
+      // already built them (ref/name, output, parts, metadata), so reuse them
+      // as-is rather than rebuilding from `toolStatus`.
+      final respond = [...?opts.resume?.respond, ...execution.toolResponses];
       opts = GenerateActionOptions(
         model: opts.model,
         messages: opts.messages,
@@ -579,11 +942,7 @@ Future<GenerateResponseHelper> _runGenerateAction(
         ),
       );
 
-      return composedGenerate((
-        request: opts,
-        currentTurn: currentTurn,
-        messageIndex: envelope.messageIndex,
-      ), c);
+      return composedGenerate(envelope.copyWith(request: opts), c);
     }
 
     return _runGenerateLoop(
@@ -603,11 +962,29 @@ Future<GenerateResponseHelper> _runGenerateAction(
         (env, c) => mw.generate(env, c, (nenv, nctx) => next(nenv, nctx)),
   );
 
-  return composedGenerate((
-    request: options,
-    currentTurn: 0,
-    messageIndex: 0,
-  ), ctx);
+  // The three `_failedResponse` sites inside the loop catch a model, tool, or
+  // restart-tool error. A middleware whose `generate` hook throws *before*
+  // delegating to `next` (the loop) escapes here instead, so wrap the tail to
+  // resolve it the same way: an aborted response when this turn's token was
+  // cancelled, otherwise a failed one carrying the entry history. Mirrors Go's
+  // `GenerateWithRequest` tail, which synthesizes a `failurePartial` for an
+  // error raised outside a turn (e.g. a WrapGenerate hook).
+  try {
+    return await composedGenerate(GenerateTurnState(request: options), ctx);
+  } catch (e) {
+    final aborted = _abortResponseIfCancelled(
+      e,
+      ctx.cancel,
+      history: options.messages,
+      config: options.config,
+    );
+    if (aborted != null) return aborted;
+    return _failedResponse(
+      history: options.messages,
+      config: options.config,
+      cause: e,
+    );
+  }
 }
 
 typedef GenerateMiddlewareOneof = ({
@@ -617,15 +994,16 @@ typedef GenerateMiddlewareOneof = ({
 
 /// A helper that takes loose generate arguments, contstructs GenerateActionOptions
 /// and runs the generate action.
-Future<GenerateResponseHelper> generateHelper<CustomOptions>(
+Future<GenerateResult> generateHelper<CustomOptions>(
   Registry registry, {
   String? system,
   String? prompt,
+  List<Part>? promptParts,
   List<Message>? messages,
   ModelRef<CustomOptions>? model,
   CustomOptions? config,
   List<String>? tools,
-  String? toolChoice,
+  ToolChoice? toolChoice,
   bool? returnToolRequests,
   int? maxTurns,
   GenerateActionOutputConfig? output,
@@ -633,14 +1011,29 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
   StreamingCallback<GenerateResponseChunk>? onChunk,
   List<GenerateMiddlewareOneof>? middleware,
 
+  /// Cooperative cancellation token, observed by the model call, tools, and
+  /// middleware to abort generation.
+  CancellationToken? cancel,
+
   /// List of interrupt responses to resolve interrupts.
   List<InterruptResponse>? resume,
 
   /// List of tool requests to restart during an interrupted generation session.
   List<ToolRequestPart>? restart,
 }) async {
-  if (messages == null && prompt == null && system == null) {
-    throw ArgumentError('system, prompt, or messages must be provided');
+  if (messages == null &&
+      prompt == null &&
+      promptParts == null &&
+      system == null) {
+    throw ArgumentError(
+      'system, prompt, promptParts, or messages must be provided',
+    );
+  }
+  if (prompt != null && promptParts != null) {
+    throw ArgumentError('Cannot set both prompt and promptParts.');
+  }
+  if (promptParts != null && promptParts.isEmpty) {
+    throw ArgumentError('promptParts must not be empty.');
   }
 
   GenerateResumeOptions? resolvedResume;
@@ -687,6 +1080,9 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
       ),
     );
   }
+  if (promptParts != null) {
+    resolvedMessages.add(Message(role: Role.user, content: promptParts));
+  }
 
   var resolvedModelName = model?.name;
   var resolvedConfigMap = _configToMap(config);
@@ -725,7 +1121,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
           .whereType<MiddlewareRef>()
           .toList(),
     ),
-    (
+    ActionFnArg(
       streamingRequested: onChunk != null,
       sendChunk: (chunk) {
         if (onChunk != null) {
@@ -739,8 +1135,7 @@ Future<GenerateResponseHelper> generateHelper<CustomOptions>(
         }
       },
       context: context,
-      inputStream: null,
-      init: null,
+      cancel: cancel,
     ),
     middleware: middleware,
   );
@@ -751,6 +1146,57 @@ dynamic _parseOutput(Message? message, MessageParser? parser) {
     return parser(message);
   }
   return null;
+}
+
+/// Casts a raw decoded output value to [Output] when no schema is available to
+/// parse it.
+///
+/// A plain `as` would surface a reply of the wrong shape (e.g. a JSON object
+/// for `Output = String`) as a bare `TypeError`; this reports it as a
+/// [GenkitException] naming both types instead.
+///
+/// Null maps to null, so this is safe for aborted or failed responses.
+Output? castOutput<Output>(Object? raw) {
+  if (raw == null) return null;
+  if (raw is Output) return raw as Output;
+  // JSON has one number type: a whole-number reply like `3` decodes to an
+  // int, which a `double` Output must still accept.
+  if (raw is int && <double>[] is List<Output>) {
+    return raw.toDouble() as Output;
+  }
+  throw GenkitException(
+    'Model output of type ${raw.runtimeType} does not match the expected '
+    'output type $Output.',
+  );
+}
+
+/// Parses a raw decoded output value into [Output]: with [schema] when given,
+/// otherwise via [castOutput].
+///
+/// The one rule shared by `generate`, lite `generate`, and prompts, so they
+/// cannot drift.
+@internal
+Output? parseOutput<Output>(Object? raw, SchemanticType<Output>? schema) {
+  if (raw == null) return null;
+  return schema == null ? castOutput<Output>(raw) : schema.parse(raw);
+}
+
+/// Parses a streamed chunk's *partial* output, like [parseOutput].
+///
+/// Partial JSON (e.g. `{"a": null}` while the value is still arriving) often
+/// fails a strict schema or cast. That is not a generation failure, so the
+/// chunk's typed output is just unavailable (null); the final response is
+/// still parsed strictly.
+@internal
+Output? parsePartialOutput<Output>(
+  Object? raw,
+  SchemanticType<Output>? schema,
+) {
+  try {
+    return parseOutput(raw, schema);
+  } on Object {
+    return null;
+  }
 }
 
 Output? parseChunkOutput<Output>(
@@ -773,6 +1219,21 @@ Output? parseChunkOutput<Output>(
   return null;
 }
 
+/// Throws FAILED_PRECONDITION unless [messages] ends with a model message that
+/// has at least one tool request, the only state a resume can apply to.
+/// Matches JS and Go.
+void _assertResumable(List<Message> messages) {
+  final last = messages.lastOrNull;
+  if (last?.role != Role.model ||
+      !(last?.content.any((p) => p.isToolRequest) ?? false)) {
+    throw GenkitException(
+      'Cannot resume generation: the last message must be a model message '
+      'with at least one tool request.',
+      status: StatusCode.failedPrecondition,
+    );
+  }
+}
+
 Future<({ModelRequest? request, ModelResponse? interruptedResponse})>
 _resolveResume(
   Registry registry,
@@ -781,17 +1242,14 @@ _resolveResume(
   Map<String, dynamic>? context,
   List<GenerateMiddleware>? middleware,
 ) async {
-  final lastMessage = request.messages.lastOrNull;
-  if (lastMessage?.role != Role.model ||
-      !(lastMessage?.content.any((p) => p.isToolRequest) ?? false)) {
-    return (request: request, interruptedResponse: null);
-  }
+  _assertResumable(request.messages);
+  final lastMessage = request.messages.last;
 
   final resumeRespond = resume.respond ?? [];
   final toolResponses = <Part>[];
   final newContent = <Part>[];
 
-  for (final part in lastMessage!.content) {
+  for (final part in lastMessage.content) {
     if (!part.isToolRequest) {
       newContent.add(part);
       continue;
@@ -800,25 +1258,34 @@ _resolveResume(
     final req = part.toolRequestPart!.toolRequest;
     final meta = part.metadata ?? {};
 
-    // Resolve output
+    // Resolve output plus any multipart content/metadata that was preserved
+    // from the tool that completed before the turn was interrupted (see
+    // `_buildInterruptedResponse`), so the response reaching the model matches
+    // the straight-through path. Presence, not nullness, decides whether a
+    // request is answered: `null` is a valid tool output.
+    final hasPending = meta.containsKey('pendingOutput');
     dynamic output = meta['pendingOutput'];
-    if (output == null) {
-      final match = resumeRespond.firstWhere(
-        (r) => r.toolResponse.ref == req.ref && r.toolResponse.name == req.name,
-        orElse: () => ToolResponsePart(
-          toolResponse: ToolResponse(ref: '', name: '', output: null),
-        ),
-      );
-      if (match.toolResponse.name.isNotEmpty) {
-        output = match.toolResponse.output;
-      }
-    }
+    var content = (meta['pendingContent'] as List?)?.toList();
+    var responseMetadata = (meta['pendingMetadata'] as Map?)
+        ?.cast<String, dynamic>();
 
-    if (output == null) {
-      throw GenkitException(
-        'Unresolved tool request ${req.name}. You must supply replies or restarts for all interrupted tool requests.',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
+    if (!hasPending) {
+      final match = resumeRespond
+          .where(
+            (r) =>
+                r.toolResponse.ref == req.ref &&
+                r.toolResponse.name == req.name,
+          )
+          .firstOrNull;
+      if (match == null) {
+        throw GenkitException(
+          'Unresolved tool request ${req.name}. You must supply replies or restarts for all interrupted tool requests.',
+          status: StatusCode.invalidArgument,
+        );
+      }
+      output = match.toolResponse.output;
+      content ??= match.toolResponse.content?.toList();
+      responseMetadata ??= match.metadata;
     }
 
     toolResponses.add(
@@ -827,7 +1294,9 @@ _resolveResume(
           ref: req.ref,
           name: req.name,
           output: output,
+          content: content,
         ),
+        metadata: responseMetadata,
       ),
     );
 
@@ -883,10 +1352,16 @@ ModelResponse _buildInterruptedResponse(
       final status = toolStatus[ref];
       final meta = Map<String, dynamic>.from(part.metadata ?? {});
 
-      if (status?.interrupt != null) {
-        meta['interrupt'] = status!.interrupt!.interrupt;
-      } else if (status?.output != null) {
-        meta['pendingOutput'] = status!.output;
+      if (status?.interrupted ?? false) {
+        meta['interrupt'] = status!.interruptData;
+      } else if (status != null) {
+        // Preserve the completed tool's output (even `null`) plus any
+        // multipart content and metadata so that, on resume, the tool response
+        // reaching the model is identical to the straight-through path (see
+        // `_resolveResume`).
+        meta['pendingOutput'] = status.output;
+        if (status.content != null) meta['pendingContent'] = status.content;
+        if (status.metadata != null) meta['pendingMetadata'] = status.metadata;
       }
       newContent.add(
         ToolRequestPart(
@@ -927,7 +1402,7 @@ void _recordResumedMetadata(Map<String, dynamic>? runOptionsMetadata) {
 
 Future<
   ({
-    List<Part> toolResponses,
+    List<ToolResponsePart> toolResponses,
     bool interrupted,
     Map<String, _ToolStatus> toolStatus,
   })
@@ -936,36 +1411,43 @@ _executeTools(
   Registry registry,
   List<ToolRequestPart> toolRequests,
   Map<String, dynamic>? context, {
+  CancellationToken? cancel,
   List<GenerateMiddleware>? middleware,
+  Map<String, Tool>? toolMap,
 }) async {
+  final cancelToken = cancel;
   final toolResponses = <ToolResponsePart>[];
   final toolStatus = <String, _ToolStatus>{};
   var interrupted = false;
 
   for (final toolRequest in toolRequests) {
+    final requestedName = toolRequest.toolRequest.name;
+    // The model echoes back the short (wire) name, so resolve against the
+    // short-name map built at tool-resolution time first, falling back to a
+    // direct registry lookup (e.g. for restart tools resolved outside the loop).
     final tool =
-        await registry.lookupAction('tool', toolRequest.toolRequest.name)
-            as Tool?;
+        toolMap?[requestedName] ??
+        toolMap?[shortToolName(requestedName)] ??
+        await registry.lookupAction(.tool, requestedName) as Tool?;
+
     if (tool == null) {
       throw GenkitException(
-        'Tool ${toolRequest.toolRequest.name} not found',
-        status: StatusCodes.NOT_FOUND,
+        'Tool $requestedName not found',
+        status: StatusCode.notFound,
       );
     }
 
-    Future<ToolResponsePart> coreTool(
+    Future<ToolResult> coreTool(
       ToolRequestPart req,
       ActionFnArg<void, dynamic, void> c,
     ) async {
       _recordResumedMetadata(c.context);
-      final out = await tool.runRaw(req.toolRequest.input, context: c.context);
-      return ToolResponsePart(
-        toolResponse: ToolResponse(
-          ref: req.toolRequest.ref,
-          name: req.toolRequest.name,
-          output: out.result,
-        ),
-      );
+      c.cancel?.throwIfCancelled();
+      return (await tool.runRaw(
+        req.toolRequest.input,
+        context: c.context,
+        cancel: c.cancel,
+      )).result;
     }
 
     final composedTool =
@@ -976,36 +1458,74 @@ _executeTools(
         ) ??
         coreTool;
 
+    final statusKey =
+        toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name;
     try {
-      final toolResponsePart = await runZoned(
-        () => composedTool(toolRequest, (
-          streamingRequested: false,
-          sendChunk: (_) {},
-          context: context,
-          inputStream: null,
-          init: null,
-        )),
+      final outcome = await runZoned(
+        () => composedTool(
+          toolRequest,
+          ActionFnArg(context: context, cancel: cancelToken),
+        ),
         zoneValues: {ToolRequestPart: toolRequest},
       );
-      toolResponses.add(toolResponsePart);
-      toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
-          (output: toolResponsePart.toolResponse.output, interrupt: null);
-    } on ToolInterruptException catch (e) {
-      interrupted = true;
-      toolStatus[toolRequest.toolRequest.ref ?? toolRequest.toolRequest.name] =
-          (output: null, interrupt: e);
+      switch (outcome) {
+        case ToolResponseResult(:final output, :final parts, :final metadata):
+          // Built here, after the middleware chain, so the response always
+          // carries the request's `ref` and `name` (middleware cannot get them
+          // wrong, e.g. when the model issued parallel calls).
+          final part = ToolResponsePart(
+            toolResponse: ToolResponse(
+              ref: toolRequest.toolRequest.ref,
+              name: toolRequest.toolRequest.name,
+              output: output,
+              content: parts?.map((p) => p.toJson()).toList(),
+            ),
+            metadata: metadata,
+          );
+          toolResponses.add(part);
+          toolStatus[statusKey] = (
+            output: part.toolResponse.output,
+            content: part.toolResponse.content,
+            metadata: part.metadata,
+            interrupted: false,
+            interruptData: null,
+          );
+        case ToolInterruptResult(:final data):
+          // An interrupt is a turn outcome, not a failure: mark it and let the
+          // loop bubble the request back to the caller (via
+          // `_buildInterruptedResponse`).
+          interrupted = true;
+          toolStatus[statusKey] = (
+            output: null,
+            content: null,
+            metadata: null,
+            interrupted: true,
+            interruptData: data ?? true,
+          );
+      }
     } catch (e) {
-      toolResponses.add(
-        ToolResponsePart(
-          toolResponse: ToolResponse(
-            ref: toolRequest.toolRequest.ref,
-            name: toolRequest.toolRequest.name,
-            output: 'Error: $e',
-          ),
-        ),
-      );
+      // A cancel tied to this turn's token is an abort, not a tool failure: let
+      // the original exception propagate unchanged so the loop resolves it as
+      // `aborted` (via `_abortResponseIfCancelled`).
+      if (cancelToken != null &&
+          (cancelToken.isCancelled ||
+              (e is CancelledException && identical(e.token, cancelToken)))) {
+        rethrow;
+      }
+      // Any other throw - a failing tool `fn`, or a tool's own unrelated
+      // cancellation while the caller never asked to stop - is a genuine tool
+      // failure. Reclassify it to INTERNAL, keeping the tool name in the
+      // message, mirroring Go's `toolFailureError`: a tool's failure is not a
+      // failure of the caller's request, so its own status (e.g.
+      // UNAUTHENTICATED) must not become the whole generation's. The original
+      // exception is wrapped so callers can still reach it via `response.cause`.
+      // `_runGenerateLoop` turns this into a `failed` response carrying the
+      // last-good history rather than feeding an `Error: ...` tool response back
+      // to the model.
+      throw _toolFailureError(toolRequest.toolRequest.name, e);
     }
   }
+
   return (
     toolResponses: toolResponses,
     interrupted: interrupted,

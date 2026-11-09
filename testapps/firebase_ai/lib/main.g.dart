@@ -69,16 +69,16 @@ base class _WeatherToolInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherToolInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'city': $Schema.string(
-              description: 'The city to get the weather for',
-            ),
-          },
-          required: ['city'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'city': <String, Object?>{
+          'type': 'string',
+          'description': 'The city to get the weather for',
+        },
+      },
+      'required': ['city'],
+    },
     dependencies: [],
   );
 }
@@ -174,24 +174,23 @@ base class _RpgCharacterTypeFactory extends SchemanticType<RpgCharacter> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'RpgCharacter',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(),
-            'description': $Schema.string(),
-            'background': $Schema.string(),
-            'skills': $Schema.list(items: $Schema.string()),
-            'inventory': $Schema.list(items: $Schema.string()),
-          },
-          required: [
-            'name',
-            'description',
-            'background',
-            'skills',
-            'inventory',
-          ],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'description': <String, Object?>{'type': 'string'},
+        'background': <String, Object?>{'type': 'string'},
+        'skills': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+        'inventory': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+      'required': ['name', 'description', 'background', 'skills', 'inventory'],
+    },
     dependencies: [],
   );
 }

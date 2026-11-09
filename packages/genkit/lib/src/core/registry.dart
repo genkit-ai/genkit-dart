@@ -12,11 +12,90 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
+
 import '../ai/generate_middleware.dart';
 import './action.dart';
+import './dynamic_action_provider.dart';
 import './plugin.dart';
 
-class Registry {
+final _logger = Logger('genkit.registry');
+
+/// The parsed components of a registry key.
+///
+/// A key is either a plain action key (`/model/googleai/gemini-flash-latest`,
+/// `/util/generate`) or a dynamic-action-provider key
+/// (`/dynamic-action-provider/<host>:<actionType>/<name>`). Mirrors JS's
+/// `ParsedRegistryKey`.
+class ParsedRegistryKey {
+  final String? dynamicActionHost;
+  final ActionType actionType;
+  final String actionName;
+
+  ParsedRegistryKey({
+    this.dynamicActionHost,
+    required this.actionType,
+    required this.actionName,
+  });
+}
+
+/// Parses a registry [key] into its components, or returns null when the key
+/// is malformed. Mirrors JS's `parseRegistryKey`.
+ParsedRegistryKey? parseRegistryKey(String key) {
+  if (key.startsWith('/dynamic-action-provider')) {
+    // Format: /dynamic-action-provider/<host>:<actionType>/<name>
+    // (or just /dynamic-action-provider/<host> with no action suffix).
+    // Split on the first colon only: the colon separates the host from the
+    // action segment, and the action name itself may legitimately contain
+    // colons (e.g. namespaced names or URIs), which must be preserved.
+    final colonIdx = key.indexOf(':');
+    if (colonIdx == -1) {
+      final hostTokens = key.split('/');
+      if (hostTokens.length < 3) return null;
+      return ParsedRegistryKey(
+        actionType: .dynamicActionProvider,
+        actionName: hostTokens[2],
+      );
+    }
+    final hostTokens = key.substring(0, colonIdx).split('/');
+    if (hostTokens.length < 3) return null;
+    final tokens = key.substring(colonIdx + 1).split('/');
+    if (tokens.length < 2) return null;
+    return ParsedRegistryKey(
+      dynamicActionHost: hostTokens[2],
+      actionType: ActionType(tokens[0]),
+      actionName: tokens.sublist(1).join('/'),
+    );
+  }
+
+  final tokens = key.split('/');
+  if (tokens.length < 3) return null;
+  // ex: /model/googleai/gemini-flash-latest or /prompt/my-plugin/folder/prompt
+  if (tokens.length >= 4) {
+    return ParsedRegistryKey(
+      actionType: ActionType(tokens[1]),
+      actionName: tokens.sublist(3).join('/'),
+    );
+  }
+  // ex: /util/generate
+  return ParsedRegistryKey(
+    actionType: ActionType(tokens[1]),
+    actionName: tokens[2],
+  );
+}
+
+/// Holds the actions, plugins, and named values of a Genkit instance.
+///
+/// Reach it through `ai.registry`. Plugins and middleware use it to look up
+/// actions ([lookupAction], [listActions]), register their own ([register]),
+/// and keep plugin-scoped values ([registerValue], [lookupValue],
+/// [listValues]).
+///
+/// A child registry ([Registry.childOf]) sees everything in its parent and
+/// shadows it with its own entries; `generate` uses one to scope inline tools
+/// to a single call.
+final class Registry {
   final Map<String, Action> _actions = {};
   final Map<String, dynamic> _values = {};
   final List<GenkitPlugin> _plugins = [];
@@ -45,19 +124,29 @@ class Registry {
     }
   }
 
+  /// Adds [plugin]; the `Genkit` constructor does this for its `plugins`.
+  @internal
   void registerPlugin(GenkitPlugin plugin) {
     _plugins.add(_ListActionsCachingPluginAdapter(plugin));
   }
 
-  String _getKey(String actionType, String name) {
-    return '/$actionType/$name';
+  String _getKey(String type, String name) {
+    return '/$type/$name';
   }
 
+  /// Stores [value] under [name] in the [type] namespace, replacing any
+  /// previous value with the same key.
+  ///
+  /// Genkit uses the `middleware`, `format`, `schema`, and `defaultModel`
+  /// namespaces. A plugin keeping its own values should use a namespace
+  /// unlikely to collide, e.g. one prefixed with the plugin name.
   void registerValue(String type, String name, dynamic value) {
     final key = _getKey(type, name);
     _values[key] = value;
   }
 
+  /// Returns the value registered under [name] in the [type] namespace, here
+  /// or in a parent registry, or null when there is none.
   T? lookupValue<T>(String type, String name) {
     final key = _getKey(type, name);
     if (_values.containsKey(key)) {
@@ -66,6 +155,8 @@ class Registry {
     return parent?.lookupValue<T>(type, name);
   }
 
+  /// Returns every value in the [type] namespace, keyed by registry path
+  /// (`/<type>/<name>`), with this registry's entries shadowing the parent's.
   Map<String, T> listValues<T>(String type) {
     final prefix = '/$type/';
     final result = <String, T>{};
@@ -81,12 +172,12 @@ class Registry {
   }
 
   void register(Action action) {
-    final key = _getKey(action.actionType, action.name);
+    final key = _getKey(action.actionType.value, action.name);
     _actions[key] = action;
   }
 
-  Future<Action?> lookupAction(String actionType, String name) async {
-    final key = _getKey(actionType, name);
+  Future<Action?> lookupAction(ActionType actionType, String name) async {
+    final key = _getKey(actionType.value, name);
     if (_actions.containsKey(key)) {
       return _actions[key];
     }
@@ -116,7 +207,7 @@ class Registry {
     await _ensureAllPluginsInitialized();
     final allActions = <String, ActionMetadata>{};
     for (final action in _actions.values) {
-      final key = _getKey(action.actionType, action.name);
+      final key = _getKey(action.actionType.value, action.name);
       allActions[key] = action;
     }
 
@@ -124,16 +215,114 @@ class Registry {
       try {
         final pluginActions = await plugin.list();
         for (final action in pluginActions) {
-          final key = _getKey(action.actionType, action.name);
+          final key = _getKey(action.actionType.value, action.name);
           if (!allActions.containsKey(key)) {
             allActions[key] = action;
           }
         }
       } catch (e, st) {
-        print('Failed to list actions from plugin ${plugin.name}: $e $st');
+        // One broken plugin must not hide every other plugin's actions.
+        _logger.warning(
+          'Failed to list actions from plugin ${plugin.name}',
+          e,
+          st,
+        );
       }
     }
     return allActions.values.toList();
+  }
+
+  /// Resolves an action from a full registry [key] string, handling both plain
+  /// keys (`/model/googleai/gemini-flash-latest`) and dynamic-action-provider
+  /// keys (`/dynamic-action-provider/<host>:<actionType>/<name>`). Mirrors JS's
+  /// key-based `lookupAction`, which the Dev UI relies on to run DAP-expanded
+  /// actions (their keys are the DAP keys returned by [listResolvableActions]).
+  @internal
+  Future<Action?> lookupActionByKey(String key) async {
+    final parsed = parseRegistryKey(key);
+    if (parsed?.dynamicActionHost != null) {
+      return _getDynamicAction(parsed!);
+    }
+    // Non-DAP key: reconstruct the full action name (including any plugin
+    // prefix) from the raw key rather than the parsed name, since
+    // [lookupAction] resolves plugin actions by their `<plugin>/<name>` name.
+    final parts = key.split('/');
+    if (parts.length < 3 || parts[0] != '') return null;
+    return lookupAction(ActionType(parts[1]), parts.sublist(2).join('/'));
+  }
+
+  /// Resolves an action addressed through a dynamic action provider, given a
+  /// [parsedKey] whose `dynamicActionHost` is set. Returns null when the host
+  /// is not a registered provider, the name is a wildcard (which addresses
+  /// many actions, not one), or the provider cannot resolve it.
+  Future<Action?> _getDynamicAction(ParsedRegistryKey parsedKey) async {
+    final host = parsedKey.dynamicActionHost;
+    if (host == null || parsedKey.actionName.contains('*')) return null;
+    final dap =
+        await lookupAction(.dynamicActionProvider, host)
+            as DynamicActionProvider?;
+    if (dap == null) return null;
+    return dap.getAction(parsedKey.actionType, parsedKey.actionName);
+  }
+
+  /// Expands a possibly-wildcard [key] into the concrete keys it addresses.
+  ///
+  /// A dynamic-action-provider key with a `*` or `prefix*` name expands to one
+  /// key per matching action; any other resolvable key returns itself. Mirrors
+  /// JS's `resolveActionNames`.
+  @internal
+  Future<List<String>> resolveActionNames(String key) async {
+    final parsed = parseRegistryKey(key);
+    final host = parsed?.dynamicActionHost;
+    if (parsed != null && host != null) {
+      final dap =
+          await lookupAction(.dynamicActionProvider, host)
+              as DynamicActionProvider?;
+      if (dap == null) return const [];
+      final metas = await dap.listActionMetadata(
+        parsed.actionType,
+        parsed.actionName,
+      );
+      return metas
+          .map(
+            (m) =>
+                '/dynamic-action-provider/$host:${parsed.actionType.value}/${m.name}',
+          )
+          .toList();
+    }
+    // Non-DAP key: it resolves to itself when the action exists, else to
+    // nothing. Mirrors JS, which looks the key up before returning `[key]`.
+    if (parsed != null &&
+        await lookupAction(parsed.actionType, parsed.actionName) != null) {
+      return [key];
+    }
+    return const [];
+  }
+
+  /// Returns every action that can be resolved, keyed by registry key, with
+  /// dynamic action providers expanded into their individual actions. Used by
+  /// the reflection API / Dev UI so DAP-provided tools, prompts, and resources
+  /// are individually listable. Mirrors JS's `listResolvableActions`.
+  @internal
+  Future<Map<String, ActionMetadata>> listResolvableActions() async {
+    final resolvable = <String, ActionMetadata>{};
+    for (final action in await listActions()) {
+      final key = _getKey(action.actionType.value, action.name);
+      resolvable[key] = action;
+      if (action is DynamicActionProvider) {
+        try {
+          resolvable.addAll(await action.getActionMetadataRecord());
+        } catch (e, st) {
+          _logger.warning(
+            'Failed to list actions from dynamic action provider '
+            '${action.name}',
+            e,
+            st,
+          );
+        }
+      }
+    }
+    return resolvable;
   }
 }
 
@@ -158,7 +347,7 @@ class _ListActionsCachingPluginAdapter extends GenkitPlugin {
   Future<List<Action>> init() => _plugin.init();
 
   @override
-  Action? resolve(String actionType, String name) =>
+  Action? resolve(ActionType actionType, String name) =>
       _plugin.resolve(actionType, name);
 
   @override

@@ -1,3 +1,132 @@
+## 1.0.1
+
+### Fixes
+
+ - support primitive tool input schemas (#653)
+ - reject resume when the last message is not a model tool request (#641)
+ - start fresh agent sessions with unset custom state (#642)
+
+### Other Changes
+
+ - bump api_summary to ^1.2.0 and regenerate api.txt (#639)
+
+
+## 1.0.0
+
+### Breaking Changes
+
+ - take prompt call options as named parameters (#622)
+ - add ai.defineGenerateMiddleware; rename top-level defineMiddleware to generateMiddleware (#571)
+ - upgrade to dotprompt 2.0 for spec-compliant Picoschema (#573)
+ - introduce GenkitRouter and update shelf adapter (#533)
+ - rename GenkitException.underlyingException to cause; drop statusCode (#548)
+ - add an Output type parameter to prompts; rename ExecutablePrompt to Prompt (#527)
+ - use Duration for retry delays; rename retryModel to noRetryModel (#549)
+ - rename EvalStatusEnum to EvalStatus with lowerCamelCase values (#545)
+ - type usage counts and indexes as int (#546)
+ - make GenerateResult and GenerateResponseChunk read-only views (#547)
+ - non-null input for Model/Embedder/Evaluator/Flow constructors (#536)
+ - rename GenerateResponseHelper to GenerateResult and drop redundant members (#534)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - use Duration for cache TTLs (#539)
+ - remove embedMany in favor of embed (#535)
+ - align naming of ToolFnArg, ModelInfo params and RemoteAction.close (#537)
+ - seal Registry and hide internal plumbing (#529)
+ - register retry middleware by default and remove RetryPlugin (#531)
+ - rename Tool(toolOutputSchema:) to outputSchema (#530)
+ - replace ExecutablePrompt.ref record with PromptRef; tidy Embedder/Evaluator (#528)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - make constrained generation simulation an opt-in middleware (#519)
+ - middleware tool hook returns ToolResult; remove ToolInterruptException (#503)
+ - remove the empty package:genkit/io.dart library (#498)
+ - remove the deprecated ToolFnArgs.interrupt() (#497)
+ - type toolChoice as an open enum instead of String (#493)
+ - stop exporting the Formatter types (#491)
+ - export every type that appears in a public signature (#490)
+ - stop exposing public setters on action metadata (#489)
+ - make ActionStream's completion setters @internal (#488)
+ - add class modifiers to the core public classes (#487)
+ - replace the GenerateMiddlewareContext record typedef with a final class (#486)
+ - replace the GenerateTurnState record typedef with a final class (#485)
+ - replace the ActionFnArg record typedef with a final class (#484)
+ - annotate the bidirectional-streaming API as @experimental (#483)
+ - stop exporting Dev UI protocol types (#481)
+ - move agent/session schema types out of the stable libraries (#480)
+ - simulate constrained generation when a model lacks native support (#453)
+
+### Features
+
+ - make open-enum values const so they work as switch cases (#544)
+ - discover gemini-embedding-* embedders and embed media (#394)
+ - infer a typed Output in the lite generate API (#499)
+ - add Interrupt tool and export tools in Lite API (#399)
+ - add OpenTelemetry GenAI instrumentation package (#446)
+
+### Fixes
+
+ - keep the server error status and message in the remote client (#568)
+ - resolve defineSchema names in .prompt files at render time (#570)
+ - keep detached agent turns running after a remote detach (#567)
+ - report the real package version from the v1 reflection server (#506)
+ - don't fail a generation when a partial chunk misses the output schema (#500)
+ - reject reflection health checks for a different runtime id (#477)
+
+### Other Changes
+
+ - mark manifestOutputSchema @internal; document Tool.toolOutputSchema (#551)
+ - mark DynamicActionProvider reflection helpers @internal (#550)
+ - replace custom API golden script with package:api_summary (#532)
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+ - add public API surface snapshot test (#479)
+
+
+## 0.17.0
+
+### Breaking Changes
+
+ - move live/bidi model surface to experimental (#461)
+ - move agent APIs behind experimental imports (#450)
+ - run agent send() over the streaming transport (#457)
+ - close DAP feature gaps (traces, metadata, registry, reflection) (#432)
+ - introduce pluggable instrumentation provider system (#348)
+ - graceful `failed` responses (model + tool errors) + rerunnable failed snapshots (#413)
+ - add cancellation support for action calls and generate API (#397)
+
+### Features
+
+ - tag ai.run and agent runTurn spans with action type (#445)
+ - support metadataOnly snapshot reads (#416)
+ - `aborting` snapshot status + rerunnable aborted snapshots (Go parity) (#411)
+
+### Fixes
+
+ - read genkit dev-mode config from dart-defines on io (#442)
+
+
+## 0.16.1
+
+### Features
+
+ - add context parameter to session store operations and update related tests (#410)
+
+
+## 0.16.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+### Features
+
+ - add promptParts parameter to generate functions (#398)
+
+### Fixes
+
+ - stitch a2ui blocks split across multiple text parts (#404)
+ - register formatters in lite.generate (#377)
+ - sync genkit Dart version constant with pubspec version (#343)
+
+
 ## 0.15.1
 
 ### Fixes

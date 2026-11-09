@@ -23,6 +23,11 @@ import 'action.dart';
 ///
 /// Plugin implementers can extend this class and override the methods to provide
 /// actions, models, etc.
+///
+/// Always `extend` this class; do not `implement` it. New members are added
+/// with default implementations, which is only non-breaking for subclasses.
+/// (It is not marked `base` because that would force every plugin class to
+/// repeat the modifier.)
 abstract class GenkitPlugin {
   String get name;
 
@@ -37,7 +42,13 @@ abstract class GenkitPlugin {
   }
 
   /// Called to resolve an action by name.
-  Action? resolve(String actionType, String name) {
+  ///
+  /// [actionType] is the typed action kind being resolved (for example
+  /// [ActionType.model] or [ActionType.tool]). Compare it against the
+  /// [ActionType] constants rather than raw strings, since the underlying
+  /// wire value can differ from the constant name (for example
+  /// `ActionType.tool` serializes to `tool.v2`).
+  Action? resolve(ActionType actionType, String name) {
     return null;
   }
 
@@ -47,11 +58,11 @@ abstract class GenkitPlugin {
   }
 
   Model model(String name) {
-    final m = resolve('model', name);
+    final m = resolve(.model, name);
     if (m == null || m is! Model) {
       throw GenkitException(
         'Model $name not found',
-        status: StatusCodes.NOT_FOUND,
+        status: StatusCode.notFound,
       );
     }
     return m;

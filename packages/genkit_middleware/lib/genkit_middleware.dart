@@ -12,7 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-export 'agents.dart';
+/// Common Genkit Dart middleware: filesystem access, skills, and tool approval.
+///
+/// The sub-agent delegation middleware builds on Genkit's experimental agent
+/// surface and is intentionally not exported here; import
+/// `package:genkit_middleware/agents.dart` for it.
+library;
+
 export 'filesystem.dart';
 export 'skills.dart';
 export 'tool_approval.dart';

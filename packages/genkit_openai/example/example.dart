@@ -129,7 +129,7 @@ Flow<String, String, void, void> defineModelResolutionFlow(Genkit ai) {
     outputSchema: .string(),
     fn: (modelName, _) async {
       final action = await ai.registry.lookupAction(
-        'model',
+        .model,
         'openai/$modelName',
       );
 
@@ -155,11 +155,34 @@ Flow<String, String, void, void> defineModelListFlow(Genkit ai) {
     fn: (_, _) async {
       final actions = await ai.registry.listActions();
       final models = actions
-          .where((a) => a.actionType == 'model')
+          .where((a) => a.actionType == .model)
           .map((a) => a.name)
           .toList();
 
       return models.join('\n');
+    },
+  );
+}
+
+/// Defines a flow that embeds a batch of documents and reports the vectors it
+/// got back.
+Flow<List<String>, String, void, void> defineEmbeddingFlow(Genkit ai) {
+  return ai.defineFlow(
+    name: 'embedding',
+    inputSchema: .list(.string()),
+    outputSchema: .string(),
+    fn: (texts, _) async {
+      final vectors = await ai.embed(
+        embedder: openAI.embedder('text-embedding-3-small'),
+        documents: [
+          for (final text in texts)
+            DocumentData(content: [TextPart(text: text)]),
+        ],
+        // Optional: the -3- models return a shorter vector on request.
+        options: OpenAIEmbedderOptions(dimensions: 256),
+      );
+
+      return vectors.map((v) => '${v.embedding.length} dimensions').join('\n');
     },
   );
 }
@@ -294,11 +317,13 @@ void main() {
           : tempCelsius.toDouble();
       final conditions = ['sunny', 'cloudy', 'rainy', 'partly cloudy'];
 
-      return WeatherToolOutput(
-        temperature: temperature,
-        condition: conditions[random.nextInt(conditions.length)],
-        unit: unit,
-        humidity: 50 + random.nextInt(30),
+      return .response(
+        WeatherToolOutput(
+          temperature: temperature,
+          condition: conditions[random.nextInt(conditions.length)],
+          unit: unit,
+          humidity: 50 + random.nextInt(30),
+        ),
       );
     },
   );
@@ -307,6 +332,7 @@ void main() {
   defineStreamedSimpleGenerationFlow(ai);
   defineModelResolutionFlow(ai);
   defineModelListFlow(ai);
+  defineEmbeddingFlow(ai);
   defineToolCallingFlow(ai, getWeather);
   defineStreamedToolCallingFlow(ai, getWeather);
   defineStructuredOutputFlow(ai);

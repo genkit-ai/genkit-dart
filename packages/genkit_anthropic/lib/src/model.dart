@@ -22,6 +22,22 @@ abstract class $AnthropicOptions {
   /// Custom API key to use for this specific request. Overrides plugin config.
   String? get apiKey;
 
+  @StringField(
+    enumValues: ['stable', 'beta'],
+    description:
+        'Which Anthropic API surface to use for this request. '
+        'The beta surface also serves every stable feature. '
+        'Overrides the plugin-level default, which is "stable".',
+  )
+  String? get apiVersion;
+
+  /// Beta feature names sent in the `anthropic-beta` header.
+  ///
+  /// Only used when the request resolves to the beta API. Replaces the
+  /// plugin's curated default list rather than adding to it, so a new beta can
+  /// be opted into without waiting for a plugin release.
+  List<String>? get betas;
+
   @IntegerField(
     minimum: 1,
     description: 'The maximum number of tokens to generate before stopping.',
@@ -59,13 +75,23 @@ abstract class $AnthropicOptions {
   /// Stop sequences to use for this generation.
   List<String>? get stopSequences;
 
+  /// Forces the model to call the tool with this name (Anthropic's
+  /// `tool_choice: {type: tool}`).
+  ///
+  /// Takes precedence over the portable `toolChoice` generate option, which
+  /// only covers `auto`, `required`, and `none`.
+  String? get forceTool;
+
   /// Extended thinking configuration for supported Anthropic models (like Claude 3.7 Sonnet).
-  $ThinkingConfig? get thinking;
+  $AnthropicThinkingConfig? get thinking;
+
+  /// Anthropic-specific output behavior configuration.
+  $AnthropicOutputConfig? get outputConfig;
 }
 
 /// Configuration for Anthropic's extended thinking mode.
 @Schema()
-abstract class $ThinkingConfig {
+abstract class $AnthropicThinkingConfig {
   @StringField(
     enumValues: ['enabled', 'disabled', 'adaptive'],
     description:
@@ -82,4 +108,16 @@ abstract class $ThinkingConfig {
         'The budget must be at least 1024 tokens and cannot exceed the model\'s max_tokens limit.',
   )
   int? get budgetTokens;
+}
+
+/// Configuration for Anthropic output behavior.
+@Schema()
+abstract class $AnthropicOutputConfig {
+  @StringField(
+    enumValues: ['low', 'medium', 'high', 'xhigh', 'max'],
+    description:
+        'Controls the effort Claude spends on the response, trading off '
+        'response depth against latency and token usage.',
+  )
+  String? get effort;
 }

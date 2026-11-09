@@ -95,18 +95,20 @@ base class _AddressTypeFactory extends SchemanticType<Address> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Address',
-    definition: $Schema
-        .object(
-          properties: {
-            'street': $Schema.string(),
-            'city': $Schema.string(),
-            'zipCode': $Schema.combined(
-              anyOf: [$Schema.integer(), $Schema.string()],
-            ),
-          },
-          required: ['street', 'city', 'zipCode'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'street': <String, Object?>{'type': 'string'},
+        'city': <String, Object?>{'type': 'string'},
+        'zipCode': <String, Object?>{
+          'anyOf': [
+            <String, Object?>{'type': 'integer'},
+            <String, Object?>{'type': 'string'},
+          ],
+        },
+      },
+      'required': ['street', 'city', 'zipCode'],
+    },
     dependencies: [],
   );
 }
@@ -202,25 +204,29 @@ base class _UserTypeFactory extends SchemanticType<User> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'User',
-    definition: $Schema
-        .object(
-          properties: {
-            'name': $Schema.string(
-              minLength: 1,
-              maxLength: 150,
-              pattern: r'^[a-zA-Z\s]+$',
-            ),
-            'years_old': $Schema.integer(
-              description: 'Age of the user',
-              minimum: 0,
-              maximum: 200,
-            ),
-            'isAdmin': $Schema.boolean(description: 'Is this user an admin?'),
-            'address': $Schema.fromMap({'\$ref': r'#/$defs/Address'}),
-          },
-          required: ['name', 'isAdmin'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{
+          'type': 'string',
+          'minLength': 1,
+          'maxLength': 150,
+          'pattern': r'^[a-zA-Z\s]+$',
+        },
+        'years_old': <String, Object?>{
+          'type': 'integer',
+          'description': 'Age of the user',
+          'minimum': 0,
+          'maximum': 200,
+        },
+        'isAdmin': <String, Object?>{
+          'type': 'boolean',
+          'description': 'Is this user an admin?',
+        },
+        'address': <String, Object?>{r'$ref': r'#/$defs/Address'},
+      },
+      'required': ['name', 'isAdmin'],
+    },
     dependencies: [Address.$schema],
   );
 }
@@ -304,17 +310,19 @@ base class _ProductTypeFactory extends SchemanticType<Product> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'Product',
-    definition: $Schema
-        .object(
-          properties: {
-            'id': $Schema.string(),
-            'name': $Schema.string(),
-            'price': $Schema.number(),
-            'tags': $Schema.list(items: $Schema.string()),
-          },
-          required: ['id', 'name', 'price'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'id': <String, Object?>{'type': 'string'},
+        'name': <String, Object?>{'type': 'string'},
+        'price': <String, Object?>{'type': 'number'},
+        'tags': <String, Object?>{
+          'type': 'array',
+          'items': <String, Object?>{'type': 'string'},
+        },
+      },
+      'required': ['id', 'name', 'price'],
+    },
     dependencies: [],
   );
 }

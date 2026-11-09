@@ -55,4 +55,27 @@ void main() {
       });
     });
   });
+
+  group('modelMetadata', () {
+    test('describes an undeclared model as an ordinary chat model', () {
+      final supports =
+          modelMetadata('undeclared').metadata['model']['supports']
+              as Map<String, dynamic>;
+
+      expect(supports['constrained'], isTrue);
+      expect(supports['multiturn'], isTrue);
+      expect(supports['tools'], isTrue);
+    });
+
+    test('declared info is passed through verbatim', () {
+      final supports =
+          modelMetadata(
+                'declared',
+                info: ModelInfo(supports: {'constrained': true}),
+              ).metadata['model']['supports']
+              as Map<String, dynamic>;
+
+      expect(supports['constrained'], isTrue);
+    });
+  });
 }

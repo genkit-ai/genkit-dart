@@ -77,15 +77,14 @@ base class _StatefulChatInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'StatefulChatInput',
-    definition: $Schema
-        .object(
-          properties: {
-            'sessionId': $Schema.string(),
-            'message': $Schema.string(),
-          },
-          required: ['sessionId', 'message'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'sessionId': <String, Object?>{'type': 'string'},
+        'message': <String, Object?>{'type': 'string'},
+      },
+      'required': ['sessionId', 'message'],
+    },
     dependencies: [],
   );
 }

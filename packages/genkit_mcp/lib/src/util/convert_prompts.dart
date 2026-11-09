@@ -25,7 +25,7 @@ List<Map<String, dynamic>>? toMcpPromptArguments(SchemanticType? schema) {
   if (schemaObject == null) {
     throw GenkitException(
       '[MCP Server] MCP prompts must take objects as input schema.',
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
 
@@ -33,7 +33,7 @@ List<Map<String, dynamic>>? toMcpPromptArguments(SchemanticType? schema) {
   if (properties is! Map) {
     throw GenkitException(
       '[MCP Server] MCP prompts must take objects as input schema.',
-      status: StatusCodes.FAILED_PRECONDITION,
+      status: StatusCode.failedPrecondition,
     );
   }
 
@@ -45,21 +45,21 @@ List<Map<String, dynamic>>? toMcpPromptArguments(SchemanticType? schema) {
     if (name is! String) {
       throw GenkitException(
         '[MCP Server] MCP prompt arguments must use string keys.',
-        status: StatusCodes.FAILED_PRECONDITION,
+        status: StatusCode.failedPrecondition,
       );
     }
     final schemaMap = entry.value;
     if (schemaMap is! Map) {
       throw GenkitException(
         '[MCP Server] MCP prompts must take objects as input schema.',
-        status: StatusCodes.FAILED_PRECONDITION,
+        status: StatusCode.failedPrecondition,
       );
     }
     final schemaData = schemaMap.cast<String, dynamic>();
     if (!_allowsString(schemaData)) {
       throw GenkitException(
         '[MCP Server] MCP prompts may only take string arguments.',
-        status: StatusCodes.FAILED_PRECONDITION,
+        status: StatusCode.failedPrecondition,
       );
     }
     args.add({

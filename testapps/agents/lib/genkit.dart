@@ -44,7 +44,6 @@ final Genkit ai = Genkit(
     FilesystemPlugin(),
     SkillsPlugin(),
     ToolApprovalPlugin(),
-    RetryPlugin(),
   ],
   model: defaultModel,
 );

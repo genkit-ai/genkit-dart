@@ -36,7 +36,7 @@ void main() {
         ),
         throwsA(
           isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
               .having(
                 (e) => e.message,
                 'message',
@@ -72,7 +72,7 @@ void main() {
         () => openAI(name: '', apiKey: 'test-key'),
         throwsA(
           isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
               .having(
                 (e) => e.message,
                 'message',
@@ -87,7 +87,7 @@ void main() {
         () => openAI(name: 'my/provider', apiKey: 'test-key'),
         throwsA(
           isA<GenkitException>()
-              .having((e) => e.status, 'status', StatusCodes.INVALID_ARGUMENT)
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
               .having(
                 (e) => e.message,
                 'message',

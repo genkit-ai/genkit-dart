@@ -16,21 +16,27 @@ import 'dart:js_interop';
 import 'package:genkit/genkit.dart';
 import 'chrome_interop.dart';
 
-class ChromeModel extends Model<LanguageModelOptions> {
+/// Capabilities of Chrome's built-in Gemini Nano.
+///
+/// No `constrained`: this plugin ignores `output`, so an output schema never
+/// reaches the Prompt API. Pass `responseConstraint` in the config for a
+/// native constraint, or add the `simulateConstrainedGeneration` middleware
+/// to put the schema in the prompt.
+final chromeModelInfo = ModelInfo(
+  supports: {
+    'multiturn': true,
+    'media': false,
+    'tools': false,
+    'systemRole': true,
+  },
+);
+
+final class ChromeModel extends Model<LanguageModelOptions> {
   ChromeModel({
     super.name = 'chrome/gemini-nano',
     LanguageModelOptions? options,
   }) : super(
-         metadata: {
-           'model': ModelInfo(
-             supports: {
-               'multiturn': true,
-               'media': false,
-               'tools': false,
-               'systemRole': true,
-             },
-           ).toJson(),
-         },
+         metadata: {'model': chromeModelInfo.toJson()},
          fn: (req, ctx) => _processRequest(req, ctx, options),
        );
 
@@ -43,17 +49,10 @@ class ChromeModel extends Model<LanguageModelOptions> {
   }
 
   static Future<ModelResponse> _processRequest(
-    ModelRequest? req,
+    ModelRequest req,
     ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
     LanguageModelOptions? defaultOptions,
   ) async {
-    if (req == null) {
-      throw GenkitException(
-        'Request is null',
-        status: StatusCodes.INVALID_ARGUMENT,
-      );
-    }
-
     final config = req.config ?? const {};
     final systemPrompt = config['systemPrompt'] as String?;
 
@@ -140,9 +139,9 @@ class ChromeModel extends Model<LanguageModelOptions> {
         ),
         usage: contextUsage != null
             ? GenerationUsage(
-                inputTokens: contextUsage,
+                inputTokens: contextUsage.round(),
                 outputTokens: 0,
-                totalTokens: contextUsage,
+                totalTokens: contextUsage.round(),
                 custom: contextWindow != null
                     ? {'contextWindow': contextWindow}
                     : null,
@@ -161,7 +160,7 @@ Future<void> _ensureAvailability([LanguageModelOptions? options]) async {
   if (availability == 'unavailable') {
     throw GenkitException(
       'Chrome AI is not available.',
-      status: StatusCodes.UNAVAILABLE,
+      status: StatusCode.unavailable,
     );
   }
 }
@@ -177,7 +176,7 @@ To enable local AI in Chrome (v128+):
 3. Enable "Enables optimization guide on device" (choose "Enabled BypassPerfRequirement")
 4. Relaunch Chrome
 5. Go to chrome://components/ to download the model ("Optimization Guide On Device Model")''',
-      status: StatusCodes.UNAVAILABLE,
+      status: StatusCode.unavailable,
     );
   }
   return languageModelImpl!;

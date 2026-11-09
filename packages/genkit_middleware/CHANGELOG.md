@@ -1,3 +1,58 @@
+## 1.0.1
+
+ - updated internal dependencies.
+
+## 1.0.0
+
+### Breaking Changes
+
+ - add ai.defineGenerateMiddleware; rename top-level defineMiddleware to generateMiddleware (#571)
+ - type usage counts and indexes as int (#546)
+ - rename GenerateResponseHelper to GenerateResult and drop redundant members (#534)
+ - rename StatusCodes to StatusCode with lowerCamelCase values (#542)
+ - rename Tool(toolOutputSchema:) to outputSchema (#530)
+ - generate plain JSON schema maps instead of json_schema_builder calls (#522)
+ - middleware tool hook returns ToolResult; remove ToolInterruptException (#503)
+ - export every type that appears in a public signature (#490)
+ - replace the GenerateMiddlewareContext record typedef with a final class (#486)
+ - replace the GenerateTurnState record typedef with a final class (#485)
+ - stop re-exporting the experimental agents library (#482)
+ - move agent/session schema types out of the stable libraries (#480)
+
+### Fixes
+
+ - prevent filesystem sandbox escape through symlinks (#566)
+ - honor ToolApprovalPlugin(approvedTools:) when toolApproval() has no list (#538)
+
+### Other Changes
+
+ - add Genkit Dart agent skill install instructions to READMEs (#521)
+ - fix stale package descriptions in the READMEs and pubspec (#504)
+
+
+## 0.7.0
+
+### Breaking Changes
+
+ - move agent APIs behind experimental imports (#450)
+ - add cancellation support for action calls and generate API (#397)
+
+### Features
+
+ - async sub-agents and task continuation for agents middleware (#417)
+
+
+## 0.6.1
+
+ - updated internal dependencies.
+
+## 0.6.0
+
+### Breaking Changes
+
+ - redesign tool API around ToolResult + multipart, type actionType with ActionType (#350)
+
+
 ## 0.5.1
 
  - updated internal dependencies.

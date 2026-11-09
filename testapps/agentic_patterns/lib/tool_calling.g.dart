@@ -69,9 +69,13 @@ base class _ToolCallingInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolCallingInput',
-    definition: $Schema
-        .object(properties: {'prompt': $Schema.string()}, required: ['prompt'])
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'prompt': <String, Object?>{'type': 'string'},
+      },
+      'required': ['prompt'],
+    },
     dependencies: [],
   );
 }
@@ -124,12 +128,13 @@ base class _ToolCallingWeatherInputTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'ToolCallingWeatherInput',
-    definition: $Schema
-        .object(
-          properties: {'location': $Schema.string()},
-          required: ['location'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'location': <String, Object?>{'type': 'string'},
+      },
+      'required': ['location'],
+    },
     dependencies: [],
   );
 }

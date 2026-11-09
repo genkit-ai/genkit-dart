@@ -23,6 +23,7 @@ library;
 import 'dart:async';
 import 'dart:io';
 
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -209,7 +210,10 @@ class _ProgrammableModel {
 // Harness setup
 // ---------------------------------------------------------------------------
 
-Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
+({Map<String, Agent> agents, Map<String, SessionStore> stores}) _setupHarness(
+  Genkit ai,
+  _ProgrammableModel pm,
+) {
   ai.defineModel(
     name: 'programmableModel',
     fn: (request, ctx) async {
@@ -230,7 +234,7 @@ Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
       SchemanticType.string(),
       SchemanticType.dynamicSchema(),
     ),
-    fn: (input, ctx) async => 'tool called',
+    fn: (input, ctx) async => .response('tool called'),
   );
 
   // interruptTool always pauses the turn and returns the tool request to the
@@ -242,7 +246,7 @@ Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
       SchemanticType.string(),
       SchemanticType.dynamicSchema(),
     ),
-    fn: (input, ctx) async => ctx.interrupt(),
+    fn: (input, ctx) async => .interrupt(),
   );
 
   // restartTool pauses on first call and succeeds when resumed (the restart
@@ -257,10 +261,10 @@ Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
     fn: (input, ctx) async {
       final resumed = ctx.resumed;
       if (resumed == null) {
-        ctx.interrupt({'requiresConfirmation': true});
+        return .interrupt({'requiresConfirmation': true});
       }
       final action = input['action'];
-      return {'result': 'confirmed: $action'};
+      return .response({'result': 'confirmed: $action'});
     },
   );
 
@@ -270,10 +274,11 @@ Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
     model: modelRef('programmableModel'),
   );
 
+  final promptAgentWithStoreStore = InMemorySessionStore();
   final promptAgentWithStore = ai.defineAgent(
     name: 'promptAgentWithStore',
     model: modelRef('programmableModel'),
-    store: InMemorySessionStore(),
+    store: promptAgentWithStoreStore,
   );
 
   final promptAgentWithTools = ai.defineAgent(
@@ -297,9 +302,10 @@ Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
   );
 
   // --- Custom agents ---
+  final customAgentBlockingStore = InMemorySessionStore();
   final customAgentBlocking = ai.defineCustomAgent(
     name: 'customAgentBlocking',
-    store: InMemorySessionStore(),
+    store: customAgentBlockingStore,
     fn: (sess, options) async {
       await sess.run((input, ctx) async {
         final cancel = options.cancel;
@@ -317,9 +323,10 @@ Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
     },
   );
 
+  final customAgentFailingStore = InMemorySessionStore();
   final customAgentFailing = ai.defineCustomAgent(
     name: 'customAgentFailing',
-    store: InMemorySessionStore(),
+    store: customAgentFailingStore,
     fn: (sess, options) async {
       await sess.run((input, ctx) async {
         // Throw a GenkitException so the surfaced error message is exactly
@@ -456,20 +463,29 @@ Map<String, Agent> _setupHarness(Genkit ai, _ProgrammableModel pm) {
     },
   );
 
-  return {
-    'promptAgent': promptAgent,
-    'promptAgentWithStore': promptAgentWithStore,
-    'promptAgentWithTools': promptAgentWithTools,
-    'promptAgentWithInterrupt': promptAgentWithInterrupt,
-    'promptAgentWithRestartTool': promptAgentWithRestartTool,
-    'customAgentBlocking': customAgentBlocking,
-    'customAgentFailing': customAgentFailing,
-    'customAgentWithArtifacts': customAgentWithArtifacts,
-    'customAgentWithCustomState': customAgentWithCustomState,
-    'customAgentWithMultiCustomState': customAgentWithMultiCustomState,
-    'customAgentWithArtifactsStore': customAgentWithArtifactsStore,
-    'customAgentWithCustomStateStore': customAgentWithCustomStateStore,
-  };
+  return (
+    agents: {
+      'promptAgent': promptAgent,
+      'promptAgentWithStore': promptAgentWithStore,
+      'promptAgentWithTools': promptAgentWithTools,
+      'promptAgentWithInterrupt': promptAgentWithInterrupt,
+      'promptAgentWithRestartTool': promptAgentWithRestartTool,
+      'customAgentBlocking': customAgentBlocking,
+      'customAgentFailing': customAgentFailing,
+      'customAgentWithArtifacts': customAgentWithArtifacts,
+      'customAgentWithCustomState': customAgentWithCustomState,
+      'customAgentWithMultiCustomState': customAgentWithMultiCustomState,
+      'customAgentWithArtifactsStore': customAgentWithArtifactsStore,
+      'customAgentWithCustomStateStore': customAgentWithCustomStateStore,
+    },
+    // Raw stores for the abort steps, which read the *stored* status directly
+    // (unshaped by heartbeat expiry) to assert `expectPreviousStatus`.
+    stores: {
+      'promptAgentWithStore': promptAgentWithStoreStore,
+      'customAgentBlocking': customAgentBlockingStore,
+      'customAgentFailing': customAgentFailingStore,
+    },
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -544,7 +560,7 @@ Future<void> _executeSend(
         'Expected the turn to throw $expectError, but it resolved normally.',
       );
     }
-    final status = thrown is GenkitException ? thrown.status.name : null;
+    final status = thrown is GenkitException ? thrown.status.wireName : null;
     final message = thrown is GenkitException
         ? thrown.message
         : thrown.toString();
@@ -833,6 +849,7 @@ void _assertSnapshot(SessionSnapshot snapshot, Map? expect) {
 
 Future<void> _executeAbort(
   Agent agent,
+  SessionStore? store,
   Map<String, dynamic> step,
   Map<String, dynamic> captures,
 ) async {
@@ -842,7 +859,19 @@ Future<void> _executeAbort(
     throw _SpecError('abort invocation requires snapshotId');
   }
 
-  final previousStatus = await agent.abort(snapshotId);
+  // Capture the status before aborting so we can assert `expectPreviousStatus`.
+  // `abort()` returns the status *after* the attempt (a pending row reads back
+  // as `aborting`), while the spec asserts the *previous* status, so the harness
+  // reads it first. Read the *stored* status directly (via the store), not
+  // `getSnapshotData`, which shapes a stale detached beat to `expired` and would
+  // spuriously fail `expectPreviousStatus: pending`. Mirrors the Go harness,
+  // which reads `store.GetSnapshot`.
+  if (store == null) {
+    throw _SpecError('abort invocation requires a store-backed agent');
+  }
+  final before = await store.getSnapshot(snapshotId: snapshotId);
+  final previousStatus = before?.status;
+  await agent.abort(snapshotId);
 
   if (resolved.containsKey('expectPreviousStatus')) {
     final expected = resolved['expectPreviousStatus']; // null means absent
@@ -918,11 +947,14 @@ void main() {
     late Genkit ai;
     late _ProgrammableModel pm;
     late Map<String, Agent> agents;
+    late Map<String, SessionStore> stores;
 
     setUp(() {
       ai = Genkit(promptDir: null);
       pm = _ProgrammableModel();
-      agents = _setupHarness(ai, pm);
+      final harness = _setupHarness(ai, pm);
+      agents = harness.agents;
+      stores = harness.stores;
     });
 
     tearDown(() => ai.shutdown());
@@ -949,7 +981,12 @@ void main() {
               case 'getSnapshotData':
                 await _executeGetSnapshotData(agent, step, captures);
               case 'abort':
-                await _executeAbort(agent, step, captures);
+                await _executeAbort(
+                  agent,
+                  stores[testCase['agent']],
+                  step,
+                  captures,
+                );
               case 'waitUntilCompleted':
                 await _executeWaitUntilCompleted(agent, step, captures);
               default:

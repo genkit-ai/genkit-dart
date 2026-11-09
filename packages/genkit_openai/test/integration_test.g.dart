@@ -69,12 +69,13 @@ base class _WeatherInputSchemaTypeFactory
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'WeatherInputSchema',
-    definition: $Schema
-        .object(
-          properties: {'location': $Schema.string()},
-          required: ['location'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'location': <String, Object?>{'type': 'string'},
+      },
+      'required': ['location'],
+    },
     dependencies: [],
   );
 }
@@ -105,7 +106,7 @@ base class PersonSchema {
   }
 
   int get age {
-    return _json['age'] as int;
+    return (_json['age'] as num).toInt();
   }
 
   set age(int value) {
@@ -134,12 +135,90 @@ base class _PersonSchemaTypeFactory extends SchemanticType<PersonSchema> {
   @override
   JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
     name: 'PersonSchema',
-    definition: $Schema
-        .object(
-          properties: {'name': $Schema.string(), 'age': $Schema.integer()},
-          required: ['name', 'age'],
-        )
-        .value,
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'age': <String, Object?>{'type': 'integer'},
+      },
+      'required': ['name', 'age'],
+    },
+    dependencies: [],
+  );
+}
+
+/// A schema with an optional field.
+///
+/// `nickname` is nullable, so schemantic leaves it out of `required` - which
+/// is precisely what OpenAI's strict mode rejects. The plugin used to send
+/// `strict: true`, so this shape returned a 400.
+base class ProfileSchema {
+  /// Creates a [ProfileSchema] from a JSON map.
+  factory ProfileSchema.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  ProfileSchema._(this._json);
+
+  ProfileSchema({required String name, String? nickname}) {
+    _json = {'name': name, 'nickname': ?nickname};
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [ProfileSchema].
+  static const SchemanticType<ProfileSchema> $schema =
+      _ProfileSchemaTypeFactory();
+
+  String get name {
+    return _json['name'] as String;
+  }
+
+  set name(String value) {
+    _json['name'] = value;
+  }
+
+  String? get nickname {
+    return _json['nickname'] as String?;
+  }
+
+  set nickname(String? value) {
+    if (value == null) {
+      _json.remove('nickname');
+    } else {
+      _json['nickname'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [ProfileSchema] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _ProfileSchemaTypeFactory extends SchemanticType<ProfileSchema> {
+  const _ProfileSchemaTypeFactory();
+
+  @override
+  ProfileSchema parse(Object? json) {
+    return ProfileSchema._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'ProfileSchema',
+    definition: <String, Object?>{
+      'type': 'object',
+      'properties': <String, Object?>{
+        'name': <String, Object?>{'type': 'string'},
+        'nickname': <String, Object?>{'type': 'string'},
+      },
+      'required': ['name'],
+    },
     dependencies: [],
   );
 }

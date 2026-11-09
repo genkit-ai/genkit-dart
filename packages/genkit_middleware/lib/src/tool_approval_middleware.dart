@@ -23,6 +23,10 @@ abstract class $ToolApprovalOptions {
   List<String> get approved;
 }
 
+/// Registers the `toolApproval` middleware.
+///
+/// [approvedTools] is the default allow-list, used when [toolApproval] is
+/// called without `approved:`.
 class ToolApprovalPlugin extends GenkitPlugin {
   final List<String>? approvedTools;
 
@@ -33,7 +37,7 @@ class ToolApprovalPlugin extends GenkitPlugin {
 
   @override
   List<GenerateMiddlewareDef> middleware() => [
-    defineMiddleware<ToolApprovalOptions>(
+    generateMiddleware<ToolApprovalOptions>(
       name: 'toolApproval',
       configSchema: ToolApprovalOptions.$schema,
       create: (config, ctx) {
@@ -45,12 +49,18 @@ class ToolApprovalPlugin extends GenkitPlugin {
   ];
 }
 
+/// Interrupts any tool call whose name is not in the allow-list, so a human
+/// can approve it (by restarting with `{'tool-approved': true}`).
+///
+/// [approved] replaces the plugin's `approvedTools` for this call (the two are
+/// not merged). When omitted, the plugin's list applies.
 GenerateMiddlewareRef<ToolApprovalOptions> toolApproval({
   List<String>? approved,
 }) {
   return middlewareRef(
     name: 'toolApproval',
-    config: ToolApprovalOptions(approved: approved ?? []),
+    // A null config lets the plugin fall back to its `approvedTools`.
+    config: approved == null ? null : ToolApprovalOptions(approved: approved),
   );
 }
 
@@ -61,10 +71,10 @@ class ToolApprovalMiddleware extends GenerateMiddleware {
     : approvedTools = options.approved;
 
   @override
-  Future<ToolResponsePart> tool(
+  Future<ToolResult> tool(
     ToolRequestPart request,
     ActionFnArg<void, dynamic, void> ctx,
-    Future<ToolResponsePart> Function(
+    Future<ToolResult> Function(
       ToolRequestPart request,
       ActionFnArg<void, dynamic, void> ctx,
     )
@@ -79,7 +89,7 @@ class ToolApprovalMiddleware extends GenerateMiddleware {
     // Check if the tool is implicitly approved or explicitly approved via metadata
     if (!approvedTools.contains(request.toolRequest.name) &&
         !approvedByMetadata) {
-      throw ToolInterruptException('Tool not in approved list');
+      return .interrupt('Tool not in approved list');
     }
 
     return next(request, ctx);

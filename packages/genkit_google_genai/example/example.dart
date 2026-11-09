@@ -91,9 +91,9 @@ void main(List<String> args) async {
     inputSchema: WeatherToolInput.$schema,
     fn: (input, context) async {
       if (input.location.toLowerCase().contains('boston')) {
-        return 'The weather in Boston is 72F and sunny.';
+        return .response('The weather in Boston is 72F and sunny.');
       }
-      return 'The weather in ${input.location} is 75F and cloudy.';
+      return .response('The weather in ${input.location} is 75F and cloudy.');
     },
   );
   ai.defineTool(
@@ -104,14 +104,18 @@ void main(List<String> args) async {
     outputSchema: TemperatureConverterOutput.$schema,
     fn: (input, context) async {
       if (input.unit == TemperatureUnit.C) {
-        return TemperatureConverterOutput(
-          temperature: (input.temperature * 9 / 5) + 32,
-          unit: TemperatureUnit.F,
+        return .response(
+          TemperatureConverterOutput(
+            temperature: (input.temperature * 9 / 5) + 32,
+            unit: TemperatureUnit.F,
+          ),
         );
       }
-      return TemperatureConverterOutput(
-        temperature: (input.temperature - 32) * 5 / 9,
-        unit: TemperatureUnit.C,
+      return .response(
+        TemperatureConverterOutput(
+          temperature: (input.temperature - 32) * 5 / 9,
+          unit: TemperatureUnit.C,
+        ),
       );
     },
   );
@@ -250,12 +254,12 @@ void main(List<String> args) async {
         prompt: prompt,
         config: GeminiOptions(
           // Configured to return thoughts as ReasoningParts.
-          thinkingConfig: ThinkingConfig(
+          thinkingConfig: GeminiThinkingConfig(
             thinkingBudget: 2048,
             includeThoughts: true,
           ),
         ),
-        onChunk: (chunk) => ctx.sendChunk(chunk),
+        onChunk: (chunk) => ctx.sendChunk(chunk.modelChunk),
       );
       return response.message!;
     },
@@ -274,7 +278,7 @@ void main(List<String> args) async {
         prompt: prompt,
         config: GeminiOptions(
           safetySettings: [
-            SafetySettings(
+            GeminiSafetySettings(
               category: 'HARM_CATEGORY_HATE_SPEECH',
               threshold: 'BLOCK_MEDIUM_AND_ABOVE',
             ),
@@ -296,7 +300,7 @@ void main(List<String> args) async {
       final response = await ai.generate(
         model: googleAI.gemini('gemini-flash-latest'),
         prompt: prompt,
-        config: GeminiOptions(googleSearch: GoogleSearch()),
+        config: GeminiOptions(googleSearch: GeminiGoogleSearch()),
       );
       return response.raw!;
     },
@@ -326,13 +330,13 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3.1-flash-tts-preview'),
+        model: googleAI.geminiTts('gemini-3.8-flash-tts'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
-          speechConfig: SpeechConfig(
-            voiceConfig: VoiceConfig(
-              prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
+          speechConfig: GeminiSpeechConfig(
+            voiceConfig: GeminiVoiceConfig(
+              prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(voiceName: 'Puck'),
             ),
           ),
         ),
@@ -359,23 +363,30 @@ void main(List<String> args) async {
     outputSchema: Media.$schema,
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: googleAI.gemini('gemini-3.1-flash-tts-preview'),
+        // 3.8 TTS wants a speech_metadata.speaker on every text part for
+        // multi-speaker requests, which GeminiTtsOptions cannot express yet;
+        // 3.1 still takes speakers from the transcript.
+        model: googleAI.geminiTts('gemini-3.1-flash-tts-preview'),
         prompt: prompt,
         config: GeminiTtsOptions(
           responseModalities: ['AUDIO'],
-          speechConfig: SpeechConfig(
-            multiSpeakerVoiceConfig: MultiSpeakerVoiceConfig(
+          speechConfig: GeminiSpeechConfig(
+            multiSpeakerVoiceConfig: GeminiMultiSpeakerVoiceConfig(
               speakerVoiceConfigs: [
-                SpeakerVoiceConfig(
+                GeminiSpeakerVoiceConfig(
                   speaker: 'Speaker A',
-                  voiceConfig: VoiceConfig(
-                    prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
+                  voiceConfig: GeminiVoiceConfig(
+                    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
+                      voiceName: 'Puck',
+                    ),
                   ),
                 ),
-                SpeakerVoiceConfig(
+                GeminiSpeakerVoiceConfig(
                   speaker: 'Speaker B',
-                  voiceConfig: VoiceConfig(
-                    prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Kore'),
+                  voiceConfig: GeminiVoiceConfig(
+                    prebuiltVoiceConfig: GeminiPrebuiltVoiceConfig(
+                      voiceName: 'Kore',
+                    ),
                   ),
                 ),
               ],
@@ -398,7 +409,7 @@ void main(List<String> args) async {
     inputSchema: .string(defaultValue: 'Hello Genkit'),
     outputSchema: .list(.doubleSchema()),
     fn: (input, _) async {
-      final embeddings = await ai.embedMany(
+      final embeddings = await ai.embed(
         embedder: googleAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: input)]),
