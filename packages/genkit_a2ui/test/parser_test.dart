@@ -46,7 +46,29 @@ List<List<A2uiEnvelope>> batchesOf(List<ParseSegment> segments) =>
 
 A2uiStreamParser newParser({
   A2uiValidateMode validate = A2uiValidateMode.strict,
-}) => A2uiStreamParser(catalog: basicCatalog, validate: validate);
+  Iterable<String> live = const [],
+}) => A2uiStreamParser(
+  catalog: basicCatalog,
+  validate: validate,
+  history: [for (final id in live) ...renderedSurface(id)],
+);
+
+/// The messages that rendered a minimal surface [id], as history.
+List<A2uiEnvelope> renderedSurface(String id) => [
+  {
+    'version': a2uiVersion,
+    'createSurface': {'surfaceId': id, 'catalogId': basicCatalogId},
+  },
+  {
+    'version': a2uiVersion,
+    'updateComponents': {
+      'surfaceId': id,
+      'components': [
+        {'id': 'root', 'component': 'Text', 'text': 'old'},
+      ],
+    },
+  },
+];
 
 const weatherSource = '''
 surface("tokyo")
@@ -325,6 +347,195 @@ void main() {
           collect(newParser(), ['<a2ui>\ndeleteSurface("tokyo")\n</a2ui>\n']),
         );
         expect(kinds(batches.single), ['deleteSurface']);
+      });
+    });
+
+    group('updating a surface the client already holds', () {
+      test('a block without root updates it in place', () {
+        final batch = batchesOf(
+          collect(newParser(live: ['tokyo']), [
+            '<a2ui>\nsurface("tokyo")\nroot = Column([note])\n'
+                'note = Text("Windy")\n</a2ui>',
+            '<a2ui>\nsurface("tokyo")\nnote = Text("Calm")\n</a2ui>',
+          ]),
+        );
+        expect(kinds(batch.last), ['updateComponents']);
+      });
+
+      test('a data-only block updates its data model', () {
+        final batch = batchesOf(
+          collect(newParser(live: ['tokyo']), [
+            '<a2ui>\nsurface("tokyo")\n\$/temp = "21°C"\n</a2ui>',
+          ]),
+        ).single;
+        expect(kinds(batch), ['updateDataModel']);
+      });
+
+      test('an update must still leave a valid tree', () {
+        // Compiles on its own, but `note` is unreachable from the held root.
+        expect(
+          () => collect(newParser(live: ['tokyo']), [
+            '<a2ui>\nsurface("tokyo")\nnote = Text("x")\n</a2ui>',
+          ]),
+          throwsA(isA<StateError>()),
+        );
+      });
+
+      test('a component an earlier update orphaned does not block updates', () {
+        // Turn 2 dropped `b` from the tree; the renderer still holds it, so a
+        // later update must not be judged on it.
+        final parser = A2uiStreamParser(
+          catalog: basicCatalog,
+          history: [
+            {
+              'version': a2uiVersion,
+              'createSurface': {'surfaceId': 's', 'catalogId': basicCatalogId},
+            },
+            {
+              'version': a2uiVersion,
+              'updateComponents': {
+                'surfaceId': 's',
+                'components': [
+                  {
+                    'id': 'root',
+                    'component': 'Column',
+                    'children': ['a', 'b'],
+                  },
+                  {'id': 'a', 'component': 'Text', 'text': 'A'},
+                  {'id': 'b', 'component': 'Text', 'text': 'B'},
+                ],
+              },
+            },
+            {
+              'version': a2uiVersion,
+              'updateComponents': {
+                'surfaceId': 's',
+                'components': [
+                  {
+                    'id': 'root',
+                    'component': 'Column',
+                    'children': ['a'],
+                  },
+                ],
+              },
+            },
+          ],
+        );
+        final batch = batchesOf(
+          collect(parser, ['<a2ui>\nsurface("s")\n\$/k = "v"\n</a2ui>']),
+        ).single;
+        expect(kinds(batch), ['updateDataModel']);
+      });
+
+      test('a data-only update passes when history left a broken tree', () {
+        final parser = A2uiStreamParser(
+          catalog: basicCatalog,
+          history: [
+            {
+              'createSurface': {'surfaceId': 's', 'catalogId': basicCatalogId},
+            },
+            {
+              'updateComponents': {
+                'surfaceId': 's',
+                'components': [
+                  {
+                    'id': 'root',
+                    'component': 'Column',
+                    'children': ['missing'],
+                  },
+                ],
+              },
+            },
+          ],
+        );
+        final batch = batchesOf(
+          collect(parser, ['<a2ui>\nsurface("s")\n\$/k = "v"\n</a2ui>']),
+        ).single;
+        expect(kinds(batch), ['updateDataModel']);
+      });
+
+      group('history', () {
+        A2uiEnvelope create(String id) => {
+          'createSurface': {'surfaceId': id, 'catalogId': basicCatalogId},
+        };
+        A2uiEnvelope components(String id, List<Map<String, Object?>> c) => {
+          'updateComponents': {'surfaceId': id, 'components': c},
+        };
+        final withA = components('s', [
+          {
+            'id': 'root',
+            'component': 'Column',
+            'children': ['a'],
+          },
+          {'id': 'a', 'component': 'Text', 'text': 'A'},
+        ]);
+        const updateA = '<a2ui>\nsurface("s")\na = Text("new")\n</a2ui>';
+
+        test('a surface deleted and created again starts over', () {
+          final parser = A2uiStreamParser(
+            catalog: basicCatalog,
+            history: [
+              create('s'),
+              withA,
+              {
+                'deleteSurface': {'surfaceId': 's'},
+              },
+              create('s'),
+              components('s', [
+                {'id': 'root', 'component': 'Text', 'text': 'new'},
+              ]),
+            ],
+          );
+          // `a` went with the old surface, so it would now be unreachable.
+          expect(() => collect(parser, [updateA]), throwsA(isA<StateError>()));
+        });
+
+        test('a delete of another protocol version is ignored', () {
+          final parser = A2uiStreamParser(
+            catalog: basicCatalog,
+            history: [
+              create('s'),
+              withA,
+              {
+                'version': '1.0',
+                'deleteSurface': {'surfaceId': 's'},
+              },
+            ],
+          );
+          expect(kinds(batchesOf(collect(parser, [updateA])).single), [
+            'updateComponents',
+          ]);
+        });
+
+        test('a second create without a delete keeps the old tree', () {
+          // The renderer rejects creating a live surface, so `a` survives.
+          final parser = A2uiStreamParser(
+            catalog: basicCatalog,
+            history: [create('s'), withA, create('s')],
+          );
+          expect(kinds(batchesOf(collect(parser, [updateA])).single), [
+            'updateComponents',
+          ]);
+        });
+      });
+
+      test('a rejected block does not change what later blocks see', () {
+        final parser = newParser(
+          live: ['tokyo'],
+          validate: A2uiValidateMode.warn,
+        );
+        final batches = batchesOf(
+          collect(parser, [
+            // Compiles, but the renderer rejects the orphaned `extra`, so the
+            // delete in the same block never happens either.
+            '<a2ui>\ndeleteSurface("tokyo")\nsurface("x")\n'
+                'root = Text("r")\nextra = Text("orphan")\n</a2ui>',
+            '<a2ui>\nsurface("tokyo")\n\$/temp = "21°C"\n</a2ui>',
+          ]),
+        );
+        expect(batches.map(kinds), [
+          ['updateDataModel'],
+        ]);
       });
     });
 
