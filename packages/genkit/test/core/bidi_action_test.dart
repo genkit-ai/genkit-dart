@@ -14,6 +14,7 @@
 
 import 'dart:async';
 import 'package:genkit/src/core/action.dart';
+import 'package:genkit/src/exception.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -132,6 +133,64 @@ void main() {
       final chunks = await session.toList();
       expect(chunks, ['>> 1', '>> 2']);
       expect(await session.onResult, 'done');
+    });
+
+    group('close() returns when the action never listens to its input', () {
+      test('after the action fails', () async {
+        final action = Action<String, String, String, void>(
+          name: 'failsBeforeListening',
+          actionType: .custom,
+          fn: (input, context) async {
+            throw GenkitException('connect failed');
+          },
+        );
+
+        final session = action.streamBidi();
+        await expectLater(session.onResult, throwsA(isA<GenkitException>()));
+
+        await session.close().timeout(const Duration(seconds: 5));
+        expect(session.isClosed, isTrue);
+      });
+
+      test('when called while the action is still starting', () async {
+        final started = Completer<void>();
+        final fail = Completer<void>();
+        final action = Action<String, String, String, void>(
+          name: 'failsLater',
+          actionType: .custom,
+          fn: (input, context) async {
+            started.complete();
+            await fail.future;
+            throw GenkitException('connect failed');
+          },
+        );
+
+        final session = action.streamBidi();
+        final result = expectLater(
+          session.onResult,
+          throwsA(isA<GenkitException>()),
+        );
+        await started.future;
+
+        final closed = session.close();
+        fail.complete();
+
+        await closed.timeout(const Duration(seconds: 5));
+        await result;
+      });
+
+      test('after the action returns without reading its input', () async {
+        final action = Action<String, String, String, void>(
+          name: 'ignoresInput',
+          actionType: .custom,
+          fn: (input, context) async => 'done',
+        );
+
+        final session = action.streamBidi();
+        expect(await session.onResult, 'done');
+
+        await session.close().timeout(const Duration(seconds: 5));
+      });
     });
   });
 }
