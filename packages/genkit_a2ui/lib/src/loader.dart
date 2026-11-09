@@ -20,7 +20,7 @@
 /// inline, or load it from a JSON file.
 ///
 /// The `file` variant uses `dart:io`, so it is server-only (it is exported from
-/// the main `package:genkit_a2ui/a2ui.dart` entry, not the client entry).
+/// the main `package:genkit_a2ui/a2ui.dart` entry).
 library;
 
 import 'dart:convert';
@@ -29,6 +29,7 @@ import 'dart:io';
 import 'package:genkit/genkit.dart';
 
 import 'catalog.dart';
+import 'catalog_types.dart' show A2uiCatalogCore, checkCatalogDocument;
 
 /// Registers an A2UI catalog under an [id] so the `a2ui()` middleware can look
 /// it up (via `a2ui(catalog: id)`). Provide either [catalog] or [file].
@@ -47,7 +48,7 @@ Future<A2uiCatalog> loadCatalog(
 
   A2uiCatalog resolved;
   if (file != null) {
-    resolved = await _readCatalogFile(file);
+    resolved = await _readCatalogFile(file, fallbackId: id);
   } else if (catalog != null) {
     resolved = catalog;
   } else {
@@ -56,16 +57,26 @@ Future<A2uiCatalog> loadCatalog(
 
   // Register under the requested id. Keep the catalog's own `id` (used as the
   // `catalogId` on surfaces) intact if present; otherwise default it to the id.
-  final registered = A2uiCatalog(
-    id: resolved.id.isNotEmpty ? resolved.id : id,
-    components: resolved.components,
-  );
+  final registered = resolved.id.isNotEmpty ? resolved : resolved.withId(id);
+  // Validate now rather than on the first generate call, where the error
+  // would name neither the catalog nor its file.
+  try {
+    registered.toCore();
+  } catch (e, st) {
+    Error.throwWithStackTrace(
+      StateError(
+        'loadCatalog(): catalog "$id"${file == null ? '' : ' ($file)'} is not '
+        'a valid A2UI catalog: $e',
+      ),
+      st,
+    );
+  }
   ai.registry.registerValue(a2uiCatalogValueType, id, registered);
   return registered;
 }
 
 /// Reads and parses a catalog from a JSON file.
-Future<A2uiCatalog> _readCatalogFile(String file) async {
+Future<A2uiCatalog> _readCatalogFile(String file, {String? fallbackId}) async {
   String raw;
   try {
     raw = await File(file).readAsString();
@@ -80,12 +91,26 @@ Future<A2uiCatalog> _readCatalogFile(String file) async {
       'loadCatalog(): catalog file "$file" is not valid JSON: $e',
     );
   }
-  if (json is! Map || json['components'] is! List) {
+  // The spec's `catalog.json` keys `components` by name, so this accepts a
+  // published catalog file unmodified.
+  if (json is! Map || json['components'] is! Map) {
     throw StateError(
-      'loadCatalog(): catalog file "$file" must have a "components" array.',
+      'loadCatalog(): catalog file "$file" must have a "components" object '
+      'keyed by component name (the A2UI catalog.json shape).',
     );
   }
-  return A2uiCatalog.fromJson(json.cast<String, dynamic>());
+  final doc = json.cast<String, dynamic>();
+  // Check the document as written: `fromJson` skips malformed entries, so
+  // checking only its result would hide them.
+  try {
+    checkCatalogDocument(doc, fallbackId: fallbackId);
+  } catch (e, st) {
+    Error.throwWithStackTrace(
+      StateError('loadCatalog(): catalog file "$file" is not valid: $e'),
+      st,
+    );
+  }
+  return A2uiCatalog.fromJson(doc);
 }
 
 /// Resolves a catalog by id from the registry, falling back to the bundled
