@@ -25,7 +25,7 @@ void main() {
     test('wraps envelopes in a data part tagged with the a2ui mime type', () {
       final part = a2uiPart([sampleEnvelope]);
       expect(part.data, {
-        'envelopes': [sampleEnvelope],
+        'messages': [sampleEnvelope],
       });
       expect(part.metadata?['mimeType'], a2uiMimeType);
     });
@@ -44,7 +44,7 @@ void main() {
       expect(
         isA2uiPart(
           DataPart(
-            data: {'envelopes': <dynamic>[]},
+            data: {'messages': <dynamic>[]},
             metadata: {'mimeType': 'application/json'},
           ),
         ),
@@ -52,11 +52,11 @@ void main() {
       );
     });
 
-    test('rejects a data part whose data.envelopes is not an array', () {
+    test('rejects a data part whose data.messages is not an array', () {
       expect(
         isA2uiPart(
           DataPart(
-            data: {'envelopes': <String, dynamic>{}},
+            data: {'messages': <String, dynamic>{}},
             metadata: {'mimeType': a2uiMimeType},
           ),
         ),
@@ -64,8 +64,45 @@ void main() {
       );
     });
 
+    test('accepts the legacy data.envelopes key', () {
+      expect(
+        isA2uiPart(
+          DataPart(
+            data: {
+              'envelopes': [sampleEnvelope],
+            },
+            metadata: {'mimeType': a2uiMimeType},
+          ),
+        ),
+        isTrue,
+      );
+    });
+
+    test('prefers data.messages when both keys are present', () {
+      final part = DataPart(
+        data: {
+          'messages': [
+            {
+              'deleteSurface': {'surfaceId': 'new'},
+            },
+          ],
+          'envelopes': [
+            {
+              'deleteSurface': {'surfaceId': 'old'},
+            },
+          ],
+        },
+        metadata: {'mimeType': a2uiMimeType},
+      );
+      expect(a2uiEnvelopesFromParts([part]), [
+        {
+          'deleteSurface': {'surfaceId': 'new'},
+        },
+      ]);
+    });
+
     test('rejects a data part with no mime type metadata', () {
-      expect(isA2uiPart(DataPart(data: {'envelopes': <dynamic>[]})), isFalse);
+      expect(isA2uiPart(DataPart(data: {'messages': <dynamic>[]})), isFalse);
     });
   });
 
@@ -97,6 +134,20 @@ void main() {
         a2uiPart([sampleEnvelope]),
       ];
       expect(a2uiEnvelopesFromParts(parts), [sampleEnvelope, sampleEnvelope]);
+    });
+
+    test('reads parts written with the legacy envelopes key', () {
+      expect(
+        a2uiEnvelopesFromParts([
+          DataPart(
+            data: {
+              'envelopes': [sampleEnvelope],
+            },
+            metadata: {'mimeType': a2uiMimeType},
+          ),
+        ]),
+        [sampleEnvelope],
+      );
     });
 
     test('returns [] for prose / non-a2ui content', () {
