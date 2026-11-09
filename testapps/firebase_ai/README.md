@@ -21,7 +21,13 @@ This is a sample Flutter application demonstrating how to use the `genkit_fireba
    ```
    Select your project and platforms (iOS, Android, macOS, Web).
 
-3. **Run the App with Observability (Telemetry)**
+3. **Register an App Check debug token**
+   Firebase AI Logic enforces App Check, and the app uses the App Check debug
+   providers. Run the app once, copy the debug token it logs (the browser
+   console on web), and add it in the Firebase console under App Check >
+   Apps > Manage debug tokens.
+
+4. **Run the App with Observability (Telemetry)**
    To see Genkit traces and telemetry during development:
 
    First, start the Genkit Developer UI:
