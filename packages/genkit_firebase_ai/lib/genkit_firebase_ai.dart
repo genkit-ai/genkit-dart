@@ -17,6 +17,9 @@ import 'dart:convert';
 
 import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:firebase_core/firebase_core.dart' as fcore;
+// Live (bidi) model support builds on Genkit's experimental surface. Like
+// `package:genkit/experimental.dart`, `BidiModel` is NOT covered by
+// semantic-versioning stability guarantees and may change in any MINOR release.
 import 'package:genkit/experimental.dart' show BidiModel;
 import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
