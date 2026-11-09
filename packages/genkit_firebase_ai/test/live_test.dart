@@ -396,6 +396,35 @@ void main() {
       expect(session.calls, isEmpty);
     });
 
+    test('rejects a malformed data: URL and sends nothing', () async {
+      final session = _FakeLiveSession();
+
+      await expectLater(
+        sendToLiveSession(
+          session,
+          Message(
+            role: Role.user,
+            content: [
+              MediaPart(
+                media: Media(
+                  url: 'data:image/png;base64,@@@',
+                  contentType: 'image/png',
+                ),
+              ),
+            ],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+      expect(session.calls, isEmpty);
+    });
+
     Part media(String contentType) => MediaPart(
       media: Media(
         url: 'data:$contentType;base64,AAAA',

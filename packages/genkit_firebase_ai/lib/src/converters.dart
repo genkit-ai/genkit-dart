@@ -15,6 +15,7 @@
 // ignore_for_file: invalid_use_of_visible_for_testing_member
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:genkit/plugin.dart';
@@ -120,25 +121,37 @@ fai.Part toGeminiPart(Part p) {
       perPart: true,
     );
     if (media.url.startsWith('data:')) {
-      final uri = Uri.parse(media.url);
-      if (uri.data != null) {
-        final mimeType = media.contentType ?? _dataUriMimeType(uri.data!);
-        try {
-          return fai.InlineDataPart.forTest(
-            mimeType,
-            uri.data!.contentAsBytes(),
-            mediaResolution: mediaResolution,
-            isThought: isThought,
-            thoughtSignature: thoughtSignature,
-          );
-        } catch (_) {
-          return fai.InlineDataPart(
-            mimeType,
-            uri.data!.contentAsBytes(),
-            mediaResolution: mediaResolution,
-            isThought: isThought,
-          );
-        }
+      final Uint8List bytes;
+      final String mimeType;
+      try {
+        // `Uri.data` is never null for a `data:` URL; a malformed one throws.
+        final data = Uri.parse(media.url).data!;
+        bytes = data.contentAsBytes();
+        mimeType = media.contentType ?? _dataUriMimeType(data);
+      } on FormatException catch (e) {
+        // INVALID_ARGUMENT, not INTERNAL: retrying the same request cannot
+        // help.
+        throw GenkitException(
+          'Media part has a malformed data: URL: ${e.message}',
+          status: StatusCode.invalidArgument,
+          cause: e,
+        );
+      }
+      try {
+        return fai.InlineDataPart.forTest(
+          mimeType,
+          bytes,
+          mediaResolution: mediaResolution,
+          isThought: isThought,
+          thoughtSignature: thoughtSignature,
+        );
+      } catch (_) {
+        return fai.InlineDataPart(
+          mimeType,
+          bytes,
+          mediaResolution: mediaResolution,
+          isThought: isThought,
+        );
       }
     }
     // Assume HTTP/S or other URLs are File URIs
