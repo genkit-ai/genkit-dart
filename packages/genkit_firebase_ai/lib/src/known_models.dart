@@ -160,7 +160,9 @@ enum KnownFirebaseAiModel {
   gemini3ProImage('gemini-3-pro-image', 'Gemini 3 Pro Image', family: .image),
   // The 3.8 TTS and Live models replace previews the Gemini API shuts down on
   // 2026-11-17 (https://aistudio.google.com/docs/deprecations). Firebase
-  // serves them on both backends but doesn't list them yet.
+  // serves them on both backends but doesn't list them yet. On Agent Platform,
+  // gemini-3.8-live needs a regional location such as us-central1; `global`
+  // doesn't have it (checked live on 2026-11-09).
   gemini38FlashTts(
     'gemini-3.8-flash-tts',
     'Gemini 3.8 Flash TTS',
