@@ -28,21 +28,33 @@ Firebase AI plugin for Genkit Dart. It calls Gemini from Flutter apps through
 > console, but not past January 21, 2027.
 
 Activate App Check before the first model call. The plugin reads it from the
-`FirebaseApp` (see [Configuration](#configuration)). During development, use
-the debug providers:
+`FirebaseApp` (see [Configuration](#configuration)). Use the debug providers
+during development and the platform attestation providers in release builds:
 
 ```dart
+import 'package:firebase_app_check/firebase_app_check.dart';
+import 'package:flutter/foundation.dart';
+
 await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 await FirebaseAppCheck.instance.activate(
-  providerAndroid: const AndroidDebugProvider(),
-  providerApple: const AppleDebugProvider(),
-  providerWeb: WebDebugProvider(),
+  providerAndroid: kDebugMode
+      ? const AndroidDebugProvider()
+      : const AndroidPlayIntegrityProvider(),
+  providerApple: kDebugMode
+      ? const AppleDebugProvider()
+      : const AppleAppAttestWithDeviceCheckFallbackProvider(),
+  providerWeb: kDebugMode
+      ? WebDebugProvider()
+      : ReCaptchaEnterpriseProvider('your-recaptcha-site-key'),
 );
 ```
 
-On first run, each debug provider logs a debug token (in the browser console
-on web). Add it in the Firebase console under App Check > Apps > Manage debug
-tokens.
+Never ship the debug providers: anyone with a registered debug token passes
+App Check. On first run, each debug provider logs a debug token (in the
+browser console on web). Add it in the Firebase console under App Check >
+Apps > Manage debug tokens. The release providers need their own setup in the
+Firebase console; see
+[Get started with App Check](https://firebase.google.com/docs/app-check/flutter/default-providers).
 
 ## Usage
 
@@ -229,8 +241,9 @@ Use `firebase_ai` 5.0.0 or later to get it as media.
 ### Safety settings
 
 `safetySettings` sets a blocking threshold per harm category. The
-`HARM_CATEGORY_IMAGE_*` categories and `method` work on Agent Platform only;
-the Gemini Developer API rejects them.
+`HARM_CATEGORY_IMAGE_*` categories and `method` work on Agent Platform only.
+With the Gemini Developer API, the plugin rejects them with `INVALID_ARGUMENT`
+before sending the request.
 
 ```dart
 config: GeminiOptions(
