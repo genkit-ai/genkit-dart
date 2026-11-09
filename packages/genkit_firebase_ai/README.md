@@ -69,17 +69,19 @@ capabilities:
 
 - Text: `gemini-4-argon`, `gemini-3.8-flash`, `gemini-3.5-flash`,
   `gemini-3.5-flash-lite`, `gemini-3.1-flash-lite` and `gemini-3.1-pro-preview`.
-  `gemini-flash-latest`, `gemini-3.7-flash` and `gemini-3.6-flash` are Gemini
-  Developer API only.
+  `gemini-flash-latest`, `gemini-3.7-flash` and `gemini-3.6-flash` are
+  registered for the Gemini Developer API only (the last two are deprecated on
+  Agent Platform).
 - Image: `gemini-nano-banana-2.1`, `gemini-3.1-flash-image`,
   `gemini-3.1-flash-lite-image` and `gemini-3-pro-image`.
 - Text-to-speech: `gemini-3.8-flash-tts` and `gemini-3.8-flash-lite-tts`.
-- Live (see [Live API](#live-api-experimental)): `gemini-3.8-live`, and
-  `gemini-live-2.5-flash-native-audio` on Agent Platform only.
+- Live (see [Live API](#live-api-experimental)): `gemini-3.8-live` on the
+  Gemini Developer API only, and `gemini-live-2.5-flash-native-audio` on Agent
+  Platform only.
 
 Gemini models are retired often, and a model name compiled into your app
-stops working when its model shuts down. For example, the Gemini 2.5 models
-shut down in October 2026. Firebase
+stops working when its model shuts down. For example, Gemini 2.5 Pro, Flash
+and Flash-Lite shut down on Agent Platform on October 20, 2026. Firebase
 [recommends](https://firebase.google.com/docs/ai-logic/change-model-name-remotely)
 reading the model name from Remote Config, so you can change it without an
 app release:
@@ -208,6 +210,12 @@ signature, so the plugin uses its `@visibleForTesting` constructors for this
 `codeExecution: true` lets the model write and run Python. The code and its
 result come back as custom parts with the keys `executableCode` and
 `codeExecutionResult`.
+
+With `firebase_ai` older than 5.0.0, a file part in a response (for example
+a file the model generated) also comes back as a custom part, under
+`fileData`, instead of a media part
+([flutterfire#18753](https://github.com/firebase/flutterfire/issues/18753)).
+Use `firebase_ai` 5.0.0 or later to get it as media.
 
 ### Safety settings
 
@@ -376,8 +384,8 @@ blocked for safety is `FAILED_PRECONDITION`.
 
 `ai.generate` does not throw for these. It returns a response with
 `finishReason: FinishReason.failed`, the status and message in
-`response.error`, and the exception in `response.cause`. The original
-`firebase_ai` exception is the `cause` of that exception.
+`response.error`, and the exception in `response.cause`. For a `firebase_ai` or
+network error, the original exception is the `cause` of that exception.
 
 ```dart
 final response = await ai.generate(
@@ -430,11 +438,12 @@ final session = await ai.generateBidi(
 );
 session.send('Hello');
 session.stream.listen((chunk) {
-  // Text parts and audio media parts (data: URLs).
+  // Audio media parts (data: URLs).
 });
 ```
 
-`gemini-3.8-live` works with both providers. Agent Platform also serves
+`gemini-3.8-live` works with the Gemini Developer API only, because Agent
+Platform doesn't serve Gemini Live 3.x models. On Agent Platform, use
 `gemini-live-2.5-flash-native-audio`, which needs a `location` such as
 `'us-central1'`.
 
