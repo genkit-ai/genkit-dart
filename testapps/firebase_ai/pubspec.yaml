@@ -28,6 +28,8 @@ dependencies:
   record: ^6.1.2
   schemantic:
     path: ../../packages/schemantic
+  url_launcher: ^6.3.3
+  webview_flutter: ^4.14.1
 
 dev_dependencies:
   build_runner: ^2.10.5

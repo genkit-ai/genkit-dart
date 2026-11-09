@@ -19,6 +19,7 @@ import 'dart:typed_data';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:firebase_app_check/firebase_app_check.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' hide Flow;
 // Live (bidi) generation is experimental; see the note in experimental.dart.
 import 'package:genkit/experimental.dart';
@@ -28,6 +29,8 @@ import 'package:logging/logging.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:record/record.dart';
 import 'package:schemantic/schemantic.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
 import 'firebase_options.dart';
 
@@ -662,16 +665,24 @@ class _GroundingScreenState extends State<GroundingScreen> {
   );
   late final Genkit _ai;
   var _tool = _GroundingTool.googleSearch;
+  CancellationController? _request;
   bool _isLoading = false;
   String _answer = '';
   List<String> _queries = [];
-  List<String> _sources = [];
-  bool _hasSearchSuggestions = false;
+  List<({String label, String url})> _sources = [];
+  String? _searchSuggestionsHtml;
 
   @override
   void initState() {
     super.initState();
     _ai = Genkit(plugins: [firebaseAI()]);
+  }
+
+  @override
+  void dispose() {
+    _request?.cancel('Grounding screen closed');
+    _controller.dispose();
+    super.dispose();
   }
 
   Future<void> _ask() async {
@@ -683,46 +694,64 @@ class _GroundingScreenState extends State<GroundingScreen> {
       _answer = '';
       _queries = [];
       _sources = [];
-      _hasSearchSuggestions = false;
+      _searchSuggestionsHtml = null;
     });
 
-    final response = await _ai.generate(
-      model: firebaseAI.gemini('gemini-3.8-flash'),
-      prompt: text,
-      config: switch (_tool) {
-        _GroundingTool.googleSearch => GeminiOptions(
-          googleSearch: GeminiGoogleSearch(),
-        ),
-        _GroundingTool.urlContext => GeminiOptions(
-          urlContext: GeminiUrlContext(),
-        ),
-      },
-    );
+    final request = _request = CancellationController();
+    try {
+      // Model and network errors come back as FinishReason.failed. Only setup
+      // errors, such as invalid options, throw.
+      final response = await _ai.generate(
+        model: firebaseAI.gemini('gemini-3.8-flash'),
+        prompt: text,
+        config: switch (_tool) {
+          _GroundingTool.googleSearch => GeminiOptions(
+            googleSearch: GeminiGoogleSearch(),
+          ),
+          _GroundingTool.urlContext => GeminiOptions(
+            urlContext: GeminiUrlContext(),
+          ),
+        },
+        cancel: request.token,
+      );
+      if (!mounted) return;
 
-    final grounding = response.custom?['groundingMetadata'] as Map?;
-    final urlContext = response.custom?['urlContextMetadata'] as Map?;
-    setState(() {
-      _isLoading = false;
-      _answer = response.finishReason == FinishReason.failed
-          ? 'Error: ${response.error?.status}: ${response.error?.message}'
-          : response.text;
-      _queries = [
-        for (final query in grounding?['webSearchQueries'] as List? ?? [])
-          '$query',
-      ];
-      _sources = [
-        for (final chunk in grounding?['groundingChunks'] as List? ?? [])
-          if (chunk case {'web': {'uri': final uri} && final web})
-            '${web['title'] ?? uri}\n$uri',
-        for (final url in urlContext?['urlMetadata'] as List? ?? [])
-          if (url case {
-            'retrievedUrl': final retrieved,
-            'urlRetrievalStatus': final status,
-          })
-            '$retrieved\n$status',
-      ];
-      _hasSearchSuggestions = grounding?['searchEntryPoint'] != null;
-    });
+      final grounding = response.custom?['groundingMetadata'] as Map?;
+      final urlContext = response.custom?['urlContextMetadata'] as Map?;
+      setState(() {
+        _answer = switch (response.finishReason) {
+          FinishReason.failed =>
+            'Error: ${response.error?.status}: ${response.error?.message}',
+          _ when response.text.isNotEmpty => response.text,
+          final reason =>
+            'No answer (finish reason: $reason)'
+                '${response.finishMessage == null ? '' : ': ${response.finishMessage}'}',
+        };
+        _queries = [
+          for (final query in grounding?['webSearchQueries'] as List? ?? [])
+            '$query',
+        ];
+        _sources = [
+          for (final chunk in grounding?['groundingChunks'] as List? ?? [])
+            if (chunk case {'web': {'uri': final String uri} && final web})
+              (label: '${web['title'] ?? uri}', url: uri),
+          for (final url in urlContext?['urlMetadata'] as List? ?? [])
+            if (url case {
+              'retrievedUrl': final String retrieved,
+              'urlRetrievalStatus': final status,
+            })
+              (label: '$retrieved ($status)', url: retrieved),
+        ];
+        _searchSuggestionsHtml = switch (grounding?['searchEntryPoint']) {
+          {'renderedContent': final String html} => html,
+          _ => null,
+        };
+      });
+    } catch (e) {
+      if (mounted) setState(() => _answer = 'Error: $e');
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -792,22 +821,26 @@ class _GroundingScreenState extends State<GroundingScreen> {
                         'Sources:',
                         style: TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      ..._sources.map(
-                        (s) => Padding(
-                          padding: const EdgeInsets.only(top: 8),
-                          child: Text(s),
+                      for (final source in _sources)
+                        InkWell(
+                          onTap: () => launchUrl(Uri.parse(source.url)),
+                          child: Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              source.label,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.primary,
+                                decoration: TextDecoration.underline,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
                     ],
-                    // A real app must render searchEntryPoint.renderedContent
-                    // (HTML) when it uses Google Search grounding.
-                    if (_hasSearchSuggestions) ...[
+                    // Firebase requires showing Google Search suggestions
+                    // whenever you use Google Search grounding.
+                    if (_searchSuggestionsHtml case final html?) ...[
                       const SizedBox(height: 16),
-                      const Text(
-                        'The response has Google Search suggestions to '
-                        'display (searchEntryPoint.renderedContent, HTML).',
-                        style: TextStyle(fontStyle: FontStyle.italic),
-                      ),
+                      _SearchSuggestions(html: html),
                     ],
                   ],
                 ),
@@ -817,6 +850,70 @@ class _GroundingScreenState extends State<GroundingScreen> {
         ),
       ),
     );
+  }
+}
+
+/// Shows `searchEntryPoint.renderedContent`, the Google Search suggestions
+/// HTML, and opens a tapped suggestion in the browser.
+class _SearchSuggestions extends StatefulWidget {
+  const _SearchSuggestions({required this.html});
+
+  final String html;
+
+  @override
+  State<_SearchSuggestions> createState() => _SearchSuggestionsState();
+}
+
+class _SearchSuggestionsState extends State<_SearchSuggestions> {
+  WebViewController? _webView;
+
+  @override
+  void initState() {
+    super.initState();
+    // webview_flutter can't intercept link taps on web.
+    if (kIsWeb) return;
+    _webView = WebViewController()
+      ..setNavigationDelegate(
+        NavigationDelegate(
+          onNavigationRequest: (request) {
+            if (request.url.startsWith('http')) {
+              launchUrl(
+                Uri.parse(request.url),
+                mode: LaunchMode.externalApplication,
+              );
+              return NavigationDecision.prevent;
+            }
+            return NavigationDecision.navigate;
+          },
+        ),
+      )
+      ..loadHtmlString(_page(widget.html));
+  }
+
+  @override
+  void didUpdateWidget(_SearchSuggestions oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.html != widget.html) {
+      _webView?.loadHtmlString(_page(widget.html));
+    }
+  }
+
+  static String _page(String html) =>
+      '<!doctype html><html><head>'
+      '<meta name="viewport" content="width=device-width, initial-scale=1">'
+      '</head><body style="margin:0">$html</body></html>';
+
+  @override
+  Widget build(BuildContext context) {
+    final webView = _webView;
+    if (webView == null) {
+      return const Text(
+        'This response has Google Search suggestions. The testapp renders '
+        'them on Android, iOS and macOS only. A web app must show them too.',
+        style: TextStyle(fontStyle: FontStyle.italic),
+      );
+    }
+    return SizedBox(height: 120, child: WebViewWidget(controller: webView));
   }
 }
 
