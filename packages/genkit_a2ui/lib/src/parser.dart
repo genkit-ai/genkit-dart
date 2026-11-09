@@ -22,7 +22,7 @@
 /// messages, so half a block is never emitted).
 library;
 
-import 'package:a2ui_core/a2ui_core.dart' show A2uiError;
+import 'package:a2ui_core/a2ui_core.dart' show A2uiCatalogError, A2uiError;
 import 'package:logging/logging.dart';
 
 import 'catalog.dart';
@@ -143,6 +143,31 @@ class EnvelopeSegment extends ParseSegment {
   const EnvelopeSegment(this.envelopes, this.source);
 }
 
+/// An Express block that failed to compile, kept for a possible repair.
+class FailedBlock {
+  /// The block's source, without its tags.
+  final String source;
+
+  /// Why it failed, phrased for both a log and a repair prompt.
+  final String error;
+
+  /// Whether rewriting the block could plausibly fix it.
+  ///
+  /// False only for an `A2uiCatalogError`. a2ui_agent reports most catalog
+  /// mismatches (an unknown component, an inactive catalog id) as
+  /// `A2uiValidationError`, the same type as a fixable mistake, so those still
+  /// get a repair attempt. That costs a wasted call in the rare case, which is
+  /// cheaper than guessing from error text.
+  final bool isModelFixable;
+
+  /// Creates a [FailedBlock].
+  const FailedBlock({
+    required this.source,
+    required this.error,
+    required this.isModelFixable,
+  });
+}
+
 /// Result of feeding text to [A2uiStreamParser.push].
 class ParseResult {
   /// Ordered prose/envelope segments exactly as they appear in the source text.
@@ -186,6 +211,20 @@ class A2uiStreamParser {
   /// final parse sees again).
   final bool quiet;
 
+  /// Repaired sources, keyed by the original block source.
+  ///
+  /// Set on a second pass after a repair succeeded, so the block compiles from
+  /// the corrected source while everything else about the response stays the
+  /// same.
+  final Map<String, String> repairs;
+
+  /// Blocks that failed to compile, in source order.
+  ///
+  /// Recorded rather than acted on, so the middleware can attempt a repair
+  /// once the response is complete: parsing is synchronous (and the streaming
+  /// callback cannot await), so the retry cannot happen here.
+  final List<FailedBlock> failedBlocks = [];
+
   final ExpressEngine _engine;
 
   /// Surfaces this response created so far, to flag a model that renders the
@@ -220,6 +259,7 @@ class A2uiStreamParser {
     required this.catalog,
     this.validate = A2uiValidateMode.strict,
     this.quiet = false,
+    this.repairs = const {},
   }) : _engine = ExpressEngine.of(catalog);
 
   /// Feeds a chunk of model text, returning prose + any completed blocks.
@@ -341,17 +381,28 @@ class A2uiStreamParser {
         .trim();
     if (source.isEmpty) return null;
 
+    // Compile the repaired source if this block failed on an earlier pass. The
+    // segment keeps the source that actually compiled, so history replays the
+    // working block rather than the broken one.
+    final effective = repairs[source] ?? source;
     final List<A2uiEnvelope> compiled;
     try {
       compiled = _engine.compile(
-        source,
+        effective,
         validate: validate != A2uiValidateMode.off,
       );
     } on A2uiError catch (e) {
+      failedBlocks.add(
+        FailedBlock(
+          source: source,
+          error: e.message,
+          isModelFixable: e is! A2uiCatalogError,
+        ),
+      );
       return _reject('failed to compile A2UI Express block: ${e.message}');
     }
     if (compiled.isEmpty) return null;
-    return EnvelopeSegment(_withReplacements(compiled), source);
+    return EnvelopeSegment(_withReplacements(compiled), effective);
   }
 
   /// Puts a `deleteSurface` in front of every `createSurface`, so a re-render
