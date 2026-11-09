@@ -366,4 +366,47 @@ void main() {
     );
     expect(client.requests, isEmpty);
   });
+
+  group('a malformed data: URL', () {
+    ModelRequest requestWithMedia() => ModelRequest(
+      messages: [
+        Message(
+          role: Role.user,
+          content: [
+            MediaPart(
+              media: Media(
+                url: 'data:image/png;base64,@@@',
+                contentType: 'image/png',
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    final invalidArgument = throwsA(
+      isA<GenkitException>()
+          .having((e) => e.status, 'status', StatusCode.invalidArgument)
+          .having((e) => e.message, 'message', contains('data:')),
+    );
+
+    test('fails with INVALID_ARGUMENT', () async {
+      final client = WireClient(response: partsResponse([]));
+      final model = wireModel(client);
+
+      await expectLater(model(requestWithMedia()), invalidArgument);
+      expect(client.requests, isEmpty);
+    });
+
+    test('fails with INVALID_ARGUMENT when streaming', () async {
+      final client = WireClient(streamChunks: [partsResponse([])]);
+      final model = wireModel(client);
+
+      await expectLater(
+        model(requestWithMedia(), onChunk: (_) {}),
+        invalidArgument,
+      );
+      expect(client.requests, isEmpty);
+    });
+  });
 }
