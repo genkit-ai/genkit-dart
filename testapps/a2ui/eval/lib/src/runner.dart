@@ -23,6 +23,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
 import 'package:logging/logging.dart';
 
+import 'impl.dart';
 import 'renderer.dart';
 import 'scenario.dart';
 
@@ -76,6 +77,10 @@ final class TurnRecord {
   Map<String, SurfaceChange> changes = {};
   List<String> violations = [];
   final List<String> logs = [];
+
+  /// Every raw model call the turn made (tool loop steps, repairs, retries),
+  /// as recorded by the agent's eval usage tap.
+  final List<Map<String, Object?>> usage = [];
   String? error;
   Duration duration = Duration.zero;
   final List<CheckResult> checks = [];
@@ -98,6 +103,7 @@ final class TurnRecord {
     'changes': {for (final e in changes.entries) e.key: e.value.name},
     'violations': violations,
     'logs': logs,
+    'usage': usage,
     'error': error,
     'durationMs': duration.inMilliseconds,
     'checks': [for (final c in checks) c.toJson()],
@@ -150,15 +156,18 @@ Future<RunRecord> runScenario(
     final sw = Stopwatch()..start();
     final sent = chat.messages.length;
     try {
-      final res = await runZoned(() async {
-        final turn = chat.sendStream(message: message);
-        await for (final chunk in turn.stream) {
-          t.streamed.addAll(
-            a2uiEnvelopesFromParts(chunk.raw.modelChunk?.content),
-          );
-        }
-        return turn.response;
-      }, zoneValues: {_turnLogKey: t.logs}).timeout(turnTimeout);
+      final res = await runZoned(
+        () async {
+          final turn = chat.sendStream(message: message);
+          await for (final chunk in turn.stream) {
+            t.streamed.addAll(
+              a2uiEnvelopesFromParts(chunk.raw.modelChunk?.content),
+            );
+          }
+          return turn.response;
+        },
+        zoneValues: {_turnLogKey: t.logs, #a2uiEvalUsage: t.usage},
+      ).timeout(turnTimeout);
       if (res.error case final e?) t.error = '${e.status}: ${e.message}';
       // Everything the model produced this turn, including any blocks written
       // alongside a tool call before the final answer.
@@ -171,9 +180,7 @@ Future<RunRecord> runScenario(
           if (p.isText) prose.write(p.text);
           if (isA2uiPart(p)) {
             t.messages.addAll(a2uiEnvelopesFromParts([p]));
-            if (p.metadata?[a2uiExpressMetadataKey] case final String src) {
-              t.express.add(src);
-            }
+            if (expressSourceOf(p) case final src?) t.express.add(src);
           }
         }
       }
@@ -320,7 +327,7 @@ String? _proseLeak(String prose) {
       content: [
         DataPart(
           data: {
-            'messages': [
+            actionDataKey: [
               {
                 'version': 'v0.9',
                 'action': {
