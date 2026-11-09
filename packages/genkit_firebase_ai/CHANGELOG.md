@@ -55,7 +55,6 @@
 
 ### Fixes
 
- - register gemini-3.8-live for the Gemini Developer API only (#720)
  - report a malformed data: URL as INVALID_ARGUMENT (#697)
  - send every Live system message as systemInstruction (#681)
  - report unsupported parts as INVALID_ARGUMENT (#679)
@@ -72,6 +71,7 @@
 
 ### Other Changes
 
+ - document gemini-3.8-live on Agent Platform with a regional location (#723)
  - refresh README for App Check enforcement, models and options (#664)
  - note that Gemini 3 ignores or rejects the sampling options (#674)
 
