@@ -16,9 +16,9 @@
 //
 // The whole server integration is the `a2ui()` middleware: register
 // `A2uiPlugin()` on the Genkit instance, then add `a2ui()` to a `generate`
-// call's (or an agent's) `use` list. The middleware injects the catalog's
-// capabilities into the system prompt and rewrites the model's `a2ui` fenced
-// blocks into canonical a2ui `data` parts.
+// call's (or an agent's) `use` list. The middleware teaches the model the
+// catalog and A2UI Express, then compiles the model's `<a2ui>` blocks into
+// canonical a2ui `data` parts.
 //
 // This example prints the A2UI envelopes the model emits. In a real app you
 // would forward these to a client and render them with a renderer such as

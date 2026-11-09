@@ -208,13 +208,27 @@ await runTurn(chat.sendStream(text: 'weather in Tokyo'));
 Pass options to `a2ui()` to control the catalog, prompt injection, and
 validation:
 
-| Option         | Default    | Description                                                                                                                     |
-| -------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `catalog`      | `'basic'`  | The id of the catalog describing what the agent may render.                                                                    |
-| `instructions` | `'system'` | Where to inject catalog capabilities. `'none'` injects nothing.                                                                |
-| `validate`     | `'warn'`   | Validate emitted envelopes against the catalog. `'warn'` logs and drops bad blocks; `'strict'` throws; `'off'` skips checking. |
-| `surfaceId`    | fresh UUID | Surface id policy. Defaults to a new UUID per surface; pass a fixed string to reuse one id for every surface.                  |
-| `version`      | `'v0.9'`   | Protocol version stamped on envelopes.                                                                                         |
+| Option         | Default    | Description                                                                                                                                                      |
+| -------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `catalog`      | `'basic'`  | The id of the catalog describing what the agent may render.                                                                                                     |
+| `instructions` | `'system'` | Where to inject catalog capabilities. `'none'` injects nothing.                                                                                                 |
+| `validate`     | `'warn'`   | What to do with a block that fails to compile or validate. `'warn'` logs and drops it; `'strict'` throws; `'off'` checks only that the block compiles, not the component tree (references, `root`). |
+| `version`      | `'v0.9'`   | A2UI protocol version. Only `'v0.9'` is supported.                                                                                                              |
+
+### Surfaces
+
+The model names each surface (`surface("tokyo-weather")`) and the id reaches the
+client unchanged. Rendering an id again **replaces** that surface: the
+middleware puts a `deleteSurface` in front of every `createSurface`, since
+renderers reject a second `createSurface` for a live id. For a new surface the
+delete is a no-op, so this holds even when the server's history misses a surface
+the client has (a turn that failed after streaming one, say). Custom renderers
+should treat a `deleteSurface` for an unknown id as a no-op too.
+A block that omits `surface()` targets `default_surface`, so such blocks replace
+each other.
+
+In a chat UI, key each rendered surface by its id. A replaced surface then
+re-renders where it first appeared.
 
 ## Handling user actions
 
@@ -222,7 +236,7 @@ When a user interacts with a surface (for example, presses a `Button`), the
 renderer emits an action. Send it back as an a2ui data part carrying an
 `action` message (`a2uiSubmitToMessage` above does this for genui). The
 middleware turns it into a line the model can read, for example
-`[UI action "refresh" on surface tokyo-weather context={"city":"Tokyo"}]`, so
+`[UI action "refresh" from refreshBtn on surface tokyo-weather context={"city":"Tokyo"}]`, so
 no accompanying text is needed.
 
 ### Forms
@@ -230,8 +244,10 @@ no accompanying text is needed.
 Input components (`TextField`, `CheckBox`, `Slider`) do **not** send their values
 automatically. To capture what the user entered, the model must:
 
-1. Bind each input's `value` to a data-model path (`{ "path": "/email" }`).
-2. Echo those same paths in the submit `Button`'s `action.event.context`.
+1. Bind each input's value to a data-model path:
+   `email = TextField("Email", $/email)`.
+2. Echo those same paths in the submit button's event context:
+   `Event("submit", {email: $/email})`.
 
 The catalog capabilities injected into the system prompt already instruct the
 model to do this. Without both steps, the action arrives with an empty `context`.
@@ -269,11 +285,15 @@ Agent to client (one part per rendered block):
 {
   "data": {
     "messages": [
+      { "version": "v0.9", "deleteSurface": { "surfaceId": "tokyo-weather" } },
       { "version": "v0.9", "createSurface": { "surfaceId": "tokyo-weather", "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json" } },
       { "version": "v0.9", "updateComponents": { "surfaceId": "tokyo-weather", "components": [ { "id": "root", "component": "Text", "text": "Sunny, 18C" } ] } }
     ]
   },
-  "metadata": { "mimeType": "application/a2ui+json" }
+  "metadata": {
+    "mimeType": "application/a2ui+json",
+    "a2uiExpress": "surface(\"tokyo-weather\")\nroot = Text(\"Sunny, 18C\")"
+  }
 }
 ```
 
@@ -418,12 +438,12 @@ resolve them by id.
 ## Security and the trust boundary
 
 Generative UI moves model output into the UI, so treat every surface an agent
-emits as **untrusted input**. The `a2ui()` middleware's `validate` option
-(including `'strict'`) checks envelope structure and component *type names*
-against the catalog only. It does **not** validate component props or data-model
-values: model-controlled values such as `Image.url` and `Text` (inline Markdown,
-which a renderer may turn into rich content) pass through untouched. `'strict'` is
-a well-formedness check, not a security boundary.
+emits as **untrusted input**. Every block is compiled and checked against the
+catalog's schemas (component names, property types, enum values, component
+references), but that only says the surface is *well-formed*. Model-controlled
+values such as `Image.url` and `Text` (inline Markdown, which a renderer may turn
+into rich content) pass through as written. Validation is a well-formedness
+check, not a security boundary.
 
 A prompt-injected or simply mistaken model can therefore emit an arbitrary remote
 image URL, or Markdown that a renderer turns into formatted content. To keep that
@@ -441,8 +461,11 @@ safe:
   model can be echoed back through an action's `context`.
 
 If you need server-side control over props (for example, allow-listing image
-hosts), add your own model middleware after `a2ui()` to inspect and rewrite the
-emitted a2ui parts.
+hosts), add your own model middleware **before** `a2ui()` in `use` (middleware
+listed first wraps the ones after it, so it sees the parts `a2ui()` emits) to
+inspect and rewrite them. If you change a part's `data.messages`, also update or
+remove its `metadata.a2uiExpress`: that source is what the model is shown on
+later turns.
 
 ## How it works
 
@@ -461,18 +484,40 @@ later for free.
 
 On each model call inside the agent's tool loop, `a2ui()`:
 
-1. Injects the catalog's capabilities into the system prompt so the model knows
-   what UI it may render (unless `instructions: 'none'`).
+1. Injects the catalog and the
+   [A2UI Express](https://a2ui.org/specification/proposals/express/a2ui_express/) contract into the system prompt so the
+   model knows what UI it may render (unless `instructions: 'none'`).
 2. Intercepts the model's output, both the streamed chunks and the final
    aggregated message.
-3. Extracts `a2ui` fenced code blocks from the model's text.
-4. Validates them against the catalog (per the `validate` option).
-5. Rewrites them into canonical a2ui data parts.
+3. Extracts the `<a2ui>` Express blocks from the model's text.
+4. Compiles each block into A2UI v0.9 messages with
+   [`a2ui_agent`](https://pub.dev/packages/a2ui_agent), checking it against the
+   catalog (per the `validate` option).
+5. Rewrites each block into a canonical a2ui data part, with the Express source
+   in the part's metadata.
 
-Inbound a2ui parts (for example, a surface action sent back as the next turn, or
-replayed history) are summarized into plain text before the underlying model sees
+A2UI Express is a compact, positional notation for UI. The model writes:
+
+```text
+surface("tokyo-weather")
+root = Card(Column([title, refresh]))
+title = Text("Weather in Tokyo", "h3")
+refresh = Button(Text("Refresh"), "primary", Event("refresh", {city: "Tokyo"}))
+```
+
+which costs far fewer tokens than the equivalent JSON messages and is easier for
+a model to get right.
+
+Inbound a2ui parts are turned back into text before the underlying model sees
 them, so a model that does not understand the a2ui mime type can still reason
-about prior surfaces and user actions.
+about prior surfaces and user actions:
+
+- A surface the model rendered is replayed as its original Express block
+  (read from the part's `a2uiExpress` metadata), so the model sees exactly what
+  it wrote. If you manage conversation history on the client, send parts back
+  with their metadata intact.
+- A user action becomes a line such as
+  `[UI action "refresh" on surface tokyo-weather context={"city":"Tokyo"}]`.
 
 ## License
 

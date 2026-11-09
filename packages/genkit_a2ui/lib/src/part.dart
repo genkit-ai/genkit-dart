@@ -25,10 +25,14 @@ import 'package:genkit/plugin.dart';
 import 'types.dart';
 
 /// Builds an a2ui data part wrapping the given [envelopes].
-DataPart a2uiPart(List<A2uiEnvelope> envelopes) {
+///
+/// [source] is the A2UI Express block the envelopes were compiled from. It is
+/// stored under [a2uiExpressMetadataKey] so the block can be replayed verbatim
+/// as history.
+DataPart a2uiPart(List<A2uiEnvelope> envelopes, {String? source}) {
   return DataPart(
     data: {'messages': envelopes},
-    metadata: {'mimeType': a2uiMimeType},
+    metadata: {'mimeType': a2uiMimeType, a2uiExpressMetadataKey: ?source},
   );
 }
 
