@@ -63,7 +63,7 @@ void main() {
       const FirebaseAiProvider.agentPlatform(),
       'Agent Platform',
       _servedOnBoth,
-      ['gemini-live-2.5-flash-native-audio'],
+      ['gemini-3.8-live', 'gemini-live-2.5-flash-native-audio'],
     ),
   ]) {
     test('$name registers exactly the models it serves', () async {
