@@ -686,19 +686,21 @@ class VersionApplier {
         // Write Changelog
         final changelogFile = File(p.join(pkg.path, 'CHANGELOG.md'));
         if (await changelogFile.exists()) {
-          var existing = await changelogFile.readAsString();
-          if (_hasVersionHeader(existing, newVersion)) {
+          final existing = await changelogFile.readAsString();
+          if (hasVersionHeader(existing, newVersion)) {
             print(
-              'Changelog for $newVersion already exists in ${pkg.name}. Skipping.',
+              'Changelog for $newVersion already exists in ${pkg.name}. '
+              'Keeping it.',
             );
-          } else {
-            // On graduate, drop the intermediate `## X.Y.Z-rc.*` sections so
-            // the published changelog carries a single stable entry aggregating
-            // the whole rc cycle rather than leaving rc noise behind.
-            if (graduate) {
-              existing = _stripPreReleaseSections(existing, newVersion);
-            }
-            await changelogFile.writeAsString('$changelogEntry\n$existing');
+          }
+          final updated = mergeChangelog(
+            existing,
+            changelogEntry,
+            newVersion,
+            graduate: graduate,
+          );
+          if (updated != existing) {
+            await changelogFile.writeAsString(updated);
           }
         } else {
           await changelogFile.writeAsString(changelogEntry);
@@ -838,39 +840,60 @@ class VersionApplier {
         if (!toSkip[i]) messages[i],
     ];
   }
+}
 
-  /// Whether the changelog already has a section header for exactly [version].
-  ///
-  /// Matches a whole `## X.Y.Z` header line, so `## 0.16.0` does not
-  /// false-positive against an existing `## 0.16.0-rc.2` line (a plain
-  /// substring check would).
-  bool _hasVersionHeader(String changelog, Version version) {
-    final headerRegex = RegExp(
-      '^## ${RegExp.escape(version.toString())}\\s*\$',
-      multiLine: true,
-    );
-    return headerRegex.hasMatch(changelog);
-  }
+/// Returns [existing] with [entry] for [version] added on top.
+///
+/// A changelog that already has a `## <version>` section is kept as is, so a
+/// hand-written entry wins over the generated one. On graduate, the
+/// `## <version>-<pre>` sections are dropped either way, so the published
+/// changelog has one stable entry instead of leftover rc entries.
+String mergeChangelog(
+  String existing,
+  String entry,
+  Version version, {
+  required bool graduate,
+}) {
+  var result = existing;
+  // On graduate, drop the intermediate `## X.Y.Z-rc.*` sections so the
+  // published changelog carries a single stable entry aggregating the whole rc
+  // cycle rather than leaving rc noise behind.
+  if (graduate) result = _stripPreReleaseSections(result, version);
+  if (hasVersionHeader(existing, version)) return result;
+  return '$entry\n$result';
+}
 
-  /// Removes intermediate `## X.Y.Z-<pre>` sections whose base version equals
-  /// [stableVersion], used on graduate so the rc entries (e.g. `0.16.0-rc.1`,
-  /// `0.16.0-rc.2`) don't linger once `0.16.0` aggregates their contents. A
-  /// section spans its header up to (but not including) the next version header.
-  String _stripPreReleaseSections(String changelog, Version stableVersion) {
-    final base =
-        '${stableVersion.major}.${stableVersion.minor}.'
-        '${stableVersion.patch}';
-    // Header line for a pre-release of this base, e.g. `## 0.16.0-rc.2`, then
-    // everything up to the next version header (or end of file). The lookahead
-    // only stops at real version headers (`## X.Y.Z`), not at any `## ` line, so
-    // `##`-prefixed lines inside a section's code blocks don't cut it short.
-    final sectionRegex = RegExp(
-      '^## ${RegExp.escape(base)}-[^\\n]*\\n(?:(?!^## \\d+\\.\\d+\\.\\d+).*\\n?)*',
-      multiLine: true,
-    );
+/// Whether the changelog already has a section header for exactly [version].
+///
+/// Matches a whole `## X.Y.Z` header line, so `## 0.16.0` does not
+/// false-positive against an existing `## 0.16.0-rc.2` line (a plain
+/// substring check would).
+bool hasVersionHeader(String changelog, Version version) {
+  final headerRegex = RegExp(
+    '^## ${RegExp.escape(version.toString())}\\s*\$',
+    multiLine: true,
+  );
+  return headerRegex.hasMatch(changelog);
+}
 
-    return changelog.replaceAll(sectionRegex, '');
-  }
+/// Removes intermediate `## X.Y.Z-<pre>` sections whose base version equals
+/// [stableVersion], used on graduate so the rc entries (e.g. `0.16.0-rc.1`,
+/// `0.16.0-rc.2`) don't linger once `0.16.0` aggregates their contents. A
+/// section spans its header up to (but not including) the next version header.
+String _stripPreReleaseSections(String changelog, Version stableVersion) {
+  final base =
+      '${stableVersion.major}.${stableVersion.minor}.'
+      '${stableVersion.patch}';
+  // Header line for a pre-release of this base, e.g. `## 0.16.0-rc.2`, then
+  // everything up to the next version header (or end of file). The lookahead
+  // only stops at real version headers (`## X.Y.Z`), not at any `## ` line, so
+  // `##`-prefixed lines inside a section's code blocks don't cut it short.
+  final sectionRegex = RegExp(
+    '^## ${RegExp.escape(base)}-[^\\n]*\\n(?:(?!^## \\d+\\.\\d+\\.\\d+).*\\n?)*',
+    multiLine: true,
+  );
+
+  return changelog.replaceAll(sectionRegex, '');
 }
 
 void main(List<String> args) async {

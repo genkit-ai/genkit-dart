@@ -310,4 +310,51 @@ void main() {
       );
     });
   });
+
+  group('mergeChangelog', () {
+    const stable = '## 1.0.0\n\n - hand-written entry\n\n';
+    const rc = '## 1.0.0-rc.1\n\n - generated rc entry\n\n';
+    const older = '## 0.4.0\n\n - older entry\n';
+    final v1 = Version.parse('1.0.0');
+
+    test('adds the entry on top', () {
+      expect(
+        mergeChangelog(older, '## 1.0.0\n\n - new\n', v1, graduate: false),
+        '## 1.0.0\n\n - new\n\n$older',
+      );
+    });
+
+    test('keeps an existing entry for the version', () {
+      expect(
+        mergeChangelog(stable + older, 'x', v1, graduate: false),
+        stable + older,
+      );
+    });
+
+    test('an rc run adds its entry above a hand-written stable one', () {
+      expect(
+        mergeChangelog(
+          stable + older,
+          rc,
+          Version.parse('1.0.0-rc.1'),
+          graduate: false,
+        ),
+        '$rc\n$stable$older',
+      );
+    });
+
+    test('graduate drops rc sections when it adds the entry', () {
+      expect(
+        mergeChangelog(rc + older, '## 1.0.0\n\n - new\n', v1, graduate: true),
+        '## 1.0.0\n\n - new\n\n$older',
+      );
+    });
+
+    test('graduate drops rc sections above a hand-written entry', () {
+      expect(
+        mergeChangelog(rc + stable + older, 'x', v1, graduate: true),
+        stable + older,
+      );
+    });
+  });
 }
