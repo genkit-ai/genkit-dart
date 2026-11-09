@@ -139,9 +139,9 @@ final ai = Genkit(plugins: [firebasePlugin]);
   [replay protection](https://firebase.google.com/docs/ai-logic/app-check),
   which blocks reusable session tokens.
 
-Set a regional `location` (for example `'us-central1'`) to use any Live model
-on Agent Platform, because the default `global` location doesn't serve Live
-models. Also set it for data residency.
+Set a regional `location` (for example `'us-central1'`) to use the Live models
+on Agent Platform, because the default `global` location doesn't serve them.
+Also set it for data residency.
 
 Migrating from earlier versions:
 
@@ -465,8 +465,8 @@ session.stream.listen((chunk) {
 
 `gemini-3.8-live` works with both the Gemini Developer API and Agent Platform.
 `gemini-live-2.5-flash-native-audio` works with Agent Platform only. On Agent
-Platform, every Live model needs a regional `location` such as
-`'us-central1'`, because the default `global` location doesn't serve them.
+Platform, both need a regional `location` such as `'us-central1'`, because the
+default `global` location doesn't serve them.
 
 A session takes system messages only in its first request (`system:` above);
 sending one later fails with `INVALID_ARGUMENT`. If the server closes the
