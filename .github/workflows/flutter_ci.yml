@@ -66,6 +66,11 @@ jobs:
         working-directory: testapps/flutter_genai
         run: flutter analyze
 
+      # The reference copy of the genkit_a2ui README's client helpers.
+      - name: "testapps/a2ui/client: Analyzer"
+        working-directory: testapps/a2ui/client
+        run: flutter analyze
+
       - name: Verify clean git tree
         run: |
           git diff --exit-code

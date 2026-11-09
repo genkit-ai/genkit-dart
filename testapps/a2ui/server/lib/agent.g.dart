@@ -13,6 +13,7 @@
 // limitations under the License.
 
 // GENERATED CODE - DO NOT MODIFY BY HAND
+// dart format width=80
 
 part of 'agent.dart';
 
@@ -133,7 +134,7 @@ base class GetWeatherOutput {
   }
 
   int get humidity {
-    return _json['humidity'] as int;
+    return (_json['humidity'] as num).toInt();
   }
 
   set humidity(int value) {

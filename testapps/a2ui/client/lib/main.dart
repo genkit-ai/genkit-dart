@@ -14,14 +14,14 @@
 
 /// A2UI sample Flutter client.
 ///
-/// Talks to the Genkit A2UI agent (served by `bin/server.dart`) with
-/// `remoteAgent`, renders prose in a simple chat log, and renders each A2UI
-/// surface with the `genui` renderer.
+/// Talks to the Genkit A2UI agent (served by `../server`) with `remoteAgent`,
+/// renders prose in a simple chat log, and renders each A2UI surface with the
+/// `genui` renderer.
 ///
-/// A2UI travels as spec-shaped `data` parts on the agent stream. The client
-/// code does not use `genkit_a2ui`: the two helpers in `a2ui_helpers.dart`
-/// (copied from the genkit_a2ui README) read messages off each chunk and turn
-/// surface actions into the next turn's input.
+/// A2UI travels as spec-shaped `data` parts on the agent stream. This app does
+/// not depend on `genkit_a2ui`: the two helpers in `a2ui_helpers.dart` (copied
+/// from the genkit_a2ui README) read messages off each chunk and turn surface
+/// actions into the next turn's input.
 library;
 
 import 'package:a2ui_core/a2ui_core.dart' as core;
@@ -42,10 +42,11 @@ const String _baseUrl = String.fromEnvironment(
 /// The client catalog, matching the server's custom `weatherCatalog`.
 ///
 /// The server's catalog is the bundled basic components plus a custom `Gauge`
-/// (see `lib/agent.dart`), advertised under [weatherCatalogId]. Here we mirror
-/// that: start from genui's basic widgets, add the matching [gaugeCatalogItem],
-/// and re-tag the whole thing with the same [weatherCatalogId] so a surface the
-/// agent creates with that `catalogId` resolves to these widgets. (genui
+/// (see `../server/lib/agent.dart`), advertised under [weatherCatalogId]. Here
+/// we mirror that: start from genui's basic widgets, add the matching
+/// [gaugeCatalogItem], and re-tag the whole thing with the same
+/// [weatherCatalogId] so a surface the agent creates with that `catalogId`
+/// resolves to these widgets. (genui
 /// registers an empty stub for a catalog id it doesn't know, so the ids MUST
 /// match on both sides.)
 final Catalog _catalog = BasicCatalogItems.asCatalog().copyWith(

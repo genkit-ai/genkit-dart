@@ -1,0 +1,19 @@
+name: a2ui_server
+description: >-
+  A2UI sample server: a dart:io server hosting an A2UI-enabled Genkit agent.
+  The matching Flutter client lives in ../client.
+publish_to: none
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  genkit: ^1.0.0
+  genkit_a2ui: ^0.4.0
+  genkit_google_genai: ^1.0.0
+  schemantic: ^1.0.0
+
+dev_dependencies:
+  build_runner: ^2.10.5
+  schemantic_builder: ^1.0.0
