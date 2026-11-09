@@ -19,6 +19,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/experimental.dart' show BidiModel;
 import 'package:genkit/genkit.dart';
 import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
+import 'package:genkit_firebase_ai/src/live.dart';
 import 'package:logging/logging.dart';
 
 void main() {
@@ -382,6 +383,35 @@ void main() {
           Message(
             role: Role.system,
             content: [TextPart(text: 'Be terse.')],
+          ),
+        ),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.invalidArgument,
+          ),
+        ),
+      );
+      expect(session.calls, isEmpty);
+    });
+
+    test('rejects a malformed data: URL and sends nothing', () async {
+      final session = _FakeLiveSession();
+
+      await expectLater(
+        sendToLiveSession(
+          session,
+          Message(
+            role: Role.user,
+            content: [
+              MediaPart(
+                media: Media(
+                  url: 'data:image/png;base64,@@@',
+                  contentType: 'image/png',
+                ),
+              ),
+            ],
           ),
         ),
         throwsA(
