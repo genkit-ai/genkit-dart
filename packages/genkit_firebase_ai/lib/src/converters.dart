@@ -20,7 +20,6 @@ import 'dart:typed_data';
 import 'package:firebase_ai/firebase_ai.dart' as fai;
 import 'package:genkit/plugin.dart';
 import 'package:logging/logging.dart';
-import 'package:schemantic/schemantic.dart';
 
 import '../genkit_firebase_ai.dart';
 import 'finish_reason.dart';
@@ -508,61 +507,6 @@ final class _JsonSchemaFunctionDeclaration extends fai.FunctionDeclaration {
   };
 }
 
-fai.Schema toGeminiSchema(Map<String, dynamic> json) =>
-    _toGeminiSchemaInternal(json.flatten());
-
-fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
-  final type = json['type']; // dynamic
-  final description = json['description'] as String?;
-  final nullable = json['nullable'] as bool? ?? false;
-  // TODO: Handle enum
-
-  // Simple type handling
-  String? typeStr;
-  if (type is String) {
-    typeStr = type;
-  }
-
-  switch (typeStr) {
-    case 'string':
-      return fai.Schema.string(description: description, nullable: nullable);
-    case 'number':
-      return fai.Schema.number(description: description, nullable: nullable);
-    case 'integer':
-      return fai.Schema.integer(description: description, nullable: nullable);
-    case 'boolean':
-      return fai.Schema.boolean(description: description, nullable: nullable);
-    case 'array':
-      return fai.Schema.array(
-        description: description,
-        nullable: nullable,
-        items: json['items'] != null
-            ? _toGeminiSchemaInternal(json['items'] as Map<String, dynamic>)
-            : fai.Schema.string(),
-      );
-    case 'object':
-      if (json.containsKey('properties')) {
-        final properties = (json['properties'] as Map<String, dynamic>?)?.map(
-          (k, v) =>
-              MapEntry(k, _toGeminiSchemaInternal(v as Map<String, dynamic>)),
-        );
-        return fai.Schema.object(
-          properties: properties ?? {},
-          description: description,
-          nullable: nullable,
-        );
-      } else {
-        return fai.Schema(
-          fai.SchemaType.object,
-          description: description,
-          nullable: nullable,
-        );
-      }
-    default:
-      return fai.Schema.string(description: description, nullable: nullable);
-  }
-}
-
 /// Maps Genkit's request onto Firebase AI's generation config.
 ///
 /// [outputSchema] is sent verbatim as `responseJsonSchema` only on a
@@ -574,8 +518,7 @@ fai.Schema _toGeminiSchemaInternal(Map<String, dynamic> json) {
 /// native or textual, unless the caller supplied their own. Gemini only
 /// honours a response schema alongside an `application/json` response mime
 /// type, so the JSON-mode half of the condition is the provider's rule, not a
-/// preference. `firebase_ai` forbids sending both `responseJsonSchema` and
-/// `responseSchema`.
+/// preference.
 ///
 /// Throws a [GenkitException] with [StatusCode.invalidArgument] when a field
 /// has the wrong type or an unknown value.
@@ -624,9 +567,6 @@ fai.GenerationConfig _toGeminiSettings(
               ? null
               : options.responseMimeType),
     responseJsonSchema: responseJsonSchema,
-    responseSchema: responseJsonSchema == null && options.responseSchema != null
-        ? toGeminiSchema(options.responseSchema!)
-        : null,
     presencePenalty: options.presencePenalty,
     frequencyPenalty: options.frequencyPenalty,
     responseModalities: options.responseModalities
