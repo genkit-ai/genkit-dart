@@ -108,7 +108,7 @@ void main() {
     addTearDown(ai.shutdown);
 
     final response = await ai.generate(
-      model: firebaseAI.gemini('gemini-2.5-flash'),
+      model: firebaseAI.gemini('gemini-flash-latest'),
       prompt: 'hello',
       onChunk: (_) {},
     );
@@ -172,7 +172,7 @@ void main() {
     addTearDown(ai.shutdown);
 
     final result = await ai.generate(
-      model: firebaseAI.gemini('gemini-2.5-flash'),
+      model: firebaseAI.gemini('gemini-flash-latest'),
       prompt: 'hello',
       use: [
         retry(maxRetries: 2, initialDelay: const Duration(milliseconds: 1)),

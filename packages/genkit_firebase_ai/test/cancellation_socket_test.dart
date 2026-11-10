@@ -85,7 +85,7 @@ void main() {
   }
 
   Model model() =>
-      firebaseAI(httpClient: IOClient()).resolve(.model, 'gemini-2.5-flash')
+      firebaseAI(httpClient: IOClient()).resolve(.model, 'gemini-flash-latest')
           as Model;
 
   test('cancelling aborts a request in flight', () async {

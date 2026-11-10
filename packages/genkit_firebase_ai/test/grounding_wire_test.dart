@@ -89,7 +89,7 @@ void main() {
     // the installed version parsed, without the plugin in the way.
     final parsed = await fai.FirebaseAI.googleAI()
         .generativeModel(
-          model: 'gemini-2.5-flash',
+          model: 'gemini-flash-latest',
           httpClient: WireClient(response: _grounded('hi')),
         )
         .generateContent([fai.Content.text('hi')]);

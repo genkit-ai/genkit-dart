@@ -55,7 +55,8 @@ void main() {
     );
 
     test('is created once and reused across requests', () async {
-      final model = firebaseAI().resolve(.model, 'gemini-2.5-flash') as Model;
+      final model =
+          firebaseAI().resolve(.model, 'gemini-flash-latest') as Model;
       final first = WireClient();
       final second = WireClient();
 
@@ -69,7 +70,8 @@ void main() {
     });
 
     test('is not closed when a streamed request fails', () async {
-      final model = firebaseAI().resolve(.model, 'gemini-2.5-flash') as Model;
+      final model =
+          firebaseAI().resolve(.model, 'gemini-flash-latest') as Model;
       final client = WireClient(
         statusCode: 500,
         response: {

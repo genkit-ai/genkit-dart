@@ -45,6 +45,10 @@ jobs:
         working-directory: packages/genkit_firebase_ai
         run: flutter analyze
 
+      # This package is outside the melos workspace, so it's passed by path.
+      - name: Check genkit_firebase_ai dartdoc
+        run: dart run tools/check_dartdoc.dart packages/genkit_firebase_ai
+
       # Lives here, not in dart_ci, because genkit_firebase_ai needs Flutter
       # to resolve.
       - name: Check for conflicting package exports

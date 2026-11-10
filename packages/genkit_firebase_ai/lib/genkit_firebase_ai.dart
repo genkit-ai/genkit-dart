@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+// pana analyzes with its own options, so the root analysis_options.yaml
+// ignore for this does not apply on pub.dev.
+// ignore_for_file: experimental_member_use
+
 import 'dart:async';
 import 'dart:convert';
 
