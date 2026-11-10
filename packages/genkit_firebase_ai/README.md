@@ -139,9 +139,24 @@ final ai = Genkit(plugins: [firebasePlugin]);
   [replay protection](https://firebase.google.com/docs/ai-logic/app-check),
   which blocks reusable session tokens.
 
-Set `location` (for example `'us-central1'`) for Agent Platform Live models,
-which are not available on the default `global` location, or for data
-residency.
+Set `location` for data residency, or for Agent Platform Live models, which
+need a regional location such as `'us-central1'`. Text models may be served
+only on the default `global` location, and a regional one fails with
+`NOT_FOUND` for them. A plugin instance has one location, so an app that uses
+both Live and text models on Agent Platform needs two `Genkit` instances:
+
+```dart
+final ai = Genkit(
+  plugins: [firebaseAI(provider: const FirebaseAiProvider.agentPlatform())],
+);
+final live = Genkit(
+  plugins: [
+    firebaseAI(
+      provider: const FirebaseAiProvider.agentPlatform(location: 'us-central1'),
+    ),
+  ],
+);
+```
 
 Migrating from earlier versions:
 
@@ -206,7 +221,9 @@ and the rest in `raw`; streaming with it fails with `INVALID_ARGUMENT`.
 ### Thinking
 
 Gemini 3 and newer models take a `thinkingLevel`: `MINIMAL`, `LOW`, `MEDIUM`
-or `HIGH`. The value must be uppercase. Older models take a `thinkingBudget`
+or `HIGH`. The value must be uppercase. Which levels a model accepts depends on
+the model; `gemini-3.8-flash`, for example, rejects `MINIMAL` with
+`INVALID_ARGUMENT`. Older models take a `thinkingBudget`
 in tokens instead. Setting both fails with `INVALID_ARGUMENT` before any
 request is sent. Set `includeThoughts: true` to get the model's thought
 summaries back as reasoning parts.
@@ -288,7 +305,10 @@ config: GeminiOptions(
 The response's `custom` holds `groundingMetadata` (`webSearchQueries`,
 `groundingChunks`, `groundingSupports` and `searchEntryPoint`) and, for URL
 context, `urlContextMetadata`. Both are rebuilt from what `firebase_ai`
-parses, so absent lists come back empty. If you use Google Search grounding,
+parses, so absent lists come back empty. With `firebase_ai` older than 5.1.0,
+`webSearchQueries` is always empty
+([flutterfire#18816](https://github.com/firebase/flutterfire/issues/18816)).
+If you use Google Search grounding,
 you must
 [display the search suggestions and sources](https://firebase.google.com/docs/ai-logic/grounding-google-search):
 `searchEntryPoint.renderedContent` is HTML to show in your app.
@@ -467,6 +487,12 @@ session.stream.listen((chunk) {
 need a `location` such as `'us-central1'`; with the default `global` location
 the server closes the session because it can't find the model. Agent Platform
 also serves `gemini-live-2.5-flash-native-audio`.
+
+On web, Live sessions don't work while App Check is enforced: `firebase_ai`
+doesn't send the App Check token on the web WebSocket, so the server closes the
+session with "Firebase App Check token is invalid"
+([flutterfire#18938](https://github.com/firebase/flutterfire/issues/18938)).
+On Android, iOS and macOS it sends the token as a header.
 
 A session takes system messages only in its first request (`system:` above);
 sending one later fails with `INVALID_ARGUMENT`. If the server closes the
