@@ -92,9 +92,8 @@ capabilities:
 - Image: `gemini-nano-banana-2.1`, `gemini-3.1-flash-image`,
   `gemini-3.1-flash-lite-image` and `gemini-3-pro-image`.
 - Text-to-speech: `gemini-3.8-flash-tts` and `gemini-3.8-flash-lite-tts`.
-- Live (see [Live API](#live-api-experimental)): `gemini-3.8-live` on the
-  Gemini Developer API only, and `gemini-live-2.5-flash-native-audio` on Agent
-  Platform only.
+- Live (see [Live API](#live-api-experimental)): `gemini-3.8-live` on both
+  providers, and `gemini-live-2.5-flash-native-audio` on Agent Platform only.
 
 Gemini models are retired often, and a model name compiled into your app
 stops working when its model shuts down. For example, Gemini 2.5 Pro, Flash
@@ -140,9 +139,9 @@ final ai = Genkit(plugins: [firebasePlugin]);
   [replay protection](https://firebase.google.com/docs/ai-logic/app-check),
   which blocks reusable session tokens.
 
-Set `location` (for example `'us-central1'`) for Agent Platform Live models
-such as `gemini-live-2.5-flash-native-audio`, which are not available on the
-default `global` location, or for data residency.
+Set `location` (for example `'us-central1'`) for Agent Platform Live models,
+which are not available on the default `global` location, or for data
+residency.
 
 Migrating from earlier versions:
 
@@ -464,10 +463,10 @@ session.stream.listen((chunk) {
 });
 ```
 
-`gemini-3.8-live` works with the Gemini Developer API only, because Agent
-Platform doesn't serve Gemini Live 3.x models. On Agent Platform, use
-`gemini-live-2.5-flash-native-audio`, which needs a `location` such as
-`'us-central1'`.
+`gemini-3.8-live` works with both providers. On Agent Platform, Live models
+need a `location` such as `'us-central1'`; with the default `global` location
+the server closes the session because it can't find the model. Agent Platform
+also serves `gemini-live-2.5-flash-native-audio`.
 
 A session takes system messages only in its first request (`system:` above);
 sending one later fails with `INVALID_ARGUMENT`. If the server closes the
