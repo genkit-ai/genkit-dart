@@ -298,4 +298,90 @@ void main() {
       expect((part['file_data'] as Map)['file_uri'], 'gs://bucket/photo.png');
     });
   });
+  group('speechMetadata', () {
+    Future<List<Map<String, dynamic>>> sentParts(List<Part> parts) async {
+      final client = WireClient();
+      await wireModel(client)(
+        ModelRequest(
+          messages: [Message(role: Role.user, content: parts)],
+        ),
+      );
+      final contents = client.requests.single.body['contents'] as List;
+      return ((contents.single as Map)['parts'] as List)
+          .cast<Map<String, dynamic>>();
+    }
+
+    test('a text part names its speaker', () async {
+      final parts = await sentParts([
+        TextPart(
+          text: 'Did we ship it?',
+          metadata: {
+            'speechMetadata': {'speaker': 'Joe', 'style': 'nervous'},
+          },
+        ),
+        TextPart(
+          text: 'We shipped it.',
+          metadata: {
+            'speechMetadata': {'speaker': 'Jane'},
+          },
+        ),
+      ]);
+
+      expect(parts[0]['text'], 'Did we ship it?');
+      expect(parts[0]['speechMetadata'], {
+        'speaker': 'Joe',
+        'style': 'nervous',
+      });
+      expect(parts[1]['text'], 'We shipped it.');
+      expect(parts[1]['speechMetadata'], {'speaker': 'Jane'});
+    });
+
+    test('keeps the thought signature', () async {
+      final parts = await sentParts([
+        TextPart(
+          text: 'Hi.',
+          metadata: {
+            'speechMetadata': {'speaker': 'Joe'},
+            'thoughtSignature': 'sig',
+          },
+        ),
+      ]);
+
+      expect(parts.single['thoughtSignature'], 'sig');
+      expect(parts.single['speechMetadata'], {'speaker': 'Joe'});
+    });
+
+    test('a text part without it is sent as before', () async {
+      final parts = await sentParts([TextPart(text: 'Hi.')]);
+
+      expect(parts.single['text'], 'Hi.');
+      expect(parts.single, isNot(contains('speechMetadata')));
+    });
+
+    for (final (name, value) in [
+      ('a value that is not a map', 'Joe'),
+      ('a speaker that is not a string', {'speaker': 1}),
+      ('a style that is not a string', {'speaker': 'Joe', 'style': true}),
+    ]) {
+      test('rejects $name before sending', () async {
+        final client = WireClient();
+        await expectLater(
+          wireModel(client)(
+            ModelRequest(
+              messages: [
+                Message(
+                  role: Role.user,
+                  content: [
+                    TextPart(text: 'Hi.', metadata: {'speechMetadata': value}),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          _throwsInvalidArgument,
+        );
+        expect(client.requests, isEmpty);
+      });
+    }
+  });
 }

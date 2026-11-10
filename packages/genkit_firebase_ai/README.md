@@ -311,32 +311,48 @@ final image = response.media; // data:image/png;base64,...
 ```
 
 Text-to-speech models return audio the same way. `speechConfig` takes one
-voice, or a `multiSpeakerVoiceConfig` with exactly two speakers whose names
-match the prompt:
+voice, or a `multiSpeakerVoiceConfig` with exactly two speakers. For two
+speakers, give each text part a `speechMetadata` with the `speaker` that reads
+it, using a name from `speakerVoiceConfigs` (not the voice name). The Gemini
+Developer API requires one on every text part. `style` is optional:
 
 ```dart
-config: GeminiOptions(
-  responseModalities: ['AUDIO'],
-  speechConfig: SpeechConfig(
-    multiSpeakerVoiceConfig: MultiSpeakerVoiceConfig(
-      speakerVoiceConfigs: [
-        SpeakerVoiceConfig(
-          speaker: 'Joe',
-          voiceConfig: VoiceConfig(
-            prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Kore'),
-          ),
-        ),
-        SpeakerVoiceConfig(
-          speaker: 'Jane',
-          voiceConfig: VoiceConfig(
-            prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
-          ),
-        ),
-      ],
+final response = await ai.generate(
+  model: firebaseAI.gemini('gemini-3.8-flash-tts'),
+  promptParts: [
+    TextPart(
+      text: 'Did we ship it?',
+      metadata: {'speechMetadata': {'speaker': 'Joe', 'style': 'nervous'}},
     ),
-    languageCode: 'en-US',
+    TextPart(
+      text: 'We shipped it.',
+      metadata: {'speechMetadata': {'speaker': 'Jane'}},
+    ),
+  ],
+  config: GeminiOptions(
+    responseModalities: ['AUDIO'],
+    speechConfig: SpeechConfig(
+      multiSpeakerVoiceConfig: MultiSpeakerVoiceConfig(
+        speakerVoiceConfigs: [
+          SpeakerVoiceConfig(
+            speaker: 'Joe',
+            voiceConfig: VoiceConfig(
+              prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Kore'),
+            ),
+          ),
+          SpeakerVoiceConfig(
+            speaker: 'Jane',
+            voiceConfig: VoiceConfig(
+              prebuiltVoiceConfig: PrebuiltVoiceConfig(voiceName: 'Puck'),
+            ),
+          ),
+        ],
+      ),
+      languageCode: 'en-US',
+    ),
   ),
-),
+);
+final audio = response.media; // data:audio/...;base64,...
 ```
 
 ### Media resolution

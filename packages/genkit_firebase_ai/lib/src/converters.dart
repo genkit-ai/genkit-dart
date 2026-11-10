@@ -77,6 +77,37 @@ String _dataUriMimeType(UriData data) => [
   for (final MapEntry(:key, :value) in data.parameters.entries) '$key=$value',
 ].join(';');
 
+/// Reads a text part's `metadata['speechMetadata']`, which names the speaker
+/// (from `speakerVoiceConfigs`) of the part in a multi-speaker TTS request,
+/// and optionally a `style`.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a value
+/// that is not a map of strings.
+Map<String, String>? _toSpeechMetadata(Object? value) {
+  if (value == null) return null;
+  if (value is! Map) {
+    throw GenkitException(
+      'metadata.speechMetadata must be a map, not $value.',
+      status: StatusCode.invalidArgument,
+    );
+  }
+  final result = <String, String>{};
+  for (final key in const ['speaker', 'style']) {
+    switch (value[key]) {
+      case null:
+        break;
+      case final String s:
+        result[key] = s;
+      case final other:
+        throw GenkitException(
+          'metadata.speechMetadata.$key must be a string, not $other.',
+          status: StatusCode.invalidArgument,
+        );
+    }
+  }
+  return result;
+}
+
 fai.Part toGeminiPart(Part p) {
   final isThought = p.metadata?['isThought'] == true;
   final thoughtSignature = p.metadata?['thoughtSignature'] as String?;
@@ -97,6 +128,17 @@ fai.Part toGeminiPart(Part p) {
     }
   }
   if (p.isText) {
+    final speechMetadata = _toSpeechMetadata(p.metadata?['speechMetadata']);
+    if (speechMetadata != null) {
+      // firebase_ai has a typed SpeechMetadata only from 5.1.0, so send the
+      // part as raw JSON to keep the 3.15.0 floor.
+      return fai.UnknownPart({
+        'text': p.text!,
+        'speechMetadata': speechMetadata,
+        if (isThought) 'thought': true,
+        'thoughtSignature': ?thoughtSignature,
+      });
+    }
     try {
       return fai.TextPart.forTest(
         p.text!,
