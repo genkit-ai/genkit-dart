@@ -1,3 +1,15 @@
+## 1.0.2
+
+### Fixes
+
+ - return MCP media content as tool response parts (#702)
+ - connect when the server rejects subscriptions/listen (#685)
+
+### Other Changes
+
+ - deflake stdio end-to-end and concurrent SSE stream tests (#633)
+
+
 ## 1.0.1
 
  - updated internal dependencies.

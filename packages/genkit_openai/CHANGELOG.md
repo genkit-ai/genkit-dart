@@ -1,3 +1,7 @@
+## 1.0.2
+
+ - updated internal dependencies.
+
 ## 1.0.1
 
 ### Fixes

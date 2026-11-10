@@ -1,3 +1,16 @@
+## 1.1.0
+
+### Features
+
+ - support a custom baseUrl (#704)
+
+### Fixes
+
+ - leave out parametersJsonSchema for a tool that accepts any input (#694)
+ - keep response parts that only carry a thoughtSignature (#683)
+ - treat a missing functionCall.args as empty input (#693)
+
+
 ## 1.0.1
 
  - updated internal dependencies.

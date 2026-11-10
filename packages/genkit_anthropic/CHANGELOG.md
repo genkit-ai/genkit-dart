@@ -1,3 +1,10 @@
+## 1.0.2
+
+### Fixes
+
+ - require anthropic_sdk_dart ^9.0.1 (#687)
+
+
 ## 1.0.1
 
  - updated internal dependencies.

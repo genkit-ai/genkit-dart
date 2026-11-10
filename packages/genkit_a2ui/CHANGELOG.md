@@ -1,3 +1,18 @@
+## 0.5.0
+
+### Breaking Changes
+
+ - switch the model output format to A2UI Express (#472)
+ - align the catalog with the A2UI spec's catalog.json (#468)
+ - drop client helpers and align the a2ui part with the spec (#710)
+
+### Features
+
+ - tell the model not to render surfaces for conversation (#715)
+ - check blocks against the surfaces the client holds, so a block can update one (#714)
+ - repair a block that failed to compile (#474)
+
+
 ## 0.4.1
 
  - updated internal dependencies.

@@ -1,3 +1,54 @@
+## 1.0.0
+
+### Breaking Changes
+
+ - remove GeminiOptions.responseSchema in favour of responseJsonSchema (#736)
+ - remove the deprecated firebaseAiModelInfo (#735)
+ - move converters and Live helpers to lib/src and stop exporting them (#716)
+ - report Live sessions the server closes, and receive errors (#677)
+ - send tool input schemas verbatim as parametersJsonSchema (#666)
+ - map Gemini finish reasons to Genkit vocabulary (#608)
+ - map Firebase AI and HTTP errors to GenkitException with a status code (#615)
+ - remove unsupported responseLogprobs and logprobs from GeminiOptions (#606)
+ - send output schema verbatim as responseJsonSchema; forward the option (#612)
+
+### Features
+
+ - send per-part speechMetadata for multi-speaker TTS (#737)
+ - add speechConfig, imageConfig and mediaResolution to GeminiOptions (#669)
+ - add Google Search, URL context and Google Maps grounding (#668)
+ - abort in-flight requests on cancellation (#667)
+ - give each known model its own label, stage and capabilities (#671)
+ - add safetySettings to GeminiOptions (#665)
+ - register the Firebase AI Logic model list in init() (#670)
+ - expose GeminiOptions as the generate models' options (#678)
+ - allow firebase_ai 5.x (#673)
+ - add thinkingLevel for Gemini 3.x; replace deprecated ThinkingConfig() (#614)
+
+### Fixes
+
+ - report a malformed data: URL as INVALID_ARGUMENT (#697)
+ - send every Live system message as systemInstruction (#681)
+ - report unsupported parts as INVALID_ARGUMENT (#679)
+ - reject streaming with candidateCount > 1 (#676)
+ - leave absent token counts null instead of 0 (#675)
+ - send system messages as systemInstruction (#605)
+ - map code execution, file and unknown response parts instead of throwing (#607)
+ - map thoughts, cached and tool-use token counts into usage (#604)
+ - surface prompt block reason instead of StateError on empty candidates (#613)
+ - parse Live config through its schema and route media by type (#651)
+ - keep thought signatures when aggregating streamed parts (#650)
+ - omit responseMimeType when it is not set (#649)
+ - close the per-request http.Client when none is passed (#648)
+
+### Other Changes
+
+ - add README caveats found in live testing (#738)
+ - document gemini-3.8-live on Agent Platform with a regional location (#723)
+ - refresh README for App Check enforcement, models and options (#664)
+ - note that Gemini 3 ignores or rejects the sampling options (#674)
+
+
 ## 0.4.0
 
 ### Breaking Changes
