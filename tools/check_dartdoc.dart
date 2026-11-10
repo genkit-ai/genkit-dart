@@ -17,6 +17,8 @@
 /// Usage:
 ///   dart run tools/check_dartdoc.dart [package_name_or_path ...]
 ///
+/// A path to a package outside the melos workspace is checked as well.
+///
 /// If no arguments are provided, all non-private packages in the repository
 /// will be checked. If arguments are provided, they can be either package
 /// names or paths to package directories, and only those matching packages
@@ -97,6 +99,20 @@ Future<void> main(List<String> args) async {
       return targetNames.contains(pkg['name']) || targetPaths.contains(pkgPath);
     }).toList();
 
+    // A path to a package outside the melos workspace (for example
+    // genkit_firebase_ai, which needs Flutter) is checked too.
+    final found = packages
+        .map(
+          (pkg) => p.canonicalize(
+            Directory(pkg['location'] as String).absolute.path,
+          ),
+        )
+        .toSet();
+    for (final path in targetPaths.difference(found)) {
+      final name = _packageName(path);
+      if (name != null) packages.add({'name': name, 'location': path});
+    }
+
     if (packages.isEmpty) {
       print(
         'No non-private packages found matching provided targets: ${args.join(', ')}',
@@ -124,6 +140,17 @@ Future<void> main(List<String> args) async {
   } else {
     print('\nDocumentation check passed.');
   }
+}
+
+/// The `name` in [path]'s `pubspec.yaml`, or null when there is none.
+String? _packageName(String path) {
+  final pubspec = File(p.join(path, 'pubspec.yaml'));
+  if (!pubspec.existsSync()) return null;
+  final match = RegExp(
+    r'^name:\s*(\S+)',
+    multiLine: true,
+  ).firstMatch(pubspec.readAsStringSync());
+  return match?[1];
 }
 
 Future<bool> _checkPackage(String name, String location) async {
