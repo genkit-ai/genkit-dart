@@ -97,36 +97,24 @@ void main() {
     expect(config, isNot(contains('responseSchema')));
   });
 
-  test('options.responseJsonSchema wins over options.responseSchema', () async {
-    final config = await _generationConfigOnTheWire(
-      config: {
-        'responseMimeType': 'application/json',
-        'responseSchema': {'type': 'string'},
-        'responseJsonSchema': _outputSchema,
-      },
-    );
+  test(
+    'a constrained output schema replaces options.responseJsonSchema',
+    () async {
+      final config = await _generationConfigOnTheWire(
+        output: OutputConfig(
+          format: 'json',
+          schema: _outputSchema,
+          constrained: true,
+        ),
+        config: {
+          'responseJsonSchema': {'type': 'integer'},
+        },
+      );
 
-    expect(config['responseJsonSchema'], _outputSchema);
-    expect(config, isNot(contains('responseSchema')));
-  });
-
-  test('a constrained output schema replaces options.responseJsonSchema and '
-      'options.responseSchema', () async {
-    final config = await _generationConfigOnTheWire(
-      output: OutputConfig(
-        format: 'json',
-        schema: _outputSchema,
-        constrained: true,
-      ),
-      config: {
-        'responseSchema': {'type': 'string'},
-        'responseJsonSchema': {'type': 'integer'},
-      },
-    );
-
-    expect(config['responseJsonSchema'], _outputSchema);
-    expect(config, isNot(contains('responseSchema')));
-  });
+      expect(config['responseJsonSchema'], _outputSchema);
+      expect(config, isNot(contains('responseSchema')));
+    },
+  );
 
   test('ai.generate with a generated output type keeps its refs', () async {
     final client = WireClient(response: textResponse('{}'));

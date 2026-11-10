@@ -100,17 +100,9 @@ abstract class $GeminiOptions {
   String? get responseMimeType;
   @Field(
     description:
-        'OpenAPI-subset schema the response must conform to. Ignored when '
-        'responseJsonSchema is set or the request has a constrained JSON '
-        'output schema.',
-  )
-  Map<String, dynamic>? get responseSchema;
-  @Field(
-    description:
         'JSON Schema the response must conform to, sent to Gemini unchanged. '
-        'Requires responseMimeType "application/json". Takes precedence over '
-        'responseSchema when both are set. Ignored when the request has a '
-        'constrained JSON output schema, which is sent instead.',
+        'Requires responseMimeType "application/json". Ignored when the '
+        'request has a constrained JSON output schema, which is sent instead.',
   )
   Map<String, dynamic>? get responseJsonSchema;
   $ThinkingConfig? get thinkingConfig;

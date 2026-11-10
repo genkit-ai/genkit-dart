@@ -38,7 +38,6 @@ base class GeminiOptions {
     double? frequencyPenalty,
     List<String>? responseModalities,
     String? responseMimeType,
-    Map<String, dynamic>? responseSchema,
     Map<String, dynamic>? responseJsonSchema,
     ThinkingConfig? thinkingConfig,
     int? candidateCount,
@@ -63,7 +62,6 @@ base class GeminiOptions {
       'frequencyPenalty': ?frequencyPenalty,
       'responseModalities': ?responseModalities,
       'responseMimeType': ?responseMimeType,
-      'responseSchema': ?responseSchema,
       'responseJsonSchema': ?responseJsonSchema,
       'thinkingConfig': ?thinkingConfig?.toJson(),
       'candidateCount': ?candidateCount,
@@ -205,18 +203,6 @@ base class GeminiOptions {
       _json.remove('responseMimeType');
     } else {
       _json['responseMimeType'] = value;
-    }
-  }
-
-  Map<String, dynamic>? get responseSchema {
-    return (_json['responseSchema'] as Map?)?.cast<String, dynamic>();
-  }
-
-  set responseSchema(Map<String, dynamic>? value) {
-    if (value == null) {
-      _json.remove('responseSchema');
-    } else {
-      _json['responseSchema'] = value;
     }
   }
 
@@ -472,16 +458,10 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
           'items': <String, Object?>{'type': 'string'},
         },
         'responseMimeType': <String, Object?>{'type': 'string'},
-        'responseSchema': <String, Object?>{
-          'type': 'object',
-          'description':
-              'OpenAPI-subset schema the response must conform to. Ignored when responseJsonSchema is set or the request has a constrained JSON output schema.',
-          'additionalProperties': <String, Object?>{},
-        },
         'responseJsonSchema': <String, Object?>{
           'type': 'object',
           'description':
-              'JSON Schema the response must conform to, sent to Gemini unchanged. Requires responseMimeType "application/json". Takes precedence over responseSchema when both are set. Ignored when the request has a constrained JSON output schema, which is sent instead.',
+              'JSON Schema the response must conform to, sent to Gemini unchanged. Requires responseMimeType "application/json". Ignored when the request has a constrained JSON output schema, which is sent instead.',
           'additionalProperties': <String, Object?>{},
         },
         'thinkingConfig': <String, Object?>{r'$ref': r'#/$defs/ThinkingConfig'},

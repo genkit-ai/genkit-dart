@@ -19,83 +19,6 @@ import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
 import 'package:genkit_firebase_ai/src/converters.dart';
 
 void main() {
-  group('Schema Conversion', () {
-    test('converts simple string schema', () {
-      final json = {'type': 'string', 'description': 'desc', 'nullable': true};
-      final schema = toGeminiSchema(json);
-      // We can't easily inspect properties of Schema if they are internal,
-      // but we can check runtime type or usage.
-      // FirebaseAI Schema doesn't expose fields easily for inspection in tests without dynamic or toString check?
-      // Let's rely on it completing without error, and maybe check debug types if possible.
-      expect(schema, isA<m.Schema>());
-    });
-
-    test('converts object schema', () {
-      final json = {
-        'type': 'object',
-        'properties': {
-          'foo': {'type': 'string'},
-          'bar': {'type': 'integer'},
-        },
-      };
-      final schema = toGeminiSchema(json);
-      expect(schema, isA<m.Schema>());
-    });
-
-    test('converts object schema with additionalProperties', () {
-      final json = {
-        'type': 'object',
-        'additionalProperties': {'type': 'integer'},
-      };
-      final schema = toGeminiSchema(json);
-      expect(schema, isA<m.Schema>());
-
-      final jsonOutput = schema.toJson();
-      expect(jsonOutput, {'type': 'OBJECT', 'nullable': false});
-    });
-
-    test('converts array schema', () {
-      final json = {
-        'type': 'array',
-        'items': {'type': 'string'},
-      };
-      final schema = toGeminiSchema(json);
-      expect(schema, isA<m.Schema>());
-    });
-
-    test('flatten schemas with \$ref', () {
-      final json = {
-        '\$ref': '#/\$defs/WeatherToolInput',
-        '\$defs': {
-          'WeatherToolInput': {
-            'type': 'object',
-            'properties': {
-              'city': {
-                'type': 'string',
-                'description': 'The city to get the weather for',
-              },
-            },
-            'required': ['city'],
-          },
-        },
-        '\$schema': 'http://json-schema.org/draft-07/schema#',
-      };
-      final schema = toGeminiSchema(json);
-      expect(schema.toJson(), {
-        'type': 'OBJECT',
-        'nullable': false,
-        'properties': {
-          'city': {
-            'type': 'STRING',
-            'description': 'The city to get the weather for',
-            'nullable': false,
-          },
-        },
-        'required': ['city'],
-      });
-    });
-  });
-
   group('Tool Conversion', () {
     test('sends the tool input schema as parametersJsonSchema', () {
       final inputSchema = {
@@ -246,15 +169,6 @@ void main() {
       expect(settings.responseMimeType, 'application/json');
       expect(settings.responseJsonSchema, isNull);
       expect(settings.responseSchema, isNull);
-    });
-
-    test('toGeminiSettings keeps an explicitly configured responseSchema', () {
-      final settings = toGeminiSettings(
-        GeminiOptions(responseSchema: {'type': 'string'}),
-        null,
-        false,
-      );
-      expect(settings.responseSchema, isNotNull);
     });
 
     test('toGeminiToolConfig maps to AUTO by default', () {
