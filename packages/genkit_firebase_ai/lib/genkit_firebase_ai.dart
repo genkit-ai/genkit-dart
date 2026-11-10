@@ -450,6 +450,15 @@ class _FirebaseGenAiPlugin extends GenkitPlugin {
 
         // The JSON round trip types nested maps written as Dart literals (e.g.
         // an empty `{}`) the way the generated getters expect.
+        // A config map can still carry the removed option; reject it rather
+        // than send an unconstrained request.
+        if (req.config?.containsKey('responseSchema') ?? false) {
+          throw GenkitException(
+            'responseSchema is no longer supported. Pass the JSON Schema as '
+            'responseJsonSchema instead.',
+            status: StatusCode.invalidArgument,
+          );
+        }
         final options = req.config == null
             ? GeminiOptions()
             : readConfig(

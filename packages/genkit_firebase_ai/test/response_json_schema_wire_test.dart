@@ -97,6 +97,29 @@ void main() {
     expect(config, isNot(contains('responseSchema')));
   });
 
+  test('rejects the removed responseSchema option before sending', () async {
+    final client = WireClient();
+    await expectLater(
+      wireModel(client)(
+        userRequest(
+          'hello',
+          config: {
+            'responseMimeType': 'application/json',
+            'responseSchema': {'type': 'string'},
+          },
+        ),
+      ),
+      throwsA(
+        isA<GenkitException>().having(
+          (e) => e.status,
+          'status',
+          StatusCode.invalidArgument,
+        ),
+      ),
+    );
+    expect(client.requests, isEmpty);
+  });
+
   test(
     'a constrained output schema replaces options.responseJsonSchema',
     () async {
