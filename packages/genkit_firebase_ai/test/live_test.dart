@@ -618,10 +618,7 @@ void main() {
 
   test('live models expose LiveGenerationConfig as their options', () {
     final model =
-        firebaseAI().resolve(
-              ActionType.bidiModel,
-              'gemini-2.5-flash-native-audio-preview-12-2025',
-            )
+        firebaseAI().resolve(ActionType.bidiModel, 'gemini-3.8-live')
             as BidiModel;
 
     expect(model.customOptions, same(LiveGenerationConfig.$schema));

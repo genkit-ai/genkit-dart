@@ -1,5 +1,5 @@
 name: genkit_firebase_ai
-description: Firebase AI plugin for Genkit Dart.
+description: Genkit plugin for Firebase AI Logic. Call Gemini from Flutter apps with tools, structured output, grounding and Live sessions.
 version: 0.4.0
 repository: https://github.com/genkit-ai/genkit-dart
 license: Apache-2.0

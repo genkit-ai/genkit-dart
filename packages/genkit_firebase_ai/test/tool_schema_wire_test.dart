@@ -69,7 +69,7 @@ void main() {
     );
 
     await ai.generate(
-      model: firebaseAI.gemini('gemini-2.5-flash'),
+      model: firebaseAI.gemini('gemini-flash-latest'),
       prompt: 'Order a medium.',
       toolNames: ['placeOrder'],
     );

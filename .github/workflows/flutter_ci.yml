@@ -45,6 +45,15 @@ jobs:
         working-directory: packages/genkit_firebase_ai
         run: flutter analyze
 
+      # tools/check_dartdoc.dart only sees melos workspace packages, and this
+      # one is outside the workspace.
+      - name: Check genkit_firebase_ai dartdoc
+        working-directory: packages/genkit_firebase_ai
+        run: |
+          out="$(dart doc --dry-run . 2>&1)"
+          echo "$out"
+          if echo "$out" | grep -qE '^\s*(warning|error):'; then exit 1; fi
+
       # Lives here, not in dart_ci, because genkit_firebase_ai needs Flutter
       # to resolve.
       - name: Check for conflicting package exports

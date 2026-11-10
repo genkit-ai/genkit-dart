@@ -52,7 +52,7 @@ void main() {
       expect(request.isStreaming, isFalse);
       expect(
         request.url.path,
-        endsWith('/models/gemini-2.5-flash:generateContent'),
+        endsWith('/models/gemini-flash-latest:generateContent'),
       );
       expect(request.headers['x-goog-api-key'], Firebase.app().options.apiKey);
       expect(request.body['contents'], [

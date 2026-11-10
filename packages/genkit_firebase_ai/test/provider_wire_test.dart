@@ -44,7 +44,7 @@ void main() {
       expect(
         client.requests.single.url.path,
         '${projectPath()}/locations/europe-west1/publishers/google'
-        '/models/gemini-2.5-flash:generateContent',
+        '/models/gemini-flash-latest:generateContent',
       );
     });
 
@@ -64,7 +64,7 @@ void main() {
       expect(
         client.requests.single.url.path,
         '${projectPath()}/locations/global/publishers/google'
-        '/models/gemini-2.5-flash:generateContent',
+        '/models/gemini-flash-latest:generateContent',
       );
     });
 
@@ -80,7 +80,7 @@ void main() {
       );
       expect(
         client.requests.single.url.path,
-        '${projectPath()}/models/gemini-2.5-flash:generateContent',
+        '${projectPath()}/models/gemini-flash-latest:generateContent',
       );
     });
   });
