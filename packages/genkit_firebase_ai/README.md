@@ -140,9 +140,9 @@ final ai = Genkit(plugins: [firebasePlugin]);
   which blocks reusable session tokens.
 
 Set `location` for data residency, or for Agent Platform Live models, which
-need a regional location such as `'us-central1'`. Text models may be served
-only on the default `global` location, and a regional one fails with
-`NOT_FOUND` for them. A plugin instance has one location, so an app that uses
+need a regional location such as `'us-central1'`. Text models can be missing
+from a regional location and fail there with `NOT_FOUND`; use the default
+`global` location for them. A plugin instance has one location, so an app that uses
 both Live and text models on Agent Platform needs two `Genkit` instances:
 
 ```dart
