@@ -351,6 +351,18 @@ void main() {
       expect(parts.single['speechMetadata'], {'speaker': 'Joe'});
     });
 
+    test('an empty one is not sent', () async {
+      final parts = await sentParts([
+        TextPart(
+          text: 'Hi.',
+          metadata: {'speechMetadata': <String, dynamic>{}},
+        ),
+      ]);
+
+      expect(parts.single['text'], 'Hi.');
+      expect(parts.single, isNot(contains('speechMetadata')));
+    });
+
     test('a text part without it is sent as before', () async {
       final parts = await sentParts([TextPart(text: 'Hi.')]);
 

@@ -81,8 +81,8 @@ String _dataUriMimeType(UriData data) => [
 /// (from `speakerVoiceConfigs`) of the part in a multi-speaker TTS request,
 /// and optionally a `style`.
 ///
-/// Throws a [GenkitException] with [StatusCode.invalidArgument] for a value
-/// that is not a map of strings.
+/// Returns null when there is nothing to send. Throws a [GenkitException] with
+/// [StatusCode.invalidArgument] for a value that is not a map of strings.
 Map<String, String>? _toSpeechMetadata(Object? value) {
   if (value == null) return null;
   if (value is! Map) {
@@ -105,7 +105,8 @@ Map<String, String>? _toSpeechMetadata(Object? value) {
         );
     }
   }
-  return result;
+  // Nothing to send, so the part goes out as a plain text part.
+  return result.isEmpty ? null : result;
 }
 
 fai.Part toGeminiPart(Part p) {
