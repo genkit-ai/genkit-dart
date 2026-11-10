@@ -77,6 +77,19 @@ String _dataUriMimeType(UriData data) => [
   for (final MapEntry(:key, :value) in data.parameters.entries) '$key=$value',
 ].join(';');
 
+/// [value] as a string, for the part metadata field at `metadata.[path]`.
+///
+/// Throws a [GenkitException] with [StatusCode.invalidArgument] when it is
+/// set to something other than a string.
+String? _metadataString(Object? value, String path) => switch (value) {
+  null => null,
+  final String s => s,
+  final other => throw GenkitException(
+    'metadata.$path must be a string, not $other.',
+    status: StatusCode.invalidArgument,
+  ),
+};
+
 /// Reads a text part's `metadata['speechMetadata']`, which names the speaker
 /// (from `speakerVoiceConfigs`) of the part in a multi-speaker TTS request,
 /// and optionally a `style`.
@@ -93,17 +106,8 @@ Map<String, String>? _toSpeechMetadata(Object? value) {
   }
   final result = <String, String>{};
   for (final key in const ['speaker', 'style']) {
-    switch (value[key]) {
-      case null:
-        break;
-      case final String s:
-        result[key] = s;
-      case final other:
-        throw GenkitException(
-          'metadata.speechMetadata.$key must be a string, not $other.',
-          status: StatusCode.invalidArgument,
-        );
-    }
+    final v = _metadataString(value[key], 'speechMetadata.$key');
+    if (v != null) result[key] = v;
   }
   // Nothing to send, so the part goes out as a plain text part.
   return result.isEmpty ? null : result;
@@ -153,14 +157,7 @@ fai.Part toGeminiPart(Part p) {
   if (p.isMedia) {
     final media = p.media!;
     final mediaResolution = _toMediaResolution(
-      switch (p.metadata?['mediaResolution']) {
-        null => null,
-        final String value => value,
-        final other => throw GenkitException(
-          'metadata.mediaResolution must be a string, not $other.',
-          status: StatusCode.invalidArgument,
-        ),
-      },
+      _metadataString(p.metadata?['mediaResolution'], 'mediaResolution'),
       perPart: true,
     );
     if (media.url.startsWith('data:')) {
