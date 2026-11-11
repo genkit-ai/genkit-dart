@@ -25,7 +25,11 @@
 /// list so nobody has to write JSON Schema by hand.
 library;
 
+import 'dart:convert';
+
 import 'package:a2ui_core/a2ui_core.dart' as core;
+
+import 'types.dart';
 
 /// A component's API: its name and the JSON Schema declaring its props.
 class A2uiCatalogComponent {
@@ -331,6 +335,19 @@ class A2uiCatalog {
   /// Globally-unique catalog id (also used as `catalogId` on `createSurface`).
   final String id;
 
+  /// The A2UI protocol version this catalog targets (`'1.0'`, `'v0.9.1'`, or
+  /// `'v0.9'`).
+  ///
+  /// Canonicalized from the document's `protocolVersion` (so `'1.0.0'` reads as
+  /// `'1.0'` and `'0.9'` as `'v0.9'`). Catalogs constructed in Dart via
+  /// [A2uiCatalog.new] default to `'1.0'`; documents loaded with
+  /// [A2uiCatalog.fromJson] without a `protocolVersion` target `'v0.9'`,
+  /// matching the specification.
+  String get protocolVersion => switch (_extra['protocolVersion']) {
+    final String v => canonicalizeA2uiVersion(v) ?? v,
+    _ => 'v0.9',
+  };
+
   /// The components available in this catalog, keyed by component name.
   final Map<String, A2uiCatalogComponent> components;
 
@@ -349,6 +366,11 @@ class A2uiCatalog {
   /// Creates an [A2uiCatalog] from its components and functions, keyed by
   /// name. Names must be unique.
   ///
+  /// Targets A2UI `'1.0'` by default, which also validates the catalog under
+  /// v1.0 schema rules (UAX #31 property names, and `$ref`s restricted to
+  /// `#/...` or `common_types.json`); pass `protocolVersion: 'v0.9'` (or
+  /// extend `basicCatalogV09`) for a v0.9 catalog.
+  ///
   /// The maps are unmodifiable: build a new catalog (see [extend]) rather than
   /// editing one, since the form `a2ui_agent` reads is derived once per
   /// instance.
@@ -357,12 +379,34 @@ class A2uiCatalog {
     required Iterable<A2uiCatalogComponent> components,
     Iterable<A2uiCatalogFunction> functions = const [],
     String? instructions,
+    String protocolVersion = '1.0',
   }) : this._(
          id: id,
          components: _byName(components, (c) => c.name),
          functions: _byName(functions, (f) => f.name),
          instructions: instructions,
+         extra: _protocolExtra(protocolVersion),
        );
+
+  static Map<String, dynamic> _protocolExtra(String protocolVersion) {
+    final canonical = canonicalizeA2uiVersion(protocolVersion);
+    if (canonical == null) {
+      throw ArgumentError.value(
+        protocolVersion,
+        'protocolVersion',
+        'unsupported A2UI protocol version '
+            '(supported: ${supportedA2uiVersions.join(', ')})',
+      );
+    }
+    // Published v0.9 catalogs omit `protocolVersion` on the wire; newer
+    // versions write bare semver ('0.9.1', '1.0').
+    return {
+      if (canonical != 'v0.9')
+        'protocolVersion': canonical.startsWith('v')
+            ? canonical.substring(1)
+            : canonical,
+    };
+  }
 
   A2uiCatalog._({
     required this.id,
@@ -523,9 +567,14 @@ class A2uiCatalog {
     components: {...this.components, ..._byName(components, (c) => c.name)},
     functions: {...this.functions, ..._byName(functions, (f) => f.name)},
     defs: defs,
-    instructions: switch (instructions ?? this.instructions) {
+    instructions: switch (instructions) {
       '' => null,
-      final i => i,
+      final String custom => custom,
+      null => _retargetInstructions(
+        this.instructions,
+        fromId: this.id,
+        toId: id,
+      ),
     },
     extra: {
       for (final MapEntry(:key, :value) in _extra.entries)
@@ -539,7 +588,11 @@ class A2uiCatalog {
     components: components,
     functions: functions,
     defs: defs,
-    instructions: instructions,
+    instructions: _retargetInstructions(
+      instructions,
+      fromId: this.id,
+      toId: id,
+    ),
     extra: _extra,
   );
 
@@ -599,5 +652,49 @@ extension A2uiCatalogCore on A2uiCatalog {
 
 final _coreCatalogs = Expando<core.CatalogApi>();
 
-const String _commonTypes =
-    'https://a2ui.org/specification/v0_9/common_types.json';
+const String _commonTypes = 'common_types.json';
+
+/// Returns the canonical wire version (`'v0.9'`, `'v0.9.1'`, `'1.0'`) for a
+/// semver string `a2ui_core` implements, or `null` if unsupported.
+String? canonicalizeA2uiVersion(String raw) {
+  final v = core.A2uiProtocolVersion.tryParseSemVer(raw)?.jsonValue;
+  return supportedA2uiVersions.contains(v) ? v : null;
+}
+
+final _jsonBlockRe = RegExp(r'```json[ \t]*\r?\n([\s\S]*?)\r?\n```');
+
+/// Rewrites `catalogId` / `@catalogId` values matching [fromId] to [toId]
+/// inside fenced `json` code blocks in [text], so inherited example messages
+/// target the derived catalog's id instead of failing Express decompilation.
+String? _retargetInstructions(
+  String? text, {
+  required String fromId,
+  required String toId,
+}) {
+  if (text == null || fromId.isEmpty || fromId == toId) return text;
+  return text.replaceAllMapped(_jsonBlockRe, (match) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(match[1]!);
+    } on FormatException {
+      return match[0]!;
+    }
+    var changed = false;
+    Object? rewrite(Object? node) => switch (node) {
+      final List<Object?> l => [for (final item in l) rewrite(item)],
+      final Map<Object?, Object?> m => <String, Object?>{
+        for (final MapEntry(:key, :value) in m.entries)
+          '$key': (key == 'catalogId' || key == '@catalogId') && value == fromId
+              ? (() {
+                  changed = true;
+                  return toId;
+                })()
+              : rewrite(value),
+      },
+      _ => node,
+    };
+    final updated = rewrite(decoded);
+    if (!changed) return match[0]!;
+    return '```json\n${const JsonEncoder.withIndent('  ').convert(updated)}\n```';
+  });
+}

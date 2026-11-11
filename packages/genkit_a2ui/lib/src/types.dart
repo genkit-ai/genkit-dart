@@ -14,8 +14,6 @@
 
 /// Shared A2UI protocol types and constants.
 ///
-/// Mirrors the wire shapes of the A2UI v0.9 specification.
-///
 /// Envelopes are represented as plain `Map<String, dynamic>` values (their raw
 /// JSON shape), since they are open-ended and pass straight through to the
 /// renderer. The constants and helpers here document and construct those shapes.
@@ -34,24 +32,24 @@ const String a2uiMimeType = 'application/a2ui+json';
 /// history themselves must send parts back with their metadata intact.
 const String a2uiExpressMetadataKey = 'a2uiExpress';
 
-/// The default A2UI protocol version stamped on emitted envelopes.
-const String a2uiVersion = 'v0.9';
+/// The A2UI protocol versions this package supports. A catalog decides which
+/// version a turn emits (see `A2uiCatalog.protocolVersion`); passing
+/// `version:` to `a2ui()` checks that the configured catalog agrees.
+const Set<String> supportedA2uiVersions = {'v0.9', 'v0.9.1', '1.0'};
 
-/// The set of A2UI protocol versions this package supports. The `a2ui()`
-/// middleware validates a configured `version` against this set so an
-/// unsupported value fails fast rather than silently emitting envelopes the
-/// renderer can't interpret.
-const Set<String> supportedA2uiVersions = {a2uiVersion};
-
-/// The catalog id of the A2UI "Basic Catalog" (v0.9). Surfaces created with the
-/// basic catalog reference this id, and the client renderer registers a catalog
-/// under the same id.
+/// The catalog id of the A2UI v1.0 "Basic Catalog". Surfaces created with the
+/// bundled `basicCatalog` reference this id, and the client renderer registers
+/// a catalog under the same id.
 const String basicCatalogId =
+    'https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json';
+
+/// The catalog id of the A2UI v0.9 "Basic Catalog", used by `basicCatalogV09`.
+const String basicCatalogV09Id =
     'https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json';
 
-/// A single server -> client A2UI envelope message, in its raw JSON shape.
+/// A single agent -> renderer A2UI envelope message, in its raw JSON shape.
 ///
 /// Exactly one of the keys `createSurface`, `updateComponents`,
-/// `updateDataModel`, or `deleteSurface` is present, alongside an optional
-/// `version`. Client -> server actions use an `action` key.
+/// `updateDataModel`, or `deleteSurface` is present, alongside `version`.
+/// Renderer -> agent actions use an `action` key.
 typedef A2uiEnvelope = Map<String, dynamic>;

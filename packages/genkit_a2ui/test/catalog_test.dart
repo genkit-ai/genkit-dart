@@ -68,6 +68,26 @@ void main() {
       expect(text, contains(basicIconNames.first));
     });
 
+    test('uses Markdown headings for v1.0 and h1..h5 for v0.9', () {
+      expect(text, contains('Text("## Weather in Tokyo")'));
+      expect(text, isNot(contains('"h3"')));
+      expect(
+        text,
+        contains(
+          'Input components (TextField, CheckBox, Slider, ChoicePicker, '
+          'DateTimeInput)',
+        ),
+      );
+      final v09 = renderCatalogInstructions(basicCatalogV09);
+      expect(v09, contains('Text("Weather in Tokyo", "h3")'));
+      expect(v09, isNot(contains('"## Weather in Tokyo"')));
+    });
+
+    test('includes the v1.0 catalog instructions once, not twice', () {
+      final marker = basicCatalog.instructions!.trim().split('\n').first;
+      expect(marker.allMatches(text), hasLength(1));
+    });
+
     test('its worked example compiles against the catalog', () {
       final example = RegExp(
         r'## Example[\s\S]*?<a2ui>\n([\s\S]*?)\n</a2ui>',
@@ -216,5 +236,31 @@ void main() {
       ),
     );
     expect(text, contains('ALWAYS-USE-BLUE-CARDS'));
+  });
+
+  test('extend and withId decompile inherited JSON examples to Express instead '
+      'of leaking raw JSON envelopes', () {
+    final extended = basicCatalog.extend(
+      id: 'https://example.com/weather.json',
+      components: [
+        A2uiCatalogComponent.simple(
+          name: 'Gauge',
+          params: [
+            const A2uiParam.dynamicValue(
+              'value',
+              required: true,
+              type: .number,
+            ),
+          ],
+        ),
+      ],
+    );
+    final renamed = basicCatalog.withId('https://example.com/renamed.json');
+    for (final c in [basicCatalog, extended, renamed]) {
+      final rendered = renderCatalogInstructions(c);
+      expect(rendered, isNot(contains('```json')));
+      expect(rendered, contains('?required("Deal value is required.")'));
+      expect(rendered, contains('_template(\$/breeds, breedTemplate)'));
+    }
   });
 }

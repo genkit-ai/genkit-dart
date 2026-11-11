@@ -38,6 +38,8 @@ import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'catalog.dart';
+import 'catalog_types.dart' show canonicalizeA2uiVersion;
+import 'express.dart';
 import 'loader.dart';
 import 'parser.dart';
 import 'part.dart';
@@ -68,8 +70,11 @@ abstract class $A2uiOptions {
   /// block that does not compile without logging a warning.
   String? get validate;
 
-  /// The A2UI protocol version to emit. Only `'v0.9'` (the default) is
-  /// supported.
+  /// Expected A2UI protocol version (`'1.0'` or `'v0.9'`).
+  ///
+  /// Optional: the catalog itself decides which version a turn emits (see
+  /// `A2uiCatalog.protocolVersion`). Passing this asserts at call time that
+  /// the resolved catalog targets that version.
   String? get version;
 
   /// Whether to ask the model to fix a block that failed to compile. Defaults
@@ -155,13 +160,16 @@ String _parseInstructions(String? value) {
 /// Checks the `version` option against [supportedA2uiVersions] so an
 /// unsupported protocol version fails fast rather than emitting envelopes the
 /// renderer can't read.
-void _checkVersion(String? value) {
-  if (value != null && !supportedA2uiVersions.contains(value)) {
+String? _checkVersion(String? value) {
+  if (value == null) return null;
+  final canonical = canonicalizeA2uiVersion(value);
+  if (canonical == null) {
     throw ArgumentError(
       'a2ui(): unsupported version "$value" '
       '(supported: ${supportedA2uiVersions.join(', ')}).',
     );
   }
+  return canonical;
 }
 
 /// The A2UI model middleware.
@@ -172,6 +180,7 @@ class A2uiMiddleware extends GenerateMiddleware {
   final Registry _registry;
   final String _catalogId;
   final String _instructions;
+  final String? _expectedVersion;
   final A2uiValidateMode _validate;
   final bool _repair;
 
@@ -187,9 +196,8 @@ class A2uiMiddleware extends GenerateMiddleware {
     : _catalogId = config?.catalog ?? defaultCatalogId,
       _instructions = _parseInstructions(config?.instructions),
       _validate = _parseValidateMode(config?.validate),
-      _repair = config?.repair ?? true {
-    _checkVersion(config?.version);
-  }
+      _repair = config?.repair ?? true,
+      _expectedVersion = _checkVersion(config?.version);
 
   /// Renders (and caches) the catalog instructions for [catalog].
   String _renderInstructions(A2uiCatalog catalog) {
@@ -213,6 +221,16 @@ class A2uiMiddleware extends GenerateMiddleware {
     // Resolve the catalog by id from the registry (falls back to the bundled
     // basic catalog for the default id).
     final catalog = resolveCatalog(_registry, _catalogId);
+    final engine = ExpressEngine.of(catalog);
+    if (_expectedVersion != null) {
+      final actual = engine.version.jsonValue;
+      if (actual != _expectedVersion) {
+        throw StateError(
+          'a2ui(): catalog "$_catalogId" targets A2UI $actual, expected '
+          '$_expectedVersion.',
+        );
+      }
+    }
 
     _warnOnPreSpecClient(request);
 
@@ -229,7 +247,7 @@ class A2uiMiddleware extends GenerateMiddleware {
     // 0) Sanitize any inbound a2ui data parts (e.g. a surface action sent back
     //    as the next turn, or replayed history) into model-readable text, so
     //    the underlying model's converter never sees the a2ui mime type.
-    final sanitized = _sanitizeInboundA2ui(request);
+    final sanitized = _sanitizeInboundA2ui(request, engine.compatibleVersions);
 
     // 1) Inject catalog instructions into the system prompt.
     final newRequest = _instructions == 'none'
@@ -424,6 +442,10 @@ class A2uiMiddleware extends GenerateMiddleware {
     // order: a block that failed only because an earlier one did passes once
     // that one is repaired, and costs no call of its own.
     final attempted = <String>{};
+    final foreignSurfaces = _foreignSurfaces(
+      history,
+      ExpressEngine.of(catalog).compatibleVersions,
+    );
     final budget = CancellationController();
     final unlink = cancel?.link(budget);
     final timer = Timer(_repairBudget, () => budget.cancel('repair budget'));
@@ -448,6 +470,20 @@ class A2uiMiddleware extends GenerateMiddleware {
         // likely the tag mentioned in prose, not a block worth a model call.
         if (!_surfaceLineRe.hasMatch(block.source)) {
           _logger.fine('skipping repair of a block with no surface(...)');
+          continue;
+        }
+        // A rootless block targeting a surface that only an incompatible
+        // protocol version created in history is an attempted partial update
+        // across versions. Repair sees only the failed delta, not the original
+        // surface, so letting it invent a `root` would replace the card with a
+        // fragment.
+        if (!_rootLineRe.hasMatch(block.source) &&
+            block.error.contains(_surfaceNotFound) &&
+            _surfaceTargets(block.source).any(foreignSurfaces.contains)) {
+          _logger.info(
+            'skipping repair of a partial update to an earlier-protocol '
+            'surface: ${block.error}',
+          );
           continue;
         }
         cancel?.throwIfCancelled();
@@ -708,7 +744,10 @@ class A2uiMiddleware extends GenerateMiddleware {
   }
 
   /// Converts inbound a2ui data parts in the request into model-readable text.
-  ModelRequest _sanitizeInboundA2ui(ModelRequest req) {
+  ModelRequest _sanitizeInboundA2ui(
+    ModelRequest req,
+    Set<String> compatibleVersions,
+  ) {
     var changed = false;
     final messages = req.messages.map((message) {
       var msgChanged = false;
@@ -716,7 +755,11 @@ class A2uiMiddleware extends GenerateMiddleware {
       for (final part in message.content) {
         if (isA2uiPart(part)) {
           msgChanged = true;
-          final text = _summarizeA2uiPart(part, message.role);
+          final text = _summarizeA2uiPart(
+            part,
+            message.role,
+            compatibleVersions,
+          );
           if (text.isNotEmpty) content.add(TextPart(text: text));
         } else {
           content.add(part);
@@ -769,6 +812,40 @@ final _surfaceTargetRe = RegExp(
   r'''^\s*(surface|deleteSurface)\(\s*["']([^"']*)["']''',
   multiLine: true,
 );
+
+/// The `surface(...)` target ids in [source].
+Iterable<String> _surfaceTargets(String source) sync* {
+  for (final m in _surfaceTargetRe.allMatches(source)) {
+    if (m.group(1) == 'surface') yield m.group(2)!;
+  }
+}
+
+/// Surface ids that [history] left live only under a protocol version outside
+/// [compatibleVersions].
+Set<String> _foreignSurfaces(
+  List<A2uiEnvelope> history,
+  Set<String> compatibleVersions,
+) {
+  final foreign = <String>{};
+  final compatible = <String>{};
+  for (final e in history) {
+    final isForeign =
+        e['version'] != null && !compatibleVersions.contains(e['version']);
+    switch (e) {
+      case {'createSurface': {'surfaceId': final String id}}:
+        if (isForeign) {
+          if (!compatible.contains(id)) foreign.add(id);
+        } else {
+          foreign.remove(id);
+          compatible.add(id);
+        }
+      case {'deleteSurface': {'surfaceId': final String id}}:
+        foreign.remove(id);
+        if (!isForeign) compatible.remove(id);
+    }
+  }
+  return foreign;
+}
 
 /// Whether [repaired] targets exactly the surfaces [original] does (its
 /// `surface(...)` and `deleteSurface(...)` lines): the repair prompt asks to
@@ -954,10 +1031,23 @@ String? _idText(Object? id) => switch (id) {
 ///
 /// Unknown message shapes are dropped; the caller keeps the message non-empty
 /// when everything drops.
-String _summarizeA2uiPart(Part part, Role role) {
-  // Only the model's own parts are replayed as blocks it wrote; anywhere else
-  // the metadata is summarized like any other part.
-  if (role == Role.model) {
+String _summarizeA2uiPart(
+  Part part,
+  Role role,
+  Set<String> compatibleVersions,
+) {
+  final envelopes = a2uiEnvelopesFromParts([part]).toList();
+  final isForeign =
+      envelopes.isNotEmpty &&
+      envelopes.every(
+        (e) =>
+            e['version'] != null && !compatibleVersions.contains(e['version']),
+      );
+  // Only the model's own parts of a compatible protocol version are replayed as
+  // blocks it wrote; parts from another protocol version fall through to a
+  // summary so the model neither copies obsolete syntax nor assumes the mirror
+  // holds the surface for a partial update.
+  if (role == Role.model && !isForeign) {
     if (part.metadata?[a2uiExpressMetadataKey] case final String source) {
       return '<a2ui>\n$source\n</a2ui>';
     }
@@ -968,7 +1058,13 @@ String _summarizeA2uiPart(Part part, Role role) {
   final removed = <String>{};
   void flushSurfaces() {
     if (rendered.isNotEmpty) {
-      out.add('(UI surface ${rendered.join(', ')} was rendered here.)');
+      out.add(
+        isForeign
+            ? '(UI surface ${rendered.join(', ')} was rendered here under an '
+                  'earlier protocol version; render it again in full with a '
+                  'root to change it.)'
+            : '(UI surface ${rendered.join(', ')} was rendered here.)',
+      );
     }
     if (removed.isNotEmpty) {
       out.add('(UI surface ${removed.join(', ')} was removed here.)');
@@ -977,7 +1073,7 @@ String _summarizeA2uiPart(Part part, Role role) {
     removed.clear();
   }
 
-  for (final env in a2uiEnvelopesFromParts([part])) {
+  for (final env in envelopes) {
     final action = env['action'];
     if (action is Map) {
       flushSurfaces();
@@ -997,7 +1093,11 @@ String _summarizeA2uiPart(Part part, Role role) {
       final ctx = (context is Map && context.isNotEmpty)
           ? ' context=${jsonEncode(context)}'
           : '';
-      out.add('[UI action $name$from on surface $surfaceId$ctx]');
+      final userMessage = switch (action['userMessage']) {
+        final String m when m.isNotEmpty => ' message=${jsonEncode(m)}',
+        _ => '',
+      };
+      out.add('[UI action $name$from on surface $surfaceId$ctx$userMessage]');
       continue;
     }
     // Patterns rather than casts: this runs on stored history, so a malformed

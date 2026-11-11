@@ -30,15 +30,15 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:a2ui_core/a2ui_core.dart' show CommonSchemas;
+import 'package:a2ui_core/a2ui_core.dart' show CommonSchemasV1;
 import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:json_schema_builder/json_schema_builder.dart';
 
 /// The `Gauge` component.
 ///
-/// `value` and `label` use [CommonSchemas], so each accepts either a literal
-/// or a `{ "path": "/..." }` data-model binding, exactly like the basic
+/// `value` and `label` use [CommonSchemasV1], so each accepts either a literal
+/// or a `{ "@path": "/..." }` data-model binding, exactly like the basic
 /// catalog's Slider. The rest are plain literals.
 ///
 /// Register it by listing it in the client catalog's `components` (see
@@ -48,14 +48,14 @@ final ComponentImplementation gauge = ComponentImplementation(
   schema: Schema.object(
     description: 'A circular gauge visualizing a single numeric value.',
     properties: {
-      'value': CommonSchemas.dynamicNumber,
+      'value': CommonSchemasV1.dynamicNumber,
       'min': Schema.number(
         description: 'The minimum of the range. Defaults to 0.',
       ),
       'max': Schema.number(
         description: 'The maximum of the range. Defaults to 100.',
       ),
-      'label': CommonSchemas.dynamicString,
+      'label': CommonSchemasV1.dynamicString,
       'unit': Schema.string(
         description: 'An optional unit suffix, e.g. "°C" or "%".',
       ),

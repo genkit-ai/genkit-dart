@@ -15,29 +15,28 @@
 /// The client half of the sample's custom A2UI catalog.
 library;
 
-import 'package:a2ui_core/a2ui_core.dart' show BasicCatalog;
+import 'package:a2ui_core/a2ui_core.dart'
+    show A2uiProtocolVersion, BasicCatalog;
 import 'package:a2ui_flutter/a2ui_flutter.dart';
-// The agent sends A2UI v0.9, so the v0.9 edition of the basic components.
-import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
+import 'package:a2ui_flutter/basic_catalog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'gauge.dart';
 import 'shared.dart';
 
-/// The client catalog, matching the server's custom `weatherCatalog`.
+/// The client catalog, matching the server's `weatherCatalog`.
 ///
-/// The server's catalog is the bundled basic components plus a custom `Gauge`
-/// (see `../server/lib/agent.dart`), advertised under [weatherCatalogId]. Here
-/// we mirror that: the basic widgets and functions plus the matching [gauge],
-/// under the same [weatherCatalogId], so a surface the agent creates with that
-/// `catalogId` resolves to these widgets. (The renderer rejects a surface
-/// whose catalog id it does not hold, so the ids MUST match on both sides.)
+/// The server's catalog extends the v1.0 basic catalog with a custom `Gauge`
+/// (see `../server/lib/agent.dart`) under [weatherCatalogId]. Here we mirror
+/// that: the v1.0 basic widgets and functions plus [gauge] under the same id.
+/// (The renderer rejects a surface whose catalog id it does not hold, so the
+/// ids MUST match on both sides.)
 final CatalogImplementation weatherCatalog = CatalogImplementation(
   id: weatherCatalogId,
+  protocolVersion: A2uiProtocolVersion.v1_0,
   components: [...BasicComponents.all, gauge],
-  functions: BasicCatalog.v0_9(
+  functions: BasicCatalog.v1_0(
     openUrl: (uri) => launchUrl(uri),
   ).functions.values.toList(),
-  themeSchema: BasicComponents.api.themeSchema,
   definitions: BasicComponents.api.definitions,
 );

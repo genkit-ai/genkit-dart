@@ -16,8 +16,9 @@
 ///
 /// The whole server-side integration is the `a2ui()` model middleware; register
 /// `A2uiPlugin` in `Genkit(plugins: [...])`, then add `a2ui()` to an agent's (or
-/// a one-shot `generate`'s) `use` list. Pair it with `basicCatalog` (or your own
-/// catalog).
+/// a one-shot `generate`'s) `use` list. Pair it with `basicCatalog` (v1.0, the
+/// default), `basicCatalogV09` (select with `catalog: 'basic-v0.9'`), or your
+/// own catalog.
 ///
 /// Clients do not depend on this package. A2UI travels as spec-shaped data
 /// parts, so a client needs only `package:genkit` and a renderer such as
@@ -35,6 +36,8 @@ export 'src/catalog.dart'
         A2uiParam,
         a2uiCatalogValueType,
         basicCatalog,
+        basicCatalogV09,
+        basicCatalogV09LookupId,
         basicIconNames,
         defaultCatalogId,
         renderCatalogInstructions;
@@ -53,5 +56,5 @@ export 'src/types.dart'
         A2uiEnvelope,
         a2uiExpressMetadataKey,
         a2uiMimeType,
-        a2uiVersion,
-        basicCatalogId;
+        basicCatalogId,
+        basicCatalogV09Id;

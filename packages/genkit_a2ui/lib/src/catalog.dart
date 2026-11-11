@@ -25,6 +25,10 @@
 /// catalog and the prompt rendering built on top of it.
 library;
 
+import 'dart:convert';
+
+import 'package:a2ui_core/a2ui_core.dart' as core;
+
 import 'basic_functions.dart';
 import 'catalog_types.dart';
 import 'express.dart';
@@ -46,8 +50,11 @@ export 'catalog_types.dart'
 const String a2uiCatalogValueType = 'a2ui-catalog';
 
 /// The default catalog id used by the `a2ui()` middleware when none is given.
-/// Resolves to the bundled [basicCatalog].
+/// Resolves to the bundled [basicCatalog] (A2UI v1.0).
 const String defaultCatalogId = 'basic';
+
+/// The lookup id that selects [basicCatalogV09] (A2UI v0.9) in `a2ui()`.
+const String basicCatalogV09LookupId = 'basic-v0.9';
 
 /// The icon names the bundled basic catalog's `Icon` component accepts. It is
 /// an enum in the catalog, so the prompt lists the names and a block using any
@@ -114,22 +121,52 @@ const List<String> basicIconNames = [
   'warning',
 ];
 
-/// The A2UI "Basic Catalog" (v0.9), mirroring the components published by the
-/// A2UI basic catalog. Use this to render standard UI without defining your own
+/// The A2UI "Basic Catalog" (v1.0), derived from `a2ui_core`'s copy of the
+/// published catalog. Use this to render standard UI without defining your own
 /// design system.
 ///
-/// Declared with [A2uiCatalogComponent.simple], which emits the spec's
-/// `catalog.json` schema shape. Parameter order matches the published catalog,
-/// since it is the positional argument order in A2UI Express (a test pins
-/// this).
-///
-/// It is deliberately narrower than the published schema, to steer the model
-/// toward what renders well: components do not take the shared `weight`
-/// property, and `Icon.name` accepts only the [basicIconNames] (not a data
-/// binding or an SVG path). Load the published `catalog.json` with
-/// `loadCatalog(file:)` for the full schema.
-final A2uiCatalog basicCatalog = A2uiCatalog(
-  id: basicCatalogId,
+/// Includes all 18 components of the v1.0 basic catalog (adding `AudioPlayer`,
+/// `Video`, `Tabs`, `Modal`, `ChoicePicker`, and `DateTimeInput` to the 12 in
+/// [basicCatalogV09]). It is narrowed slightly to steer the model toward what
+/// renders well: components do not take the shared `weight` property, and
+/// `Icon.name` accepts only [basicIconNames] (not a data binding or an SVG
+/// path). Load the published `catalog.json` with `loadCatalog(file:)` for the
+/// full schema.
+final A2uiCatalog basicCatalog = _deriveV1BasicCatalog();
+
+A2uiCatalog _deriveV1BasicCatalog() {
+  final doc =
+      jsonDecode(jsonEncode(core.BasicCatalog.v1_0().toJson()))
+          as Map<String, dynamic>;
+  final components = doc['components'] as Map<String, dynamic>;
+  for (final schema in components.values.whereType<Map<String, dynamic>>()) {
+    for (final part in [schema, ...?(schema['allOf'] as List?)]) {
+      if (part case {'properties': final Map props}) props.remove('weight');
+    }
+  }
+  (doc[r'$defs'] as Map?)?.remove('Weight');
+  final icon = components['Icon'] as Map<String, dynamic>;
+  icon['description'] =
+      'Displays a named material icon. `name` MUST be one of the exact '
+      'names listed - do NOT invent names (e.g. there is no "cloud", '
+      '"air", or "thermostat"). If none fits, omit the Icon.';
+  (icon['properties'] as Map)['name'] = {
+    'type': 'string',
+    'description': 'The name of the icon to display.',
+    'enum': basicIconNames,
+  };
+  return A2uiCatalog.fromJson(doc);
+}
+
+bool _isV1(A2uiCatalog catalog) =>
+    ExpressEngine.of(catalog).version.isAtLeast(core.A2uiProtocolVersion.v1_0);
+
+/// The A2UI v0.9 "Basic Catalog", kept for clients that still render v0.9.
+/// Select it with `a2ui(catalog: basicCatalogV09LookupId)` (`'basic-v0.9'`), or
+/// extend it with `basicCatalogV09.extend(...)`.
+final A2uiCatalog basicCatalogV09 = A2uiCatalog(
+  id: basicCatalogV09Id,
+  protocolVersion: 'v0.9',
   functions: basicFunctions,
   components: [
     A2uiCatalogComponent.simple(
@@ -396,7 +433,7 @@ final A2uiCatalog basicCatalog = A2uiCatalog(
 /// Builds the "make it look good" styling tips, scoped to the components the
 /// catalog actually provides so a custom catalog is never told to emit
 /// components it lacks (which would then fail validation).
-String _renderStyleTips(Set<String> has) {
+String _renderStyleTips(Set<String> has, {bool v1 = false}) {
   final tips = <String>[];
   final containers = ['Card', 'Column', 'Row'].where(has.contains).toList();
   if (containers.isNotEmpty) {
@@ -407,9 +444,13 @@ String _renderStyleTips(Set<String> has) {
   }
   if (has.contains('Text')) {
     tips.add(
-      '- Give titles a heading variant (e.g. h2/h3) and secondary text the '
-      'caption variant instead of embedding "#"/"##" heading markers in the '
-      'text.',
+      v1
+          ? '- Write a title as a Text holding one Markdown heading line (e.g. '
+                '"## Weather in Tokyo") and give secondary text the caption '
+                'variant.'
+          : '- Give titles a heading variant (e.g. h2/h3) and secondary text '
+                'the caption variant instead of embedding "#"/"##" heading '
+                'markers in the text.',
     );
   }
   final accents = ['Icon', 'Divider', 'Image'].where(has.contains).toList();
@@ -433,9 +474,12 @@ String _renderStyleTips(Set<String> has) {
 /// provides, so the example never references unknown components.
 String _renderExample(A2uiCatalog catalog, Set<String> has) {
   if (has.containsAll(['Card', 'Column', 'Text', 'Button'])) {
+    final title = _isV1(catalog)
+        ? 'Text("## Weather in Tokyo")'
+        : 'Text("Weather in Tokyo", "h3")';
     // The Button shows the label as its own component: `child` is a component
     // id slot, the easiest thing to get wrong.
-    return r'''
+    return '''
 
 
 ## Example
@@ -443,11 +487,11 @@ String _renderExample(A2uiCatalog catalog, Set<String> has) {
 A weather card:
 <a2ui>
 surface("tokyo-weather")
-$/temp = "18°C"
+\$/temp = "18°C"
 root = Card(body)
 body = Column([title, temp, refresh])
-title = Text("Weather in Tokyo", "h3")
-temp = Text($/temp)
+title = $title
+temp = Text(\$/temp)
 refresh = Button(Text("Refresh"), "primary", Event("refresh", {city: "Tokyo"}))
 </a2ui>''';
   }
@@ -490,6 +534,8 @@ String renderCatalogInstructions(A2uiCatalog catalog) {
     'TextField',
     'CheckBox',
     'Slider',
+    'ChoicePicker',
+    'DateTimeInput',
   ].where(has.contains).toList();
   final formsSection = inputs.isNotEmpty
       ? '''
@@ -537,7 +583,7 @@ only holds paragraphs of text is worse than the text.
 - Give containers their own variables (as `body` in the example), so a later
   update can redefine them.
 - User actions arrive as lines like
-  `[UI action "refresh" from refresh on surface tokyo-weather context={"city":"Tokyo"}]`.$formsSection${_renderStyleTips(has)}${_renderExample(catalog, has)}
+  `[UI action "refresh" from refresh on surface tokyo-weather context={"city":"Tokyo"}]`.$formsSection${_renderStyleTips(has, v1: _isV1(catalog))}${_renderExample(catalog, has)}
 
 ${ExpressEngine.of(catalog).promptSnippet}${_renderCatalogGuidance(catalog)}
 
@@ -548,7 +594,7 @@ Do not explain the Express code; just emit the block.''';
 /// catalogs, so for v0.9 they are added here.
 String _renderCatalogGuidance(A2uiCatalog catalog) =>
     switch (catalog.instructions?.trim()) {
-      final String text when text.isNotEmpty =>
+      final String text when text.isNotEmpty && !_isV1(catalog) =>
         '\n\n## Catalog instructions\n\n$text',
       _ => '',
     };

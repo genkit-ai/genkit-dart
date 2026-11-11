@@ -448,7 +448,7 @@ class A2uiStreamParser {
           );
         }
         out.add({
-          'version': e['version'] ?? a2uiVersion,
+          'version': e['version'] ?? _engine.version.jsonValue,
           'deleteSurface': {'surfaceId': id},
         });
       }

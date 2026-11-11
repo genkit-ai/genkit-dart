@@ -179,8 +179,8 @@ void main() {
       expect(uiPart, isNotNull);
 
       final envelopes = a2uiEnvelopesFromParts(res.message!.content);
-      // deleteSurface (a no-op for a new surface), createSurface, components.
-      expect(envelopes.length, 3);
+      // deleteSurface (a no-op for a new surface), createSurface (carrying components).
+      expect(envelopes.length, 2);
       expect((envelopes[1]['createSurface'] as Map)['surfaceId'], 'weather');
       // The Express source rides along so it can be replayed verbatim.
       expect(uiPart!.metadata?[a2uiExpressMetadataKey], sampleSource);
@@ -206,7 +206,7 @@ void main() {
                 TextPart(text: '2ui>\nsurface("sfc")\nroot = Colu'),
                 TextPart(text: 'mn([title, temp])\n'),
                 TextPart(text: 'title = Text("Weather", '),
-                TextPart(text: '"h3")\ntemp = Text('),
+                TextPart(text: '"caption")\ntemp = Text('),
                 TextPart(text: '"hi")\n</a2'),
                 TextPart(text: 'ui>'),
                 // A trailing empty-text part that only carries metadata (e.g. a
@@ -230,7 +230,7 @@ void main() {
       // The block spread over many parts is stitched into exactly two envelopes
       // on a single a2ui data part.
       final envelopes = a2uiEnvelopesFromParts(out);
-      expect(envelopes.length, 3);
+      expect(envelopes.length, 2);
       expect((envelopes[1]['createSurface'] as Map)['surfaceId'], 'sfc');
 
       // No text part should still contain the raw block: it must have been
@@ -508,13 +508,10 @@ root = NotAThing()
       const source = 'surface("s1")\nroot = Text("hi")';
       final surfacePart = a2uiPart([
         {
-          'version': 'v0.9',
-          'createSurface': {'surfaceId': 's1', 'catalogId': basicCatalog.id},
-        },
-        {
-          'version': 'v0.9',
-          'updateComponents': {
+          'version': '1.0',
+          'createSurface': {
             'surfaceId': 's1',
+            'catalogId': basicCatalog.id,
             'components': [
               {'id': 'root', 'component': 'Text', 'text': 'hi'},
             ],
@@ -623,7 +620,6 @@ root = Text("new")
       expect(envelopes.map((e) => e.keys.firstWhere((k) => k != 'version')), [
         'deleteSurface',
         'createSurface',
-        'updateComponents',
       ]);
       expect(
         envelopes.map((e) => e.values.whereType<Map>().single['surfaceId']),
@@ -1014,7 +1010,6 @@ root = Text("again")
       expect(envelopes.map((e) => e.keys.firstWhere((k) => k != 'version')), [
         'deleteSurface',
         'createSurface',
-        'updateComponents',
       ]);
     });
 
@@ -1110,7 +1105,7 @@ root = Text("again")
       // Stream saw prose (without the raw block) and the envelopes.
       expect(streamedProse, contains('Here is the weather'));
       expect(streamedProse, isNot(contains('root =')));
-      expect(streamedEnvelopes.length, 3);
+      expect(streamedEnvelopes.length, 2);
 
       // The final message carries the same envelopes the stream did.
       expect(a2uiEnvelopesFromParts(res.message!.content), streamedEnvelopes);
@@ -1246,7 +1241,7 @@ root = Text("hi")''';
       );
 
       expect(
-        streamedEnvelopes.any((e) => e['updateComponents'] != null),
+        streamedEnvelopes.any((e) => e['createSurface'] != null),
         isTrue,
         reason: 'the unterminated block should reach the stream after flush',
       );
@@ -1319,14 +1314,29 @@ root = Text("hi")''';
       expect(userMsg.content.any((p) => (p.text ?? '').isNotEmpty), isTrue);
     });
 
-    test('accepts a supported version', () async {
+    test('accepts a matching version assertion', () async {
       defineReplyModel('m_ver_ok', 'ok');
-      // A supported version must construct the middleware without throwing.
       await genkit.generate(
         model: modelRef('m_ver_ok'),
         prompt: 'hi',
-        use: [a2ui(version: a2uiVersion)],
+        use: [a2ui(version: '1.0')],
       );
+      await genkit.generate(
+        model: modelRef('m_ver_ok'),
+        prompt: 'hi',
+        use: [a2ui(catalog: basicCatalogV09LookupId, version: 'v0.9')],
+      );
+    });
+
+    test('rejects a version that disagrees with the catalog', () async {
+      defineReplyModel('m_ver_mismatch', 'ok');
+      final res = await genkit.generate(
+        model: modelRef('m_ver_mismatch'),
+        prompt: 'hi',
+        use: [a2ui(version: 'v0.9')],
+      );
+      expect(res.finishReason, FinishReason.failed);
+      expect(res.error!.message, contains('targets A2UI 1.0, expected v0.9'));
     });
 
     test('rejects an unsupported version', () async {
@@ -1341,6 +1351,123 @@ root = Text("hi")''';
         ),
         throwsA(isA<ArgumentError>()),
       );
+    });
+
+    test('summarizes a v1.0 action with its userMessage', () async {
+      ModelRequest? seen;
+      defineReplyModel('m_action_msg', 'ok', onRequest: (r) => seen = r);
+
+      await genkit.generate(
+        model: modelRef('m_action_msg'),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [
+              DataPart(
+                data: {
+                  'messages': [
+                    {
+                      'version': '1.0',
+                      'action': {
+                        'name': 'reply',
+                        'surfaceId': 's1',
+                        'sourceComponentId': 'btn',
+                        'userMessage': 'Replying now',
+                      },
+                    },
+                  ],
+                },
+                metadata: {'mimeType': a2uiMimeType},
+              ),
+            ],
+          ),
+        ],
+        use: [a2ui()],
+      );
+
+      final userMsg = seen!.messages.firstWhere((m) => m.role == Role.user);
+      expect(
+        userMsg.content.single.text,
+        '[UI action "reply" from btn on surface s1 message="Replying now"]',
+      );
+    });
+
+    test('summarizes persisted v0.9 surfaces for a v1.0 agent and skips '
+        'root-inventing repair on partial updates to them', () async {
+      final requests = <ModelRequest>[];
+      genkit.defineModel(
+        name: 'm_v09_history',
+        fn: (req, ctx) async {
+          requests.add(req);
+          // Simulate a model that still tries a partial delta on the old
+          // v0.9 surface; if repair ran, a second call would fabricate a
+          // stub `root` and wipe out the original card.
+          final text = requests.length == 1
+              ? 'Updating.\n<a2ui>\nsurface("tokyo")\n\$/temp = "21C"\n</a2ui>'
+              : '<a2ui>\nsurface("tokyo")\n\$/temp = "21C"\nroot = Text(\$/temp)\n</a2ui>';
+          return ModelResponse(
+            finishReason: FinishReason.stop,
+            message: Message(
+              role: Role.model,
+              content: [TextPart(text: text)],
+            ),
+          );
+        },
+      );
+
+      final v09Part = a2uiPart([
+        {
+          'version': 'v0.9',
+          'createSurface': {
+            'surfaceId': 'tokyo',
+            'catalogId': basicCatalogV09Id,
+          },
+        },
+        {
+          'version': 'v0.9',
+          'updateComponents': {
+            'surfaceId': 'tokyo',
+            'components': [
+              {'id': 'root', 'component': 'Card', 'child': 't'},
+              {'id': 't', 'component': 'Text', 'text': '18C', 'variant': 'h3'},
+            ],
+          },
+        },
+      ], source: 'surface("tokyo")\nt = Text("18C", "h3")\nroot = Card(t)');
+
+      final res = await genkit.generate(
+        model: modelRef('m_v09_history'),
+        messages: [
+          Message(role: Role.model, content: [v09Part]),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'refresh')],
+          ),
+        ],
+        use: [a2ui()],
+      );
+
+      // 1) Old v0.9 Express source was NOT replayed verbatim; model got a
+      //    summary asking for a full render instead.
+      final replayed = requests.first.messages
+          .firstWhere((m) => m.role == Role.model)
+          .content
+          .single
+          .text!;
+      expect(replayed, isNot(contains('<a2ui>')));
+      expect(
+        replayed,
+        contains(
+          'UI surface tokyo was rendered here under an earlier protocol '
+          'version; render it again in full with a root to change it.',
+        ),
+      );
+
+      // 2) Repair was skipped (1 model call total), and no stub replacement
+      //    surface was emitted.
+      expect(requests, hasLength(1));
+      expect(res.text.trim(), 'Updating.');
+      expect(res.message!.content.where(isA2uiPart), isEmpty);
     });
   });
 }
