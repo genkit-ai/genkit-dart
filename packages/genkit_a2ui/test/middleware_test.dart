@@ -436,7 +436,7 @@ root = NotAThing()
       ModelRequest? seen;
       defineReplyModel('m_action_only', 'ok', onRequest: (r) => seen = r);
 
-      // What the README's client helper sends: genui's spec-shaped
+      // What the README's client helper sends: the renderer's spec-shaped
       // {version, action} envelope, with no accompanying prose.
       final actionPart = DataPart(
         data: {
