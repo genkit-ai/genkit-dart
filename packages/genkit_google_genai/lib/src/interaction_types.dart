@@ -20,8 +20,6 @@
 // Not ported yet (translate from the JS file when the feature arrives):
 // - DynamicAgentConfig, DeepResearchAgentConfig and the request field
 //   background: need background models (Deep Research).
-// - The request field labels: vertexAI only; comes with the vertexAI
-//   `labels` option.
 // - InteractionStreamResult: comes with the client (its Dart shape depends
 //   on the stream reader).
 //
@@ -1192,6 +1190,7 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
     InteractionsAgentConfig? agentConfig,
     ServiceTier? serviceTier,
     List<InteractionSafetySetting>? safetySettings,
+    Map<String, String>? labels,
   }) : this.fromJson({
          'previous_interaction_id': ?previousInteractionId,
          'model': ?model,
@@ -1208,6 +1207,7 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
          'agent_config': ?agentConfig,
          'service_tier': ?serviceTier,
          'safety_settings': ?safetySettings,
+         'labels': ?labels,
        });
 
   /// The ID of the previous interaction, if any.
@@ -1268,6 +1268,10 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
   /// Safety settings. vertexAI only (googleAI rejects it with a 400).
   List<InteractionSafetySetting>? get safetySettings =>
       _wrapAll(json['safety_settings'], InteractionSafetySetting.fromJson);
+
+  /// Key-value labels for cost tracking. vertexAI only.
+  Map<String, String>? get labels =>
+      (json['labels'] as Map?)?.cast<String, String>();
 }
 
 // Stream deltas (the `delta` of a `step.delta` event). Response-only.

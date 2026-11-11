@@ -56,6 +56,10 @@ base class GeminiOptions {
     String? serviceTier,
     String? previousInteractionId,
     bool? store,
+    String? location,
+    Map<String, String>? labels,
+    GeminiVertexRetrieval? vertexRetrieval,
+    String? payGo,
   }) {
     _json = {
       'apiKey': ?apiKey,
@@ -85,6 +89,10 @@ base class GeminiOptions {
       'serviceTier': ?serviceTier,
       'previousInteractionId': ?previousInteractionId,
       'store': ?store,
+      'location': ?location,
+      'labels': ?labels,
+      'vertexRetrieval': ?vertexRetrieval?.toJson(),
+      'payGo': ?payGo,
     };
   }
 
@@ -448,6 +456,58 @@ base class GeminiOptions {
     }
   }
 
+  String? get location {
+    return _json['location'] as String?;
+  }
+
+  set location(String? value) {
+    if (value == null) {
+      _json.remove('location');
+    } else {
+      _json['location'] = value;
+    }
+  }
+
+  Map<String, String>? get labels {
+    return (_json['labels'] as Map?)?.cast<String, String>();
+  }
+
+  set labels(Map<String, String>? value) {
+    if (value == null) {
+      _json.remove('labels');
+    } else {
+      _json['labels'] = value;
+    }
+  }
+
+  GeminiVertexRetrieval? get vertexRetrieval {
+    return _json['vertexRetrieval'] == null
+        ? null
+        : GeminiVertexRetrieval.fromJson(
+            _json['vertexRetrieval'] as Map<String, dynamic>,
+          );
+  }
+
+  set vertexRetrieval(GeminiVertexRetrieval? value) {
+    if (value == null) {
+      _json.remove('vertexRetrieval');
+    } else {
+      _json['vertexRetrieval'] = value.toJson();
+    }
+  }
+
+  String? get payGo {
+    return _json['payGo'] as String?;
+  }
+
+  set payGo(String? value) {
+    if (value == null) {
+      _json.remove('payGo');
+    } else {
+      _json['payGo'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -547,6 +607,30 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
           'description':
               'Interactions API models: whether to store the interaction for later retrieval (defaults to false). generateContent models: whether the server logs the request for the API key\'s project; sent only when set (otherwise the project\'s logging setting applies).',
         },
+        'location': <String, Object?>{
+          'type': 'string',
+          'description':
+              'vertexAI only. The Google Cloud location for this request (e.g. global, us, us-central1); overrides the plugin location.',
+        },
+        'labels': <String, Object?>{
+          'type': 'object',
+          'description':
+              'vertexAI only. Key-value labels to attach to the request for cost tracking.',
+          'additionalProperties': <String, Object?>{'type': 'string'},
+        },
+        'vertexRetrieval': <String, Object?>{
+          'description':
+              'vertexAI only. Retrieve from a Vertex AI Search data store for grounding generative responses.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiVertexRetrieval'},
+          ],
+        },
+        'payGo': <String, Object?>{
+          'type': 'string',
+          'description':
+              'vertexAI only. PayGo consumption options. Priority provides more consistent performance than Standard PayGo. Flex is a cost-effective option for non-critical workloads. The "-only" options use only PayGo and no Provisioned Throughput.',
+          'enum': ['priority', 'priority-only', 'flex', 'flex-only'],
+        },
       },
     },
     dependencies: [
@@ -558,6 +642,7 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
       GeminiUrlContext.$schema,
       GeminiRetrievalConfig.$schema,
       GeminiSpeechConfig.$schema,
+      GeminiVertexRetrieval.$schema,
     ],
   );
 }
@@ -950,6 +1035,10 @@ base class GeminiTtsOptions {
     String? serviceTier,
     String? previousInteractionId,
     bool? store,
+    String? location,
+    Map<String, String>? labels,
+    GeminiVertexRetrieval? vertexRetrieval,
+    String? payGo,
     GeminiAudioFormat? audioFormat,
   }) {
     _json = {
@@ -980,6 +1069,10 @@ base class GeminiTtsOptions {
       'serviceTier': ?serviceTier,
       'previousInteractionId': ?previousInteractionId,
       'store': ?store,
+      'location': ?location,
+      'labels': ?labels,
+      'vertexRetrieval': ?vertexRetrieval?.toJson(),
+      'payGo': ?payGo,
       'audioFormat': ?audioFormat?.toJson(),
     };
   }
@@ -1344,6 +1437,58 @@ base class GeminiTtsOptions {
     }
   }
 
+  String? get location {
+    return _json['location'] as String?;
+  }
+
+  set location(String? value) {
+    if (value == null) {
+      _json.remove('location');
+    } else {
+      _json['location'] = value;
+    }
+  }
+
+  Map<String, String>? get labels {
+    return (_json['labels'] as Map?)?.cast<String, String>();
+  }
+
+  set labels(Map<String, String>? value) {
+    if (value == null) {
+      _json.remove('labels');
+    } else {
+      _json['labels'] = value;
+    }
+  }
+
+  GeminiVertexRetrieval? get vertexRetrieval {
+    return _json['vertexRetrieval'] == null
+        ? null
+        : GeminiVertexRetrieval.fromJson(
+            _json['vertexRetrieval'] as Map<String, dynamic>,
+          );
+  }
+
+  set vertexRetrieval(GeminiVertexRetrieval? value) {
+    if (value == null) {
+      _json.remove('vertexRetrieval');
+    } else {
+      _json['vertexRetrieval'] = value.toJson();
+    }
+  }
+
+  String? get payGo {
+    return _json['payGo'] as String?;
+  }
+
+  set payGo(String? value) {
+    if (value == null) {
+      _json.remove('payGo');
+    } else {
+      _json['payGo'] = value;
+    }
+  }
+
   GeminiAudioFormat? get audioFormat {
     return _json['audioFormat'] == null
         ? null
@@ -1460,6 +1605,30 @@ base class _GeminiTtsOptionsTypeFactory
           'description':
               'Interactions API models: whether to store the interaction for later retrieval (defaults to false). generateContent models: whether the server logs the request for the API key\'s project; sent only when set (otherwise the project\'s logging setting applies).',
         },
+        'location': <String, Object?>{
+          'type': 'string',
+          'description':
+              'vertexAI only. The Google Cloud location for this request (e.g. global, us, us-central1); overrides the plugin location.',
+        },
+        'labels': <String, Object?>{
+          'type': 'object',
+          'description':
+              'vertexAI only. Key-value labels to attach to the request for cost tracking.',
+          'additionalProperties': <String, Object?>{'type': 'string'},
+        },
+        'vertexRetrieval': <String, Object?>{
+          'description':
+              'vertexAI only. Retrieve from a Vertex AI Search data store for grounding generative responses.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiVertexRetrieval'},
+          ],
+        },
+        'payGo': <String, Object?>{
+          'type': 'string',
+          'description':
+              'vertexAI only. PayGo consumption options. Priority provides more consistent performance than Standard PayGo. Flex is a cost-effective option for non-critical workloads. The "-only" options use only PayGo and no Provisioned Throughput.',
+          'enum': ['priority', 'priority-only', 'flex', 'flex-only'],
+        },
         'audioFormat': <String, Object?>{r'$ref': r'#/$defs/GeminiAudioFormat'},
       },
     },
@@ -1472,6 +1641,7 @@ base class _GeminiTtsOptionsTypeFactory
       GeminiUrlContext.$schema,
       GeminiRetrievalConfig.$schema,
       GeminiSpeechConfig.$schema,
+      GeminiVertexRetrieval.$schema,
       GeminiAudioFormat.$schema,
     ],
   );
@@ -1512,6 +1682,10 @@ base class GeminiImageOptions {
     String? serviceTier,
     String? previousInteractionId,
     bool? store,
+    String? location,
+    Map<String, String>? labels,
+    GeminiVertexRetrieval? vertexRetrieval,
+    String? payGo,
     GeminiImageConfig? imageConfig,
   }) {
     _json = {
@@ -1542,6 +1716,10 @@ base class GeminiImageOptions {
       'serviceTier': ?serviceTier,
       'previousInteractionId': ?previousInteractionId,
       'store': ?store,
+      'location': ?location,
+      'labels': ?labels,
+      'vertexRetrieval': ?vertexRetrieval?.toJson(),
+      'payGo': ?payGo,
       'imageConfig': ?imageConfig?.toJson(),
     };
   }
@@ -1906,6 +2084,58 @@ base class GeminiImageOptions {
     }
   }
 
+  String? get location {
+    return _json['location'] as String?;
+  }
+
+  set location(String? value) {
+    if (value == null) {
+      _json.remove('location');
+    } else {
+      _json['location'] = value;
+    }
+  }
+
+  Map<String, String>? get labels {
+    return (_json['labels'] as Map?)?.cast<String, String>();
+  }
+
+  set labels(Map<String, String>? value) {
+    if (value == null) {
+      _json.remove('labels');
+    } else {
+      _json['labels'] = value;
+    }
+  }
+
+  GeminiVertexRetrieval? get vertexRetrieval {
+    return _json['vertexRetrieval'] == null
+        ? null
+        : GeminiVertexRetrieval.fromJson(
+            _json['vertexRetrieval'] as Map<String, dynamic>,
+          );
+  }
+
+  set vertexRetrieval(GeminiVertexRetrieval? value) {
+    if (value == null) {
+      _json.remove('vertexRetrieval');
+    } else {
+      _json['vertexRetrieval'] = value.toJson();
+    }
+  }
+
+  String? get payGo {
+    return _json['payGo'] as String?;
+  }
+
+  set payGo(String? value) {
+    if (value == null) {
+      _json.remove('payGo');
+    } else {
+      _json['payGo'] = value;
+    }
+  }
+
   GeminiImageConfig? get imageConfig {
     return _json['imageConfig'] == null
         ? null
@@ -2022,6 +2252,30 @@ base class _GeminiImageOptionsTypeFactory
           'description':
               'Interactions API models: whether to store the interaction for later retrieval (defaults to false). generateContent models: whether the server logs the request for the API key\'s project; sent only when set (otherwise the project\'s logging setting applies).',
         },
+        'location': <String, Object?>{
+          'type': 'string',
+          'description':
+              'vertexAI only. The Google Cloud location for this request (e.g. global, us, us-central1); overrides the plugin location.',
+        },
+        'labels': <String, Object?>{
+          'type': 'object',
+          'description':
+              'vertexAI only. Key-value labels to attach to the request for cost tracking.',
+          'additionalProperties': <String, Object?>{'type': 'string'},
+        },
+        'vertexRetrieval': <String, Object?>{
+          'description':
+              'vertexAI only. Retrieve from a Vertex AI Search data store for grounding generative responses.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiVertexRetrieval'},
+          ],
+        },
+        'payGo': <String, Object?>{
+          'type': 'string',
+          'description':
+              'vertexAI only. PayGo consumption options. Priority provides more consistent performance than Standard PayGo. Flex is a cost-effective option for non-critical workloads. The "-only" options use only PayGo and no Provisioned Throughput.',
+          'enum': ['priority', 'priority-only', 'flex', 'flex-only'],
+        },
         'imageConfig': <String, Object?>{r'$ref': r'#/$defs/GeminiImageConfig'},
       },
     },
@@ -2034,6 +2288,7 @@ base class _GeminiImageOptionsTypeFactory
       GeminiUrlContext.$schema,
       GeminiRetrievalConfig.$schema,
       GeminiSpeechConfig.$schema,
+      GeminiVertexRetrieval.$schema,
       GeminiImageConfig.$schema,
     ],
   );
@@ -2076,6 +2331,10 @@ base class GeminiVideoOptions {
     String? serviceTier,
     String? previousInteractionId,
     bool? store,
+    String? location,
+    Map<String, String>? labels,
+    GeminiVertexRetrieval? vertexRetrieval,
+    String? payGo,
     GeminiVideoFormat? videoFormat,
     GeminiVideoConfig? videoConfig,
   }) {
@@ -2107,6 +2366,10 @@ base class GeminiVideoOptions {
       'serviceTier': ?serviceTier,
       'previousInteractionId': ?previousInteractionId,
       'store': ?store,
+      'location': ?location,
+      'labels': ?labels,
+      'vertexRetrieval': ?vertexRetrieval?.toJson(),
+      'payGo': ?payGo,
       'videoFormat': ?videoFormat?.toJson(),
       'videoConfig': ?videoConfig?.toJson(),
     };
@@ -2472,6 +2735,58 @@ base class GeminiVideoOptions {
     }
   }
 
+  String? get location {
+    return _json['location'] as String?;
+  }
+
+  set location(String? value) {
+    if (value == null) {
+      _json.remove('location');
+    } else {
+      _json['location'] = value;
+    }
+  }
+
+  Map<String, String>? get labels {
+    return (_json['labels'] as Map?)?.cast<String, String>();
+  }
+
+  set labels(Map<String, String>? value) {
+    if (value == null) {
+      _json.remove('labels');
+    } else {
+      _json['labels'] = value;
+    }
+  }
+
+  GeminiVertexRetrieval? get vertexRetrieval {
+    return _json['vertexRetrieval'] == null
+        ? null
+        : GeminiVertexRetrieval.fromJson(
+            _json['vertexRetrieval'] as Map<String, dynamic>,
+          );
+  }
+
+  set vertexRetrieval(GeminiVertexRetrieval? value) {
+    if (value == null) {
+      _json.remove('vertexRetrieval');
+    } else {
+      _json['vertexRetrieval'] = value.toJson();
+    }
+  }
+
+  String? get payGo {
+    return _json['payGo'] as String?;
+  }
+
+  set payGo(String? value) {
+    if (value == null) {
+      _json.remove('payGo');
+    } else {
+      _json['payGo'] = value;
+    }
+  }
+
   GeminiVideoFormat? get videoFormat {
     return _json['videoFormat'] == null
         ? null
@@ -2604,6 +2919,30 @@ base class _GeminiVideoOptionsTypeFactory
           'description':
               'Interactions API models: whether to store the interaction for later retrieval (defaults to false). generateContent models: whether the server logs the request for the API key\'s project; sent only when set (otherwise the project\'s logging setting applies).',
         },
+        'location': <String, Object?>{
+          'type': 'string',
+          'description':
+              'vertexAI only. The Google Cloud location for this request (e.g. global, us, us-central1); overrides the plugin location.',
+        },
+        'labels': <String, Object?>{
+          'type': 'object',
+          'description':
+              'vertexAI only. Key-value labels to attach to the request for cost tracking.',
+          'additionalProperties': <String, Object?>{'type': 'string'},
+        },
+        'vertexRetrieval': <String, Object?>{
+          'description':
+              'vertexAI only. Retrieve from a Vertex AI Search data store for grounding generative responses.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiVertexRetrieval'},
+          ],
+        },
+        'payGo': <String, Object?>{
+          'type': 'string',
+          'description':
+              'vertexAI only. PayGo consumption options. Priority provides more consistent performance than Standard PayGo. Flex is a cost-effective option for non-critical workloads. The "-only" options use only PayGo and no Provisioned Throughput.',
+          'enum': ['priority', 'priority-only', 'flex', 'flex-only'],
+        },
         'videoFormat': <String, Object?>{r'$ref': r'#/$defs/GeminiVideoFormat'},
         'videoConfig': <String, Object?>{r'$ref': r'#/$defs/GeminiVideoConfig'},
       },
@@ -2617,6 +2956,7 @@ base class _GeminiVideoOptionsTypeFactory
       GeminiUrlContext.$schema,
       GeminiRetrievalConfig.$schema,
       GeminiSpeechConfig.$schema,
+      GeminiVertexRetrieval.$schema,
       GeminiVideoFormat.$schema,
       GeminiVideoConfig.$schema,
     ],
@@ -3265,6 +3605,203 @@ base class _GeminiLatLngTypeFactory extends SchemanticType<GeminiLatLng> {
   );
 }
 
+base class GeminiVertexRetrieval {
+  /// Creates a [GeminiVertexRetrieval] from a JSON map.
+  factory GeminiVertexRetrieval.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiVertexRetrieval._(this._json);
+
+  GeminiVertexRetrieval({
+    required GeminiVertexDatastore datastore,
+    bool? disableAttribution,
+  }) {
+    _json = {
+      'datastore': datastore.toJson(),
+      'disableAttribution': ?disableAttribution,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiVertexRetrieval].
+  static const SchemanticType<GeminiVertexRetrieval> $schema =
+      _GeminiVertexRetrievalTypeFactory();
+
+  GeminiVertexDatastore get datastore {
+    return GeminiVertexDatastore.fromJson(
+      _json['datastore'] as Map<String, dynamic>,
+    );
+  }
+
+  set datastore(GeminiVertexDatastore value) {
+    _json['datastore'] = value.toJson();
+  }
+
+  bool? get disableAttribution {
+    return _json['disableAttribution'] as bool?;
+  }
+
+  set disableAttribution(bool? value) {
+    if (value == null) {
+      _json.remove('disableAttribution');
+    } else {
+      _json['disableAttribution'] = value;
+    }
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiVertexRetrieval] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiVertexRetrievalTypeFactory
+    extends SchemanticType<GeminiVertexRetrieval> {
+  const _GeminiVertexRetrievalTypeFactory();
+
+  @override
+  GeminiVertexRetrieval parse(Object? json) {
+    return GeminiVertexRetrieval._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiVertexRetrieval',
+    definition: <String, Object?>{
+      'type': 'object',
+      'description':
+          'Retrieve from a Vertex AI Search data store for grounding generative responses (vertexAI only).',
+      'properties': <String, Object?>{
+        'datastore': <String, Object?>{
+          'description': 'Vertex AI Search data store details.',
+          'allOf': [
+            <String, Object?>{r'$ref': r'#/$defs/GeminiVertexDatastore'},
+          ],
+        },
+        'disableAttribution': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Disable using the search data in detecting grounding attribution. This does not affect how the result is given to the model for generation.',
+        },
+      },
+      'required': ['datastore'],
+    },
+    dependencies: [GeminiVertexDatastore.$schema],
+  );
+}
+
+base class GeminiVertexDatastore {
+  /// Creates a [GeminiVertexDatastore] from a JSON map.
+  factory GeminiVertexDatastore.fromJson(Map<String, dynamic> json) =>
+      $schema.parse(json);
+
+  GeminiVertexDatastore._(this._json);
+
+  GeminiVertexDatastore({
+    String? projectId,
+    String? location,
+    required String dataStoreId,
+  }) {
+    _json = {
+      'projectId': ?projectId,
+      'location': ?location,
+      'dataStoreId': dataStoreId,
+    };
+  }
+
+  late final Map<String, dynamic> _json;
+
+  /// The JSON schema and type descriptor for [GeminiVertexDatastore].
+  static const SchemanticType<GeminiVertexDatastore> $schema =
+      _GeminiVertexDatastoreTypeFactory();
+
+  String? get projectId {
+    return _json['projectId'] as String?;
+  }
+
+  set projectId(String? value) {
+    if (value == null) {
+      _json.remove('projectId');
+    } else {
+      _json['projectId'] = value;
+    }
+  }
+
+  String? get location {
+    return _json['location'] as String?;
+  }
+
+  set location(String? value) {
+    if (value == null) {
+      _json.remove('location');
+    } else {
+      _json['location'] = value;
+    }
+  }
+
+  String get dataStoreId {
+    return _json['dataStoreId'] as String;
+  }
+
+  set dataStoreId(String value) {
+    _json['dataStoreId'] = value;
+  }
+
+  @override
+  String toString() {
+    return _json.toString();
+  }
+
+  /// Serializes this [GeminiVertexDatastore] to a JSON map.
+  Map<String, dynamic> toJson() {
+    return _json;
+  }
+}
+
+base class _GeminiVertexDatastoreTypeFactory
+    extends SchemanticType<GeminiVertexDatastore> {
+  const _GeminiVertexDatastoreTypeFactory();
+
+  @override
+  GeminiVertexDatastore parse(Object? json) {
+    return GeminiVertexDatastore._(json as Map<String, dynamic>);
+  }
+
+  @override
+  JsonSchemaMetadata get schemaMetadata => JsonSchemaMetadata(
+    name: 'GeminiVertexDatastore',
+    definition: <String, Object?>{
+      'type': 'object',
+      'description': 'Vertex AI Search data store details.',
+      'properties': <String, Object?>{
+        'projectId': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Google Cloud project ID. Defaults to the plugin project when not set.',
+        },
+        'location': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Data store location: global, us or eu. Defaults to the plugin location when not set.',
+        },
+        'dataStoreId': <String, Object?>{
+          'type': 'string',
+          'description':
+              'The data store ID, when projectId and location are given separately. Alternatively, the full path to the data store: "projects/{project}/locations/{location}/collections/default_collection/dataStores/{data_store}".',
+        },
+      },
+      'required': ['dataStoreId'],
+    },
+    dependencies: [],
+  );
+}
+
 base class GeminiImageConfig {
   /// Creates a [GeminiImageConfig] from a JSON map.
   factory GeminiImageConfig.fromJson(Map<String, dynamic> json) =>
@@ -3416,7 +3953,7 @@ base class _GeminiAudioFormatTypeFactory
     definition: <String, Object?>{
       'type': 'object',
       'description':
-          'Format of the generated audio. Supported by models called through the Interactions API (e.g. gemini-3.8-flash-tts).',
+          'Format of the generated audio. Supported by models called through the Interactions API (e.g. gemini-3.8-flash-tts on googleAI) and by TTS models on vertexAI.',
       'properties': <String, Object?>{
         'mimeType': <String, Object?>{
           'type': 'string',
@@ -3444,11 +3981,13 @@ base class GeminiVideoFormat {
     String? aspectRatio,
     String? resolution,
     String? delivery,
+    String? gcsUri,
   }) {
     _json = {
       'aspectRatio': ?aspectRatio,
       'resolution': ?resolution,
       'delivery': ?delivery,
+      'gcsUri': ?gcsUri,
     };
   }
 
@@ -3494,6 +4033,18 @@ base class GeminiVideoFormat {
     }
   }
 
+  String? get gcsUri {
+    return _json['gcsUri'] as String?;
+  }
+
+  set gcsUri(String? value) {
+    if (value == null) {
+      _json.remove('gcsUri');
+    } else {
+      _json['gcsUri'] = value;
+    }
+  }
+
   @override
   String toString() {
     return _json.toString();
@@ -3534,7 +4085,12 @@ base class _GeminiVideoFormatTypeFactory
         'delivery': <String, Object?>{
           'type': 'string',
           'description':
-              'How the video is returned. Inline by default; "uri" returns a Files API URI instead, recommended for large videos (requires store: true).',
+              'How the video is returned. Inline by default; "uri" returns a Files API URI instead, recommended for large videos (requires store: true). On vertexAI, "uri" stores it in Cloud Storage (set gcsUri).',
+        },
+        'gcsUri': <String, Object?>{
+          'type': 'string',
+          'description':
+              'vertexAI only. The Cloud Storage URI to store the video in. Required when delivery is "uri".',
         },
       },
     },
@@ -3617,8 +4173,16 @@ base class LyriaOptions {
 
   LyriaOptions._(this._json);
 
-  LyriaOptions({String? apiKey, List<String>? responseModalities}) {
-    _json = {'apiKey': ?apiKey, 'responseModalities': ?responseModalities};
+  LyriaOptions({
+    String? apiKey,
+    List<String>? responseModalities,
+    String? location,
+  }) {
+    _json = {
+      'apiKey': ?apiKey,
+      'responseModalities': ?responseModalities,
+      'location': ?location,
+    };
   }
 
   late final Map<String, dynamic> _json;
@@ -3648,6 +4212,18 @@ base class LyriaOptions {
       _json.remove('responseModalities');
     } else {
       _json['responseModalities'] = value;
+    }
+  }
+
+  String? get location {
+    return _json['location'] as String?;
+  }
+
+  set location(String? value) {
+    if (value == null) {
+      _json.remove('location');
+    } else {
+      _json['location'] = value;
     }
   }
 
@@ -3684,8 +4260,13 @@ base class _LyriaOptionsTypeFactory extends SchemanticType<LyriaOptions> {
         'responseModalities': <String, Object?>{
           'type': 'array',
           'description':
-              'The modalities to be used in response: TEXT, IMAGE, AUDIO. Defaults to AUDIO and TEXT for Lyria (the music, plus the lyrics or caption).',
+              'The modalities to be used in response: TEXT, IMAGE, AUDIO. When not set, Lyria returns AUDIO and TEXT (the music, plus the lyrics or caption).',
           'items': <String, Object?>{'type': 'string'},
+        },
+        'location': <String, Object?>{
+          'type': 'string',
+          'description':
+              'vertexAI only. Lyria is only available in global. If the plugin uses a different location, set this to global.',
         },
       },
     },

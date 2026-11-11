@@ -100,22 +100,28 @@ void _routingTests() {
       },
     );
 
-    test('pinned, image and TTS models stay on generateContent', () async {
-      for (final model in [
-        'gemini-3.1-pro-preview',
-        'gemini-3.8-flash-cyber',
-        'gemini-nano-banana-2.1',
-        'gemini-3.8-flash-tts',
-      ]) {
-        final client = MockHttpClient();
-        await _run(client, model: model);
-        expect(
-          client.lastUrl.toString(),
-          endsWith('/publishers/google/models/$model:generateContent'),
-          reason: model,
-        );
-      }
-    });
+    test(
+      'pinned, hidden, image and TTS models stay on generateContent',
+      () async {
+        for (final model in [
+          'gemini-3.1-pro-preview',
+          'gemini-3.1-pro-preview-customtools',
+          'gemini-3.8-flash-cyber',
+          // Hidden models keep their routing.
+          'gemini-2.5-flash',
+          'gemini-nano-banana-2.1',
+          'gemini-3.8-flash-tts',
+        ]) {
+          final client = MockHttpClient();
+          await _run(client, model: model);
+          expect(
+            client.lastUrl.toString(),
+            endsWith('/publishers/google/models/$model:generateContent'),
+            reason: model,
+          );
+        }
+      },
+    );
   });
 }
 
@@ -239,6 +245,68 @@ void _requestTests() {
           'schema': <String, Object?>{},
         },
       ]);
+    });
+
+    test('an unlisted model gets the minimal body (JS "sends unlisted '
+        'models to the Interactions API")', () async {
+      final client = MockHttpClient();
+      await _run(client, model: 'gemini-future-flash');
+      expect(client.lastUrl.toString(), _interactionsUrl);
+      expect(client.lastHeaders!['Api-Revision'], '2026-05-20');
+      expect(_lastBody(client), {
+        'model': 'gemini-future-flash',
+        'generation_config': <String, Object?>{},
+        'input': [
+          {
+            'type': 'user_input',
+            'content': [
+              {'type': 'text', 'text': 'hello'},
+            ],
+          },
+        ],
+        'store': false,
+      });
+    });
+
+    test('sends Omni video format and config', () async {
+      final client = MockHttpClient();
+      await _run(
+        client,
+        model: 'gemini-omni-1.1-flash-preview',
+        config: {
+          'videoFormat': {'aspectRatio': '9:16', 'resolution': '1080p'},
+          'videoConfig': {'task': 'text_to_video'},
+        },
+      );
+      expect(client.lastUrl.toString(), _interactionsUrl);
+      final body = _lastBody(client);
+      expect(body['response_format'], {
+        'type': 'video',
+        'aspect_ratio': '9:16',
+        'resolution': '1080p',
+      });
+      expect(body['generation_config'], {
+        'video_config': {'task': 'text_to_video'},
+      });
+    });
+
+    test('rejects previousInteractionId without store, before any '
+        'request', () async {
+      final client = MockHttpClient();
+      await expectLater(
+        _run(client, config: {'previousInteractionId': 'v1_abc123'}),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            contains('store must be true when previousInteractionId is set'),
+          ),
+        ),
+      );
+      expect(
+        client.requestUrls.where((u) => u.path.endsWith('/interactions')),
+        isEmpty,
+      );
     });
   });
 }
