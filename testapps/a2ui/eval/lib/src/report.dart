@@ -41,6 +41,20 @@ final class ScenarioSummary {
   );
   int get aborted => runs.where((r) => r.abortedAt != null).length;
 
+  int _tokens(String key) => runs.fold(
+    0,
+    (n, r) =>
+        n +
+        r.turns.fold(
+          0,
+          (m, t) =>
+              m +
+              t.usage.fold(0, (k, u) => k + ((u[key] as num?)?.toInt() ?? 0)),
+        ),
+  );
+  int get inputTokens => _tokens('inputTokens');
+  int get outputTokens => _tokens('outputTokens');
+
   /// How existing surfaces were changed: partial updates vs full re-renders.
   int _changes(SurfaceChange c) => runs.fold(
     0,
@@ -81,9 +95,13 @@ String consoleSummary(List<ScenarioSummary> summaries) {
   );
   b.writeln(
     '${'scenario'.padRight(width)}  passed  turn errs  repaired  '
-    'repair fails  renderer errs  updated/replaced',
+    'repair fails  renderer errs  updated/replaced  tokens (in/out)',
   );
   for (final s in summaries) {
+    final avgIn = s.runs.isEmpty ? 0 : (s.inputTokens / s.runs.length).round();
+    final avgOut = s.runs.isEmpty
+        ? 0
+        : (s.outputTokens / s.runs.length).round();
     b.writeln(
       '${s.scenario.name.padRight(width)}  '
       '${'${s.passed}/${s.runs.length}'.padLeft(6)}  '
@@ -91,7 +109,8 @@ String consoleSummary(List<ScenarioSummary> summaries) {
       '${'${s.repaired}'.padLeft(8)}  '
       '${'${s.repairFailed}'.padLeft(12)}  '
       '${'${s.violations}'.padLeft(13)}  '
-      '${'${s.updatedInPlace}/${s.replaced}'.padLeft(16)}',
+      '${'${s.updatedInPlace}/${s.replaced}'.padLeft(16)}  '
+      '${'$avgIn/$avgOut'.padLeft(15)}',
     );
     for (final MapEntry(:key, :value) in s.failingChecks.entries) {
       b.writeln(
@@ -101,7 +120,12 @@ String consoleSummary(List<ScenarioSummary> summaries) {
   }
   final all = summaries.expand((s) => s.runs).toList();
   final ok = all.where((r) => r.passed).length;
-  b.writeln('\n$ok/${all.length} runs passed every check');
+  final totalIn = summaries.fold(0, (n, s) => n + s.inputTokens);
+  final totalOut = summaries.fold(0, (n, s) => n + s.outputTokens);
+  b.writeln(
+    '\n$ok/${all.length} runs passed every check '
+    '(total tokens: $totalIn in / $totalOut out)',
+  );
   return b.toString();
 }
 
@@ -109,25 +133,34 @@ String markdownReport(
   List<ScenarioSummary> summaries, {
   required Map<String, Object?> meta,
 }) {
+  final totalIn = summaries.fold(0, (n, s) => n + s.inputTokens);
+  final totalOut = summaries.fold(0, (n, s) => n + s.outputTokens);
   final b = StringBuffer()
     ..writeln('# A2UI eval')
     ..writeln()
     ..writeln(
       [
         for (final MapEntry(:key, :value) in meta.entries) '`$key`: $value',
+        '`totalInputTokens`: $totalIn',
+        '`totalOutputTokens`: $totalOut',
       ].join(' | '),
     )
     ..writeln()
     ..writeln(
       '| Scenario | Passed | Turn errors | Repaired | Repair fails | '
-      'Renderer errors | Updated / replaced |',
+      'Renderer errors | Updated / replaced | Avg tokens (in / out) |',
     )
-    ..writeln('|---|---|---|---|---|---|---|');
+    ..writeln('|---|---|---|---|---|---|---|---|');
   for (final s in summaries) {
+    final avgIn = s.runs.isEmpty ? 0 : (s.inputTokens / s.runs.length).round();
+    final avgOut = s.runs.isEmpty
+        ? 0
+        : (s.outputTokens / s.runs.length).round();
     b.writeln(
       '| ${s.scenario.name} | ${s.passed}/${s.runs.length} | '
       '${s.failedTurns}/${s.turns} | ${s.repaired} | ${s.repairFailed} | '
-      '${s.violations} | ${s.updatedInPlace} / ${s.replaced} |',
+      '${s.violations} | ${s.updatedInPlace} / ${s.replaced} | '
+      '$avgIn / $avgOut |',
     );
   }
 
@@ -173,10 +206,10 @@ void _writeTurn(StringBuffer b, TurnRecord t) {
     );
   }
   if (t.prose.trim().isNotEmpty) {
-    b.writeln('- prose: ${_oneLine(t.prose, 300)}');
+    b.writeln('- prose: ${_oneLine(t.prose)}');
   }
-  for (final l in t.logs.where((l) => !l.startsWith('FINE'))) {
-    b.writeln('- log: ${_oneLine(l, 300)}');
+  for (final l in t.logs) {
+    b.writeln('- log: ${_oneLine(l)}');
   }
   for (final src in t.express) {
     b
@@ -188,7 +221,4 @@ void _writeTurn(StringBuffer b, TurnRecord t) {
   b.writeln();
 }
 
-String _oneLine(String s, int max) {
-  final flat = s.replaceAll(RegExp(r'\s+'), ' ').trim();
-  return flat.length <= max ? flat : '${flat.substring(0, max)}...';
-}
+String _oneLine(String s) => s.replaceAll(RegExp(r'\s+'), ' ').trim();

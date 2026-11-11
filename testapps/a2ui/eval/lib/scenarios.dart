@@ -12,9 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// The scenarios. Every turn also gets three implicit checks: the turn did
-/// not fail, the renderer accepted every message, and no markup leaked into
-/// the prose.
+/// The scenarios. Every turn also gets four implicit checks: the stream matches
+/// the session history, the turn did not fail, the renderer accepted every
+/// message, and no markup leaked into the prose.
 library;
 
 import 'src/scenario.dart';
@@ -54,8 +54,8 @@ final scenarios = <Scenario>[
   ], description: 'A new question gets a new surface, the old one stays.'),
 
   Scenario('action targets its own surface (2 surfaces)', [
-    const Say("Show the weather in Tokyo, with a Refresh button."),
-    const Say("Now show Paris as a separate card, also with a Refresh button."),
+    const Say('Show the weather in Tokyo, with a Refresh button.'),
+    const Say('Now show Paris as a separate card, also with a Refresh button.'),
     Expect.liveSurfaces(2),
     const Press('Refresh', on: first),
     Expect.touched(first),
