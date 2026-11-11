@@ -25,7 +25,7 @@ Scenario('action targets its own surface (2 surfaces)', [
   const Say('Show the weather in Tokyo, with a Refresh button.'),
   const Say('Now show Paris as a separate card, also with a Refresh button.'),
   Expect.liveSurfaces(2),
-  const Press('Refresh', on: SurfaceRef.nth(0)),   // sends genui's action message
+  const Press('Refresh', on: SurfaceRef.nth(0)),   // sends the renderer's action message
   Expect.touched(SurfaceRef.nth(0)),
   Expect.untouched(SurfaceRef.nth(1)),
   Expect.newSurfaces(0),

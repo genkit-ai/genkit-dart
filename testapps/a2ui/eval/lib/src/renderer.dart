@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// A headless stand-in for a v0.9 A2UI renderer.
+/// A headless stand-in for an A2UI renderer (v0.9 and v1.0).
 ///
 /// Applies messages the way a renderer would (create, update, delete) and
 /// reports protocol violations instead of drawing anything. Deliberately small:
@@ -21,6 +21,8 @@
 /// already runs `a2ui_agent`'s per-block checks under `validate: 'strict'`;
 /// this layer adds the cross-turn rules a single block cannot see.
 library;
+
+import 'package:a2ui_core/a2ui_core.dart' show A2uiDataError, DataModel;
 
 /// What a turn did to one surface.
 enum SurfaceChange { created, replaced, updated, deleted }
@@ -32,6 +34,10 @@ final class SurfaceState {
   final String id;
   final String catalogId;
 
+  /// The protocol version of the message that created the surface, which the
+  /// actions it sends back carry.
+  String version = 'v0.9';
+
   /// Creation order across the conversation (stable across replacements), so
   /// scenarios can refer to "the first surface".
   final int order;
@@ -40,36 +46,131 @@ final class SurfaceState {
   final int createdTurn;
 
   final Map<String, Map<String, dynamic>> components = {};
-  Map<String, dynamic> data = {};
+  final DataModel _model = DataModel();
 
-  /// Every literal string and data-model value on the surface, lowercased, for
-  /// content assertions like "mentions Paris".
+  /// A snapshot view of the surface's data model.
+  Map<String, dynamic> get data => switch (_model.get('/')) {
+    final Map m => _deepCopyJson(m) as Map<String, dynamic>,
+    _ => <String, dynamic>{},
+  };
+
+  /// Reads [path] from the surface's data model.
+  Object? getData(String path) => _model.get(path);
+
+  /// Writes [value] at [path] using `a2ui_core`'s [DataModel] rules (list
+  /// append/pad, key deletion on `null`, and [A2uiDataError] on type mismatch).
+  void setData(String path, Object? value) => _model.set(path, value);
+
+  /// Components reachable from `'root'`, in traversal order. Detached
+  /// components left in [components] after an in-place `updateComponents` are
+  /// excluded, matching what a renderer draws.
+  Map<String, Map<String, dynamic>> get reachableComponents {
+    if (!components.containsKey('root')) return const {};
+    final out = <String, Map<String, dynamic>>{};
+    final queue = <String>['root'];
+    for (var i = 0; i < queue.length; i++) {
+      final id = queue[i];
+      if (out.containsKey(id)) continue;
+      final c = components[id];
+      if (c == null) continue;
+      out[id] = c;
+      for (final child in HeadlessRenderer.childRefs(c)) {
+        if (!out.containsKey(child)) queue.add(child);
+      }
+    }
+    return out;
+  }
+
+  static const _notShown = {
+    'id',
+    'component',
+    'catalogId',
+    '@catalogId',
+    'action',
+    'checks',
+    '@checks',
+    'metadata',
+    '@metadata',
+    'child',
+    'children',
+    'trigger',
+    'content',
+    'call',
+    '@call',
+  };
+
+  /// Displayed text and resolved bindings on reachable components, lowercased,
+  /// for content assertions like "mentions Paris". Excludes component ids, type
+  /// names, binding path strings, actions, and unbound data-model entries.
   String get searchableText {
+    if (!components.containsKey('root')) return '';
     final out = StringBuffer();
-    void walk(Object? v) {
+
+    void walkValue(Object? v, Object? scope) {
       switch (v) {
-        case String s:
+        case final String s:
           out
             ..write(s.toLowerCase())
             ..write(' ');
-        case num n:
+        case final num n:
           out
             ..write(n)
             ..write(' ');
-        case Map m:
-          m.values.forEach(walk);
-        case List l:
-          l.forEach(walk);
+        case final Map m when bindingPath(m, version: version) != null:
+          walkValue(resolve(m, scope: scope), scope);
+        case final Map m:
+          for (final MapEntry(:key, :value) in m.entries) {
+            if (!_notShown.contains(key)) walkValue(value, scope);
+          }
+        case final List l:
+          for (final item in l) {
+            walkValue(item, scope);
+          }
       }
     }
 
-    components.values.forEach(walk);
-    walk(data);
+    void walkComponent(String cid, Object? scope, int depth) {
+      if (depth > 16) return;
+      final c = components[cid];
+      if (c == null) return;
+      for (final MapEntry(:key, :value) in c.entries) {
+        if (!_notShown.contains(key)) walkValue(value, scope);
+      }
+      for (final key in const ['child', 'trigger', 'content']) {
+        if (c[key] case final String childId) {
+          walkComponent(childId, scope, depth + 1);
+        }
+      }
+      switch (c['children']) {
+        case final List ids:
+          for (final childId in ids.whereType<String>()) {
+            walkComponent(childId, scope, depth + 1);
+          }
+        case {'path': final String listPath, 'componentId': final String tplId}:
+          final items = listPath.startsWith('/')
+              ? getData(listPath)
+              : (scope != null ? readPointer(scope, '/$listPath') : null);
+          if (items is List) {
+            for (final item in items) {
+              walkComponent(tplId, item, depth + 1);
+            }
+          }
+      }
+      if (c['tabs'] case final List tabs) {
+        for (final t in tabs) {
+          if (t case {'child': final String childId}) {
+            walkComponent(childId, scope, depth + 1);
+          }
+        }
+      }
+    }
+
+    walkComponent('root', null, 0);
     return out.toString();
   }
 
   Set<String> get componentTypes => {
-    for (final c in components.values)
+    for (final c in reachableComponents.values)
       if (c['component'] case final String t) t,
   };
 
@@ -89,19 +190,42 @@ final class SurfaceState {
     return parts.where((s) => s.isNotEmpty).join(' ');
   }
 
-  /// A dynamic value as display text: literals as-is, `{path}` bindings
-  /// resolved against the data model.
+  /// A dynamic value as display text: literals as-is, bindings resolved against
+  /// the data model.
   String resolveString(Object? v) => switch (resolve(v)) {
     null => '',
     final String s => s,
     final Object o => '$o',
   };
 
-  /// Resolves a `{path: ...}` binding against the data model; literals pass
-  /// through. Relative (template) paths are not supported.
-  Object? resolve(Object? v) {
-    if (v case {'path': final String path}) return readPointer(data, path);
-    return v;
+  /// Resolves version-matching data bindings (`{path}` in v0.9, `{@path}` from
+  /// v1.0) recursively across maps and lists.
+  ///
+  /// Relative (template) paths resolve against [scope] when given; otherwise
+  /// they return `null`, or throw [FormatException] when [rejectRelative] is
+  /// true (such as when building an outbound `action`).
+  Object? resolve(Object? v, {bool rejectRelative = false, Object? scope}) {
+    if (bindingPath(v, version: version) case final path?) {
+      if (!path.startsWith('/')) {
+        if (scope != null) return readPointer(scope, '/$path');
+        if (rejectRelative) {
+          throw FormatException('relative binding "$path"');
+        }
+        return null;
+      }
+      return getData(path);
+    }
+    return switch (v) {
+      final Map m => <String, Object?>{
+        for (final MapEntry(:key, :value) in m.entries)
+          '$key': resolve(value, rejectRelative: rejectRelative, scope: scope),
+      },
+      final List l => <Object?>[
+        for (final x in l)
+          resolve(x, rejectRelative: rejectRelative, scope: scope),
+      ],
+      _ => v,
+    };
   }
 }
 
@@ -142,6 +266,19 @@ final class HeadlessRenderer {
           prior?.order ?? _created++,
           prior?.createdTurn ?? turn,
         );
+        final s = _surfaces[id]!;
+        if (m['version'] case final String v) s.version = v;
+        // From v1.0 a createSurface may carry the whole tree and data model.
+        if (c['components'] case final List components) {
+          for (final comp in components.whereType<Map>()) {
+            if (comp['id'] case final String cid) {
+              s.components[cid] = _deepCopyJson(comp) as Map<String, dynamic>;
+            }
+          }
+        }
+        if (c['dataModel'] case final Map data) {
+          s.setData('/', data);
+        }
         changes[id] = prior != null
             ? SurfaceChange.replaced
             : SurfaceChange.created;
@@ -156,7 +293,7 @@ final class HeadlessRenderer {
         }
         for (final c in components.whereType<Map>()) {
           if (c['id'] case final String cid) {
-            s.components[cid] = c.cast<String, dynamic>();
+            s.components[cid] = _deepCopyJson(c) as Map<String, dynamic>;
           }
         }
         changes.putIfAbsent(id, () => SurfaceChange.updated);
@@ -168,10 +305,18 @@ final class HeadlessRenderer {
         }
         final u = m['updateDataModel'] as Map;
         final path = (u['path'] as String?) ?? '/';
-        if (path == '/' || path.isEmpty) {
-          s.data = (u['value'] as Map?)?.cast<String, dynamic>() ?? {};
-        } else {
-          writePointer(s.data, path, u['value']);
+        final atRoot = path.isEmpty || path == '/';
+        try {
+          if (atRoot && u.containsKey('value') && u['value'] is! Map) {
+            violations.add(
+              'updateDataModel on "$id": root value must be an object',
+            );
+            s.setData('/', null);
+          } else {
+            s.setData(path, u['value']);
+          }
+        } on A2uiDataError catch (e) {
+          violations.add('updateDataModel on "$id": ${e.message}');
         }
         changes.putIfAbsent(id, () => SurfaceChange.updated);
       } else if (m['deleteSurface'] case {'surfaceId': final String id}) {
@@ -199,7 +344,7 @@ final class HeadlessRenderer {
       out.add('surface "${s.id}" has no root component');
     }
     for (final MapEntry(key: cid, value: c) in s.components.entries) {
-      for (final ref in _childRefs(c)) {
+      for (final ref in childRefs(c)) {
         if (!s.components.containsKey(ref)) {
           out.add('surface "${s.id}": "$cid" references missing "$ref"');
         }
@@ -208,9 +353,9 @@ final class HeadlessRenderer {
     return out;
   }
 
-  /// Component ids a component points at, per the v0.9 basic catalog's
+  /// Component ids a component points at, per the basic catalog's
   /// `ComponentId` / `ChildList` properties.
-  static Iterable<String> _childRefs(Map<String, dynamic> c) sync* {
+  static Iterable<String> childRefs(Map<String, dynamic> c) sync* {
     for (final key in const ['child', 'trigger', 'content']) {
       if (c[key] case final String id) yield id;
     }
@@ -228,13 +373,25 @@ final class HeadlessRenderer {
   }
 }
 
+/// The data path [v] binds to under [version]: `{path}` in v0.9 (excluding
+/// template `ChildList` maps), `{@path}` from v1.0.
+String? bindingPath(Object? v, {String version = '1.0'}) {
+  final v1 = !version.startsWith('v0.');
+  return switch (v) {
+    {'@path': final String path} when v1 => path,
+    {'path': final String path} when !v1 && !v.containsKey('componentId') =>
+      path,
+    _ => null,
+  };
+}
+
 /// Reads a JSON Pointer (`/a/0/b`) out of [root].
 Object? readPointer(Object? root, String pointer) {
-  Object? cur = root;
+  var cur = root;
   for (final seg in _segments(pointer)) {
     cur = switch (cur) {
-      Map m => m[seg],
-      List l => switch (int.tryParse(seg)) {
+      final Map m => m[seg],
+      final List l => switch (int.tryParse(seg)) {
         final i? when i >= 0 && i < l.length => l[i],
         _ => null,
       },
@@ -245,21 +402,27 @@ Object? readPointer(Object? root, String pointer) {
   return cur;
 }
 
-/// Writes [value] at a JSON Pointer in [root], creating maps along the way.
+/// Writes [value] at a JSON Pointer in [root] using `a2ui_core`'s [DataModel].
 void writePointer(Map<String, dynamic> root, String pointer, Object? value) {
-  final segs = _segments(pointer).toList();
-  if (segs.isEmpty) return;
-  Map<String, dynamic> cur = root;
-  for (final seg in segs.take(segs.length - 1)) {
-    cur = switch (cur[seg]) {
-      final Map m => m.cast<String, dynamic>(),
-      _ => cur[seg] = <String, dynamic>{},
-    };
-  }
-  cur[segs.last] = value;
+  final model = DataModel(root)..set(pointer, value);
+  root
+    ..clear()
+    ..addAll(switch (model.get('/')) {
+      final Map m => _deepCopyJson(m) as Map<String, dynamic>,
+      _ => const {},
+    });
 }
 
 Iterable<String> _segments(String pointer) => pointer
     .split('/')
     .where((s) => s.isNotEmpty)
     .map((s) => s.replaceAll('~1', '/').replaceAll('~0', '~'));
+
+Object? _deepCopyJson(Object? v) => switch (v) {
+  final Map m => <String, dynamic>{
+    for (final MapEntry(:key, :value) in m.entries)
+      '$key': _deepCopyJson(value),
+  },
+  final List l => <dynamic>[for (final item in l) _deepCopyJson(item)],
+  _ => v,
+};

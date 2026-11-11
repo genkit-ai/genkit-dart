@@ -15,7 +15,7 @@
 /// Runs the A2UI eval scenarios against the sample agent.
 ///
 ///     source ~/init-gemini.sh
-///     dart run bin/eval.dart --runs 5 --concurrency 4 [--only refresh]
+///     dart run bin/eval.dart --runs 5 --concurrency 4 [--only form]
 library;
 
 import 'dart:convert';
@@ -59,13 +59,27 @@ Future<void> main(List<String> args) async {
     return;
   }
 
-  final runs = int.parse(opts.option('runs')!);
-  final concurrency = int.parse(opts.option('concurrency')!);
-  final timeout = Duration(seconds: int.parse(opts.option('timeout')!));
+  int? positiveInt(String name) {
+    final v = int.tryParse(opts.option(name)!);
+    if (v == null || v < 1) {
+      stderr.writeln(
+        '--$name must be an integer >= 1 (got "${opts.option(name)}").',
+      );
+      exitCode = 64;
+      return null;
+    }
+    return v;
+  }
+
+  final runs = positiveInt('runs');
+  final concurrency = positiveInt('concurrency');
+  final timeoutSec = positiveInt('timeout');
+  if (runs == null || concurrency == null || timeoutSec == null) return;
+  final timeout = Duration(seconds: timeoutSec);
   final only = opts.multiOption('only');
   final selected = [
     for (final s in scenarios)
-      if (only.isEmpty || only.any((o) => s.name.contains(o))) s,
+      if (only.isEmpty || only.any(s.name.contains)) s,
   ];
   if (selected.isEmpty) {
     stderr.writeln('No scenario matches $only. Use --list.');
@@ -75,6 +89,7 @@ Future<void> main(List<String> args) async {
 
   installLogCapture();
   await registerCatalogs();
+  await installModelUsageTap();
 
   final jobs = [
     for (final s in selected)

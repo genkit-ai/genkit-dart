@@ -16,6 +16,8 @@
 /// drive the conversation; [Expect] checks run against the turn before them.
 library;
 
+import 'dart:convert';
+
 import 'renderer.dart';
 
 /// A scripted conversation.
@@ -39,7 +41,7 @@ final class Say extends Step {
 
 /// The user presses the button whose visible label contains [button] on the
 /// surface [on] (or any of the [or] alternatives, since the model picks the
-/// wording). Sends the `action` message genui would.
+/// wording). Sends the `action` message a renderer would.
 final class Press extends Step {
   const Press(this.button, {required this.on, this.or = const []});
   final String button;
@@ -108,7 +110,7 @@ final class _Nth extends SurfaceRef {
   final int index;
   @override
   SurfaceSnapshot? resolve(List<SurfaceSnapshot> s) =>
-      index < s.length ? s[index] : null;
+      index >= 0 && index < s.length ? s[index] : null;
   @override
   String toString() => 'surface #$index';
 }
@@ -155,6 +157,7 @@ final class CheckContext {
     required this.after,
     required this.changes,
     required this.prose,
+    required this.streamed,
     required this.renderer,
   });
 
@@ -167,6 +170,9 @@ final class CheckContext {
 
   /// The model's prose in the last turn.
   final String prose;
+
+  /// The A2UI messages streamed during the last turn.
+  final List<Map<String, dynamic>> streamed;
 
   final HeadlessRenderer renderer;
 
@@ -221,7 +227,8 @@ abstract final class Expect {
     return ctx.after.any((a) => a.id == s.id) ? '"${s.id}" still live' : null;
   });
 
-  /// A live surface ([on], or any) uses a [component] of this type.
+  /// The surface [on] (defaulting to [SurfaceRef.last]) uses a [component] of
+  /// this type.
   static Check uses(String component, {SurfaceRef on = SurfaceRef.last}) =>
       Check('uses($component on $on)', (ctx) {
         final s = on.resolve(ctx.after);
@@ -239,18 +246,16 @@ abstract final class Expect {
         return pool.any((s) => s.text.contains(needle)) ? null : 'not found';
       });
 
-  /// The UI or the prose of the last turn mentions [text]. For confirmations,
-  /// where either is a fair answer.
+  /// The UI or the prose produced by the last turn mentions [text]. For
+  /// confirmations, where either is a fair answer.
   static Check acknowledges(String text) =>
       Check('acknowledges("$text")', (ctx) {
         final needle = text.toLowerCase();
         if (ctx.prose.toLowerCase().contains(needle)) return null;
-        for (final id in ctx.changes.keys) {
-          if (ctx.renderer[id]?.searchableText.contains(needle) ?? false) {
-            return null;
-          }
+        if (jsonEncode(ctx.streamed).toLowerCase().contains(needle)) {
+          return null;
         }
-        return 'not in prose or changed surfaces';
+        return "not in prose or this turn's messages";
       });
 
   /// The last turn's prose is at most [chars] long (UI should carry the
