@@ -23,7 +23,24 @@ class MockHttpClient extends http.BaseClient {
     this.returnMissingMultimodalEmbedding = false,
     this.publisherModelsResponse,
     this.publisherModelsStatus = 200,
+    this.interactionResponse = defaultInteraction,
   });
+
+  /// A completed interaction with the text `"ok"` (it also parses as JSON).
+  static const defaultInteraction = {
+    'status': 'completed',
+    'steps': [
+      {
+        'type': 'model_output',
+        'content': [
+          {'type': 'text', 'text': '"ok"'},
+        ],
+      },
+    ],
+  };
+
+  /// The JSON returned for Interactions API requests.
+  final Map<String, Object?> interactionResponse;
 
   final bool returnEmptyPredictions;
   final bool returnInvalidTextPrediction;
@@ -62,6 +79,13 @@ class MockHttpClient extends http.BaseClient {
             '{"access_token": "ya29.mock", "expires_in": 3600, "token_type": "Bearer"}',
           ),
         ),
+        200,
+        headers: {'content-type': 'application/json'},
+      );
+    }
+    if (request.url.path.endsWith('/interactions')) {
+      return http.StreamedResponse(
+        Stream.value(utf8.encode(jsonEncode(interactionResponse))),
         200,
         headers: {'content-type': 'application/json'},
       );

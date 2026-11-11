@@ -20,8 +20,8 @@
 // Not ported yet (translate from the JS file when the feature arrives):
 // - DynamicAgentConfig, DeepResearchAgentConfig and the request field
 //   background: need background models (Deep Research).
-// - InteractionSafetySetting and the request fields safety_settings /
-//   labels: vertexAI only; come with vertexAI Interactions support.
+// - The request field labels: vertexAI only; comes with the vertexAI
+//   `labels` option.
 // - InteractionStreamResult: comes with the client (its Dart shape depends
 //   on the stream reader).
 //
@@ -1155,6 +1155,25 @@ extension type const ResponseModality(String value) {
   static const audio = ResponseModality('audio');
 }
 
+/// A safety setting: the threshold for blocking one harm category.
+/// vertexAI only (googleAI rejects `safety_settings` with a 400).
+extension type InteractionSafetySetting.fromJson(Map<String, Object?> json) {
+  InteractionSafetySetting({
+    required String type,
+    required String threshold,
+    String? method,
+  }) : this.fromJson({'type': type, 'threshold': threshold, 'method': ?method});
+
+  /// The harm category, e.g. `hate_speech`.
+  String? get type => json['type'] as String?;
+
+  /// The blocking threshold, e.g. `block_low_and_above`.
+  String? get threshold => json['threshold'] as String?;
+
+  /// Whether to block by probability (default) or by severity.
+  String? get method => json['method'] as String?;
+}
+
 /// Parameters for creating interactions.
 extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
   CreateInteractionRequest({
@@ -1172,6 +1191,7 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
     ModelGenerationConfig? generationConfig,
     InteractionsAgentConfig? agentConfig,
     ServiceTier? serviceTier,
+    List<InteractionSafetySetting>? safetySettings,
   }) : this.fromJson({
          'previous_interaction_id': ?previousInteractionId,
          'model': ?model,
@@ -1187,6 +1207,7 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
          'generation_config': ?generationConfig,
          'agent_config': ?agentConfig,
          'service_tier': ?serviceTier,
+         'safety_settings': ?safetySettings,
        });
 
   /// The ID of the previous interaction, if any.
@@ -1243,6 +1264,10 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
       _wrap(json['agent_config'], InteractionsAgentConfig.fromJson);
 
   ServiceTier? get serviceTier => _wrap(json['service_tier'], ServiceTier.new);
+
+  /// Safety settings. vertexAI only (googleAI rejects it with a 400).
+  List<InteractionSafetySetting>? get safetySettings =>
+      _wrapAll(json['safety_settings'], InteractionSafetySetting.fromJson);
 }
 
 // Stream deltas (the `delta` of a `step.delta` event). Response-only.
