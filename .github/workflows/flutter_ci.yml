@@ -19,9 +19,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Pinned off 3.50: Flutter 3.50 deprecates package:flutter/material.dart in favor of package:material_ui/material_ui.dart.
       - name: Setup Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
+          flutter-version: '3.47.9'
           channel: 'stable'
 
       - name: Install Melos
