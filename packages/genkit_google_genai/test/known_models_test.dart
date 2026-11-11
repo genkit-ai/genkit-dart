@@ -46,6 +46,7 @@ void main() {
       'gemini-2.5-flash-image': GeminiModelFamily.image,
       'gemini-3.1-flash-lite-image': GeminiModelFamily.image,
       'gemini-3-pro-image-preview': GeminiModelFamily.image,
+      'gemini-nano-banana-2.1': GeminiModelFamily.image,
       'gemini-2.5-flash-preview-tts': GeminiModelFamily.tts,
       'gemini-3.1-flash-tts-preview': GeminiModelFamily.tts,
       'gemini-2.5-flash-tts': GeminiModelFamily.tts,
@@ -103,39 +104,52 @@ void main() {
     });
   });
 
+  group('GeminiModelStage', () {
+    test('uses the Genkit stage names', () {
+      expect(GeminiModelStage.values.map((s) => s.wireName), [
+        'stable',
+        'legacy',
+        'deprecated',
+      ]);
+    });
+  });
+
   group('KnownGeminiModel', () {
     for (final model in KnownGeminiModel.values) {
-      test(
-        '${model.id} info carries its label, stable stage and family profile',
-        () {
-          final info = model.info;
-          expect(info.label, model.label);
-          expect(info.stage, 'stable');
-          expect(info.supports, model.family.supports);
-        },
-      );
+      test('${model.id} info carries its label, stage and family profile', () {
+        final info = model.info;
+        expect(info.label, model.label);
+        expect(info.stage, model.stage.wireName);
+        expect(info.supports, model.family.supports);
+      });
 
       test('${model.id} family agrees with the classifier', () {
         expect(GeminiModelFamily.of(model.id), model.family);
       });
+
+      test('${model.id} is hidden exactly when it is not stable', () {
+        expect(model.hidden, model.stage != GeminiModelStage.stable);
+      });
     }
 
-    test('curates the live Gemini API catalog by family', () {
+    test('curates the Gemini API catalog by family', () {
       expect(
         {
           for (final model in KnownGeminiModel.values)
             if (model.family == GeminiModelFamily.text) model.id,
         },
         {
-          'gemini-3.1-pro-preview',
-          'gemini-3-flash-preview',
           'gemini-3.8-flash',
-          'gemini-3.7-flash',
           'gemini-3.6-flash',
-          'gemini-3.5-flash',
           'gemini-3.5-flash-lite',
           'gemini-3.1-flash-lite',
+          'gemini-3.1-pro-preview-customtools',
+          'gemini-3.1-pro-preview',
+          'gemini-3-flash-preview',
+          'gemini-2.5-pro',
+          'gemini-2.5-flash',
           'gemini-2.5-flash-lite',
+          'gemini-3.5-flash',
         },
       );
       expect(
@@ -144,10 +158,10 @@ void main() {
             if (model.family == GeminiModelFamily.image) model.id,
         },
         {
-          'gemini-3.1-flash-image',
           'gemini-3.1-flash-lite-image',
           'gemini-3-pro-image',
           'gemini-2.5-flash-image',
+          'gemini-3.1-flash-image',
         },
       );
       expect(
@@ -158,15 +172,86 @@ void main() {
         {
           'gemini-3.8-flash-tts',
           'gemini-3.8-flash-lite-tts',
+          'gemini-2.5-flash-preview-tts',
+          'gemini-2.5-pro-preview-tts',
           'gemini-3.1-flash-tts-preview',
         },
       );
     });
 
-    test('every curated model is stable', () {
-      for (final model in KnownGeminiModel.values) {
-        expect(model.info.stage, 'stable', reason: model.id);
+    test('hides the same models as the JS plugin, with the same stages', () {
+      expect(
+        {
+          for (final model in KnownGeminiModel.values)
+            if (model.hidden) model.id: model.stage,
+        },
+        {
+          'gemini-2.5-pro': GeminiModelStage.legacy,
+          'gemini-2.5-flash': GeminiModelStage.legacy,
+          'gemini-2.5-flash-lite': GeminiModelStage.legacy,
+          'gemini-2.5-flash-image': GeminiModelStage.legacy,
+          'gemini-2.5-flash-preview-tts': GeminiModelStage.deprecated,
+          'gemini-2.5-pro-preview-tts': GeminiModelStage.deprecated,
+          'gemini-3.1-flash-tts-preview': GeminiModelStage.deprecated,
+          'gemini-3.5-flash': GeminiModelStage.deprecated,
+          'gemini-3.1-flash-image': GeminiModelStage.deprecated,
+        },
+      );
+    });
+
+    test('keeps every hidden model on generateContent', () {
+      for (final model in KnownGeminiModel.values.where((m) => m.hidden)) {
+        expect(model.interactions, isFalse, reason: model.id);
       }
+    });
+
+    test('leaves out a deprecated model that routes right when unlisted', () {
+      // gemini-3.7-flash now serves gemini-3.8-flash and, unlisted, already
+      // uses the Interactions API (as in JS), so an entry would change nothing.
+      expect(knownGeminiModels, isNot(contains('gemini-3.7-flash')));
+    });
+  });
+
+  group('knownGeminiInteractions', () {
+    test('pins the same models to generateContent as the JS plugin', () {
+      expect(
+        {
+          for (final MapEntry(:key, :value) in knownGeminiInteractions.entries)
+            if (!value) key,
+        },
+        {
+          'gemini-3.1-flash-lite',
+          'gemini-3.1-pro-preview-customtools',
+          'gemini-3.1-pro-preview',
+          'gemini-3-flash-preview',
+          'gemini-3-pro-image',
+          'gemma-4-26b-a4b-it',
+          'gemma-4-31b-it',
+          'gemini-2.5-pro',
+          'gemini-2.5-flash',
+          'gemini-2.5-flash-lite',
+          'gemini-2.5-flash-image',
+          'gemini-2.5-flash-preview-tts',
+          'gemini-2.5-pro-preview-tts',
+          'gemini-3.1-flash-tts-preview',
+          'gemini-3.5-flash',
+          'gemini-3.1-flash-image',
+        },
+      );
+    });
+
+    test('covers exactly the curated models', () {
+      expect(
+        knownGeminiInteractions.keys,
+        unorderedEquals(knownGeminiModels.keys),
+      );
+    });
+
+    test('is unmodifiable', () {
+      expect(
+        () => knownGeminiInteractions['gemini-3.8-flash'] = false,
+        throwsUnsupportedError,
+      );
     });
   });
 
