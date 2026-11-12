@@ -131,6 +131,23 @@ void main() {
       expect(parsed.name, 'Bob');
       expect(parsed.age, 25);
     });
+
+    test('validate succeeds when \$schema would require a network fetch', () async {
+      final schema = SchemanticType.from<Map<String, Object?>>(
+        jsonSchema: {
+          r'$schema': 'https://json-schema.org/draft/2020-12/schema',
+          'type': 'object',
+          'properties': {
+            'message': {'type': 'string'},
+          },
+          'required': ['message'],
+        },
+        parse: (json) => json as Map<String, Object?>,
+      );
+
+      final errors = await schema.validate({'message': 'hello'});
+      expect(errors, isEmpty);
+    });
   });
 }
 
