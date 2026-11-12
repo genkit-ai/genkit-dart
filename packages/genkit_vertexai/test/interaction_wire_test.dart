@@ -138,9 +138,24 @@ void _requestTests() {
           ],
         },
       );
-      // googleAI throws for blocking thresholds; the platform accepts them.
       expect(_lastBody(client)['safety_settings'], [
         {'type': 'hate_speech', 'threshold': 'block_low_and_above'},
+      ]);
+    });
+
+    test('keeps BLOCK_NONE as block_none', () async {
+      // The platform accepts block_none (googleAI sends it as off).
+      final client = MockHttpClient();
+      await _run(
+        client,
+        config: {
+          'safetySettings': [
+            {'category': 'HARM_CATEGORY_HARASSMENT', 'threshold': 'BLOCK_NONE'},
+          ],
+        },
+      );
+      expect(_lastBody(client)['safety_settings'], [
+        {'type': 'harassment', 'threshold': 'block_none'},
       ]);
     });
 

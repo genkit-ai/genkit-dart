@@ -256,13 +256,11 @@ If your code reads the provider payload in `response.raw`, it differs:
 
 ### Differences on the Interactions API
 
-1. **Safety settings:** these models apply no additional safety filters by
-   default ([Gemini API safety settings](https://ai.google.dev/gemini-api/docs/safety-settings));
-   built-in protections against core harms always apply. `BLOCK_NONE`
-   settings are ignored, since they can't block anything beyond that
-   default. Blocking thresholds (`BLOCK_ONLY_HIGH` and stricter) throw an
-   `INVALID_ARGUMENT` error, so a requested filter is never silently
-   dropped.
+1. **Safety settings:** sent as the Interactions API's `safety_settings`
+   (see [Gemini API safety settings](https://ai.google.dev/gemini-api/docs/safety-settings)).
+   `BLOCK_NONE` is sent as `off`, which means the same there (the Gemini
+   API doesn't accept `block_none`). `HARM_CATEGORY_UNSPECIFIED` entries
+   are left out.
 2. **Options the Interactions API doesn't use:** `topK`, `presencePenalty`,
    `frequencyPenalty`, `responseMimeType` (other than `application/json`)
    and `thinkingConfig.thinkingBudget` (use `thinkingLevel`) are not sent;

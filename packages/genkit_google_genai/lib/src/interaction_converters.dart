@@ -482,33 +482,43 @@ Object? toInteractionResponseFormat({
 /// `HARM_CATEGORY_UNSPECIFIED` has no equivalent and is left out. Other
 /// fields are passed through in snake_case.
 ///
+/// With [blockNoneAsOff] (googleAI), `BLOCK_NONE` is sent as `off`: the
+/// Gemini API rejects `block_none` with a 400 ("allowed on the Gemini
+/// Enterprise Agent Platform"; seen live Nov 2026) and `off` means the same
+/// there. The platform accepts `block_none`, so vertexAI keeps it.
+///
 /// Returns null when [settings] is null or nothing is left.
 List<InteractionSafetySetting>? toInteractionSafetySettings(
-  List<GeminiSafetySettings>? settings,
-) {
+  List<GeminiSafetySettings>? settings, {
+  bool blockNoneAsOff = false,
+}) {
   if (settings == null) return null;
   final result = [
     for (final setting in settings)
       if (setting.category != 'HARM_CATEGORY_UNSPECIFIED')
-        _toInteractionSafetySetting(setting.toJson()),
+        _toInteractionSafetySetting(setting.toJson(), blockNoneAsOff),
   ];
   return result.isEmpty ? null : result;
 }
 
 InteractionSafetySetting _toInteractionSafetySetting(
   Map<String, dynamic> setting,
+  bool blockNoneAsOff,
 ) {
   final rest = {...setting}
     ..remove('category')
     ..remove('threshold')
     ..remove('method');
   final method = setting['method'];
+  final threshold = setting['threshold'] as String? ?? '';
   return InteractionSafetySetting.fromJson({
     ...toSnakeCaseObj(rest),
     'type': (setting['category'] as String? ?? '')
         .replaceFirst(RegExp('^HARM_CATEGORY_'), '')
         .toLowerCase(),
-    'threshold': (setting['threshold'] as String? ?? '').toLowerCase(),
+    'threshold': blockNoneAsOff && threshold.toUpperCase() == 'BLOCK_NONE'
+        ? 'off'
+        : threshold.toLowerCase(),
     if (method is String) 'method': method.toLowerCase(),
   });
 }

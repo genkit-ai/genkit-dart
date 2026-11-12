@@ -104,11 +104,14 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   /// Gemini Enterprise Agent Platform has no such field).
   bool get supportsGenerateContentStore => false;
 
-  /// Whether Interactions requests send `safety_settings`. The Gemini API
-  /// rejects the field (400), so by default permissive settings are dropped
-  /// and blocking ones throw; the Gemini Enterprise Agent Platform accepts
-  /// it (vertexAI overrides this).
+  /// Whether Interactions requests send `safety_settings` (both plugins do).
+  /// When false, permissive settings are dropped and blocking ones throw.
   bool get supportsInteractionSafetySettings => false;
+
+  /// Whether `BLOCK_NONE` is sent as `off` in Interactions
+  /// `safety_settings`. The Gemini API rejects `block_none` (400) and `off`
+  /// means the same there (googleAI); the platform accepts `block_none`.
+  bool get interactionSafetyBlockNoneAsOff => false;
 
   /// Server-side tool step types left out of a stateless (`store: false`)
   /// history on the Interactions API, because the server rejects them when

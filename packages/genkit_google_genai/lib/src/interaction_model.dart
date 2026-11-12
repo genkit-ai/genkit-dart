@@ -176,19 +176,16 @@ CreateInteractionRequest buildInteractionRequest(
 
   final tools = <InteractionTool>[...?req.tools?.map(toInteractionTool)];
 
-  // The Gemini API's Interactions endpoint does not accept
-  // `safety_settings` (it returns 400), even though the published
-  // Interactions spec lists the field. The Gemini Enterprise Agent Platform
-  // accepts it, so vertexAI sends them (see
-  // `supportsInteractionSafetySettings`). Permissive settings can be dropped
-  // safely: per the Gemini API docs, the adjustable safety filters are Off
-  // by default for current Gemini models, so BLOCK_NONE (and
-  // HARM_CATEGORY_UNSPECIFIED entries) never block anything beyond the
-  // default. Built-in protections against core harms always apply.
-  // See https://ai.google.dev/gemini-api/docs/safety-settings
+  // Both plugins send `safety_settings` (googleAI with BLOCK_NONE as `off`;
+  // see `supportsInteractionSafetySettings`). For a plugin that can't send
+  // them: permissive settings can be dropped safely, since the adjustable
+  // safety filters are Off by default for current Gemini models, so
+  // BLOCK_NONE (and HARM_CATEGORY_UNSPECIFIED entries) never block anything
+  // beyond the default. Built-in protections against core harms always
+  // apply. See https://ai.google.dev/gemini-api/docs/safety-settings
   //
-  // Blocking thresholds (BLOCK_ONLY_HIGH and stricter) cannot be honored, so
-  // throw rather than silently weaken the requested filtering.
+  // Blocking thresholds (BLOCK_ONLY_HIGH and stricter) cannot be honored
+  // there, so throw rather than silently weaken the requested filtering.
   final blockingSafetySettings = [
     if (!plugin.supportsInteractionSafetySettings)
       for (final setting in options.safetySettings ?? <GeminiSafetySettings>[])
@@ -357,7 +354,10 @@ CreateInteractionRequest _withGenerationConfig(
     serviceTier: serviceTier == null ? null : ServiceTier(serviceTier),
     store: store,
     safetySettings: plugin.supportsInteractionSafetySettings
-        ? toInteractionSafetySettings(options.safetySettings)
+        ? toInteractionSafetySettings(
+            options.safetySettings,
+            blockNoneAsOff: plugin.interactionSafetyBlockNoneAsOff,
+          )
         : null,
   );
 

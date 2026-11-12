@@ -1024,6 +1024,26 @@ void main() {
       test('returns null when not set', () {
         expect(toInteractionSafetySettings(null), isNull);
       });
+
+      test('sends BLOCK_NONE as off with blockNoneAsOff (googleAI)', () {
+        // The Gemini API rejects block_none with a 400 (seen live, Nov 2026).
+        expect(
+          toInteractionSafetySettings([
+            setting({
+              'category': 'HARM_CATEGORY_HARASSMENT',
+              'threshold': 'BLOCK_NONE',
+            }),
+            setting({
+              'category': 'HARM_CATEGORY_HATE_SPEECH',
+              'threshold': 'BLOCK_MEDIUM_AND_ABOVE',
+            }),
+          ], blockNoneAsOff: true)!.map((s) => s.json),
+          [
+            {'type': 'harassment', 'threshold': 'off'},
+            {'type': 'hate_speech', 'threshold': 'block_medium_and_above'},
+          ],
+        );
+      });
     });
 
     group('toInteractionConfigTool', () {
