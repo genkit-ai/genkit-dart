@@ -106,6 +106,13 @@ final class OpenAIProvider {
   /// listing; `resolve` still serves any id named explicitly.
   final bool Function(String model) servesModel;
 
+  /// Whether the host takes OpenAI's `file` content part, which carries a
+  /// non-image document such as a PDF inline.
+  ///
+  /// A host without it would reject the whole request, so such a part is
+  /// refused before the request goes out.
+  final bool acceptsFileParts;
+
   /// Whether the host can be handed a JSON *schema*, rather than only being
   /// asked for JSON.
   ///
@@ -128,6 +135,7 @@ final class OpenAIProvider {
     this.rewriteChatBody,
     this.usesLegacyMaxTokens = false,
     this.supportsJsonSchema = true,
+    this.acceptsFileParts = true,
     this.servesModel = _servesAnyModel,
   });
 }
@@ -198,7 +206,9 @@ final xaiProvider = OpenAIProvider(
 /// Mistral's request schema is closed: a field it does not define is a 422
 /// validation error, not something it ignores. So the token limit goes out as `max_tokens`, and
 /// [mistralChatBody] renames or drops what the SDK writes in OpenAI's spelling.
-/// `json_schema`, tools and image input are sent unchanged.
+/// `json_schema`, tools and image input are sent unchanged. A non-image
+/// document is refused locally: Mistral's `file` part takes only the id of an
+/// uploaded file, not OpenAI's inline `file_data`.
 final mistralProvider = OpenAIProvider(
   defaultNamespace: defaultMistralNamespace,
   defaultBaseUrl: 'https://api.mistral.ai/v1',
@@ -219,6 +229,7 @@ final mistralProvider = OpenAIProvider(
   servesModel: _mistralServesModel,
   rewriteChatBody: mistralChatBody,
   usesLegacyMaxTokens: true,
+  acceptsFileParts: false,
 );
 
 /// Rewrites the fields Mistral spells differently or does not define.

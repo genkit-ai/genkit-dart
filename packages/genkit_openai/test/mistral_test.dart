@@ -460,6 +460,64 @@ void main() {
       expect(body['tool_choice'], 'required');
     });
 
+    test('refuses an inline PDF before the request goes out', () async {
+      // OpenAI's `file` part carries the document inline; Mistral's takes
+      // only an uploaded file's id and rejects the whole request otherwise.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [mistral(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      final response = await ai.generate(
+        model: mistral.model('mistral-small-latest'),
+        promptParts: [
+          TextPart(text: 'summarise this'),
+          MediaPart(
+            media: Media(
+              url: 'data:application/pdf;base64,JVBERi0xLjcK',
+              contentType: 'application/pdf',
+            ),
+          ),
+        ],
+      );
+
+      expect(response.finishReason, FinishReason.failed);
+      expect(
+        response.error?.message,
+        contains('does not accept inline application/pdf media'),
+      );
+      expect(requests, isEmpty);
+    });
+
+    test('an inline image still goes out as image_url', () async {
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [mistral(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: mistral.model('mistral-small-latest'),
+        promptParts: [
+          TextPart(text: 'describe this'),
+          MediaPart(
+            media: Media(
+              url: 'data:image/png;base64,iVBORw0K',
+              contentType: 'image/png',
+            ),
+          ),
+        ],
+      );
+
+      final body = chatBodyOf(requests);
+      final content = ((body['messages'] as List).single as Map)['content'];
+      expect((content as List).map((p) => (p as Map)['type']), [
+        'text',
+        'image_url',
+      ]);
+    });
+
     test('the rewrite leaves every other field alone', () {
       final body = {
         'model': 'mistral-small-latest',

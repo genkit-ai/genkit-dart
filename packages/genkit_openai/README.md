@@ -562,7 +562,9 @@ Four things differ on the wire, and the plugin handles each:
   other host for usage that way, and Mistral defines no `stream_options`.
 
 Tools, `toolChoice`, JSON schema structured output and image input go out
-unchanged.
+unchanged. Inline non-image media, such as a PDF data URI, is refused before
+the request goes out: the plugin would send it as OpenAI's `file` part, and
+Mistral's `file` part takes only the id of an uploaded file.
 
 Not handled yet:
 

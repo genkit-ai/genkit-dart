@@ -635,6 +635,11 @@ class OpenAIPlugin extends GenkitPlugin {
         if (_ownHost) {
           _requireReasoningModel(wireModel, options.reasoningEffort);
         }
+        // A dialect rule, not a catalog one, so it holds on any host - as the
+        // body rewrite does.
+        if (!provider.acceptsFileParts) {
+          _refuseFileParts(modelRequest.messages);
+        }
 
         final resolvedConfig = await _resolveClientConfig();
         final transport = _chatTransport();
@@ -796,6 +801,24 @@ class OpenAIPlugin extends GenkitPlugin {
       '$modelName does not accept reasoningEffort.',
       status: StatusCode.invalidArgument,
     );
+  }
+
+  /// Rejects inline non-image media for a host that takes no OpenAI `file`
+  /// part, rather than sending a request it will reject as a whole.
+  ///
+  /// Only user turns are checked: they are the only ones whose media is sent.
+  void _refuseFileParts(List<Message> messages) {
+    for (final message in messages) {
+      if (message.role != Role.user) continue;
+      for (final part in message.content) {
+        if (!GenkitConverter.sendsAsFilePart(part)) continue;
+        throw GenkitException(
+          '$_pluginName does not accept inline ${part.media!.contentType} '
+          'media. Only images can be sent inline.',
+          status: StatusCode.invalidArgument,
+        );
+      }
+    }
   }
 
   /// Handle streaming response
