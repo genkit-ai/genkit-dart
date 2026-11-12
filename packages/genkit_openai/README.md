@@ -531,7 +531,7 @@ serves chat generation.
 ## Mistral
 
 Mistral speaks the same API, with a stricter request schema: a field it does
-not define is rejected rather than ignored.
+not define is rejected with a 422 validation error rather than ignored.
 
 ```dart
 final ai = Genkit(plugins: [mistral()]);
@@ -552,7 +552,7 @@ Four things differ on the wire, and the plugin handles each:
 - The token limit goes out as `max_tokens`. Mistral has no
   `max_completion_tokens`.
 - `seed` goes out as `random_seed`.
-- `user` is dropped. Mistral has no such field.
+- `user` and `verbosity` are dropped. Mistral has neither field.
 - `stream_options` is dropped from streaming requests. The plugin asks every
   other host for usage that way, and Mistral defines no `stream_options`.
 
@@ -561,12 +561,12 @@ unchanged.
 
 Not handled yet:
 
-- Magistral, and any model asked for a `reasoningEffort` that makes it think,
-  answers with `content` as an array of `thinking` and `text` chunks. The
-  plugin does not read that shape, so those replies would fail. For that
-  reason the Magistral models are left out of the catalog and out of the
-  discovered listing, and `reasoningEffort` is refused before the request goes
-  out.
+- Magistral, Z.ai GLM, and any model asked for a `reasoningEffort` that makes
+  it think, answers with `content` as an array of `thinking` and `text`
+  chunks. The plugin does not read that shape, so those replies would fail.
+  For that reason the Magistral and GLM models are left out of the catalog and
+  out of the discovered listing, and `reasoningEffort` is refused before the
+  request goes out.
 - The embedder `dimensions` option is sent as `dimensions`; Mistral calls it
   `output_dimension`. The embedder `user` option is sent too, and Mistral has
   no such field. Leave both unset.

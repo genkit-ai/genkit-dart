@@ -261,9 +261,10 @@ void main() {
       expect(requests, isEmpty);
     });
 
-    test('Magistral and OCR are filtered out of discovery', () async {
+    test('Magistral, Z.ai GLM and OCR are filtered out of discovery', () async {
       // Mistral lists them, so leaving them out of the curated catalog is not
-      // enough: discovery would put them straight back.
+      // enough: discovery would put them straight back. GLM answers with
+      // thinking chunks whatever `reasoning_effort` says.
       final plugin = OpenAIPlugin(
         provider: mistralProvider,
         apiKey: 'm-key',
@@ -273,6 +274,8 @@ void main() {
             'mistral-small-latest',
             'magistral-medium-latest',
             'magistral-small-2509',
+            'zai-glm-5-3',
+            'zai-glm-5-3-flash',
             'mistral-ocr-latest',
           ],
         ),
@@ -283,6 +286,8 @@ void main() {
       expect(names, contains('mistral/mistral-small-latest'));
       expect(names, isNot(contains('mistral/magistral-medium-latest')));
       expect(names, isNot(contains('mistral/magistral-small-2509')));
+      expect(names, isNot(contains('mistral/zai-glm-5-3')));
+      expect(names, isNot(contains('mistral/zai-glm-5-3-flash')));
       expect(names, isNot(contains('mistral/mistral-ocr-latest')));
     });
 
@@ -334,6 +339,12 @@ void main() {
       final body = await bodyFor(OpenAIChatOptions(user: 'end-user-1'));
 
       expect(body, isNot(contains('user')));
+    });
+
+    test('drops verbosity, which Mistral does not define', () async {
+      final body = await bodyFor(OpenAIChatOptions(verbosity: 'low'));
+
+      expect(body, isNot(contains('verbosity')));
     });
 
     test('drops stream_options on a stream', () async {
@@ -413,6 +424,7 @@ void main() {
         'temperature': 0.5,
         'seed': 1,
         'user': 'u',
+        'verbosity': 'low',
         'stream': true,
         'stream_options': const {'include_usage': true},
       };
@@ -436,12 +448,18 @@ void main() {
       await ai.generate(
         model: openAI.model('gpt-4o'),
         prompt: 'hi',
-        config: OpenAIChatOptions(seed: 3, user: 'u', maxTokens: 10),
+        config: OpenAIChatOptions(
+          seed: 3,
+          user: 'u',
+          maxTokens: 10,
+          verbosity: 'low',
+        ),
       );
 
       final body = chatBodyOf(requests);
       expect(body['seed'], 3);
       expect(body['user'], 'u');
+      expect(body['verbosity'], 'low');
       expect(body['max_completion_tokens'], 10);
       expect(body, isNot(contains('random_seed')));
     });

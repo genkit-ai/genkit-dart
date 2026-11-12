@@ -195,8 +195,8 @@ final xaiProvider = OpenAIProvider(
 /// Mistral, which takes OpenAI's request shape with a handful of fields
 /// renamed or missing.
 ///
-/// Mistral's request schema is closed: a field it does not define is a 400,
-/// not something it ignores. So the token limit goes out as `max_tokens`, and
+/// Mistral's request schema is closed: a field it does not define is a 422
+/// validation error, not something it ignores. So the token limit goes out as `max_tokens`, and
 /// [mistralChatBody] renames or drops what the SDK writes in OpenAI's spelling.
 /// `json_schema`, tools and image input are sent unchanged.
 final mistralProvider = OpenAIProvider(
@@ -213,9 +213,9 @@ final mistralProvider = OpenAIProvider(
   reasonsFor: (_) => false,
   embedderIds: knownMistralEmbedderModels,
   // Mistral's `/models` lists models chat completions cannot serve here: the
-  // Magistral reasoning models, whose replies the plugin cannot parse yet, and
-  // the OCR models, which are served by `/v1/ocr`. `resolve` still serves any
-  // id named explicitly.
+  // Magistral reasoning models and Z.ai GLM, which always reply with thinking
+  // chunks the plugin cannot parse yet, and the OCR models, which are served by
+  // `/v1/ocr`. `resolve` still serves any id named explicitly.
   servesModel: _mistralServesModel,
   rewriteChatBody: mistralChatBody,
   usesLegacyMaxTokens: true,
@@ -224,7 +224,7 @@ final mistralProvider = OpenAIProvider(
 /// Rewrites the fields Mistral spells differently or does not define.
 ///
 /// - `seed` goes out as `random_seed`, Mistral's name for it.
-/// - `user` is dropped: Mistral has no such field.
+/// - `user` and `verbosity` are dropped: Mistral has neither field.
 /// - `stream_options` is dropped. The plugin always asks for
 ///   `include_usage` on a stream, and Mistral defines no `stream_options`.
 ///
@@ -243,11 +243,13 @@ Map<String, dynamic> mistralChatBody(Map<String, dynamic> body) {
 /// Whether a model id Mistral lists is one this plugin can serve.
 bool _mistralServesModel(String model) {
   final id = model.toLowerCase();
-  return !id.contains('magistral') && !id.contains('ocr');
+  return !id.contains('magistral') &&
+      !id.contains('zai-glm') &&
+      !id.contains('ocr');
 }
 
 /// Request fields that never reach Mistral under their OpenAI names.
-const _mistralDroppedFields = {'seed', 'user', 'stream_options'};
+const _mistralDroppedFields = {'seed', 'user', 'verbosity', 'stream_options'};
 
 /// Adds the `thinking` object DeepSeek derives its mode from.
 ///
