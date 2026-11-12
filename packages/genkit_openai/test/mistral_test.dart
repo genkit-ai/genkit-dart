@@ -15,7 +15,8 @@
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
 import 'package:genkit_openai/src/known_mistral_models.dart';
-import 'package:genkit_openai/src/known_models.dart' show multimodalSupports;
+import 'package:genkit_openai/src/known_models.dart'
+    show OpenAIModelStage, multimodalSupports;
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/provider.dart';
 import 'package:http/http.dart' as http;
@@ -54,6 +55,41 @@ void main() {
       }
     });
 
+    test('Large 4 and the Ministral 3 models are curated with image input', () {
+      for (final id in [
+        'mistral-large-4',
+        'ministral-14b-latest',
+        'ministral-8b-latest',
+        'ministral-3b-latest',
+      ]) {
+        final info = mistralModelInfoFor(id);
+        expect(info.label, isNotNull, reason: id);
+        expect(info.supports?['media'], isTrue, reason: id);
+        expect(info.stage, 'stable', reason: id);
+        expect(knownMistralChatModels, contains(id));
+      }
+    });
+
+    test('the aliases of deprecated models are legacy, and still listed', () {
+      // Mistral still serves Large 3 and Medium 3.5 until their announced
+      // retirement, which is what `legacy` means in this vocabulary.
+      for (final model in [
+        KnownMistralModel.mistralLarge,
+        KnownMistralModel.mistralMedium,
+      ]) {
+        expect(model.stage, OpenAIModelStage.legacy, reason: model.id);
+        expect(model.info.stage, 'legacy', reason: model.id);
+        expect(knownMistralChatModels, contains(model.id));
+      }
+    });
+
+    test('only a deprecated entry is withheld from the listing', () {
+      expect(knownMistralChatModels, [
+        for (final model in KnownMistralModel.values)
+          if (model.stage != OpenAIModelStage.deprecated) model.id,
+      ]);
+    });
+
     test('the Magistral models are not curated', () {
       // They answer with `thinking` chunks in a content array, which the
       // plugin does not read yet.
@@ -68,13 +104,18 @@ void main() {
       );
     });
 
-    test('an uncurated name claims only what every Mistral model has', () {
-      final info = mistralModelInfoFor('ministral-8b-latest');
+    test('an uncurated name claims neither tools nor JSON output', () {
+      // Mistral lists both per model card, not API-wide. Same as the JS
+      // plugin's fallback.
+      final info = mistralModelInfoFor('open-mistral-nemo');
 
       expect(info.label, isNull);
-      expect(info.supports?['tools'], isTrue);
-      expect(info.supports?['constrained'], isTrue);
+      expect(info.supports?['multiturn'], isTrue);
+      expect(info.supports?['systemRole'], isTrue);
+      expect(info.supports?['tools'], isFalse);
       expect(info.supports?['media'], isFalse);
+      expect(info.supports?['output'], ['text']);
+      expect(info.supports, isNot(contains('constrained')));
     });
 
     test('curated metadata is not mutable through the returned info', () {
@@ -212,6 +253,8 @@ void main() {
           .map((m) => m.name)
           .toSet();
 
+      expect(models, contains('mistral/mistral-large-4'));
+      expect(models, contains('mistral/ministral-14b-latest'));
       expect(models, contains('mistral/mistral-large-latest'));
       expect(models, contains('mistral/codestral-latest'));
       expect(models.any((n) => n.contains('gpt-')), isFalse);

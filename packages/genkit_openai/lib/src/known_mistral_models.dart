@@ -21,8 +21,9 @@ const String defaultMistralNamespace = 'mistral';
 
 /// [multimodalSupports] without image input.
 ///
-/// Mistral takes `json_schema` structured outputs on every chat model, so
-/// `constrained` stays: the only axis its catalog differs on is vision.
+/// Every curated text model takes `json_schema` structured outputs and
+/// function calling (both are listed per model on Mistral's model cards), so
+/// `constrained` stays: the only axis the catalog differs on is vision.
 const mistralTextSupports = <String, dynamic>{
   'multiturn': true,
   'systemRole': true,
@@ -33,33 +34,87 @@ const mistralTextSupports = <String, dynamic>{
   'constrained': true,
 };
 
+/// What an uncurated Mistral model is described as: chat with a system role,
+/// and nothing else.
+///
+/// Mistral lists structured outputs and function calling per model card, not
+/// API-wide, so neither is claimed for a name the catalog does not know. This
+/// matches the JS plugin's fallback.
+const mistralUnknownSupports = <String, dynamic>{
+  'multiturn': true,
+  'systemRole': true,
+  'tools': false,
+  'media': false,
+  'output': ['text'],
+};
+
 /// Mistral models the plugin curates capability metadata for.
 ///
-/// Curated by their `-latest` aliases, which Mistral repoints at each new
-/// release, rather than by dated snapshot: the aliases are what Mistral's own
-/// samples use, and they do not go stale the way a snapshot list does. Any
-/// other name still resolves, taking [dynamicMistralModelInfo].
+/// Curated mostly by their `-latest` aliases, which are what Mistral's own
+/// samples use. An alias is not guaranteed to move on, though: Mistral Large 4
+/// has no `-latest` alias, so `mistral-large-latest` still points at Large 3,
+/// and `mistral-medium-latest` at Medium 3.5. Both are deprecated, with
+/// retirement announced for 4/30/2027, and are curated as
+/// [OpenAIModelStage.legacy] until then. Any other name still resolves,
+/// taking [dynamicMistralModelInfo].
 ///
 /// The Magistral reasoning models are deliberately absent. They answer with
 /// `content` as an array of `thinking` and `text` chunks, which the plugin
 /// does not read yet, so listing them would offer models whose every reply
 /// fails to parse.
 ///
-/// Catalog: https://docs.mistral.ai/getting-started/models
+/// Catalog: https://docs.mistral.ai/models
 enum KnownMistralModel {
-  /// Mistral's flagship general-purpose model. Image input.
-  mistralLarge('mistral-large-latest', 'Mistral Large', multimodalSupports),
+  /// Mistral Large 4, the current flagship. Image input. No `-latest` alias.
+  ///
+  /// It takes no `none` reasoning effort, and Mistral does not document what
+  /// it answers when no effort is sent. If that is thinking chunks, it has to
+  /// leave the catalog until the plugin reads them.
+  mistralLarge4('mistral-large-4', 'Mistral Large 4', multimodalSupports),
 
-  /// Mistral Medium. Image input.
-  mistralMedium('mistral-medium-latest', 'Mistral Medium', multimodalSupports),
-
-  /// Mistral Small. Image input.
+  /// Mistral Small, currently Small 4. Image input.
   mistralSmall('mistral-small-latest', 'Mistral Small', multimodalSupports),
 
-  /// Codestral, the coding model. Text only.
-  codestral('codestral-latest', 'Codestral', mistralTextSupports);
+  /// Ministral 3 14B. Image input.
+  ministral14b('ministral-14b-latest', 'Ministral 14B', multimodalSupports),
 
-  const KnownMistralModel(this.id, this.label, this.supports);
+  /// Ministral 3 8B. Image input.
+  ministral8b('ministral-8b-latest', 'Ministral 8B', multimodalSupports),
+
+  /// Ministral 3 3B. Image input.
+  ministral3b('ministral-3b-latest', 'Ministral 3B', multimodalSupports),
+
+  /// Codestral, the coding model. Text only.
+  codestral('codestral-latest', 'Codestral', mistralTextSupports),
+
+  /// Mistral Large 3, which this alias still points at. Image input.
+  ///
+  /// Deprecated by Mistral in favour of Large 4, still served until its
+  /// announced retirement.
+  mistralLarge(
+    'mistral-large-latest',
+    'Mistral Large',
+    multimodalSupports,
+    stage: OpenAIModelStage.legacy,
+  ),
+
+  /// Mistral Medium 3.5, which this alias points at. Image input.
+  ///
+  /// Deprecated by Mistral in favour of Large 4, still served until its
+  /// announced retirement.
+  mistralMedium(
+    'mistral-medium-latest',
+    'Mistral Medium',
+    multimodalSupports,
+    stage: OpenAIModelStage.legacy,
+  );
+
+  const KnownMistralModel(
+    this.id,
+    this.label,
+    this.supports, {
+    this.stage = OpenAIModelStage.stable,
+  });
 
   /// Bare model name (no plugin prefix).
   final String id;
@@ -72,8 +127,10 @@ enum KnownMistralModel {
 
   /// Lifecycle stage, in the same vocabulary the OpenAI catalog uses.
   ///
-  /// Not a constructor parameter: an alias never retires, it is repointed.
-  OpenAIModelStage get stage => OpenAIModelStage.stable;
+  /// What Mistral calls deprecated (still served, retirement announced) is
+  /// [OpenAIModelStage.legacy] here. [OpenAIModelStage.deprecated] is for a
+  /// model Mistral no longer serves, which drops it from the listing.
+  final OpenAIModelStage stage;
 
   /// Capability metadata registered for this model.
   ModelInfo get info => _curatedInfo[this]!;
@@ -122,11 +179,9 @@ KnownMistralModel? knownMistralModelFor(String modelName) =>
 
 /// Capability metadata for a Mistral model with no curated entry.
 ///
-/// Claims only what every Mistral chat model has: multi-turn, a system role,
-/// tools, and JSON schema output. Image input is withheld because the coding
-/// and edge models lack it.
+/// See [mistralUnknownSupports].
 final ModelInfo dynamicMistralModelInfo = ModelInfo(
-  supports: Map.unmodifiable(mistralTextSupports),
+  supports: Map.unmodifiable(mistralUnknownSupports),
 );
 
 /// Capability metadata for any Mistral model name, as `modelInfoFor` does for
