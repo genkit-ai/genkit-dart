@@ -399,9 +399,9 @@ class XaiPluginHandle {
 ///
 /// Mistral speaks the OpenAI Chat Completions API, so this is the same plugin
 /// as [openAI] pointed at `https://api.mistral.ai/v1` with Mistral's key and
-/// catalog. Mistral rejects request fields it does not define, so the few it
-/// spells differently - `random_seed`, `max_tokens` - are rewritten, and the
-/// ones it lacks are dropped.
+/// catalog. Mistral rejects request fields it does not define, so `seed` is
+/// renamed to `random_seed`, the limit goes out as `max_tokens`, and fields it
+/// lacks are dropped.
 ///
 /// ```dart
 /// final ai = Genkit(plugins: [mistral()]);

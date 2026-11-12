@@ -563,10 +563,13 @@ Not handled yet:
 
 - Magistral, and any model asked for a `reasoningEffort` that makes it think,
   answers with `content` as an array of `thinking` and `text` chunks. The
-  plugin does not read that shape, so those replies fail. The Magistral models
-  are left out of the catalog for that reason.
-- The embedder `dimensions` option is sent as `dimensions`. Mistral calls it
-  `output_dimension`, so leave it unset.
+  plugin does not read that shape, so those replies would fail. For that
+  reason the Magistral models are left out of the catalog and out of the
+  discovered listing, and `reasoningEffort` is refused before the request goes
+  out.
+- The embedder `dimensions` option is sent as `dimensions`; Mistral calls it
+  `output_dimension`. The embedder `user` option is sent too, and Mistral has
+  no such field. Leave both unset.
 
 ## Reasoning
 
