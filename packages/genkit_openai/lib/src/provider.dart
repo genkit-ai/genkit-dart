@@ -18,6 +18,7 @@ import '../genkit_openai.dart' show defaultOpenAINamespace;
 import 'chat_body_client.dart';
 import 'known_deepseek_models.dart';
 import 'known_embedders.dart';
+import 'known_mistral_models.dart';
 import 'known_models.dart';
 import 'known_xai_models.dart';
 import 'speech.dart' show knownSpeechModels;
@@ -173,7 +174,7 @@ final deepSeekProvider = OpenAIProvider(
   supportsJsonSchema: false,
 );
 
-/// xAI, which is the closest of the three to OpenAI: the same request fields,
+/// xAI, which is the closest of the curated providers to OpenAI: the same request fields,
 /// the same `json_schema` structured outputs, a different host and key.
 ///
 /// The reasoning vocabulary varies per model there - 4.3 takes `none` and
@@ -189,6 +190,50 @@ final xaiProvider = OpenAIProvider(
   reasonsFor: (model) => knownXaiModelFor(model)?.reasons,
   servesModel: (model) => !model.toLowerCase().contains('multi-agent'),
 );
+
+/// Mistral, which takes OpenAI's request shape with a handful of fields
+/// renamed or missing.
+///
+/// Mistral's request schema is closed: a field it does not define is a 400,
+/// not something it ignores. So the token limit goes out as `max_tokens`, and
+/// [mistralChatBody] renames or drops what the SDK writes in OpenAI's spelling.
+/// `json_schema`, tools and image input are sent unchanged.
+final mistralProvider = OpenAIProvider(
+  defaultNamespace: defaultMistralNamespace,
+  defaultBaseUrl: 'https://api.mistral.ai/v1',
+  apiKeyEnvVar: 'MISTRAL_API_KEY',
+  infoFor: (model, {required compat}) =>
+      compat ? compatMistralModelInfo(model) : mistralModelInfoFor(model),
+  catalogIds: knownMistralChatModels,
+  // No claim. Mistral takes `reasoning_effort` on some non-Magistral models
+  // too, and which ones is the API's call, as it is for a compat backend.
+  reasonsFor: (_) => null,
+  embedderIds: knownMistralEmbedderModels,
+  rewriteChatBody: mistralChatBody,
+  usesLegacyMaxTokens: true,
+);
+
+/// Rewrites the fields Mistral spells differently or does not define.
+///
+/// - `seed` goes out as `random_seed`, Mistral's name for it.
+/// - `user` is dropped: Mistral has no such field.
+/// - `stream_options` is dropped. The plugin always asks for
+///   `include_usage` on a stream, and Mistral defines no `stream_options`.
+///
+/// Everything else passes through untouched.
+///
+/// https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post
+Map<String, dynamic> mistralChatBody(Map<String, dynamic> body) {
+  final seed = body['seed'];
+  return {
+    for (final entry in body.entries)
+      if (!_mistralDroppedFields.contains(entry.key)) entry.key: entry.value,
+    'random_seed': ?seed,
+  };
+}
+
+/// Request fields that never reach Mistral under their OpenAI names.
+const _mistralDroppedFields = {'seed', 'user', 'stream_options'};
 
 /// Adds the `thinking` object DeepSeek derives its mode from.
 ///

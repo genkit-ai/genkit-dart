@@ -5,9 +5,10 @@ drives OpenAI's own models and any host that implements the same API — Groq,
 Together AI, OpenRouter and friends — by pointing it at a different
 [`baseUrl`](#openai-compatible-apis).
 
-[DeepSeek](#deepseek) and [xAI](#xai) get first-class handles of their own,
-`deepSeek()` and `xAI()`, which carry the key, catalog and request differences
-each host needs rather than leaving them to you.
+[DeepSeek](#deepseek), [xAI](#xai) and [Mistral](#mistral) get first-class
+handles of their own, `deepSeek()`, `xAI()` and `mistral()`, which carry the
+key, catalog and request differences each host needs rather than leaving them
+to you.
 
 > **Building with a coding agent? Install the Genkit Dart skill first.**
 >
@@ -228,7 +229,7 @@ final response = await ai.generate(
 
 To describe a model that serves a known one under another name, start from the
 curated entry with `modelInfoFor` (or `xaiModelInfoFor` /
-`deepSeekModelInfoFor`):
+`deepSeekModelInfoFor` / `mistralModelInfoFor`):
 
 ```dart
 CustomModelDefinition(
@@ -526,6 +527,46 @@ to the API.
 
 The image and video models (`grok-imagine-*`) are not listed: this plugin
 serves chat generation.
+
+## Mistral
+
+Mistral speaks the same API, with a stricter request schema: a field it does
+not define is rejected rather than ignored.
+
+```dart
+final ai = Genkit(plugins: [mistral()]);
+
+final response = await ai.generate(
+  model: mistral.model('mistral-small-latest'),
+  prompt: 'Hello!',
+);
+```
+
+The key comes from `MISTRAL_API_KEY`. The plugin curates the `-latest` aliases
+of Mistral Large, Medium and Small (image input, tools, JSON schema) and
+Codestral (text only), plus the `mistral-embed` and `codestral-embed`
+embedders. Any other name resolves too, described as text-only.
+
+Four things differ on the wire, and the plugin handles each:
+
+- The token limit goes out as `max_tokens`. Mistral has no
+  `max_completion_tokens`.
+- `seed` goes out as `random_seed`.
+- `user` is dropped. Mistral has no such field.
+- `stream_options` is dropped from streaming requests. The plugin asks every
+  other host for usage that way, and Mistral defines no `stream_options`.
+
+Tools, `toolChoice`, JSON schema structured output and image input go out
+unchanged.
+
+Not handled yet:
+
+- Magistral, and any model asked for a `reasoningEffort` that makes it think,
+  answers with `content` as an array of `thinking` and `text` chunks. The
+  plugin does not read that shape, so those replies fail. The Magistral models
+  are left out of the catalog for that reason.
+- The embedder `dimensions` option is sent as `dimensions`. Mistral calls it
+  `output_dimension`, so leave it unset.
 
 ## Reasoning
 

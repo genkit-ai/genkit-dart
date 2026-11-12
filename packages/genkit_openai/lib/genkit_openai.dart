@@ -20,6 +20,7 @@ import 'package:http/http.dart' as http;
 import 'src/chat.dart' as chat;
 import 'src/embed.dart' as embed;
 import 'src/known_deepseek_models.dart';
+import 'src/known_mistral_models.dart';
 import 'src/known_xai_models.dart';
 import 'src/openai_plugin.dart';
 import 'src/provider.dart';
@@ -36,6 +37,8 @@ export 'src/embed.dart' show OpenAIEmbedderOptions;
 // what those return, never their signatures.
 export 'src/known_deepseek_models.dart'
     show deepSeekModelInfoFor, defaultDeepSeekNamespace;
+export 'src/known_mistral_models.dart'
+    show defaultMistralNamespace, mistralModelInfoFor;
 export 'src/known_models.dart' show modelInfoFor;
 export 'src/known_xai_models.dart' show defaultXaiNamespace, xaiModelInfoFor;
 export 'src/speech.dart' show OpenAISpeechOptions;
@@ -388,6 +391,83 @@ class XaiPluginHandle {
     return modelRef(
       '$namespace/$name',
       customOptions: chat.chatModelOptionsSchema(),
+    );
+  }
+}
+
+/// Public constant handle for the Mistral plugin.
+///
+/// Mistral speaks the OpenAI Chat Completions API, so this is the same plugin
+/// as [openAI] pointed at `https://api.mistral.ai/v1` with Mistral's key and
+/// catalog. Mistral rejects request fields it does not define, so the few it
+/// spells differently - `random_seed`, `max_tokens` - are rewritten, and the
+/// ones it lacks are dropped.
+///
+/// ```dart
+/// final ai = Genkit(plugins: [mistral()]);
+///
+/// final response = await ai.generate(
+///   model: mistral.model('mistral-small-latest'),
+///   prompt: 'Hello!',
+/// );
+/// ```
+///
+/// The key falls back to the `MISTRAL_API_KEY` environment variable.
+const MistralPluginHandle mistral = MistralPluginHandle();
+
+/// Handle class for configuring and referencing Mistral models.
+///
+/// Typically accessed via the top-level [mistral] constant rather than
+/// instantiated directly.
+class MistralPluginHandle {
+  /// Creates a new [MistralPluginHandle].
+  const MistralPluginHandle();
+
+  /// Create the plugin instance.
+  ///
+  /// [baseUrl] defaults to Mistral's own host; pointing it elsewhere keeps
+  /// Mistral's capabilities and request rewrites but drops its deployment
+  /// details, as it does for [openAI].
+  GenkitPlugin call({
+    String name = defaultMistralNamespace,
+    String? apiKey,
+    OpenAIApiKeyProvider? apiKeyProvider,
+    String? baseUrl,
+    List<CustomModelDefinition>? models,
+    Map<String, String>? headers,
+    http.Client? httpClient,
+  }) {
+    return OpenAIPlugin(
+      name: name,
+      apiKey: apiKey,
+      apiKeyProvider: apiKeyProvider,
+      baseUrl: baseUrl,
+      customModels: models ?? const [],
+      headers: headers,
+      httpClient: httpClient,
+      provider: mistralProvider,
+    );
+  }
+
+  /// Reference to a Mistral model.
+  ModelRef<chat.OpenAIChatOptions> model(
+    String name, {
+    String namespace = defaultMistralNamespace,
+  }) {
+    return modelRef(
+      '$namespace/$name',
+      customOptions: chat.chatModelOptionsSchema(),
+    );
+  }
+
+  /// Reference to a Mistral embedding model, e.g. `mistral-embed`.
+  EmbedderRef<embed.OpenAIEmbedderOptions> embedder(
+    String name, {
+    String namespace = defaultMistralNamespace,
+  }) {
+    return embedderRef(
+      '$namespace/$name',
+      customOptions: embed.embedderOptionsSchema(),
     );
   }
 }
