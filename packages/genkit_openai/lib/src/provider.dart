@@ -174,8 +174,9 @@ final deepSeekProvider = OpenAIProvider(
   supportsJsonSchema: false,
 );
 
-/// xAI, which is the closest of the curated providers to OpenAI: the same request fields,
-/// the same `json_schema` structured outputs, a different host and key.
+/// xAI, which is the closest of the curated providers to OpenAI: the same
+/// request fields, the same `json_schema` structured outputs, a different host
+/// and key.
 ///
 /// The reasoning vocabulary varies per model there - 4.3 takes `none` and
 /// defaults to `low`, 4.6 takes neither - and which pairing works is left to
@@ -205,10 +206,17 @@ final mistralProvider = OpenAIProvider(
   infoFor: (model, {required compat}) =>
       compat ? compatMistralModelInfo(model) : mistralModelInfoFor(model),
   catalogIds: knownMistralChatModels,
-  // No claim. Mistral takes `reasoning_effort` on some non-Magistral models
-  // too, and which ones is the API's call, as it is for a compat backend.
-  reasonsFor: (_) => null,
+  // Refused on every model for now. Mistral does take `reasoning_effort`, but
+  // a model that thinks answers with `content` as an array of `thinking` and
+  // `text` chunks, which the plugin cannot parse yet. Failing before the
+  // request beats failing on the reply.
+  reasonsFor: (_) => false,
   embedderIds: knownMistralEmbedderModels,
+  // Mistral's `/models` lists models chat completions cannot serve here: the
+  // Magistral reasoning models, whose replies the plugin cannot parse yet, and
+  // the OCR models, which are served by `/v1/ocr`. `resolve` still serves any
+  // id named explicitly.
+  servesModel: _mistralServesModel,
   rewriteChatBody: mistralChatBody,
   usesLegacyMaxTokens: true,
 );
@@ -230,6 +238,12 @@ Map<String, dynamic> mistralChatBody(Map<String, dynamic> body) {
       if (!_mistralDroppedFields.contains(entry.key)) entry.key: entry.value,
     'random_seed': ?seed,
   };
+}
+
+/// Whether a model id Mistral lists is one this plugin can serve.
+bool _mistralServesModel(String model) {
+  final id = model.toLowerCase();
+  return !id.contains('magistral') && !id.contains('ocr');
 }
 
 /// Request fields that never reach Mistral under their OpenAI names.

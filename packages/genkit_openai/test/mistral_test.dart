@@ -130,6 +130,30 @@ void main() {
       expect(requests.single.url.path, '/v1/chat/completions');
     });
 
+    test('another host is dialled exactly as written', () async {
+      // Nothing is canonicalised for a host we do not recognise: the caller's
+      // gateway may well serve the path they gave.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [
+          mistral(
+            apiKey: 'm-key',
+            baseUrl: 'https://gateway.test/mistral',
+            httpClient: recordingClient(requests),
+          ),
+        ],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: mistral.model('mistral-small-latest'),
+        prompt: 'hi',
+      );
+
+      expect(requests.single.url.host, 'gateway.test');
+      expect(requests.single.url.path, '/mistral/chat/completions');
+    });
+
     test('reads MISTRAL_API_KEY, and says so when it is missing', () async {
       final requests = <http.Request>[];
       final fromEnv = Genkit(
@@ -213,8 +237,10 @@ void main() {
       expect(info.containsKey('versions'), isFalse);
     });
 
-    test('takes an effort on any model, leaving the call to Mistral', () async {
-      // Nothing is curated as non-reasoning, so nothing is refused locally.
+    test('refuses an effort before the request goes out', () async {
+      // A model that thinks answers with `thinking` chunks the plugin cannot
+      // parse, so the effort is refused locally rather than spent on a reply
+      // that fails.
       final requests = <http.Request>[];
       final ai = Genkit(
         plugins: [mistral(apiKey: 'k', httpClient: recordingClient(requests))],
@@ -227,8 +253,43 @@ void main() {
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );
 
-      expect(response.finishReason, isNot(FinishReason.failed));
-      expect(chatBodyOf(requests)['reasoning_effort'], 'high');
+      expect(response.finishReason, FinishReason.failed);
+      expect(
+        response.error?.message,
+        contains('mistral-small-latest does not accept reasoningEffort'),
+      );
+      expect(requests, isEmpty);
+    });
+
+    test('Magistral and OCR are filtered out of discovery', () async {
+      // Mistral lists them, so leaving them out of the curated catalog is not
+      // enough: discovery would put them straight back.
+      final plugin = OpenAIPlugin(
+        provider: mistralProvider,
+        apiKey: 'm-key',
+        httpClient: recordingClient(
+          [],
+          modelIds: [
+            'mistral-small-latest',
+            'magistral-medium-latest',
+            'magistral-small-2509',
+            'mistral-ocr-latest',
+          ],
+        ),
+      );
+
+      final names = (await plugin.list()).map((m) => m.name).toSet();
+
+      expect(names, contains('mistral/mistral-small-latest'));
+      expect(names, isNot(contains('mistral/magistral-medium-latest')));
+      expect(names, isNot(contains('mistral/magistral-small-2509')));
+      expect(names, isNot(contains('mistral/mistral-ocr-latest')));
+    });
+
+    test('a name it declines still resolves when asked for', () {
+      final plugin = OpenAIPlugin(provider: mistralProvider, apiKey: 'm-key');
+
+      expect(plugin.resolve(.model, 'magistral-medium-latest'), isNotNull);
     });
   });
 
