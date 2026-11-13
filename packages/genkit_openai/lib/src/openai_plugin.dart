@@ -435,9 +435,10 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Capability metadata for [modelName] on this plugin instance.
   ///
-  /// A compat backend keeps the curated capabilities — a proxy serving
-  /// `gpt-3.5-turbo` is serving that model, and calling it multimodal would
-  /// invite image parts it rejects — but not OpenAI's deployment details. See
+  /// A compat backend keeps the curated capabilities, retired models included:
+  /// a proxy serving `gpt-3.5-turbo` is serving that model, and calling it
+  /// multimodal would invite image parts it rejects. It does not keep OpenAI's
+  /// deployment details. See
   /// `compatModelInfo` in `known_models.dart`.
   ModelInfo _infoFor(String modelName) =>
       provider.infoFor(modelName, compat: !_ownHost);

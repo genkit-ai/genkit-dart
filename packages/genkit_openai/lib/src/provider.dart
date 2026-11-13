@@ -47,8 +47,8 @@ final class OpenAIProvider {
   /// stage, snapshot list — describe something the backend is not.
   final ModelInfo Function(String model, {required bool compat}) infoFor;
 
-  /// Whether the named model thinks before answering, or `null` when the name
-  /// is not curated and so has no claim to check.
+  /// Whether the named model thinks before answering, or `null` when there is
+  /// no claim to check.
   final bool? Function(String model) reasonsFor;
 
   /// Whether the host needs previous turns' reasoning replayed on a request
@@ -145,10 +145,11 @@ final openAIProvider = OpenAIProvider(
   infoFor: (model, {required compat}) =>
       compat ? compatModelInfo(model) : modelInfoFor(model),
   catalogIds: knownChatModels,
-  reasonsFor: (model) => knownOpenAIModelFor(model)?.reasons,
+  reasonsFor: openAIModelReasons,
   embedderIds: knownEmbedderModels,
   speechIds: knownSpeechModels,
   transcriptionIds: knownTranscriptionModels,
+  servesModel: openAIChatCompletionsServes,
 );
 
 /// DeepSeek, which speaks the same protocol with a few differences the plugin

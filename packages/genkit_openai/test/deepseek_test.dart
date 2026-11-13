@@ -536,7 +536,7 @@ void main() {
       addTearDown(ai.shutdown);
 
       await ai.generate(
-        model: openAI.model('o4-mini'),
+        model: openAI.model('gpt-5.6-sol'),
         prompt: 'hi',
         config: OpenAIChatOptions(reasoningEffort: 'medium'),
       );

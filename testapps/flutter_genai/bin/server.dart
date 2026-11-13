@@ -54,7 +54,7 @@ void main() async {
     fn: (RecipeRequest request, context) async {
       final model = switch (request.provider) {
         'google' => googleAI.gemini('gemini-flash-latest'),
-        'openai' => openAI.model('gpt-4o'),
+        'openai' => openAI.model('gpt-5.5'),
         _ => anthropic.model('claude-sonnet-4-5'),
       };
 
@@ -78,7 +78,7 @@ void main() async {
   final geminiModel = googleAI(
     apiKey: googleApiKey,
   ).model('gemini-flash-latest');
-  final openAiModel = openAI(apiKey: openAiApiKey).model('gpt-4o');
+  final openAiModel = openAI(apiKey: openAiApiKey).model('gpt-5.5');
   final anthropicModel = anthropic(
     apiKey: anthropicApiKey,
   ).model('claude-sonnet-4-5');
@@ -86,7 +86,7 @@ void main() async {
   final router = Router();
 
   router.post('/googleai/gemini-flash-latest', shelfHandler(geminiModel));
-  router.post('/openai/gpt-4o', shelfHandler(openAiModel));
+  router.post('/openai/gpt-5.5', shelfHandler(openAiModel));
   router.post('/anthropic/claude-sonnet-4-5', shelfHandler(anthropicModel));
   router.post('/serverFlow', shelfHandler(serverFlow));
   router.get('/health', (Request request) => Response.ok('OK'));

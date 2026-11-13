@@ -122,7 +122,7 @@ typedef OpenAIApiKeyProvider = FutureOr<String> Function();
 ///
 /// // Reference a model
 /// final response = await ai.generate(
-///   model: openAI.model('gpt-4o'),
+///   model: openAI.model('gpt-6-luna'),
 ///   prompt: 'Hello!',
 /// );
 /// ```
