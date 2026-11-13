@@ -17,8 +17,8 @@ library;
 
 /// The id of the app's custom A2UI catalog.
 ///
-/// The client registers its widgets under this id (see `_catalog` in
-/// `lib/main.dart`) and the server registers the model-facing catalog under the
+/// The client registers its widgets under this id (see `weatherCatalog` in
+/// `lib/catalog.dart`) and the server registers the model-facing catalog under the
 /// same id (`../server/lib/shared.dart`). The client and server are separate
 /// packages so the client never depends on `genkit_a2ui`; the cost is that this
 /// one string is duplicated, so keep both copies in sync. Otherwise surfaces

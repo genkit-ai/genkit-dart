@@ -12,7 +12,7 @@ middleware: add `a2ui()` to an agent's `use` list and nothing else changes.
 
 [Documentation](https://genkit.dev) • [API Reference](https://pub.dev/packages/genkit_a2ui) • [A2UI Specification](https://a2ui.org/)
 
-![An A2UI weather card rendered by a Flutter genui client.](https://raw.githubusercontent.com/genkit-ai/genkit-dart/main/packages/genkit_a2ui/doc/a2ui.png)
+![An A2UI weather card rendered by a Flutter client.](https://raw.githubusercontent.com/genkit-ai/genkit-dart/main/packages/genkit_a2ui/doc/a2ui.png)
 
 > Status: experimental.
 
@@ -34,24 +34,20 @@ Add the plugin to the package that runs your agent (it is server-side only):
 dart pub add genkit_a2ui
 ```
 
-Keep it out of a genui app's pubspec: genkit_a2ui depends on `a2ui_core` 0.7
-and genui 0.10.x on `a2ui_core` 0.1, so the two cannot resolve together. Run
-the agent in its own package (a server, as in the sample). genui is
-discontinued and will not move to a newer `a2ui_core`, so an app that hosts
-the agent in-process should use a renderer built on `a2ui_core` 0.7 instead,
-such as [`a2ui_flutter`](https://pub.dev/packages/a2ui_flutter), which can
-share a pubspec with `genkit_a2ui`.
-
 The client does not depend on `genkit_a2ui`. To render surfaces it needs
 `package:genkit` and a renderer. The Dart examples below use
-[`genui`](https://pub.dev/packages/genui), the Flutter renderer for A2UI
-surfaces, which takes messages typed by `a2ui_core`. Use genui 0.10.3 or later:
-earlier versions use a different id for the basic catalog and render blank
-surfaces.
+[`a2ui_flutter`](https://pub.dev/packages/a2ui_flutter), the Flutter renderer
+for A2UI surfaces, with [`a2ui_core`](https://pub.dev/packages/a2ui_core),
+which processes the messages and holds each surface's state:
 
 ```bash
-flutter pub add genkit 'genui:^0.10.3' a2ui_core
+flutter pub add genkit a2ui_flutter a2ui_core url_launcher
 ```
+
+An app that hosts the agent in-process can depend on both `genkit_a2ui` and
+`a2ui_flutter`: both build on `a2ui_core` 0.7. `a2ui_core` is pre-1.0 and
+still makes breaking releases, so a server package of its own (as in the
+sample) keeps the agent from holding back the renderer version.
 
 ## Quickstart
 
@@ -101,11 +97,9 @@ it can never hold back the renderer version you use.
 Copy these two helpers into your app:
 
 ```dart
-import 'dart:convert';
-
+import 'package:a2ui_core/a2ui_core.dart'
+    show ActionMessage, RendererToAgentMessagePayload;
 import 'package:genkit/client.dart';
-// genui also exports `Part`/`DataPart`, so take only what is needed.
-import 'package:genui/genui.dart' show ChatMessage, UiPartExtension;
 
 const a2uiMimeType = 'application/a2ui+json';
 
@@ -122,64 +116,63 @@ Iterable<Map<String, dynamic>> a2uiMessagesFrom(List<Part>? parts) sync* {
   }
 }
 
-/// Turns a genui surface submission (e.g. a button press) into the next agent
-/// input, or null when it carries no user action: genui also reports renderer
-/// errors through `onSubmit`, and those are not turns. genui already emits
-/// spec-shaped `{version, action}` messages, so they are forwarded untouched.
-Message? a2uiSubmitToMessage(ChatMessage submit) {
-  final actions = <Map<String, dynamic>>[
-    for (final part in submit.parts)
-      if (part.asUiInteractionPart case final ui?)
-        if (_decodeJson(ui.interaction) case final Map<String, dynamic> m
-            when m.containsKey('action'))
-          m,
-  ];
-  if (actions.isEmpty) return null;
-  return Message(
-    role: Role.user,
-    content: [
-      DataPart(
-        data: {'messages': actions},
-        metadata: {'mimeType': a2uiMimeType},
-      ),
-    ],
-  );
-}
-
-Object? _decodeJson(String source) {
-  try {
-    return jsonDecode(source);
-  } on FormatException {
-    return null;
-  }
-}
+/// Wraps a surface action (e.g. a button press) as the next agent input.
+///
+/// `a2ui_core` writes the `{messages: [...]}` wrapper the agent reads, with
+/// the action in a spec-shaped `{version, action}` message, so it is forwarded
+/// as is.
+Message a2uiActionToMessage(ActionMessage action) => Message(
+  role: .user,
+  content: [
+    DataPart(
+      data: RendererToAgentMessagePayload.of(action).toJson(),
+      metadata: {'mimeType': a2uiMimeType},
+    ),
+  ],
+);
 ```
 
-Then consume the agent with `remoteAgent` and feed each message to
-[`genui`](https://pub.dev/packages/genui):
+Then consume the agent with `remoteAgent` and feed each message to an
+`a2ui_core` `MessageProcessor`, which creates a surface for each
+`createSurface`. [`a2ui_flutter`](https://pub.dev/packages/a2ui_flutter)
+renders one with an `A2uiSurface` widget:
 
 ```dart
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+// The v0.9 edition of the basic components, which is what the agent sends.
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
 import 'package:genkit/experimental_client.dart';
-import 'package:genui/genui.dart' show BasicCatalogItems, SurfaceController;
+import 'package:url_launcher/url_launcher.dart';
 
 final agent = remoteAgent(url: '/api/uiAgent');
 final chat = agent.chat();
 
-// genui registers an empty stub for a catalog id it does not know, so the id
-// must match the catalog the agent uses. This is genui's own basicCatalogId,
-// which is the same URL as the plugin's bundled basic catalog.
-final surfaceController = SurfaceController(
-  catalogs: [BasicCatalogItems.asCatalog()],
+// The renderer rejects a surface whose catalog id it does not hold, so the id
+// must match the catalog the agent uses. `basicCatalog()` has the same id as
+// the plugin's bundled basic catalog.
+final processor = MessageProcessor<ComponentImplementation>(
+  catalogs: [basicCatalog(openUrl: (uri) => launchUrl(uri))],
+  // Deliver actions to `outboundListener` as typed, versioned messages.
+  unifiedOutbound: true,
+  // A surface action (e.g. a button press) becomes the next turn. A real app
+  // should also keep turns from overlapping (the sample ignores presses while
+  // a turn is running).
+  outboundListener: (message) {
+    if (message is ActionMessage) {
+      runTurn(chat.sendStream(message: a2uiActionToMessage(message)));
+    }
+  },
+  onError: (error) => print('A2UI renderer error: ${error.message}'),
 );
 
 Future<void> runTurn(AgentTurn turn) async {
   await for (final chunk in turn.stream) {
     for (final m in a2uiMessagesFrom(chunk.raw.modelChunk?.content)) {
-      // One message the renderer cannot parse (a newer protocol version, say)
+      // One message the renderer cannot take (a newer protocol version, say)
       // must not stop the rest of the turn.
       try {
-        surfaceController.handleMessage(core.A2uiMessage.fromJson(m));
+        processor.processMessages([m]);
       } on Object catch (e) {
         print('skipping an A2UI message: $e');
       }
@@ -187,23 +180,17 @@ Future<void> runTurn(AgentTurn turn) async {
   }
 }
 
-// A surface action (e.g. a button press) becomes the next turn. Listen before
-// the first turn: onSubmit is a broadcast stream, so a press with no listener
-// is lost. A real app should also keep turns from overlapping (the sample
-// ignores presses while a turn is running).
-surfaceController.onSubmit.listen((submit) {
-  if (a2uiSubmitToMessage(submit) case final message?) {
-    runTurn(chat.sendStream(message: message));
-  }
-});
-
 await runTurn(chat.sendStream(text: 'weather in Tokyo'));
+
+// In build, for each surface the processor holds (listen to
+// `processor.model.onSurfaceCreated` and `onSurfaceDeleted` to rebuild):
+A2uiSurface(key: ObjectKey(surface), surface: surface);
 ```
 
 > See
 > [`testapps/a2ui`](https://github.com/genkit-ai/genkit-dart/tree/main/testapps/a2ui)
 > for a complete, runnable sample: a `dart:io` server hosting the agent, plus a
-> Flutter client that renders surfaces with `genui`.
+> Flutter client that renders surfaces with `a2ui_flutter`.
 
 ## Options
 
@@ -263,8 +250,8 @@ component redefined instead.)
 
 **A part can be partial.** Since an a2ui part may carry only updates for a
 surface an earlier part or turn created, clients must feed every message from
-every part, in order, into one renderer (one genui `SurfaceController`) per
-conversation, and render each surface once, keyed by its id. Rendering each
+every part, in order, into one renderer (one `a2ui_core` `MessageProcessor`)
+per conversation, and render each surface once, keyed by its id. Rendering each
 part as its own surface drops the updates.
 
 Unless `validate` is `'off'`, every block is checked against the surfaces the
@@ -317,7 +304,7 @@ turn cancels a repair in flight.
 
 When a user interacts with a surface (for example, presses a `Button`), the
 renderer emits an action. Send it back as an a2ui data part carrying an
-`action` message (`a2uiSubmitToMessage` above does this for genui). The
+`action` message (`a2uiActionToMessage` above does this). The
 middleware turns it into a line the model can read, for example
 `[UI action "refresh" from refreshBtn on surface tokyo-weather context={"city":"Tokyo"}]`, so
 no accompanying text is needed.
@@ -337,16 +324,27 @@ model to do this. Without both steps, the action arrives with an empty `context`
 
 ### Renderer requirements
 
-genui registers an empty stub for a catalog id it does not recognize, so a
-surface whose `catalogId` the client does not hold renders as a blank. The
-client's catalog ids must match the server's: genui's basic catalog (0.10.3 and
-later) already uses the bundled basic catalog's id, and a custom catalog needs the same id on both
-sides:
+The renderer rejects a `createSurface` whose `catalogId` it does not hold (an
+`A2uiCatalogError` from `processMessages`), so that surface never appears. The
+client's catalog ids must match the server's: a2ui_flutter's `basicCatalog()`
+already uses the bundled basic catalog's id, and a custom catalog needs the
+same id on both sides. A v0.9 surface has one catalog, so the client's holds
+the basic components and functions next to your own:
 
 ```dart
-final catalog = BasicCatalogItems.asCatalog().copyWith(
-  newItems: [myCustomItem],
-  catalogId: 'https://my-app.org/catalogs/custom.json',
+import 'package:a2ui_core/a2ui_core.dart' show BasicCatalog;
+import 'package:a2ui_flutter/a2ui_flutter.dart';
+import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
+import 'package:url_launcher/url_launcher.dart';
+
+final catalog = CatalogImplementation(
+  id: 'https://my-app.org/catalogs/custom.json',
+  components: [...BasicComponents.all, myCustomComponent],
+  functions: BasicCatalog.v0_9(
+    openUrl: (uri) => launchUrl(uri),
+  ).functions.values.toList(),
+  themeSchema: BasicComponents.api.themeSchema,
+  definitions: BasicComponents.api.definitions,
 );
 ```
 
@@ -533,7 +531,7 @@ image URL, or Markdown that a renderer turns into formatted content. To keep tha
 safe:
 
 - **The renderer/catalog owns prop sanitization.** Whatever renders a surface
-  (for example `genui` plus your Markdown renderer) is responsible for escaping
+  (for example `a2ui_flutter` plus your Markdown renderer) is responsible for escaping
   and sanitizing prop values before they reach the UI. If you ship a custom
   catalog, its renderer must sanitize its own components' props.
 - **Restrict remote sources at the host.** On the web, serve the app with a
@@ -560,7 +558,8 @@ later for free.
 
 - A **mixed** turn is a message whose content is `[textPart, a2uiPart, ...]`.
 - A **pure-surface** turn is the special case with no text parts.
-- Downstream consumers (the client helpers, `genui`) only ever see a2ui parts.
+- Downstream consumers (the client helpers, the renderer) only ever see a2ui
+  parts.
   "Pure vs mixed" is a prompting choice, not a separate code path.
 
 ### The middleware pipeline
@@ -602,6 +601,57 @@ about prior surfaces and user actions:
 - A user action becomes a line such as
   `[UI action "refresh" from refreshBtn on surface tokyo-weather context={"city":"Tokyo"}]`.
 
+## Migrating from 0.5
+
+### Clients: genui to a2ui_flutter
+
+[genui](https://pub.dev/packages/genui) is discontinued. Its replacement is
+[`a2ui_flutter`](https://pub.dev/packages/a2ui_flutter) (the widgets) with
+[`a2ui_core`](https://pub.dev/packages/a2ui_core) (message processing and
+surface state), and the client examples here now use them. What the agent
+sends is unchanged, so a client can move at its own pace.
+
+Replace `genui` with `a2ui_flutter` in the pubspec, raise `a2ui_core` to 0.7,
+and copy the helpers from
+[Render surfaces on the client](#2-render-surfaces-on-the-client) again
+(`a2uiSubmitToMessage` became `a2uiActionToMessage`). Then:
+
+```dart
+// genui
+final controller = SurfaceController(catalogs: [BasicCatalogItems.asCatalog()]);
+controller.handleMessage(core.A2uiMessage.fromJson(m));
+controller.onSubmit.listen((submit) {
+  if (a2uiSubmitToMessage(submit) case final message?) {
+    runTurn(chat.sendStream(message: message));
+  }
+});
+Surface(surfaceContext: controller.contextFor(surfaceId));
+
+// a2ui_flutter
+final processor = MessageProcessor<ComponentImplementation>(
+  catalogs: [basicCatalog(openUrl: (uri) => launchUrl(uri))],
+  unifiedOutbound: true,
+  outboundListener: (message) {
+    if (message is ActionMessage) {
+      runTurn(chat.sendStream(message: a2uiActionToMessage(message)));
+    }
+  },
+  onError: (error) => print('A2UI renderer error: ${error.message}'),
+);
+processor.processMessages([m]);
+A2uiSurface(surface: processor.model.getSurface(surfaceId)!);
+```
+
+- A custom component is a `ComponentImplementation` (`name`, `schema`,
+  `builder`) instead of a `CatalogItem`, and the catalog a
+  `CatalogImplementation`; see [Renderer requirements](#renderer-requirements).
+- Pass an `openUrl` callback (such as `url_launcher`'s `launchUrl`) to
+  `basicCatalog(...)` / `BasicCatalog`; unlike genui, `a2ui_core` does not
+  bundle `url_launcher`, and `openUrl(...)` actions fail without one.
+- A surface whose catalog id the client does not hold is rejected with an
+  `A2uiCatalogError`, where genui rendered a blank.
+- `genkit_a2ui` and `a2ui_flutter` can share a pubspec.
+
 ## Migrating from 0.4
 
 0.5 is a breaking release: the wire format, the model's output format, the
@@ -621,7 +671,7 @@ The a2ui part's payload key changed from `data.envelopes` to `data.messages`
 
 Upgrade the agent and its clients together. If you can't (a store-distributed
 app, say), stage it: ship clients with the helpers below, but have
-`a2uiSubmitToMessage` write both keys
+`a2uiActionToMessage` write both keys
 (`{'messages': messages, 'envelopes': messages}`); upgrade the agent once no 0.4
 clients remain; then drop `envelopes`. A 0.5 agent logs a warning once when a
 client still sends only `envelopes`.
@@ -639,19 +689,15 @@ above.
 
 - `package:genkit_a2ui/client.dart` (`actionToMessage`, `A2uiClientAction`)
   and `A2uiComponent` are removed. Clients no longer depend on `genkit_a2ui`:
-  add `genkit`, `genui` (0.10.3 or later) and `a2ui_core`, and copy
-  `a2uiMessagesFrom` and `a2uiSubmitToMessage` from
-  [Render surfaces on the client](#2-render-surfaces-on-the-client). genui
-  0.10.x and genkit_a2ui 0.5 can't share a pubspec (they need different
-  a2ui_core versions).
-- genui 0.10.3 uses the same id as the bundled basic catalog, so drop
-  `hide basicCatalogId` and the `copyWith(catalogId: ...)` re-tag.
+  add `genkit`, `a2ui_flutter` and `a2ui_core`, and copy `a2uiMessagesFrom`
+  and `a2uiActionToMessage` from
+  [Render surfaces on the client](#2-render-surfaces-on-the-client).
 - [A part can be partial](#surfaces): feed every part's messages, in order, into
-  one `SurfaceController` per conversation.
+  one `MessageProcessor` per conversation.
 - Every render starts with a `deleteSurface` for its id, which is a no-op when
-  the surface is new. genui handles that; a custom renderer must treat a delete
-  of an unknown id as a no-op too, and key surfaces by id rather than append
-  one per `createSurface`.
+  the surface is new. `a2ui_core` handles that; a custom renderer must treat a
+  delete of an unknown id as a no-op too, and key surfaces by id rather than
+  append one per `createSurface`.
 - If you manage history yourself, send model messages back verbatim, including
   `metadata.a2uiExpress`: it is what the model sees of its earlier surfaces, and
   updates are checked against the surfaces the history contains.

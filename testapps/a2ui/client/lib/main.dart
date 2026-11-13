@@ -16,7 +16,7 @@
 ///
 /// Talks to the Genkit A2UI agent (served by `../server`) with `remoteAgent`,
 /// renders prose in a simple chat log, and renders each A2UI surface with the
-/// `genui` renderer.
+/// `a2ui_flutter` renderer.
 ///
 /// A2UI travels as spec-shaped `data` parts on the agent stream. This app does
 /// not depend on `genkit_a2ui`: the two helpers in `a2ui_helpers.dart` (copied
@@ -24,34 +24,18 @@
 /// actions into the next turn's input.
 library;
 
-import 'package:a2ui_core/a2ui_core.dart' as core;
+import 'package:a2ui_core/a2ui_core.dart';
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:genkit/experimental_client.dart';
-import 'package:genui/genui.dart';
 
 import 'a2ui_helpers.dart';
-import 'gauge.dart';
-import 'shared.dart';
+import 'catalog.dart';
 
 /// The base URL of the agent server. Override with `--dart-define=AGENT_BASE_URL`.
 const String _baseUrl = String.fromEnvironment(
   'AGENT_BASE_URL',
   defaultValue: 'http://localhost:8080',
-);
-
-/// The client catalog, matching the server's custom `weatherCatalog`.
-///
-/// The server's catalog is the bundled basic components plus a custom `Gauge`
-/// (see `../server/lib/agent.dart`), advertised under [weatherCatalogId]. Here
-/// we mirror that: start from genui's basic widgets, add the matching
-/// [gaugeCatalogItem], and re-tag the whole thing with the same
-/// [weatherCatalogId] so a surface the agent creates with that `catalogId`
-/// resolves to these widgets. (genui
-/// registers an empty stub for a catalog id it doesn't know, so the ids MUST
-/// match on both sides.)
-final Catalog _catalog = BasicCatalogItems.asCatalog().copyWith(
-  newItems: [gaugeCatalogItem],
-  catalogId: weatherCatalogId,
 );
 
 void main() {
@@ -100,7 +84,7 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   late final AgentApi _agent;
   late final AgentChat _chat;
-  late final SurfaceController _surfaceController;
+  late final MessageProcessor<ComponentImplementation> _processor;
 
   final _entries = <_Entry>[];
   final _input = TextEditingController();
@@ -116,28 +100,38 @@ class _ChatPageState extends State<ChatPage> {
       abortUrl: '$_baseUrl/api/uiAgent/abort',
     );
     _chat = _agent.chat();
-    _surfaceController = SurfaceController(catalogs: [_catalog]);
+    _processor = MessageProcessor(
+      catalogs: [weatherCatalog],
+      // Deliver actions to `outboundListener` as typed, versioned messages.
+      unifiedOutbound: true,
+      outboundListener: _onRendererMessage,
+      // Runtime errors (a failed function call, an unknown component type)
+      // reach `onError`, not `outboundListener`.
+      onError: (error) => debugPrint('A2UI renderer error: ${error.message}'),
+    );
 
-    // A new surface becomes a new entry in the chat log.
-    _surfaceController.surfaceUpdates.listen((update) {
-      if (update is SurfaceAdded) {
-        final exists = _entries.whereType<_SurfaceEntry>().any(
-          (e) => e.surfaceId == update.surfaceId,
-        );
-        if (!exists) {
-          setState(() => _entries.add(_SurfaceEntry(update.surfaceId)));
-          _scrollToBottom();
-        }
-      }
+    // A new surface becomes a new entry in the chat log. A surface rendered
+    // again under the same id (the agent deletes, then creates it) keeps its
+    // entry, so it re-renders where it first appeared.
+    _processor.model.onSurfaceCreated.subscribe((surface) {
+      if (!mounted) return;
+      final exists = _entries.whereType<_SurfaceEntry>().any(
+        (e) => e.surfaceId == surface.id,
+      );
+      setState(() {
+        if (!exists) _entries.add(_SurfaceEntry(surface.id));
+      });
+      if (!exists) _scrollToBottom();
     });
-
-    // A surface action (e.g. button press) becomes the next agent turn.
-    _surfaceController.onSubmit.listen(_onSurfaceSubmit);
+    _processor.model.onSurfaceDeleted.subscribe((_) {
+      if (!mounted) return;
+      setState(() {});
+    });
   }
 
   @override
   void dispose() {
-    _surfaceController.dispose();
+    _processor.dispose();
     _agent.close();
     _input.dispose();
     _scroll.dispose();
@@ -167,23 +161,20 @@ class _ChatPageState extends State<ChatPage> {
     await _runTurn(_chat.sendStream(text: text));
   }
 
-  /// Sends a rendered surface's action back to the agent as the next turn.
-  Future<void> _onSurfaceSubmit(ChatMessage submit) async {
+  /// Sends a rendered surface's action (e.g. a button press) back to the
+  /// agent as the next turn.
+  Future<void> _onRendererMessage(RendererToAgentMessage message) async {
+    if (message is! ActionMessage) return;
     // Guard against re-entrancy: a button press mid-stream would otherwise
     // start a second concurrent turn, interleaving the streams and letting one
     // turn's completion flip `_busy` off while the other is still running.
     if (_busy) return;
-    // genui also reports renderer errors through onSubmit; only actions start
-    // a turn.
-    final message = a2uiSubmitToMessage(submit);
-    if (message == null) return;
-    final names = a2uiActionNames(message);
     setState(() {
-      _entries.add(_TextEntry(true, '> ${names.join(', ')}'));
+      _entries.add(_TextEntry(true, '> ${message.action.name}'));
       _busy = true;
     });
     _scrollToBottom();
-    await _runTurn(_chat.sendStream(message: message));
+    await _runTurn(_chat.sendStream(message: a2uiActionToMessage(message)));
   }
 
   /// Runs a single agent turn, streaming prose + surfaces into the log.
@@ -191,6 +182,7 @@ class _ChatPageState extends State<ChatPage> {
     _TextEntry? prose;
     try {
       await for (final chunk in turn.stream) {
+        if (!mounted) return;
         if (chunk.text.isNotEmpty) {
           if (prose == null) {
             prose = _TextEntry(false, '');
@@ -200,46 +192,28 @@ class _ChatPageState extends State<ChatPage> {
           _scrollToBottom();
         }
         for (final m in a2uiMessagesFrom(chunk.raw.modelChunk?.content)) {
-          _handleEnvelope(m);
+          _handleMessage(m);
         }
       }
       await turn.response;
     } catch (err) {
-      setState(() => _entries.add(_TextEntry(false, 'Error: $err')));
-    } finally {
-      setState(() => _busy = false);
-    }
-  }
-
-  /// Converts one A2UI envelope map into a genui message and applies it.
-  void _handleEnvelope(Map<String, dynamic> envelope) {
-    try {
-      _sanitizeEnvelope(envelope);
-      _surfaceController.handleMessage(core.A2uiMessage.fromJson(envelope));
-    } catch (err) {
-      debugPrint('Failed to apply A2UI envelope: $err');
-    }
-  }
-
-  /// Works around a genui layout limitation: a `Row` with `align: "stretch"`
-  /// maps to `CrossAxisAlignment.stretch`, which demands a bounded height. But
-  /// surfaces render inside a scrolling `ListView` (unbounded height), and
-  /// genui lays out `Column` children with unbounded vertical constraints, so a
-  /// stretch `Row` nested in a `Column` throws "BoxConstraints forces an
-  /// infinite height" (e.g. the equal-height cards in a 3-city comparison).
-  ///
-  /// Drop `align: "stretch"` from `Row` components so they size to their content
-  /// instead of crashing. (`Column` stretch is horizontal, bounded by the
-  /// ListView width, so it is left untouched.)
-  void _sanitizeEnvelope(Map<String, dynamic> envelope) {
-    final update = envelope['updateComponents'];
-    if (update is! Map) return;
-    final components = update['components'];
-    if (components is! List) return;
-    for (final c in components) {
-      if (c is Map && c['component'] == 'Row' && c['align'] == 'stretch') {
-        c.remove('align');
+      if (mounted) {
+        setState(() => _entries.add(_TextEntry(false, 'Error: $err')));
       }
+    } finally {
+      if (mounted) {
+        setState(() => _busy = false);
+      }
+    }
+  }
+
+  /// Applies one A2UI message. One message the renderer rejects (a newer
+  /// protocol version, say) must not stop the rest of the turn.
+  void _handleMessage(Map<String, dynamic> message) {
+    try {
+      _processor.processMessages([message]);
+    } on Object catch (err) {
+      debugPrint('Failed to apply A2UI message: $err');
     }
   }
 
@@ -283,22 +257,18 @@ class _ChatPageState extends State<ChatPage> {
                   : Theme.of(context).colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Text(text),
+            child: Text(text.trimRight()),
           ),
         );
       case _SurfaceEntry(:final surfaceId):
-        // `IntrinsicHeight` gives the surface subtree a bounded (natural) height.
-        // Surfaces are rendered inside a scrolling `ListView`, so their height is
-        // otherwise unbounded; a genui `Row` with `align: "stretch"` (e.g. the
-        // equal-height cards in a comparison) needs a bounded cross-axis extent
-        // to stretch into, and would otherwise throw "forces an infinite height".
+        final surface = _processor.model.getSurface(surfaceId);
+        // Deleted: the entry keeps its place in the log in case the agent
+        // renders the id again.
+        if (surface == null) return const SizedBox.shrink();
         return Container(
           margin: const EdgeInsets.symmetric(vertical: 6),
-          child: IntrinsicHeight(
-            child: Surface(
-              surfaceContext: _surfaceController.contextFor(surfaceId),
-            ),
-          ),
+          // A re-rendered surface is a new model, so key by it to start fresh.
+          child: A2uiSurface(key: ObjectKey(surface), surface: surface),
         );
     }
   }
