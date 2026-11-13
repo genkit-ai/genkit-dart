@@ -137,13 +137,7 @@ abstract final class GenkitConverter {
     }
     if (part.isMedia) {
       final media = part.media!;
-      // The MIME type may include parameters (e.g. "application/pdf;
-      // charset=utf-8"). Strip them so matching and extension derivation work
-      // against the base type.
-      final mimeType = (media.contentType ?? 'image/png')
-          .split(';')
-          .first
-          .trim();
+      final mimeType = _baseMimeType(media);
       final isImage = mimeType.toLowerCase().startsWith('image/');
 
       if (media.url.startsWith('data:')) {
@@ -175,6 +169,22 @@ abstract final class GenkitConverter {
     }
     throw UnimplementedError('Unsupported part type: $part');
   }
+
+  /// Whether [toOpenAIContentPart] sends [part] as an OpenAI `file` content
+  /// part: inline data that is not an image, such as a PDF.
+  static bool sendsAsFilePart(Part part) {
+    final media = part.media;
+    if (media == null || !media.url.startsWith('data:')) return false;
+    return !_baseMimeType(media).toLowerCase().startsWith('image/');
+  }
+
+  /// The MIME type of [media] without parameters, defaulting to `image/png`.
+  ///
+  /// The MIME type may include parameters (e.g. "application/pdf;
+  /// charset=utf-8"). They are stripped so matching and extension derivation
+  /// work against the base type.
+  static String _baseMimeType(Media media) =>
+      (media.contentType ?? 'image/png').split(';').first.trim();
 
   /// Derives a synthetic filename for an OpenAI `file` content part.
   ///

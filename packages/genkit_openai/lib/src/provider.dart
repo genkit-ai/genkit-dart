@@ -18,6 +18,7 @@ import '../genkit_openai.dart' show defaultOpenAINamespace;
 import 'chat_body_client.dart';
 import 'known_deepseek_models.dart';
 import 'known_embedders.dart';
+import 'known_mistral_models.dart';
 import 'known_models.dart';
 import 'known_xai_models.dart';
 import 'speech.dart' show knownSpeechModels;
@@ -105,6 +106,13 @@ final class OpenAIProvider {
   /// listing; `resolve` still serves any id named explicitly.
   final bool Function(String model) servesModel;
 
+  /// Whether the host takes OpenAI's `file` content part, which carries a
+  /// non-image document such as a PDF inline.
+  ///
+  /// A host without it would reject the whole request, so such a part is
+  /// refused before the request goes out.
+  final bool acceptsFileParts;
+
   /// Whether the host can be handed a JSON *schema*, rather than only being
   /// asked for JSON.
   ///
@@ -127,6 +135,7 @@ final class OpenAIProvider {
     this.rewriteChatBody,
     this.usesLegacyMaxTokens = false,
     this.supportsJsonSchema = true,
+    this.acceptsFileParts = true,
     this.servesModel = _servesAnyModel,
   });
 }
@@ -173,8 +182,9 @@ final deepSeekProvider = OpenAIProvider(
   supportsJsonSchema: false,
 );
 
-/// xAI, which is the closest of the three to OpenAI: the same request fields,
-/// the same `json_schema` structured outputs, a different host and key.
+/// xAI, which is the closest of the curated providers to OpenAI: the same
+/// request fields, the same `json_schema` structured outputs, a different host
+/// and key.
 ///
 /// The reasoning vocabulary varies per model there - 4.3 takes `none` and
 /// defaults to `low`, 4.6 takes neither - and which pairing works is left to
@@ -189,6 +199,75 @@ final xaiProvider = OpenAIProvider(
   reasonsFor: (model) => knownXaiModelFor(model)?.reasons,
   servesModel: (model) => !model.toLowerCase().contains('multi-agent'),
 );
+
+/// Mistral, which takes OpenAI's request shape with a handful of fields
+/// renamed or missing.
+///
+/// Mistral's request schema is closed: a field it does not define is a 422
+/// validation error, not something it ignores. So the token limit goes out as `max_tokens`, and
+/// [mistralChatBody] renames or drops what the SDK writes in OpenAI's spelling.
+/// `json_schema`, tools and image input are sent unchanged. A non-image
+/// document is refused locally: Mistral's `file` part takes only the id of an
+/// uploaded file, not OpenAI's inline `file_data`.
+final mistralProvider = OpenAIProvider(
+  defaultNamespace: defaultMistralNamespace,
+  defaultBaseUrl: 'https://api.mistral.ai/v1',
+  apiKeyEnvVar: 'MISTRAL_API_KEY',
+  infoFor: (model, {required compat}) =>
+      compat ? compatMistralModelInfo(model) : mistralModelInfoFor(model),
+  catalogIds: knownMistralChatModels,
+  // Refused on every model for now. Mistral does take `reasoning_effort`, but
+  // a model that thinks answers with `content` as an array of `thinking` and
+  // `text` chunks, which the plugin cannot parse yet. Failing before the
+  // request beats failing on the reply.
+  reasonsFor: (_) => false,
+  embedderIds: knownMistralEmbedderModels,
+  // Mistral's `/models` lists models chat completions cannot serve here: the
+  // Magistral reasoning models and Z.ai GLM, which always reply with thinking
+  // chunks the plugin cannot parse yet, and the OCR models, which are served by
+  // `/v1/ocr`. `resolve` still serves any id named explicitly.
+  servesModel: _mistralServesModel,
+  rewriteChatBody: mistralChatBody,
+  usesLegacyMaxTokens: true,
+  acceptsFileParts: false,
+);
+
+/// Rewrites the fields Mistral spells differently or does not define.
+///
+/// - `seed` goes out as `random_seed`, Mistral's name for it.
+/// - `user` and `verbosity` are dropped: Mistral has neither field.
+/// - `stream_options` is dropped. The plugin always asks for
+///   `include_usage` on a stream, and Mistral reports usage on the last
+///   streamed chunk without being asked.
+///
+/// Everything else passes through untouched.
+///
+/// https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post
+Map<String, dynamic> mistralChatBody(Map<String, dynamic> body) {
+  final seed = body['seed'];
+  return {
+    for (final entry in body.entries)
+      if (!_mistralDroppedFields.contains(entry.key)) entry.key: entry.value,
+    'random_seed': ?seed,
+  };
+}
+
+/// Whether a model id Mistral lists is one this plugin can serve.
+///
+/// Mistral Large 4 answers with thinking chunks even with no reasoning effort,
+/// and `mistral-large-latest` now points at it. Large 3 snapshots such as
+/// `mistral-large-2512` answer with plain text and stay.
+bool _mistralServesModel(String model) {
+  final id = model.toLowerCase();
+  return !id.startsWith('mistral-large-4') &&
+      id != 'mistral-large-latest' &&
+      !id.contains('magistral') &&
+      !id.contains('zai-glm') &&
+      !id.contains('ocr');
+}
+
+/// Request fields that never reach Mistral under their OpenAI names.
+const _mistralDroppedFields = {'seed', 'user', 'verbosity', 'stream_options'};
 
 /// Adds the `thinking` object DeepSeek derives its mode from.
 ///

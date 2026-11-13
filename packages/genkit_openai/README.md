@@ -5,9 +5,10 @@ drives OpenAI's own models and any host that implements the same API — Groq,
 Together AI, OpenRouter and friends — by pointing it at a different
 [`baseUrl`](#openai-compatible-apis).
 
-[DeepSeek](#deepseek) and [xAI](#xai) get first-class handles of their own,
-`deepSeek()` and `xAI()`, which carry the key, catalog and request differences
-each host needs rather than leaving them to you.
+[DeepSeek](#deepseek), [xAI](#xai) and [Mistral](#mistral) get first-class
+handles of their own, `deepSeek()`, `xAI()` and `mistral()`, which carry the
+key, catalog and request differences each host needs rather than leaving them
+to you.
 
 > **Building with a coding agent? Install the Genkit Dart skill first.**
 >
@@ -228,7 +229,7 @@ final response = await ai.generate(
 
 To describe a model that serves a known one under another name, start from the
 curated entry with `modelInfoFor` (or `xaiModelInfoFor` /
-`deepSeekModelInfoFor`):
+`deepSeekModelInfoFor` / `mistralModelInfoFor`):
 
 ```dart
 CustomModelDefinition(
@@ -526,6 +527,58 @@ to the API.
 
 The image and video models (`grok-imagine-*`) are not listed: this plugin
 serves chat generation.
+
+## Mistral
+
+Mistral speaks the same API, with a stricter request schema: a field it does
+not define is rejected with a 422 validation error rather than ignored.
+
+```dart
+final ai = Genkit(plugins: [mistral()]);
+
+final response = await ai.generate(
+  model: mistral.model('mistral-small-latest'),
+  prompt: 'Hello!',
+);
+```
+
+The key comes from `MISTRAL_API_KEY`. The plugin curates the `-latest`
+aliases of Mistral Small and Ministral 14B, 8B and 3B (image input, tools,
+JSON schema) and Codestral (text only), plus the `mistral-embed` and
+`codestral-embed` embedders. `mistral-medium-latest` points at Medium 3.5,
+which Mistral has deprecated; it is curated as `legacy` until it retires.
+Mistral Large 4 (`mistral-large-4`, and `mistral-large-latest`, which now
+points at it) is left out, like Magistral: it answers with thinking chunks
+even without a reasoning effort, and the plugin can't read those yet. Any other name resolves too, described as
+text-only chat with neither tools nor JSON output claimed, since Mistral lists
+those per model.
+
+Four things differ on the wire, and the plugin handles each:
+
+- The token limit goes out as `max_tokens`. Mistral has no
+  `max_completion_tokens`.
+- `seed` goes out as `random_seed`.
+- `user` and `verbosity` are dropped. Mistral has neither field.
+- `stream_options` is dropped from streaming requests. The plugin asks every
+  other host for usage that way, and Mistral reports usage on the last chunk
+  without being asked.
+
+Tools, `toolChoice`, JSON schema structured output and image input go out
+unchanged. Inline non-image media, such as a PDF data URI, is refused before
+the request goes out: the plugin would send it as OpenAI's `file` part, and
+Mistral's `file` part takes only the id of an uploaded file.
+
+Not handled yet:
+
+- Magistral, Z.ai GLM, and any model asked for a `reasoningEffort` that makes
+  it think, answers with `content` as an array of `thinking` and `text`
+  chunks. The plugin does not read that shape, so those replies would fail.
+  For that reason the Magistral and GLM models are left out of the catalog and
+  out of the discovered listing, and `reasoningEffort` is refused before the
+  request goes out.
+- The embedder `dimensions` option is sent as `dimensions`; Mistral calls it
+  `output_dimension`. The embedder `user` option is sent too, and Mistral has
+  no such field. Leave both unset.
 
 ## Reasoning
 
