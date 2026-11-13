@@ -22,7 +22,8 @@
 /// this layer adds the cross-turn rules a single block cannot see.
 library;
 
-import 'package:a2ui_core/a2ui_core.dart' show A2uiDataError, DataModel;
+import 'package:a2ui_core/a2ui_core.dart'
+    show A2uiDataError, A2uiExpressionError, DataModel, ExpressionParser;
 
 /// What a turn did to one surface.
 enum SurfaceChange { created, replaced, updated, deleted }
@@ -116,7 +117,9 @@ final class SurfaceState {
           out
             ..write(n)
             ..write(' ');
-        case final Map m when bindingPath(m, version: version) != null:
+        case final Map m
+            when bindingPath(m, version: version) != null ||
+                isFormatStringCall(m, version: version):
           walkValue(resolve(m, scope: scope), scope);
         case final Map m:
           for (final MapEntry(:key, :value) in m.entries) {
@@ -199,12 +202,48 @@ final class SurfaceState {
   };
 
   /// Resolves version-matching data bindings (`{path}` in v0.9, `{@path}` from
-  /// v1.0) recursively across maps and lists.
+  /// v1.0) and `formatString` calls recursively across maps and lists.
   ///
   /// Relative (template) paths resolve against [scope] when given; otherwise
   /// they return `null`, or throw [FormatException] when [rejectRelative] is
   /// true (such as when building an outbound `action`).
   Object? resolve(Object? v, {bool rejectRelative = false, Object? scope}) {
+    if (isFormatStringCall(v, version: version)) {
+      final raw = ((v as Map)['args'] as Map)['value'];
+      final resolved = resolve(
+        raw,
+        rejectRelative: rejectRelative,
+        scope: scope,
+      );
+      if (resolved == null) return '';
+      final template = '$resolved';
+      final List<Object?> parts;
+      try {
+        parts = ExpressionParser().parse(template);
+      } on A2uiExpressionError {
+        return template;
+      }
+      return [
+        for (final part in parts)
+          switch (resolve(
+            _adaptExpressionPart(part),
+            rejectRelative: rejectRelative,
+            scope: scope,
+          )) {
+            null => '',
+            final String s => s,
+            // Nested formatter calls (`${formatNumber(value: /temp)}`) resolve
+            // their `args` map; render the resolved `value` rather than
+            // stringifying the call map.
+            final Map m when m['args'] is Map => switch ((m['args']
+                as Map)['value']) {
+              null => '',
+              final val => '$val',
+            },
+            final val => '$val',
+          },
+      ].join();
+    }
     if (bindingPath(v, version: version) case final path?) {
       if (!path.startsWith('/')) {
         if (scope != null) return readPointer(scope, '/$path');
@@ -225,6 +264,24 @@ final class SurfaceState {
           resolve(x, rejectRelative: rejectRelative, scope: scope),
       ],
       _ => v,
+    };
+  }
+
+  /// Rewrites `ExpressionParser`'s v0.9-shaped `{path}` / `{call}` parts into
+  /// `@path` / `@call` on v1.0+ surfaces so [resolve] handles them uniformly.
+  Object? _adaptExpressionPart(Object? part) {
+    if (version.startsWith('v0.')) return part;
+    return switch (part) {
+      {'path': final String p} => {'@path': p},
+      {'call': final String fn, 'args': final Map args} => {
+        '@call': fn,
+        'args': {
+          for (final MapEntry(:key, :value) in args.entries)
+            '$key': _adaptExpressionPart(value),
+        },
+      },
+      final List l => [for (final item in l) _adaptExpressionPart(item)],
+      _ => part,
     };
   }
 }
@@ -382,6 +439,17 @@ String? bindingPath(Object? v, {String version = '1.0'}) {
     {'path': final String path} when !v1 && !v.containsKey('componentId') =>
       path,
     _ => null,
+  };
+}
+
+/// Whether [v] is a `formatString` call under [version]
+/// (`{call: 'formatString', args: ...}` in v0.9, `{@call: ...}` from v1.0).
+bool isFormatStringCall(Object? v, {String version = '1.0'}) {
+  final v1 = !version.startsWith('v0.');
+  return switch (v) {
+    {'@call': 'formatString', 'args': Map()} when v1 => true,
+    {'call': 'formatString', 'args': Map()} when !v1 => true,
+    _ => false,
   };
 }
 

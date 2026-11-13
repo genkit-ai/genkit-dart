@@ -53,7 +53,11 @@ final class ScenarioSummary {
         ),
   );
   int get inputTokens => _tokens('inputTokens');
-  int get outputTokens => _tokens('outputTokens');
+  int get thoughtsTokens => _tokens('thoughtsTokens');
+
+  /// Billed output tokens, including thinking tokens (`thoughtsTokens`) that
+  /// Gemini plugins report separately from `outputTokens`.
+  int get outputTokens => _tokens('outputTokens') + thoughtsTokens;
 
   /// How existing surfaces were changed: partial updates vs full re-renders.
   int _changes(SurfaceChange c) => runs.fold(
@@ -122,9 +126,13 @@ String consoleSummary(List<ScenarioSummary> summaries) {
   final ok = all.where((r) => r.passed).length;
   final totalIn = summaries.fold(0, (n, s) => n + s.inputTokens);
   final totalOut = summaries.fold(0, (n, s) => n + s.outputTokens);
+  final totalThoughts = summaries.fold(0, (n, s) => n + s.thoughtsTokens);
+  final thoughtsNote = totalThoughts > 0
+      ? ', incl. $totalThoughts thoughts'
+      : '';
   b.writeln(
     '\n$ok/${all.length} runs passed every check '
-    '(total tokens: $totalIn in / $totalOut out)',
+    '(total tokens: $totalIn in / $totalOut out$thoughtsNote)',
   );
   return b.toString();
 }
@@ -135,6 +143,7 @@ String markdownReport(
 }) {
   final totalIn = summaries.fold(0, (n, s) => n + s.inputTokens);
   final totalOut = summaries.fold(0, (n, s) => n + s.outputTokens);
+  final totalThoughts = summaries.fold(0, (n, s) => n + s.thoughtsTokens);
   final b = StringBuffer()
     ..writeln('# A2UI eval')
     ..writeln()
@@ -143,6 +152,7 @@ String markdownReport(
         for (final MapEntry(:key, :value) in meta.entries) '`$key`: $value',
         '`totalInputTokens`: $totalIn',
         '`totalOutputTokens`: $totalOut',
+        if (totalThoughts > 0) '`totalThoughtsTokens`: $totalThoughts',
       ].join(' | '),
     )
     ..writeln()

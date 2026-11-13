@@ -273,7 +273,7 @@ Future<RunRecord> runScenario(
       ..add(
         CheckResult(
           'stream matches history',
-          _renderedState(renderer) == _renderedState(historyRenderer)
+          renderedState(renderer) == renderedState(historyRenderer)
               ? null
               : 'streamed surfaces differ from session history '
                     '(streamed ${t.streamed.length} messages, '
@@ -304,11 +304,19 @@ Future<RunRecord> runScenario(
         await turn('press', '"$button" on $on', action.message!);
         if (record.abortedAt != null) return record;
       case Fill(:final field, :final value, :final on):
-        if (fillInput(renderer, on, field, value) case final e?) {
+        // Resolve `on` once on `renderer` and target that `surfaceId` on both,
+        // so `SurfaceRef.nth` cannot pick a different surface on
+        // `historyRenderer` if a repair reordered surface creation.
+        final snap = on.resolve(snapshot());
+        if (snap == null) {
+          record.abortedAt = 'fill "$field" on $on: no such surface';
+          return record;
+        }
+        if (fillSurfaceInput(renderer[snap.id], field, value) case final e?) {
           record.abortedAt = 'fill "$field" on $on: $e';
           return record;
         }
-        fillInput(historyRenderer, on, field, value);
+        fillSurfaceInput(historyRenderer[snap.id], field, value);
       case Check(:final name, :final fn):
         final t = last;
         if (t == null) {
@@ -336,10 +344,23 @@ Future<RunRecord> runScenario(
   return record;
 }
 
-String _renderedState(HeadlessRenderer r) => jsonEncode({
-  for (final s in r.surfaces.toList()..sort((a, b) => a.id.compareTo(b.id)))
-    s.id: {'components': s.reachableComponents, 'data': s.data},
-});
+/// Canonical JSON encoding of [r]'s live surfaces, with map keys sorted so
+/// key-order differences introduced by repair catch-up chunks do not count.
+String renderedState(HeadlessRenderer r) => jsonEncode(
+  _sortedKeys({
+    for (final s in r.surfaces)
+      s.id: {'components': s.reachableComponents, 'data': s.data},
+  }),
+);
+
+Object? _sortedKeys(Object? v) => switch (v) {
+  final Map m => {
+    for (final k in m.keys.map((k) => '$k').toList()..sort())
+      k: _sortedKeys(m[k]),
+  },
+  final List l => [for (final x in l) _sortedKeys(x)],
+  _ => v,
+};
 
 /// Markup that should have been turned into a2ui parts but leaked into prose.
 String? _proseLeak(String prose) {
@@ -455,8 +476,17 @@ String? fillInput(
   final snap = ref.resolve([
     for (final s in renderer.surfaces) SurfaceSnapshot(s),
   ]);
-  if (snap == null) return 'no such surface';
-  final surface = renderer[snap.id]!;
+  return fillSurfaceInput(
+    snap == null ? null : renderer[snap.id],
+    field,
+    value,
+  );
+}
+
+/// Writes [value] to the data path bound to the input labelled [field] on
+/// [surface].
+String? fillSurfaceInput(SurfaceState? surface, String field, Object value) {
+  if (surface == null) return 'no such surface';
   final needle = field.toLowerCase();
   final inputs = {
     for (final MapEntry(key: id, value: c)
