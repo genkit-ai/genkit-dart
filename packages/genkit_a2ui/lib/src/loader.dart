@@ -114,11 +114,13 @@ Future<A2uiCatalog> _readCatalogFile(String file, {String? fallbackId}) async {
 }
 
 /// Resolves a catalog by id from the registry, falling back to the bundled
-/// [basicCatalog] for the default id. Used by the `a2ui()` middleware.
+/// [basicCatalog] for [defaultCatalogId] (`'basic'`) or [basicCatalogV09] for
+/// [basicCatalogV09LookupId] (`'basic-v0.9'`). Used by the `a2ui()` middleware.
 A2uiCatalog resolveCatalog(Registry registry, String id) {
   final found = registry.lookupValue<A2uiCatalog>(a2uiCatalogValueType, id);
   if (found != null) return found;
   if (id == defaultCatalogId) return basicCatalog;
+  if (id == basicCatalogV09LookupId) return basicCatalogV09;
   throw StateError(
     'a2ui(): no catalog registered under id "$id". '
     'Register one with loadCatalog(ai, id: "$id", catalog: ...) or use '

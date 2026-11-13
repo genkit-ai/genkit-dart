@@ -146,8 +146,8 @@ void main() {
               .createFormat([result.toCore()])
               .createParser()
               .compile('root = Banner("Disk almost full", "warning")');
-          final update = messages.last.toJson()['updateComponents'] as Map;
-          expect(update['components'], [
+          final create = messages.last.toJson()['createSurface'] as Map;
+          expect(create['components'], [
             {
               'id': 'root',
               'component': 'Banner',
@@ -279,6 +279,11 @@ void main() {
     test('falls back to the bundled basic catalog for the default id', () {
       final resolved = resolveCatalog(genkit.registry, defaultCatalogId);
       expect(resolved.id, basicCatalog.id);
+    });
+
+    test('falls back to basicCatalogV09 for basic-v0.9', () {
+      final resolved = resolveCatalog(genkit.registry, basicCatalogV09LookupId);
+      expect(resolved.id, basicCatalogV09.id);
     });
 
     test('throws for an unknown id', () {
