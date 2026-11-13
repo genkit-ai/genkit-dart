@@ -85,7 +85,7 @@ Flow<String, String, void, void> defineSimpleGenerationFlow(Genkit ai) {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: openAI.model('gpt-4o-mini'),
+        model: openAI.model('gpt-6-luna'),
         prompt: prompt,
       );
       return response.text;
@@ -106,7 +106,7 @@ Flow<String, String, String, void> defineStreamedSimpleGenerationFlow(
     streamSchema: .string(),
     fn: (prompt, ctx) async {
       final stream = ai.generateStream(
-        model: openAI.model('gpt-4o-mini'),
+        model: openAI.model('gpt-6-luna'),
         prompt: prompt,
       );
 
@@ -125,7 +125,7 @@ Flow<String, String, String, void> defineStreamedSimpleGenerationFlow(
 Flow<String, String, void, void> defineModelResolutionFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'modelResolution',
-    inputSchema: .string(defaultValue: 'gpt-4o-mini'),
+    inputSchema: .string(defaultValue: 'gpt-6-luna'),
     outputSchema: .string(),
     fn: (modelName, _) async {
       final action = await ai.registry.lookupAction(
@@ -198,7 +198,7 @@ Flow<WeatherFlowInput, String, void, void> defineToolCallingFlow(
     outputSchema: .string(),
     fn: (input, _) async {
       final response = await ai.generate(
-        model: openAI.model('gpt-4o-mini'),
+        model: openAI.model('gpt-5.5'),
         prompt: input.prompt,
         toolNames: [getWeather.name],
       );
@@ -219,7 +219,7 @@ Flow<WeatherFlowInput, String, String, void> defineStreamedToolCallingFlow(
     streamSchema: .string(),
     fn: (input, ctx) async {
       final stream = ai.generateStream(
-        model: openAI.model('gpt-4o-mini'),
+        model: openAI.model('gpt-5.5'),
         prompt: input.prompt,
         toolNames: [getWeather.name],
       );
@@ -247,7 +247,7 @@ Flow<MovieReviewInput, MovieReview, void, void> defineStructuredOutputFlow(
       final yearClause = input.year != null ? ' (${input.year})' : '';
 
       final response = await ai.generate(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-6-luna'),
         prompt:
             'Write a detailed review of the movie "${input.title}$yearClause".',
         outputFormat: 'json',
@@ -274,7 +274,7 @@ defineStreamedStructuredOutputFlow(Genkit ai) {
     fn: (input, ctx) async {
       final yearClause = input.year != null ? ' (${input.year})' : '';
       final stream = ai.generateStream(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-6-luna'),
         prompt:
             'Write a detailed review of the movie "${input.title}$yearClause".',
         outputFormat: 'json',

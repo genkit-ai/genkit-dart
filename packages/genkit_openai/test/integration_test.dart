@@ -38,7 +38,7 @@ void main() {
       final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
       final response = await ai.generate(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'Say "hello" and nothing else.',
       );
 
@@ -56,9 +56,13 @@ void main() {
       final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
       final response = await ai.generate(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'Write a haiku about Dart.',
-        config: OpenAIChatOptions(temperature: 0.7, maxTokens: 100),
+        config: OpenAIChatOptions(
+          temperature: 0.7,
+          maxTokens: 100,
+          reasoningEffort: 'none',
+        ),
       );
 
       expect(response.text, isNotEmpty);
@@ -76,7 +80,7 @@ void main() {
 
       final chunks = <GenerateResponseChunk>[];
       await for (final chunk in ai.generateStream(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'Count from 1 to 5.',
       )) {
         chunks.add(chunk);
@@ -110,7 +114,7 @@ void main() {
       );
 
       final response = await ai.generate(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'What\'s the weather in Boston?',
         toolNames: ['getWeather'],
       );
@@ -151,7 +155,7 @@ void main() {
       );
 
       final response = await ai.generate(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'Use the getTime tool to tell me the current time.',
         toolNames: ['getTime'],
       );
@@ -160,7 +164,7 @@ void main() {
       expect(toolRan, isTrue);
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
-    test('o-series tool calling executes the tool', () async {
+    test('reasoning model tool calling executes the tool', () async {
       if (apiKey == null || apiKey.isEmpty) {
         fail(
           'OPENAI_API_KEY environment variable must be set to run integration tests',
@@ -181,19 +185,20 @@ void main() {
       );
 
       final response = await ai.generate(
-        model: openAI.model('o4-mini'),
+        model: openAI.model('gpt-5.5'),
         prompt: 'Use the getWeather tool to find the weather in Boston.',
         toolNames: ['getWeather'],
+        config: OpenAIChatOptions(reasoningEffort: 'none'),
       );
 
       expect(response.message, isNotNull);
-      // Unlike the tolerant gpt-4o test above, this asserts the tool actually
-      // executed: with tools silently stripped (bug #357) o-series models
+      // Unlike the tolerant getTime test above, this asserts the tool actually
+      // executed: with tools silently stripped (bug #357) reasoning models
       // hallucinate a JSON tool call as plain text and the tool never runs.
       expect(
         toolRan,
         isTrue,
-        reason: 'getWeather must actually execute for o4-mini',
+        reason: 'getWeather must actually execute for gpt-5.5',
       );
     }, skip: apiKey == null || apiKey.isEmpty ? 'OPENAI_API_KEY not set' : null);
 
@@ -210,7 +215,7 @@ void main() {
           final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
           final response = await ai.generate(
-            model: openAI.model('gpt-4o'),
+            model: openAI.model('gpt-5.4-mini'),
             prompt: 'Generate a person named John Doe, age 30',
             outputSchema: PersonSchema.$schema,
           );
@@ -237,7 +242,7 @@ void main() {
           final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
           final response = ai.generateStream(
-            model: openAI.model('gpt-4o'),
+            model: openAI.model('gpt-5.4-mini'),
             prompt: 'Generate a person named Jane Doe, age 25',
             outputSchema: PersonSchema.$schema,
           );
@@ -267,7 +272,7 @@ void main() {
           final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
           final response = await ai.generate(
-            model: openAI.model('gpt-4o'),
+            model: openAI.model('gpt-5.4-mini'),
             prompt:
                 'Return a JSON object with keys "name" and "age" for a '
                 'person named John Doe aged 30.',
@@ -297,7 +302,7 @@ void main() {
           final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
           final response = await ai.generate(
-            model: openAI.model('gpt-4o'),
+            model: openAI.model('gpt-5.4-mini'),
             prompt: 'A person named John Doe who goes by JD.',
             outputSchema: ProfileSchema.$schema,
           );
@@ -327,12 +332,12 @@ void main() {
       final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
       final response1 = await ai.generate(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'My name is Alice.',
       );
 
       final response2 = await ai.generate(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-5.4-mini'),
         messages: [
           Message(
             role: Role.user,
@@ -363,7 +368,7 @@ void main() {
       final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
       final response = await ai.generate(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'Say hello.',
       );
       expect(response.usage?.inputTokens, greaterThan(0));
@@ -371,7 +376,7 @@ void main() {
       expect(response.usage?.totalTokens, greaterThan(0));
 
       final stream = ai.generateStream(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'Say hello.',
       );
       await for (final _ in stream) {}
@@ -394,7 +399,7 @@ void main() {
       final ai = Genkit(plugins: [openAI()]);
 
       final response = await ai.generate(
-        model: openAI.model('gpt-4o-mini'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'Say "hello" and nothing else.',
       );
 
@@ -413,7 +418,7 @@ void main() {
       // The mocks prove the parameter reaches the wire; only OpenAI can say
       // whether it accepts the level for this model.
       final response = await ai.generate(
-        model: openAI.model('o4-mini'),
+        model: openAI.model('gpt-5.6-sol'),
         prompt: 'What is 17 * 23? Answer with the number only.',
         config: OpenAIChatOptions(reasoningEffort: 'low'),
       );
@@ -436,7 +441,7 @@ void main() {
       final ai = Genkit(plugins: [openAI(apiKey: apiKey)]);
 
       final response = await ai.generate(
-        model: openAI.model('gpt-5-mini'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'Name the capital of France.',
         config: OpenAIChatOptions(verbosity: 'low', reasoningEffort: 'low'),
       );

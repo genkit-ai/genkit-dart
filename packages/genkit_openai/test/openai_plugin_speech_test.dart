@@ -78,8 +78,8 @@ void main() {
     });
 
     test('does not claim other audio models', () {
-      // These all classify as 'audio' too, so the tts check is what keeps
-      // transcription and realtime models out of the speech path.
+      // Transcription models classify as 'audio' too, so the tts check is
+      // what keeps them out of the speech path.
       expect(getModelType('whisper-1'), 'audio');
       expect(isSpeechModel('whisper-1'), isFalse);
       expect(isSpeechModel('gpt-4o-transcribe'), isFalse);

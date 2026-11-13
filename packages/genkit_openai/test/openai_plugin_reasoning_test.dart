@@ -51,7 +51,7 @@ MockClient reasoningClient(
         'id': 'chatcmpl-test',
         'object': 'chat.completion',
         'created': 0,
-        'model': 'o4-mini',
+        'model': 'gpt-5.6-sol',
         'choices': [
           {
             'index': 0,
@@ -116,7 +116,7 @@ void main() {
     test('reaches the request for a reasoning model', () async {
       final captured = <Map<String, dynamic>>[];
       await genkitWith(reasoningClient(captured)).generate(
-        model: openAI.model('o4-mini'),
+        model: openAI.model('gpt-5.6-sol'),
         prompt: 'think',
         config: OpenAIChatOptions(reasoningEffort: 'high'),
       );
@@ -154,7 +154,7 @@ void main() {
       final captured = <Map<String, dynamic>>[];
       await genkitWith(
         reasoningClient(captured),
-      ).generate(model: openAI.model('o4-mini'), prompt: 'hi');
+      ).generate(model: openAI.model('gpt-5.6-sol'), prompt: 'hi');
 
       expect(captured.single, isNot(contains('reasoning_effort')));
       expect(captured.single, isNot(contains('verbosity')));
@@ -188,14 +188,17 @@ void main() {
     });
 
     test('o1-mini predates the parameter and is rejected', () async {
+      final captured = <Map<String, dynamic>>[];
+
       await expectLater(
-        genkitWith(reasoningClient([])).generate(
+        genkitWith(reasoningClient(captured)).generate(
           model: openAI.model('o1-mini'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'low'),
         ),
         completion(failsWith(StatusCode.invalidArgument, message: 'o1-mini')),
       );
+      expect(captured, isEmpty, reason: 'rejected before any request');
     });
 
     test('an uncurated model is left to OpenAI to judge', () async {
@@ -216,7 +219,7 @@ void main() {
 
       await expectLater(
         genkitWith(reasoningClient(captured)).generate(
-          model: openAI.model('o4-mini'),
+          model: openAI.model('gpt-5.6-sol'),
           prompt: 'hi',
           config: OpenAIChatOptions(version: 'gpt-4o', reasoningEffort: 'high'),
         ),
@@ -229,10 +232,13 @@ void main() {
       await genkitWith(reasoningClient(captured)).generate(
         model: openAI.model('gpt-4o'),
         prompt: 'hi',
-        config: OpenAIChatOptions(version: 'o3', reasoningEffort: 'high'),
+        config: OpenAIChatOptions(
+          version: 'gpt-5.6-sol',
+          reasoningEffort: 'high',
+        ),
       );
 
-      expect(captured.single['model'], 'o3');
+      expect(captured.single['model'], 'gpt-5.6-sol');
       expect(captured.single['reasoning_effort'], 'high');
     });
 
@@ -340,7 +346,7 @@ void main() {
     test('an unknown level is the caller\'s mistake', () async {
       await expectLater(
         genkitWith(reasoningClient([])).generate(
-          model: openAI.model('o4-mini'),
+          model: openAI.model('gpt-5.6-sol'),
           prompt: 'hi',
           config: OpenAIChatOptions(reasoningEffort: 'extreme'),
         ),
@@ -395,7 +401,7 @@ void main() {
             {'type': 'reasoning.text', 'text': 'then second'},
           ],
         ),
-      ).generate(model: openAI.model('o4-mini'), prompt: 'think');
+      ).generate(model: openAI.model('gpt-5.6-sol'), prompt: 'think');
 
       // Entries are slices of one trace, so they are joined, not picked
       // between.
@@ -411,7 +417,7 @@ void main() {
             {'type': 'reasoning.summary', 'summary': 'weighed both options'},
           ],
         ),
-      ).generate(model: openAI.model('o4-mini'), prompt: 'think');
+      ).generate(model: openAI.model('gpt-5.6-sol'), prompt: 'think');
 
       // A ReasoningPart is meant to be read, and the payload is base64 only
       // the provider can open.

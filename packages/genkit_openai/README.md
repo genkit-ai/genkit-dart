@@ -40,7 +40,7 @@ void main() async {
 
   // Generate text
   final response = await ai.generate(
-    model: openAI.model('gpt-4o'),
+    model: openAI.model('gpt-6-luna'),
     prompt: 'Tell me a joke.',
   );
 
@@ -76,9 +76,11 @@ plugin update.
 
 ```dart
 final response = await ai.generate(
-  model: openAI.model('gpt-4o'),
+  model: openAI.model('gpt-5.4'),
   prompt: 'Write a haiku about Dart.',
   config: OpenAIChatOptions(
+    // gpt-5.4 takes sampling parameters only with reasoning off.
+    reasoningEffort: 'none',
     temperature: 0.7,
     maxTokens: 100,
   ),
@@ -89,7 +91,7 @@ final response = await ai.generate(
 
 ```dart
 await for (final chunk in ai.generateStream(
-  model: openAI.model('gpt-4o'),
+  model: openAI.model('gpt-6-luna'),
   prompt: 'Count from 1 to 10.',
 )) {
   for (final part in chunk.content) {
@@ -140,7 +142,7 @@ void main() async {
   );
 
   final response = await ai.generate(
-    model: openAI.model('gpt-4o'),
+    model: openAI.model('gpt-5.5'),
     prompt: 'What\'s the weather in Boston?',
     toolNames: ['getWeather'],
   );
@@ -153,7 +155,7 @@ void main() async {
 
 ```dart
 final response = await ai.generate(
-  model: openAI.model('gpt-4o'),
+  model: openAI.model('gpt-6-luna'),
   messages: [
     Message(
       role: Role.user,
@@ -252,19 +254,19 @@ final ai = Genkit(plugins: [
     name: 'openrouter',
     apiKey: Platform.environment['OPENROUTER_API_KEY'],
     baseUrl: 'https://openrouter.ai/api/v1',
-    models: [CustomModelDefinition(name: 'gpt-4o')],
+    models: [CustomModelDefinition(name: 'gpt-5.4-mini')],
   ),
 ]);
 
 // Uses the default OpenAI backend
 final a = await ai.generate(
-  model: openAI.model('gpt-4o'),
+  model: openAI.model('gpt-6-luna'),
   prompt: 'Hello from OpenAI!',
 );
 
 // Uses the OpenRouter backend
 final b = await ai.generate(
-  model: openAI.model('gpt-4o', namespace: 'openrouter'),
+  model: openAI.model('gpt-5.4-mini', namespace: 'openrouter'),
   prompt: 'Hello from OpenRouter!',
 );
 ```
@@ -282,20 +284,34 @@ final response = await ai.generate(
 );
 ```
 
-Listing falls back to this catalog when discovery is unavailable, minus the
-models OpenAI has retired: those still resolve by name, but are never offered
-in a listing. The catalog itself is internal and changes with OpenAI's model
-list in any release.
+Listing falls back to this catalog when discovery is unavailable. A model
+with an announced shutdown date is still listed, with the `deprecated` stage,
+and leaves the catalog in a plugin release after OpenAI shuts it down. A
+removed model still resolves by name, with the generic defaults, and OpenAI
+answers for it with a 404. Models that `GET /models` reports but only the
+Responses API serves, such as the `-pro` tiers, are left out of the listing,
+as are realtime, live and audio-chat models and legacy completion models.
+`gpt-5-search-api` is listed as a chat model without tools.
+The catalog itself is internal and changes with OpenAI's model list in any
+release.
+
+`gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.5`, `gpt-5.6-sol`,
+`gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-6-sol` and `gpt-6-luna` advertise tools,
+but take function tools on Chat Completions only with
+`reasoningEffort: 'none'`. GPT-5.4 and GPT-5.5 default to it; the others need it
+set. The plugin does not check the effort for you.
+`gpt-6-astra`, `gpt-6.1-sol` and `gpt-6.1-terra` take tools only on the
+Responses API, which this plugin does not use, so they advertise no tools.
 
 The catalog is not the set of usable models. Any OpenAI-compatible model works
 by passing its name to `model()`; a name that is not curated takes the current
-multimodal defaults, and a dated snapshot resolves to the capabilities of the
-alias it belongs to:
+multimodal defaults (an o-series name is described as a reasoning model), and a
+dated snapshot resolves to the capabilities of the alias it belongs to:
 
 ```dart
 final response = await ai.generate(
-  // Resolves to the curated gpt-4o capabilities.
-  model: openAI.model('gpt-4o-2024-08-06'),
+  // Resolves to the curated gpt-5.5 capabilities.
+  model: openAI.model('gpt-5.5-2026-04-23'),
   prompt: 'Hello',
 );
 ```
@@ -305,12 +321,12 @@ model released after this version of the plugin, or one served by a proxy that
 supports less than OpenAI does — pass a `CustomModelDefinition` with explicit
 `info`.
 
-Behind a custom `baseUrl`, a curated model keeps its capabilities — a gateway
-serving `gpt-3.5-turbo` is serving that model — but not OpenAI's deployment
-details, since the label, lifecycle stage and snapshot list all describe
-OpenAI's own hosting. The catalog is also not added to that host's listing:
-what a compatible provider lists is whatever its `/models` reports plus the
-models you register.
+Behind a custom `baseUrl`, a curated model keeps its capabilities, and so does
+a model OpenAI has shut down: a gateway serving `gpt-3.5-turbo` is serving that
+model. OpenAI's deployment details do not carry over, since the label,
+lifecycle stage and snapshot list all describe OpenAI's own hosting. The
+catalog is also not added to that host's listing: what a compatible provider
+lists is whatever its `/models` reports plus the models you register.
 
 ### Text to Speech
 
@@ -624,7 +640,7 @@ There are three ways to get JSON back, in order of preference:
 ```dart
 // 1. A schema - the model is constrained to the shape and `output` is typed.
 final response = await ai.generate(
-  model: openAI.model('gpt-4o'),
+  model: openAI.model('gpt-6-luna'),
   prompt: 'Describe a book.',
   outputSchema: Book.$schema,
 );
@@ -632,14 +648,14 @@ print(response.output!.title);
 
 // 2. JSON with no particular shape.
 final response = await ai.generate(
-  model: openAI.model('gpt-4o'),
+  model: openAI.model('gpt-6-luna'),
   prompt: 'Return a JSON object with keys "name" and "age".',
   outputFormat: 'json',
 );
 
 // 3. The provider flag directly, for callers not using Genkit's output config.
 final response = await ai.generate(
-  model: openAI.model('gpt-4o'),
+  model: openAI.model('gpt-6-luna'),
   prompt: 'Reply with a JSON object.',
   config: OpenAIChatOptions(jsonMode: true),
 );

@@ -51,9 +51,8 @@ const deepSeekTextSupports = <String, dynamic>{..._chatCore, 'media': false};
 /// DeepSeek renames aggressively. `deepseek-chat` and `deepseek-reasoner` were
 /// the whole lineup for two years, were announced for discontinuation on
 /// 2026-07-24, and now select the non-thinking and thinking modes of
-/// `deepseek-flash`. Both still answer, so they are curated as
-/// [OpenAIModelStage.legacy] - listed, with the shutdown announced - rather
-/// than dropped or marked `deprecated`.
+/// `deepseek-flash`. Both still answer, so they are curated - as
+/// [OpenAIModelStage.legacy], and listed - rather than dropped.
 ///
 /// No entry says whether a model thinks. On DeepSeek that is a request-time
 /// mode, not a property of the name: `deepseek-chat` is Flash with thinking
@@ -76,10 +75,9 @@ enum KnownDeepSeekModel {
 
   /// The former chat alias, now `deepseek-flash` with thinking off.
   ///
-  /// `legacy`, not `deprecated`: DeepSeek announced the discontinuation but
-  /// still serves the name, routing it to Flash. That is what `legacy` means
-  /// here - served, with a shutdown announced - so it stays in the listing
-  /// until the name actually stops answering.
+  /// `legacy`: superseded by `deepseek-flash`, which DeepSeek routes it to.
+  /// DeepSeek announced its discontinuation for 2026-07-24 but still serves
+  /// the name, so it stays in the listing until the name stops answering.
   deepseekChat(
     'deepseek-chat',
     'DeepSeek Chat',
@@ -143,12 +141,10 @@ final Map<String, ModelInfo> knownDeepSeekModels = Map.unmodifiable({
 
 /// DeepSeek chat models the plugin lists without network access.
 ///
-/// [OpenAIModelStage.legacy] entries are listed — DeepSeek still serves them —
-/// while `deprecated` ones would not be, the same rule the OpenAI catalog
-/// follows.
+/// Every entry is listed, whatever its stage, the same rule the OpenAI catalog
+/// follows: a curated model is one DeepSeek still serves.
 final List<String> knownDeepSeekChatModels = List.unmodifiable([
-  for (final model in KnownDeepSeekModel.values)
-    if (model.stage != OpenAIModelStage.deprecated) model.id,
+  for (final model in KnownDeepSeekModel.values) model.id,
 ]);
 
 final _knownDeepSeekModelsByName = <String, KnownDeepSeekModel>{

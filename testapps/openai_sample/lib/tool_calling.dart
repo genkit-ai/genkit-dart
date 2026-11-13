@@ -59,7 +59,7 @@ Flow<WeatherFlowInput, String, void, void> defineToolCallingFlow(
     outputSchema: .string(),
     fn: (input, _) async {
       final response = await ai.generate(
-        model: openAI.model('gpt-4o-mini'),
+        model: openAI.model('gpt-5.5'),
         prompt: input.prompt,
         toolNames: [getWeather.name],
       );
@@ -82,7 +82,7 @@ Flow<WeatherFlowInput, String, String, void> defineStreamedToolCallingFlow(
     streamSchema: .string(),
     fn: (input, ctx) async {
       final stream = ai.generateStream(
-        model: openAI.model('gpt-4o-mini'),
+        model: openAI.model('gpt-5.5'),
         prompt: input.prompt,
         toolNames: [getWeather.name],
       );

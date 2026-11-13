@@ -30,7 +30,7 @@ Flow<String, String, void, void> defineSimpleGenerationFlow(Genkit ai) {
     outputSchema: .string(),
     fn: (prompt, _) async {
       final response = await ai.generate(
-        model: openAI.model('gpt-4o-mini'),
+        model: openAI.model('gpt-6-luna'),
         prompt: prompt,
       );
       return response.text;
@@ -55,7 +55,7 @@ Flow<String, String, String, void> defineStreamedSimpleGenerationFlow(
     streamSchema: .string(),
     fn: (prompt, ctx) async {
       final stream = ai.generateStream(
-        model: openAI.model('gpt-4o-mini'),
+        model: openAI.model('gpt-6-luna'),
         prompt: prompt,
       );
 

@@ -37,7 +37,7 @@ void main() async {
   final geminiModel = geminiApi.model('gemini-3.1-pro-preview');
 
   final openAIApi = openAI(apiKey: Platform.environment['OPENAI_API_KEY']!);
-  final gpt4oModel = openAIApi.model('gpt-4o');
+  final gptModel = openAIApi.model('gpt-6-luna');
 
   final router = Router();
 
@@ -46,8 +46,8 @@ void main() async {
     shelfHandler(geminiModel, contextProvider: authContextProvider),
   );
   router.post(
-    '/gpt-4o',
-    shelfHandler(gpt4oModel, contextProvider: authContextProvider),
+    '/gpt-6-luna',
+    shelfHandler(gptModel, contextProvider: authContextProvider),
   );
 
   final server = await io.serve(router.call, 'localhost', 8080);

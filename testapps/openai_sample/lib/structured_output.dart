@@ -66,7 +66,7 @@ Flow<MovieReviewInput, MovieReview, void, void> defineStructuredOutputFlow(
       final yearClause = input.year != null ? ' (${input.year})' : '';
 
       final response = await ai.generate(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-6-luna'),
         prompt:
             'Write a detailed review  of the movie "${input.title}$yearClause".',
         outputFormat: 'json',
@@ -96,7 +96,7 @@ defineStreamedStructuredOutputFlow(Genkit ai) {
     fn: (input, ctx) async {
       final yearClause = input.year != null ? ' (${input.year})' : '';
       final stream = ai.generateStream(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-6-luna'),
         prompt:
             'Write a detailed review of the movie "${input.title}$yearClause".',
         outputFormat: 'json',

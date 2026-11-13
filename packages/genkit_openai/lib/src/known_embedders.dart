@@ -146,11 +146,10 @@ final Map<String, Map<String, dynamic>> knownOpenAIEmbedders = Map.unmodifiable(
 ///
 /// Listed alongside whatever `GET /models` reports, for the same reason
 /// `knownChatModels` is: discovery needs both connectivity and a valid key,
-/// and neither is guaranteed. [OpenAIModelStage.deprecated] entries are
-/// excluded — OpenAI no longer serves them.
+/// and neither is guaranteed. Every entry is listed, whatever its stage: a
+/// curated embedder is one OpenAI still serves.
 final List<String> knownEmbedderModels = List.unmodifiable([
-  for (final embedder in KnownOpenAIEmbedder.values)
-    if (embedder.stage != OpenAIModelStage.deprecated) embedder.id,
+  for (final embedder in KnownOpenAIEmbedder.values) embedder.id,
 ]);
 
 final _knownOpenAIEmbeddersByName = <String, KnownOpenAIEmbedder>{
