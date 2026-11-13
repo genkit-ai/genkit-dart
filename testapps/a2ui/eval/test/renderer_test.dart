@@ -13,6 +13,7 @@
 // limitations under the License.
 
 import 'package:a2ui_eval/src/renderer.dart';
+import 'package:a2ui_eval/src/report.dart';
 import 'package:a2ui_eval/src/runner.dart';
 import 'package:a2ui_eval/src/scenario.dart';
 import 'package:genkit/genkit.dart';
@@ -362,6 +363,85 @@ void main() {
         expect(shown, isNot(contains('hiddensecret')));
       },
     );
+
+    test(
+      'resolves formatString in searchableText, labelOf, and List templates',
+      () {
+        final r = HeadlessRenderer()
+          ..applyTurn(0, [
+            {
+              'version': '1.0',
+              'createSurface': {
+                'surfaceId': 's',
+                'catalogId': 'c',
+                'components': [
+                  {
+                    'id': 'root',
+                    'component': 'Column',
+                    'children': ['headline', 'missing', 'escaped', 'cityList'],
+                  },
+                  {
+                    'id': 'headline',
+                    'component': 'Text',
+                    'text': {
+                      '@call': 'formatString',
+                      'args': {
+                        'value':
+                            r'Weather in ${/city}: ${formatNumber(value: /temp)}C',
+                      },
+                    },
+                  },
+                  {
+                    'id': 'missing',
+                    'component': 'Text',
+                    'text': {
+                      '@call': 'formatString',
+                      'args': {'value': r'Temperature ${/paris/temp}'},
+                    },
+                  },
+                  {
+                    'id': 'escaped',
+                    'component': 'Text',
+                    'text': {
+                      '@call': 'formatString',
+                      'args': {'value': r'Literal \${/oslo}'},
+                    },
+                  },
+                  {
+                    'id': 'cityList',
+                    'component': 'List',
+                    'children': {'path': '/rows', 'componentId': 'rowTpl'},
+                  },
+                  {
+                    'id': 'rowTpl',
+                    'component': 'Text',
+                    'text': {
+                      '@call': 'formatString',
+                      'args': {'value': r'${name}: ${temp}'},
+                    },
+                  },
+                ],
+                'dataModel': {
+                  'city': 'Berlin',
+                  'temp': 19,
+                  'oslo': 'ShouldStayEscaped',
+                  'rows': [
+                    {'name': 'Vienna', 'temp': '21C'},
+                  ],
+                },
+              },
+            },
+          ]);
+
+        final s = r['s']!;
+        expect(s.labelOf('headline'), 'Weather in Berlin: 19C');
+        final shown = s.searchableText;
+        expect(shown, contains('weather in berlin: 19c'));
+        expect(shown, contains('vienna: 21c'));
+        expect(shown, isNot(contains('paris')));
+        expect(shown, isNot(contains('shouldstayescaped')));
+      },
+    );
   });
 
   group('writePointer', () {
@@ -529,6 +609,214 @@ void main() {
           'WARNING genkit_a2ui: A2UI repair limit reached',
         ]);
       expect(t.repairFailed, 5);
+    });
+
+    test(
+      'Press resolves formatString userMessage and rejects relative paths',
+      () {
+        final r = HeadlessRenderer()
+          ..applyTurn(0, [
+            {
+              'version': '1.0',
+              'createSurface': {
+                'surfaceId': 's',
+                'catalogId': 'c',
+                'components': [
+                  {
+                    'id': 'root',
+                    'component': 'Column',
+                    'children': ['okBtn', 'badBtn'],
+                  },
+                  {
+                    'id': 'okBtn',
+                    'component': 'Button',
+                    'child': 'okLbl',
+                    'action': {
+                      'event': {
+                        'name': 'submit',
+                        'userMessage': {
+                          '@call': 'formatString',
+                          'args': {'value': r'Signing up as ${/form/name}'},
+                        },
+                      },
+                    },
+                  },
+                  {'id': 'okLbl', 'component': 'Text', 'text': 'Confirm'},
+                  {
+                    'id': 'badBtn',
+                    'component': 'Button',
+                    'child': 'badLbl',
+                    'action': {
+                      'event': {
+                        'name': 'pick',
+                        'userMessage': {
+                          '@call': 'formatString',
+                          'args': {'value': r'Pick ${relName}'},
+                        },
+                      },
+                    },
+                  },
+                  {'id': 'badLbl', 'component': 'Text', 'text': 'Bad'},
+                ],
+                'dataModel': {
+                  'form': {'name': 'Grace Hopper'},
+                },
+              },
+            },
+          ]);
+
+        final ok = findAction(r, SurfaceRef.last, ['Confirm']);
+        expect(ok.error, isNull);
+        final action =
+            ((ok.message!.content.single.data!['messages'] as List).single
+                    as Map)['action']
+                as Map;
+        expect(action['userMessage'], 'Signing up as Grace Hopper');
+
+        final bad = findAction(r, SurfaceRef.last, ['Bad']);
+        expect(bad.message, isNull);
+        expect(bad.error, contains('relative binding'));
+      },
+    );
+
+    test('renderedState ignores map key and surface creation order', () {
+      final streamed = HeadlessRenderer()
+        ..applyTurn(0, [
+          {
+            'version': '1.0',
+            'createSurface': {
+              'surfaceId': 'b',
+              'catalogId': 'c',
+              'components': [
+                {'id': 'root', 'component': 'Text', 'text': 'B'},
+              ],
+            },
+          },
+          {
+            'version': '1.0',
+            'createSurface': {
+              'surfaceId': 'a',
+              'catalogId': 'c',
+              'components': [
+                {
+                  'id': 'root',
+                  'component': 'TextField',
+                  'label': 'Name',
+                  'value': {'@path': '/name'},
+                },
+              ],
+            },
+          },
+          {
+            'version': '1.0',
+            'updateDataModel': {
+              'surfaceId': 'b',
+              'path': '/humidity',
+              'value': 60,
+            },
+          },
+          {
+            'version': '1.0',
+            'updateDataModel': {
+              'surfaceId': 'b',
+              'path': '/wind',
+              'value': '5 km/h',
+            },
+          },
+          {
+            'version': '1.0',
+            'updateDataModel': {
+              'surfaceId': 'b',
+              'path': '/humidity',
+              'value': 60,
+            },
+          },
+        ]);
+
+      final history = HeadlessRenderer()
+        ..applyTurn(0, [
+          {
+            'version': '1.0',
+            'createSurface': {
+              'surfaceId': 'a',
+              'catalogId': 'c',
+              'components': [
+                {
+                  'id': 'root',
+                  'component': 'TextField',
+                  'label': 'Name',
+                  'value': {'@path': '/name'},
+                },
+              ],
+            },
+          },
+          {
+            'version': '1.0',
+            'createSurface': {
+              'surfaceId': 'b',
+              'catalogId': 'c',
+              'components': [
+                {'id': 'root', 'component': 'Text', 'text': 'B'},
+              ],
+            },
+          },
+          {
+            'version': '1.0',
+            'updateDataModel': {
+              'surfaceId': 'b',
+              'path': '/wind',
+              'value': '5 km/h',
+            },
+          },
+          {
+            'version': '1.0',
+            'updateDataModel': {
+              'surfaceId': 'b',
+              'path': '/humidity',
+              'value': 60,
+            },
+          },
+        ]);
+
+      expect(renderedState(streamed), renderedState(history));
+
+      // Resolving SurfaceRef once on `streamed` and filling by id keeps both
+      // renderers aligned even when creation order differs.
+      final snap = SurfaceRef.nth(
+        1,
+      ).resolve([for (final s in streamed.surfaces) SurfaceSnapshot(s)])!;
+      expect(fillSurfaceInput(streamed[snap.id], 'Name', 'Ada'), isNull);
+      expect(fillSurfaceInput(history[snap.id], 'Name', 'Ada'), isNull);
+      expect(renderedState(streamed), renderedState(history));
+    });
+  });
+
+  group('Report token accounting', () {
+    test('includes thoughtsTokens in billed output tokens', () {
+      final run = RunRecord('weather', 0)
+        ..turns.add(
+          TurnRecord(0, 'say', 'hi')
+            ..usage.add({
+              'inputTokens': 1000,
+              'outputTokens': 300,
+              'thoughtsTokens': 500,
+            }),
+        );
+      final summary = ScenarioSummary(const Scenario('weather', []), [run]);
+      expect(summary.inputTokens, 1000);
+      expect(summary.thoughtsTokens, 500);
+      expect(summary.outputTokens, 800);
+      expect(
+        consoleSummary([summary]),
+        contains('1000 in / 800 out, incl. 500 thoughts'),
+      );
+      expect(
+        markdownReport([summary], meta: const {'runs': 1}),
+        allOf(
+          contains('`totalOutputTokens`: 800'),
+          contains('`totalThoughtsTokens`: 500'),
+        ),
+      );
     });
   });
 
