@@ -237,7 +237,8 @@ final mistralProvider = OpenAIProvider(
 /// - `seed` goes out as `random_seed`, Mistral's name for it.
 /// - `user` and `verbosity` are dropped: Mistral has neither field.
 /// - `stream_options` is dropped. The plugin always asks for
-///   `include_usage` on a stream, and Mistral defines no `stream_options`.
+///   `include_usage` on a stream, and Mistral reports usage on the last
+///   streamed chunk without being asked.
 ///
 /// Everything else passes through untouched.
 ///

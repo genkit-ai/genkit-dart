@@ -560,7 +560,8 @@ Four things differ on the wire, and the plugin handles each:
 - `seed` goes out as `random_seed`.
 - `user` and `verbosity` are dropped. Mistral has neither field.
 - `stream_options` is dropped from streaming requests. The plugin asks every
-  other host for usage that way, and Mistral defines no `stream_options`.
+  other host for usage that way, and Mistral reports usage on the last chunk
+  without being asked.
 
 Tools, `toolChoice`, JSON schema structured output and image input go out
 unchanged. Inline non-image media, such as a PDF data URI, is refused before
