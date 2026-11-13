@@ -55,9 +55,8 @@ void main() {
       }
     });
 
-    test('Large 4 and the Ministral 3 models are curated with image input', () {
+    test('the Ministral 3 models are curated with image input', () {
       for (final id in [
-        'mistral-large-4',
         'ministral-14b-latest',
         'ministral-8b-latest',
         'ministral-3b-latest',
@@ -70,13 +69,10 @@ void main() {
       }
     });
 
-    test('the aliases of deprecated models are legacy, and still listed', () {
-      // Mistral still serves Large 3 and Medium 3.5 until their announced
-      // retirement, which is what `legacy` means in this vocabulary.
-      for (final model in [
-        KnownMistralModel.mistralLarge,
-        KnownMistralModel.mistralMedium,
-      ]) {
+    test('the alias of a deprecated model is legacy, and still listed', () {
+      // Mistral still serves Medium 3.5 until its announced retirement, which
+      // is what `legacy` means in this vocabulary.
+      for (final model in [KnownMistralModel.mistralMedium]) {
         expect(model.stage, OpenAIModelStage.legacy, reason: model.id);
         expect(model.info.stage, 'legacy', reason: model.id);
         expect(knownMistralChatModels, contains(model.id));
@@ -90,10 +86,12 @@ void main() {
       ]);
     });
 
-    test('the Magistral models are not curated', () {
+    test('Large 4 and the Magistral models are not curated', () {
       // They answer with `thinking` chunks in a content array, which the
       // plugin does not read yet.
       expect(knownMistralModelFor('magistral-medium-latest'), isNull);
+      expect(knownMistralModelFor('mistral-large-4'), isNull);
+      expect(knownMistralModelFor('mistral-large-latest'), isNull);
       expect(knownMistralModelFor('magistral-small-latest'), isNull);
     });
 
@@ -253,9 +251,9 @@ void main() {
           .map((m) => m.name)
           .toSet();
 
-      expect(models, contains('mistral/mistral-large-4'));
+      expect(models, isNot(contains('mistral/mistral-large-4')));
       expect(models, contains('mistral/ministral-14b-latest'));
-      expect(models, contains('mistral/mistral-large-latest'));
+      expect(models, isNot(contains('mistral/mistral-large-latest')));
       expect(models, contains('mistral/codestral-latest'));
       expect(models.any((n) => n.contains('gpt-')), isFalse);
       expect(models.any((n) => n.contains('tts')), isFalse);
@@ -268,13 +266,13 @@ void main() {
         provider: mistralProvider,
         apiKey: 'm-key',
         baseUrl: 'https://gateway.example/v1',
-        httpClient: recordingClient([], modelIds: ['mistral-large-latest']),
+        httpClient: recordingClient([], modelIds: ['mistral-medium-latest']),
       );
 
       final metadata = (await plugin.list()).single;
       final info = (metadata.metadata['model'] as Map).cast<String, dynamic>();
 
-      expect(metadata.name, 'mistral/mistral-large-latest');
+      expect(metadata.name, 'mistral/mistral-medium-latest');
       expect(info['supports'], multimodalSupports);
       expect(info.containsKey('label'), isFalse);
       expect(info.containsKey('versions'), isFalse);
@@ -304,35 +302,46 @@ void main() {
       expect(requests, isEmpty);
     });
 
-    test('Magistral, Z.ai GLM and OCR are filtered out of discovery', () async {
-      // Mistral lists them, so leaving them out of the curated catalog is not
-      // enough: discovery would put them straight back. GLM answers with
-      // thinking chunks whatever `reasoning_effort` says.
-      final plugin = OpenAIPlugin(
-        provider: mistralProvider,
-        apiKey: 'm-key',
-        httpClient: recordingClient(
-          [],
-          modelIds: [
-            'mistral-small-latest',
-            'magistral-medium-latest',
-            'magistral-small-2509',
-            'zai-glm-5-3',
-            'zai-glm-5-3-flash',
-            'mistral-ocr-latest',
-          ],
-        ),
-      );
+    test(
+      'Large 4, Magistral, Z.ai GLM and OCR are filtered out of discovery',
+      () async {
+        // Mistral lists them, so leaving them out of the curated catalog is not
+        // enough: discovery would put them straight back. Large 4 and GLM answer
+        // with thinking chunks whatever `reasoning_effort` says.
+        final plugin = OpenAIPlugin(
+          provider: mistralProvider,
+          apiKey: 'm-key',
+          httpClient: recordingClient(
+            [],
+            modelIds: [
+              'mistral-small-latest',
+              'mistral-large-4',
+              'mistral-large-4-0',
+              'mistral-large-latest',
+              'mistral-large-2512',
+              'magistral-medium-latest',
+              'magistral-small-2509',
+              'zai-glm-5-3',
+              'zai-glm-5-3-flash',
+              'mistral-ocr-latest',
+            ],
+          ),
+        );
 
-      final names = (await plugin.list()).map((m) => m.name).toSet();
+        final names = (await plugin.list()).map((m) => m.name).toSet();
 
-      expect(names, contains('mistral/mistral-small-latest'));
-      expect(names, isNot(contains('mistral/magistral-medium-latest')));
-      expect(names, isNot(contains('mistral/magistral-small-2509')));
-      expect(names, isNot(contains('mistral/zai-glm-5-3')));
-      expect(names, isNot(contains('mistral/zai-glm-5-3-flash')));
-      expect(names, isNot(contains('mistral/mistral-ocr-latest')));
-    });
+        expect(names, contains('mistral/mistral-small-latest'));
+        expect(names, isNot(contains('mistral/mistral-large-4')));
+        expect(names, isNot(contains('mistral/mistral-large-4-0')));
+        expect(names, isNot(contains('mistral/mistral-large-latest')));
+        expect(names, contains('mistral/mistral-large-2512'));
+        expect(names, isNot(contains('mistral/magistral-medium-latest')));
+        expect(names, isNot(contains('mistral/magistral-small-2509')));
+        expect(names, isNot(contains('mistral/zai-glm-5-3')));
+        expect(names, isNot(contains('mistral/zai-glm-5-3-flash')));
+        expect(names, isNot(contains('mistral/mistral-ocr-latest')));
+      },
+    );
 
     test('a name it declines still resolves when asked for', () {
       final plugin = OpenAIPlugin(provider: mistralProvider, apiKey: 'm-key');

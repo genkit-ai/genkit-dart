@@ -252,9 +252,15 @@ Map<String, dynamic> mistralChatBody(Map<String, dynamic> body) {
 }
 
 /// Whether a model id Mistral lists is one this plugin can serve.
+///
+/// Mistral Large 4 answers with thinking chunks even with no reasoning effort,
+/// and `mistral-large-latest` now points at it. Large 3 snapshots such as
+/// `mistral-large-2512` answer with plain text and stay.
 bool _mistralServesModel(String model) {
   final id = model.toLowerCase();
-  return !id.contains('magistral') &&
+  return !id.startsWith('mistral-large-4') &&
+      id != 'mistral-large-latest' &&
+      !id.contains('magistral') &&
       !id.contains('zai-glm') &&
       !id.contains('ocr');
 }

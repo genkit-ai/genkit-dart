@@ -50,28 +50,21 @@ const mistralUnknownSupports = <String, dynamic>{
 
 /// Mistral models the plugin curates capability metadata for.
 ///
-/// Curated mostly by their `-latest` aliases, which are what Mistral's own
-/// samples use. An alias is not guaranteed to move on, though: Mistral Large 4
-/// has no `-latest` alias, so `mistral-large-latest` still points at Large 3,
-/// and `mistral-medium-latest` at Medium 3.5. Both are deprecated, with
-/// retirement announced for 4/30/2027, and are curated as
+/// Curated by their `-latest` aliases, which are what Mistral's own samples
+/// use. `mistral-medium-latest` points at Medium 3.5, which Mistral has
+/// deprecated, with retirement announced for 4/30/2027; it is curated as
 /// [OpenAIModelStage.legacy] until then. Any other name still resolves,
 /// taking [dynamicMistralModelInfo].
 ///
-/// The Magistral reasoning models are deliberately absent. They answer with
-/// `content` as an array of `thinking` and `text` chunks, which the plugin
-/// does not read yet, so listing them would offer models whose every reply
-/// fails to parse.
+/// Mistral Large 4 (`mistral-large-4`, and `mistral-large-latest`, which now
+/// points at it) and the Magistral reasoning models are deliberately absent.
+/// They answer with `content` as an array of `thinking` and `text` chunks,
+/// Large 4 even with no `reasoning_effort` sent, and the plugin does not read
+/// those yet, so listing them would offer models whose every reply fails to
+/// parse.
 ///
 /// Catalog: https://docs.mistral.ai/models
 enum KnownMistralModel {
-  /// Mistral Large 4, the current flagship. Image input. No `-latest` alias.
-  ///
-  /// It takes no `none` reasoning effort, and Mistral does not document what
-  /// it answers when no effort is sent. If that is thinking chunks, it has to
-  /// leave the catalog until the plugin reads them.
-  mistralLarge4('mistral-large-4', 'Mistral Large 4', multimodalSupports),
-
   /// Mistral Small, currently Small 4. Image input.
   mistralSmall('mistral-small-latest', 'Mistral Small', multimodalSupports),
 
@@ -86,17 +79,6 @@ enum KnownMistralModel {
 
   /// Codestral, the coding model. Text only.
   codestral('codestral-latest', 'Codestral', mistralTextSupports),
-
-  /// Mistral Large 3, which this alias still points at. Image input.
-  ///
-  /// Deprecated by Mistral in favour of Large 4, still served until its
-  /// announced retirement.
-  mistralLarge(
-    'mistral-large-latest',
-    'Mistral Large',
-    multimodalSupports,
-    stage: OpenAIModelStage.legacy,
-  ),
 
   /// Mistral Medium 3.5, which this alias points at. Image input.
   ///

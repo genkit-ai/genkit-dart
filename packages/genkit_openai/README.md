@@ -542,13 +542,14 @@ final response = await ai.generate(
 );
 ```
 
-The key comes from `MISTRAL_API_KEY`. The plugin curates Mistral Large 4
-(`mistral-large-4`, which has no `-latest` alias), the `-latest` aliases of
-Mistral Small and Ministral 14B, 8B and 3B (image input, tools, JSON schema)
-and Codestral (text only), plus the `mistral-embed` and `codestral-embed`
-embedders. `mistral-large-latest` and `mistral-medium-latest` still point at
-Large 3 and Medium 3.5, which Mistral has deprecated; they are curated as
-`legacy` until they retire. Any other name resolves too, described as
+The key comes from `MISTRAL_API_KEY`. The plugin curates the `-latest`
+aliases of Mistral Small and Ministral 14B, 8B and 3B (image input, tools,
+JSON schema) and Codestral (text only), plus the `mistral-embed` and
+`codestral-embed` embedders. `mistral-medium-latest` points at Medium 3.5,
+which Mistral has deprecated; it is curated as `legacy` until it retires.
+Mistral Large 4 (`mistral-large-4`, and `mistral-large-latest`, which now
+points at it) is left out, like Magistral: it answers with thinking chunks
+even without a reasoning effort, and the plugin can't read those yet. Any other name resolves too, described as
 text-only chat with neither tools nor JSON output claimed, since Mistral lists
 those per model.
 
