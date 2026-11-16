@@ -305,8 +305,9 @@ this plugin does not use, so they advertise no tools.
 
 The catalog is not the set of usable models. Any OpenAI-compatible model works
 by passing its name to `model()`; a name that is not curated takes the current
-multimodal defaults (an o-series name is described as a reasoning model), and a
-dated snapshot resolves to the capabilities of the alias it belongs to:
+multimodal defaults (on OpenAI's own host, an o-series name is described as a
+reasoning model), and a dated snapshot resolves to the capabilities of the
+alias it belongs to:
 
 ```dart
 final response = await ai.generate(
