@@ -63,7 +63,7 @@ const reasoningSupports = <String, dynamic>{
   'constrained': true,
 };
 
-/// Chat and vision but no function calling — the ChatGPT-tuned snapshots,
+/// Chat and vision but no function calling: the ChatGPT-tuned snapshots,
 /// which [dynamicModelInfo] recognises by their `chatgpt-` prefix.
 const multimodalNoToolsSupports = <String, dynamic>{
   ..._chatCore,
