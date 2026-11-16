@@ -34,11 +34,13 @@ Add the plugin to the package that runs your agent (it is server-side only):
 dart pub add genkit_a2ui
 ```
 
-Keep it out of a genui app's pubspec: genkit_a2ui depends on `a2ui_core` 0.5
+Keep it out of a genui app's pubspec: genkit_a2ui depends on `a2ui_core` 0.7
 and genui 0.10.x on `a2ui_core` 0.1, so the two cannot resolve together. Run
-the agent in its own package (a server, as in the sample); an app that hosts
-the agent in-process and renders with genui has to wait for genui to move to
-`a2ui_core` 0.5.
+the agent in its own package (a server, as in the sample). genui is
+discontinued and will not move to a newer `a2ui_core`, so an app that hosts
+the agent in-process should use a renderer built on `a2ui_core` 0.7 instead,
+such as [`a2ui_flutter`](https://pub.dev/packages/a2ui_flutter), which can
+share a pubspec with `genkit_a2ui`.
 
 The client does not depend on `genkit_a2ui`. To render surfaces it needs
 `package:genkit` and a renderer. The Dart examples below use
