@@ -145,7 +145,7 @@ final openAIProvider = OpenAIProvider(
   infoFor: (model, {required compat}) =>
       compat ? compatModelInfo(model) : modelInfoFor(model),
   catalogIds: knownChatModels,
-  reasonsFor: openAIModelReasons,
+  reasonsFor: (model) => knownOpenAIModelFor(model)?.reasons,
   embedderIds: knownEmbedderModels,
   speechIds: knownSpeechModels,
   transcriptionIds: knownTranscriptionModels,

@@ -264,7 +264,6 @@ void main() {
           multimodalSupports,
           reason: name,
         );
-        expect(openAIModelReasons(name), isNull, reason: name);
       }
       expect(knownOpenAIModelFor('gpt-4o-2024-08-06'), KnownOpenAIModel.gpt4o);
     });
@@ -540,56 +539,13 @@ void main() {
         expect(model, KnownOpenAIModel.gpt5SearchApi, reason: id);
         expect(supportsTools(id), isFalse, reason: id);
         expect(supportsVision(id), isFalse, reason: id);
-        expect(openAIModelReasons(id), isFalse, reason: id);
-        expect(model!.supports['constrained'], isTrue, reason: id);
+        expect(model!.reasons, isFalse, reason: id);
+        expect(model.supports['constrained'], isTrue, reason: id);
       }
     });
   });
 
   _fixtureDiscoveryTests();
-
-  group('uncurated reasoning models', () {
-    test('an o-series name reasons and takes no system role', () {
-      expect(knownOpenAIModelFor('o5-mini'), isNull);
-      expect(openAIModelReasons('o5-mini'), isTrue);
-      expect(modelInfoFor('o5-mini').supports, reasoningSupports);
-      expect(modelInfoFor('o5-mini').supports?['systemRole'], isFalse);
-    });
-
-    test('a GPT name from generation 5 on reasons', () {
-      for (final id in ['gpt-5.7', 'gpt-6.2-terra', 'gpt-7', 'gpt-9-turbo']) {
-        expect(openAIModelReasons(id), isTrue, reason: id);
-        expect(modelInfoFor(id).supports, multimodalSupports, reason: id);
-      }
-    });
-
-    test('older, ChatGPT-tuned and non-OpenAI names make no claim', () {
-      for (final id in [
-        'gpt-4.2',
-        'gpt-6-chat-latest',
-        'chatgpt-6-latest',
-        'gpt-oss-120b',
-        'llama-3.3-70b-versatile',
-        'text-embedding-3-small',
-      ]) {
-        expect(openAIModelReasons(id), isNull, reason: id);
-      }
-    });
-
-    test('a curated entry answers for itself', () {
-      expect(openAIModelReasons('gpt-4o'), isFalse);
-      expect(openAIModelReasons('gpt-5.5-2026-04-23'), isTrue);
-    });
-
-    test('a shut-down name takes the generic rule', () {
-      for (final id in ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo']) {
-        expect(openAIModelReasons(id), isNull, reason: id);
-      }
-      for (final id in ['o1', 'o1-mini', 'o3-mini', 'o4-mini-2025-04-16']) {
-        expect(openAIModelReasons(id), isTrue, reason: id);
-      }
-    });
-  });
 }
 
 /// Ids discovery lists as chat models.

@@ -424,7 +424,6 @@ final _knownOpenAIModelsByName = <String, KnownOpenAIModel>{
 };
 
 final _datedSuffixPattern = RegExp(r'-\d{4}-\d{2}-\d{2}$');
-final _gptGeneration = RegExp(r'^gpt-(\d+)(?:\.\d+)?(?:-|$)');
 final _azureDottedPattern = RegExp(r'^gpt-(\d)(\d)-');
 
 /// Rewrites a name into the spelling the catalog uses.
@@ -494,30 +493,6 @@ ModelInfo dynamicModelInfo(String modelName) {
     supports = multimodalSupports;
   }
   return ModelInfo(supports: Map.unmodifiable(supports));
-}
-
-/// Whether [modelName] thinks before answering, and so accepts
-/// `reasoning_effort`; `null` when there is nothing to go on.
-///
-/// A curated entry answers when there is one. Otherwise an
-/// o-series name, or a GPT name from generation 5 on, is taken to reason:
-/// every model OpenAI has shipped under those names since `reasoning_effort`
-/// arrived accepts it. A `-chat` variant is left unclaimed, since the
-/// ChatGPT-tuned GPT-5 snapshot did not reason.
-bool? openAIModelReasons(String modelName) {
-  final curated = knownOpenAIModelFor(modelName);
-  if (curated != null) return curated.reasons;
-
-  final id = openAIModelSpelling(modelName.toLowerCase());
-  if (getModelType(id) != 'chat') return null;
-  if (oSeriesPattern.hasMatch(id)) return true;
-  final generation = _gptGeneration.firstMatch(id);
-  if (generation != null &&
-      int.parse(generation[1]!) >= 5 &&
-      !id.contains('-chat')) {
-    return true;
-  }
-  return null;
 }
 
 /// Models OpenAI's `GET /models` lists but Chat Completions does not serve,
