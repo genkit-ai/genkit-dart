@@ -57,17 +57,12 @@ void main() {
       },
     );
 
-    test('the GPT-5 and GPT-6 families reason, bar the ChatGPT-tuned '
-        'snapshot and the search model', () {
+    test('the GPT-5 and GPT-6 families reason, bar the search model', () {
       for (final model in KnownOpenAIModel.values) {
         if (!model.id.startsWith('gpt-5') && !model.id.startsWith('gpt-6')) {
           continue;
         }
-        expect(
-          model.reasons,
-          !{'gpt-5-chat-latest', 'gpt-5-search-api'}.contains(model.id),
-          reason: model.id,
-        );
+        expect(model.reasons, model.id != 'gpt-5-search-api', reason: model.id);
       }
     });
 
@@ -321,8 +316,10 @@ void main() {
           'gpt-5.5-pro-2026-04-23',
           'gpt-5.2-pro',
           'o3-pro',
+          'GPT-5.5-PRO',
           'gpt-5.6-cyber',
           'gpt-oss-120b',
+          'gpt-oss-20b',
           'gpt-daybreak-blue-latest',
           'gpt-6-rosalind',
           'gpt-rosalind-research',
@@ -337,8 +334,10 @@ void main() {
         'gpt-5.5-pro-2026-04-23',
         'gpt-5.2-pro',
         'o3-pro',
+        'GPT-5.5-PRO',
         'gpt-5.6-cyber',
         'gpt-oss-120b',
+        'gpt-oss-20b',
         'gpt-daybreak-blue-latest',
         'gpt-6-rosalind',
         'gpt-rosalind-research',

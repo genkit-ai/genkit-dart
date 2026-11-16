@@ -45,6 +45,10 @@ void main() {
       expect(info.supports?['media'], true);
     });
 
+    test('an o-series research model is not described as a chat model', () {
+      expect(modelInfoFor('o3-deep-research').supports, nonChatSupports);
+    });
+
     test('every curated model claims constrained generation', () {
       // The models that predated structured outputs have all shut down.
       for (final id in knownChatModels) {

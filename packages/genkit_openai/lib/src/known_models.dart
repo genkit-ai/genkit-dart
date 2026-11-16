@@ -452,7 +452,7 @@ String openAIModelAlias(String modelName) =>
 /// shut down is not curated, even when its alias is.
 KnownOpenAIModel? knownOpenAIModelFor(String modelName) {
   final id = modelName.toLowerCase();
-  if (_shutDownSnapshots.contains(openAIModelSpelling(id))) return null;
+  if (_shutDownSnapshots.contains(id)) return null;
   for (final candidate in {
     id,
     openAIModelSpelling(id),
@@ -525,7 +525,8 @@ bool openAIChatCompletionsServes(String modelName) {
 }
 
 /// Capability metadata for any OpenAI model name: the curated entry when there
-/// is one, [dynamicModelInfo] otherwise.
+/// is one, otherwise [dynamicModelInfo], or [reasoningSupports] for an o-series
+/// name.
 ///
 /// Useful as a starting point for a model the plugin does not know by name:
 ///

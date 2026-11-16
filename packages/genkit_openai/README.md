@@ -298,8 +298,9 @@ release.
 `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.5`, `gpt-5.6-sol`,
 `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-6-sol`, `gpt-6-luna` and `gpt-6.1-terra`
 advertise tools, but take function tools on Chat Completions only with
-`reasoningEffort: 'none'`. GPT-5.4 and GPT-5.5 default to it; the others need it
-set. The plugin does not check the effort for you.
+`reasoningEffort: 'none'`. That effort is the default for `gpt-5.4`,
+`gpt-5.4-mini`, `gpt-5.4-nano` and `gpt-5.5`; set it yourself for the others.
+The plugin does not check the effort for you.
 `gpt-6-astra` and `gpt-6.1-sol` take tools only on the Responses API, which
 this plugin does not use, so they advertise no tools.
 
