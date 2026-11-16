@@ -237,7 +237,11 @@ void main() {
       for (final model in KnownGeminiModel.values) {
         expect(names, contains('googleai/${model.id}'));
       }
-      expect(names.where((n) => n.contains('embedding')), isEmpty);
+      // Only the curated embedders: nothing was discovered.
+      expect(names.where((n) => n.contains('embedding')), [
+        for (final embedder in KnownGeminiEmbedder.values)
+          'googleai/${embedder.id}',
+      ]);
       final curated = actions.firstWhere(
         (a) => a.name == 'googleai/gemini-3.8-flash',
       );
@@ -255,9 +259,39 @@ void main() {
         for (final model in KnownGeminiModel.values) {
           expect(names, contains('googleai/${model.id}'));
         }
-        expect(names.where((n) => n.contains('embedding')), isEmpty);
+        // Only the curated embedders: nothing was discovered.
+        expect(names.where((n) => n.contains('embedding')), [
+          for (final embedder in KnownGeminiEmbedder.values)
+            'googleai/${embedder.id}',
+        ]);
       },
     );
+
+    test('curated embedders carry their info, listed or resolved', () async {
+      final actions = await plugin(client: ListingClient()).list();
+      final listed = actions.firstWhere(
+        (a) => a.name == 'googleai/gemini-embedding-2',
+      );
+      expect(listed.metadata['model'], {
+        'label': 'Gemini Embedding 2',
+        'dimensions': 3072,
+        'supports': {
+          'input': ['text', 'image', 'video'],
+        },
+      });
+
+      final resolved = plugin().resolve(.embedder, 'gemini-embedding-001')!;
+      final info = (resolved.metadata['model'] as Map).cast<String, dynamic>();
+      expect(info['label'], 'Gemini Embedding 001');
+      expect(info['dimensions'], 3072);
+
+      // Other embedding names still resolve, without curated info.
+      final other = plugin().resolve(.embedder, 'text-embedding-004')!;
+      expect(
+        (other.metadata['model'] as Map)['label'],
+        'googleai/text-embedding-004',
+      );
+    });
   });
 
   group('injected client lifecycle', () {
@@ -376,6 +410,51 @@ void main() {
 
       expect(ref.name, 'googleai/gemini-future-preview-tts');
       expect(ref.customOptions, same(GeminiTtsOptions.$schema));
+    });
+
+    test('family handles carry their options type', () {
+      final refs = [
+        (
+          googleAI.geminiImage('gemini-nano-banana-2.1'),
+          GeminiImageOptions.$schema,
+        ),
+        (
+          googleAI.geminiVideo('gemini-omni-1.1-flash'),
+          GeminiVideoOptions.$schema,
+        ),
+        (googleAI.lyria('lyria-3.5'), LyriaOptions.$schema),
+        (
+          googleAI.antigravity('antigravity-preview-09-2026'),
+          AntigravityOptions.$schema,
+        ),
+      ];
+      for (final (ref, schema) in refs) {
+        expect(ref.customOptions, same(schema), reason: ref.name);
+      }
+      expect(refs.map((r) => r.$1.name), [
+        'googleai/gemini-nano-banana-2.1',
+        'googleai/gemini-omni-1.1-flash',
+        'googleai/lyria-3.5',
+        'googleai/antigravity-preview-09-2026',
+      ]);
+    });
+
+    test('each handle names an action with the same options type', () {
+      final plugin = GoogleGenAiPluginImpl(apiKey: 'test-key');
+      final refs = [
+        googleAI.gemini('gemini-3.8-flash'),
+        googleAI.geminiTts('gemini-3.8-flash-tts'),
+        googleAI.geminiImage('gemini-nano-banana-2.1'),
+        googleAI.geminiVideo('gemini-omni-1.1-flash'),
+        googleAI.lyria('lyria-3.5'),
+        googleAI.antigravity('antigravity-preview-09-2026'),
+      ];
+      for (final ref in refs) {
+        final bareName = ref.name.substring('googleai/'.length);
+        final action = plugin.resolve(.model, bareName) as Model;
+        expect(action.name, ref.name);
+        expect(action.customOptions, same(ref.customOptions), reason: ref.name);
+      }
     });
   });
 }

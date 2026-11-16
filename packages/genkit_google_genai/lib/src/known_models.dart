@@ -54,6 +54,37 @@ final geminiTtsSupports = Map<String, dynamic>.unmodifiable({
   'output': List<String>.unmodifiable(['media']),
 });
 
+/// The capability profile every video generation model (`gemini-omni-*`)
+/// advertises, curated or not (as in the JS plugin).
+///
+/// Per the Omni guide: text, image and video in, video (with audio) out;
+/// edits continue a stored interaction. Tools and structured output aren't
+/// documented for video generation. System instructions are applied
+/// (checked live by the JS plugin, Oct 2026).
+final geminiVideoSupports = Map<String, dynamic>.unmodifiable({
+  'multiturn': true,
+  'media': true,
+  'tools': false,
+  'toolChoice': false,
+  'systemRole': true,
+  'constrained': false,
+  'output': List<String>.unmodifiable(['media']),
+});
+
+/// The image profile without native constrained generation, for image models
+/// whose structured output doesn't work (with a schema they still return
+/// only an image; checked live by the JS plugin, Oct 2026). Genkit then asks
+/// for JSON in the prompt instead (with the `simulateConstrainedGeneration`
+/// middleware).
+const _imageWithoutConstrainedSupports = <String, dynamic>{
+  'multiturn': true,
+  'media': true,
+  'tools': true,
+  'toolChoice': true,
+  'systemRole': true,
+  'constrained': false,
+};
+
 /// The generation modality a Gemini model name denotes.
 ///
 /// The family decides which capability profile and which options schema a
@@ -66,12 +97,16 @@ enum GeminiModelFamily {
   image,
 
   /// Text-to-speech models (`gemini-*-tts*`).
-  tts;
+  tts,
+
+  /// Video generation models (`gemini-omni-*`).
+  video;
 
   /// Classifies a bare model name by its Gemini modality marker.
   ///
-  /// `-tts` wins over `-image`, Nano Banana names are image models (as in
-  /// the JS plugins), and any name outside the `gemini-` namespace is text.
+  /// `-tts` wins over `-image`, Nano Banana names are image models and Omni
+  /// names video models (as in the JS plugins), and any name outside the
+  /// `gemini-` namespace is text.
   static GeminiModelFamily of(String modelName) {
     if (!modelName.startsWith('gemini-')) return text;
     if (modelName.contains('-tts')) return tts;
@@ -79,6 +114,7 @@ enum GeminiModelFamily {
         modelName.startsWith('gemini-nano-banana-')) {
       return image;
     }
+    if (modelName.startsWith('gemini-omni-')) return video;
     return text;
   }
 
@@ -86,12 +122,15 @@ enum GeminiModelFamily {
   Map<String, dynamic> get supports => switch (this) {
     text || image => _multimodalSupports,
     tts => geminiTtsSupports,
+    video => geminiVideoSupports,
   };
 
   /// The request options schema a model of this family accepts.
   SchemanticType get customOptions => switch (this) {
-    text || image => GeminiOptions.$schema,
+    text => GeminiOptions.$schema,
+    image => GeminiImageOptions.$schema,
     tts => GeminiTtsOptions.$schema,
+    video => GeminiVideoOptions.$schema,
   };
 }
 
@@ -136,6 +175,13 @@ enum GeminiModelStage {
 /// plugin's `modelInfoFor` fallback, so this enum only enriches the names
 /// listed here.
 enum KnownGeminiModel {
+  geminiProLatest('gemini-pro-latest', 'Gemini Pro (latest)'),
+  geminiFlashLatest('gemini-flash-latest', 'Gemini Flash (latest)'),
+  geminiFlashLiteLatest(
+    'gemini-flash-lite-latest',
+    'Gemini Flash Lite (latest)',
+  ),
+  gemini4Argon('gemini-4-argon', 'Gemini 4 Argon'),
   gemini38Flash('gemini-3.8-flash', 'Gemini 3.8 Flash'),
   gemini36Flash('gemini-3.6-flash', 'Gemini 3.6 Flash'),
   gemini35FlashLite('gemini-3.5-flash-lite', 'Gemini 3.5 Flash Lite'),
@@ -164,11 +210,22 @@ enum KnownGeminiModel {
     'Gemini 3.1 Flash Lite Image',
     family: .image,
   ),
+  geminiNanoBanana21(
+    'gemini-nano-banana-2.1',
+    'Nano Banana 2.1',
+    family: .image,
+    supportsOverride: _imageWithoutConstrainedSupports,
+  ),
   gemini3ProImage(
     'gemini-3-pro-image',
     'Gemini 3 Pro Image',
     family: .image,
     interactions: false,
+  ),
+  geminiOmni11Flash(
+    'gemini-omni-1.1-flash',
+    'Gemini Omni 1.1 Flash',
+    family: .video,
   ),
   gemini38FlashTts(
     'gemini-3.8-flash-tts',
@@ -263,6 +320,7 @@ enum KnownGeminiModel {
     this.family = .text,
     this.stage = .stable,
     this.interactions = true,
+    this.supportsOverride,
   });
 
   /// Bare model name (no plugin prefix).
@@ -281,12 +339,18 @@ enum KnownGeminiModel {
   /// generateContent (the 4th argument of JS `commonRef`).
   final bool interactions;
 
+  /// This model's capability profile when it differs from its family's.
+  final Map<String, dynamic>? supportsOverride;
+
   /// Whether this model is no longer suggested (JS `HIDDEN_MODELS`).
   bool get hidden => stage != .stable;
 
   /// The capability profile for this model.
-  ModelInfo get info =>
-      ModelInfo(label: label, supports: family.supports, stage: stage.wireName);
+  ModelInfo get info => ModelInfo(
+    label: label,
+    supports: supportsOverride ?? family.supports,
+    stage: stage.wireName,
+  );
 }
 
 /// Gemma models the Gemini API serves, curated the same way as
@@ -342,4 +406,44 @@ final knownGeminiModels = <String, ModelInfo>{
 final knownGeminiInteractions = Map<String, bool>.unmodifiable({
   for (final model in KnownGeminiModel.values) model.id: model.interactions,
   for (final model in KnownGemmaModel.values) model.id: model.interactions,
+});
+
+/// Embedders the Gemini API (googleAI) plugin curates, kept in step with the
+/// JS plugin's googleAI embedder list (js/plugins/google-genai/src/googleai/
+/// embedder.ts).
+///
+/// Like the model catalog, this only adds metadata and keeps the listed
+/// embedders in listings when discovery omits them; any embedding model name
+/// still resolves.
+enum KnownGeminiEmbedder {
+  geminiEmbedding001('gemini-embedding-001', 'Gemini Embedding 001', ['text']),
+  geminiEmbedding2('gemini-embedding-2', 'Gemini Embedding 2', [
+    'text',
+    'image',
+    'video',
+  ]);
+
+  const KnownGeminiEmbedder(this.id, this.label, this.input);
+
+  /// Bare embedder name (no plugin prefix).
+  final String id;
+
+  /// Human-readable label surfaced in listings.
+  final String label;
+
+  /// The kinds of input this embedder accepts.
+  final List<String> input;
+
+  /// The embedder metadata (`info`) for this embedder, as in JS: 3072
+  /// dimensions and the accepted input kinds.
+  Map<String, dynamic> get info => {
+    'label': label,
+    'dimensions': 3072,
+    'supports': {'input': input},
+  };
+}
+
+/// Curated embedder metadata for the googleAI plugin, keyed by bare name.
+final knownGeminiEmbedders = Map<String, Map<String, dynamic>>.unmodifiable({
+  for (final embedder in KnownGeminiEmbedder.values) embedder.id: embedder.info,
 });
