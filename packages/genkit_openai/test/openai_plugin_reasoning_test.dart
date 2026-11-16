@@ -187,18 +187,15 @@ void main() {
       expect(captured, isEmpty, reason: 'rejected before any request');
     });
 
-    test('o1-mini predates the parameter and is rejected', () async {
+    test('a shut-down model is left to OpenAI to judge', () async {
       final captured = <Map<String, dynamic>>[];
-
-      await expectLater(
-        genkitWith(reasoningClient(captured)).generate(
-          model: openAI.model('o1-mini'),
-          prompt: 'hi',
-          config: OpenAIChatOptions(reasoningEffort: 'low'),
-        ),
-        completion(failsWith(StatusCode.invalidArgument, message: 'o1-mini')),
+      await genkitWith(reasoningClient(captured)).generate(
+        model: openAI.model('o1-mini'),
+        prompt: 'hi',
+        config: OpenAIChatOptions(reasoningEffort: 'low'),
       );
-      expect(captured, isEmpty, reason: 'rejected before any request');
+
+      expect(captured.single['reasoning_effort'], 'low');
     });
 
     test('an uncurated model is left to OpenAI to judge', () async {

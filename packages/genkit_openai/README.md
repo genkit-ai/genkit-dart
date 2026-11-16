@@ -321,12 +321,13 @@ model released after this version of the plugin, or one served by a proxy that
 supports less than OpenAI does — pass a `CustomModelDefinition` with explicit
 `info`.
 
-Behind a custom `baseUrl`, a curated model keeps its capabilities, and so does
-a model OpenAI has shut down: a gateway serving `gpt-3.5-turbo` is serving that
-model. OpenAI's deployment details do not carry over, since the label,
-lifecycle stage and snapshot list all describe OpenAI's own hosting. The
-catalog is also not added to that host's listing: what a compatible provider
-lists is whatever its `/models` reports plus the models you register.
+Behind a custom `baseUrl`, a curated model keeps its capabilities: a gateway
+serving `gpt-5-search-api` is serving that model. A model OpenAI has shut down
+is no longer curated, so it takes the generic defaults there too. OpenAI's
+deployment details do not carry over, since the label, lifecycle stage and
+snapshot list all describe OpenAI's own hosting. The catalog is also not added
+to that host's listing: what a compatible provider lists is whatever its
+`/models` reports plus the models you register.
 
 ### Text to Speech
 

@@ -201,100 +201,86 @@ void main() {
       expect(openAIModelSpelling('o3-mini'), 'o3-mini');
     });
 
-    test('the dotless family reaches the retired gpt-3.5-turbo on a compat '
-        'host', () {
-      for (final deployment in [
-        'gpt-35-turbo',
-        'gpt-35-turbo-16k',
-        'gpt-35-turbo-0125',
-        'gpt-35-turbo-1106',
-        'gpt-35-turbo-0613',
-        'gpt-35-turbo-16k-0613',
-      ]) {
-        expect(
-          compatModelInfo(deployment).supports,
-          _textOnlyJson,
-          reason: deployment,
-        );
-      }
+    test('the dotless family reaches its curated alias', () {
+      expect(knownOpenAIModelFor('gpt-41-mini'), KnownOpenAIModel.gpt41Mini);
+      expect(knownOpenAIModelFor('gpt-41-2025-04-14'), KnownOpenAIModel.gpt41);
     });
   });
 
-  group('retired models on a compat host', () {
-    // The capabilities these names had while curated, so a gateway that
-    // still serves one keeps describing it as before.
-    const pinned = <String, Map<String, dynamic>>{
-      'gpt-3.5-turbo': _textOnlyJson,
-      'gpt-3.5-turbo-0125': _textOnlyJson,
-      'gpt-3.5-turbo-16k': _textOnlyJson,
-      'gpt-4': _textOnlyNoJson,
-      'gpt-4-0613': _textOnlyNoJson,
-      'gpt-4-0314': _textOnlyNoJson,
-      'gpt-4-32k': _textOnlyNoJson,
-      'gpt-4-32k-0613': _textOnlyNoJson,
-      'o1': _reasoningVision,
-      'o1-2024-12-17': _reasoningVision,
-      'o4-mini': _reasoningVision,
-      'o4-mini-2025-04-16': _reasoningVision,
-      'o3-mini': _reasoningTextOnly,
-      'o3-mini-2025-01-31': _reasoningTextOnly,
-      'o1-mini': _reasoningPreview,
-      'o1-mini-2024-09-12': _reasoningPreview,
-      'o1-preview': _reasoningPreview,
-      'gpt-4-turbo': _visionNoConstrained,
-      'gpt-4-turbo-2024-04-09': _visionNoConstrained,
-      'gpt-4-turbo-preview': _visionNoConstrained,
-      'gpt-4-0125-preview': _visionNoConstrained,
-      'gpt-4-1106-preview': _visionNoConstrained,
-      'gpt-4-vision-preview': _visionNoTools,
-      'gpt-4-1106-vision-preview': _visionNoTools,
-      'gpt-4-vision': _visionNoTools,
-      'chatgpt-4o-latest': _visionNoTools,
-      'gpt-5-chat-latest': _visionNoTools,
-      'gpt-4.5': _current,
-      'gpt-4.5-preview': _current,
-      'gpt-4.1-nano': _current,
-      'gpt-4.1-nano-2025-04-14': _current,
-    };
+  group('shut-down models', () {
+    const shutDown = [
+      'gpt-5-chat-latest',
+      'gpt-4.1-nano',
+      'gpt-4.1-nano-2025-04-14',
+      'gpt-4.5-preview',
+      'chatgpt-4o-latest',
+      'o4-mini',
+      'o3-mini',
+      'o1',
+      'o1-mini',
+      'o1-preview',
+      'gpt-4-turbo',
+      'gpt-4-vision-preview',
+      'gpt-4',
+      'gpt-4-0613',
+      'gpt-4-32k',
+      'gpt-3.5-turbo',
+      'gpt-35-turbo',
+    ];
 
-    test('keep the capabilities they had while curated', () {
-      pinned.forEach((name, supports) {
-        expect(compatModelInfo(name).supports, supports, reason: name);
-      });
-    });
-
-    test('match case-insensitively', () {
-      expect(compatModelInfo('GPT-4').supports, _textOnlyNoJson);
-    });
-
-    test('carry no OpenAI deployment details', () {
-      for (final name in pinned.keys) {
-        final info = compatModelInfo(name);
-        expect(info.label, isNull, reason: name);
-        expect(info.stage, isNull, reason: name);
-        expect(info.versions, isNull, reason: name);
-      }
-    });
-
-    test('are not listed or curated for OpenAI itself', () {
-      for (final name in pinned.keys) {
+    test('are not listed or curated', () {
+      for (final name in shutDown) {
         expect(knownChatModels, isNot(contains(name)), reason: name);
         expect(knownOpenAIModelFor(name), isNull, reason: name);
       }
-      // OpenAI answers model_not_found for them, so its own host takes the
-      // generic fallback.
-      expect(modelInfoFor('gpt-3.5-turbo').supports, multimodalSupports);
-      expect(modelInfoFor('o1-mini').supports, reasoningSupports);
     });
 
-    test('resolve on a compat plugin with the pinned capabilities', () {
+    test('resolve by name with the generic info on any host', () {
+      for (final name in shutDown) {
+        final generic = oSeriesPattern.hasMatch(name)
+            ? reasoningSupports
+            : dynamicModelInfo(name).supports;
+        expect(modelInfoFor(name).supports, generic, reason: name);
+        expect(modelInfoFor(name).stage, isNull, reason: name);
+        expect(
+          compatModelInfo(name).supports,
+          dynamicModelInfo(name).supports,
+          reason: name,
+        );
+      }
+      expect(compatModelInfo('gpt-3.5-turbo').supports, multimodalSupports);
+    });
+
+    test('a shut-down snapshot is not read as its live alias', () {
+      for (final name in ['gpt-4o-2024-05-13', 'GPT-4o-2024-05-13']) {
+        expect(knownOpenAIModelFor(name), isNull, reason: name);
+        final info = modelInfoFor(name);
+        expect(info.supports, dynamicModelInfo(name).supports, reason: name);
+        expect(info.label, isNull, reason: name);
+        expect(info.stage, isNull, reason: name);
+        expect(info.versions, isNull, reason: name);
+        expect(
+          compatModelInfo(name).supports,
+          multimodalSupports,
+          reason: name,
+        );
+        expect(openAIModelReasons(name), isNull, reason: name);
+      }
+      expect(knownOpenAIModelFor('gpt-4o-2024-08-06'), KnownOpenAIModel.gpt4o);
+    });
+
+    test('resolve on a compat plugin with the generic info', () {
       final plugin = pluginListing(
         const [],
         baseUrl: 'https://my-gateway.example.com/v1',
       );
       for (final name in ['gpt-3.5-turbo', 'gpt-4', 'o1-mini', 'o3-mini']) {
         final action = plugin.resolve(.model, name);
-        expect(modelInfoOf(action!)['supports'], pinned[name], reason: name);
+        expect(
+          modelInfoOf(action!)['supports'],
+          multimodalSupports,
+          reason: name,
+        );
       }
     });
   });
@@ -595,20 +581,11 @@ void main() {
       expect(openAIModelReasons('gpt-5.5-2026-04-23'), isTrue);
     });
 
-    test('a retired entry answers for itself', () {
-      for (final id in [
-        'gpt-4',
-        'gpt-4-0613',
-        'gpt-3.5-turbo',
-        'gpt-35-turbo',
-        'gpt-4-turbo',
-        'o1-mini',
-        'o1-preview',
-      ]) {
-        expect(knownOpenAIModelFor(id), isNull, reason: id);
-        expect(openAIModelReasons(id), isFalse, reason: id);
+    test('a shut-down name takes the generic rule', () {
+      for (final id in ['gpt-4', 'gpt-3.5-turbo', 'gpt-4-turbo']) {
+        expect(openAIModelReasons(id), isNull, reason: id);
       }
-      for (final id in ['o1', 'o3-mini', 'o4-mini-2025-04-16']) {
+      for (final id in ['o1', 'o1-mini', 'o3-mini', 'o4-mini-2025-04-16']) {
         expect(openAIModelReasons(id), isTrue, reason: id);
       }
     });
@@ -794,76 +771,3 @@ void _fixtureDiscoveryTests() {
     }
   });
 }
-
-const _textOnlyJson = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': true,
-  'tools': true,
-  'toolChoice': true,
-  'media': false,
-  'output': ['text', 'json'],
-};
-
-const _textOnlyNoJson = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': true,
-  'tools': true,
-  'toolChoice': true,
-  'media': false,
-  'output': ['text'],
-};
-
-const _reasoningVision = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': false,
-  'tools': true,
-  'toolChoice': true,
-  'media': true,
-  'output': ['text', 'json'],
-  'constrained': true,
-};
-
-const _reasoningTextOnly = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': false,
-  'tools': true,
-  'toolChoice': true,
-  'media': false,
-  'output': ['text', 'json'],
-  'constrained': true,
-};
-
-const _reasoningPreview = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': false,
-  'tools': false,
-  'media': false,
-  'output': ['text'],
-};
-
-const _visionNoConstrained = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': true,
-  'tools': true,
-  'toolChoice': true,
-  'media': true,
-  'output': ['text', 'json'],
-};
-
-const _visionNoTools = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': true,
-  'tools': false,
-  'media': true,
-  'output': ['text'],
-};
-
-const _current = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': true,
-  'tools': true,
-  'toolChoice': true,
-  'media': true,
-  'output': ['text', 'json'],
-  'constrained': true,
-};

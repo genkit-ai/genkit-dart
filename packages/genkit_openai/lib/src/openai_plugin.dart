@@ -435,11 +435,10 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Capability metadata for [modelName] on this plugin instance.
   ///
-  /// A compat backend keeps the curated capabilities, retired models included:
-  /// a proxy serving `gpt-3.5-turbo` is serving that model, and calling it
-  /// multimodal would invite image parts it rejects. It does not keep OpenAI's
-  /// deployment details. See
-  /// `compatModelInfo` in `known_models.dart`.
+  /// A compat backend keeps the curated capabilities: a proxy serving
+  /// `gpt-5-search-api` is serving that model, and calling it multimodal would
+  /// invite image parts it rejects. It does not keep OpenAI's deployment
+  /// details. See `compatModelInfo` in `known_models.dart`.
   ModelInfo _infoFor(String modelName) =>
       provider.infoFor(modelName, compat: !_ownHost);
 
@@ -791,9 +790,7 @@ class OpenAIPlugin extends GenkitPlugin {
     throw GenkitException(
       // The name that will be on the wire, not the curated alias it resolved
       // through: a `version` of `gpt-4o-2024-11-20` is what the caller set
-      // and what the host will answer for. Says only that the effort is not
-      // settable, not that the model does not reason: o1-mini and o1-preview
-      // do reason, they simply predate the parameter.
+      // and what the host will answer for.
       '$modelName does not accept reasoningEffort.',
       status: StatusCode.invalidArgument,
     );

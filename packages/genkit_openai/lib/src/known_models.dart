@@ -135,12 +135,12 @@ enum OpenAIModelStage {
 /// This is not the set of usable models: any name still resolves, taking
 /// [dynamicModelInfo] when it is absent here.
 ///
-/// Models OpenAI has shut down are absent; [compatModelInfo] keeps those for
-/// other hosts. Two other kinds of model are deliberately absent. The "pro"
-/// tiers are served only by the Responses API, and this plugin speaks Chat
-/// Completions; [openAIChatCompletionsServes] keeps discovery from listing
-/// them either. Audio, image, realtime, transcription, embedding, and
-/// moderation models are not chat models.
+/// Models OpenAI has shut down are absent, and resolve by name with
+/// [dynamicModelInfo] on any host. Two other kinds of model are deliberately
+/// absent. The "pro" tiers are served only by the Responses API, and this
+/// plugin speaks Chat Completions; [openAIChatCompletionsServes] keeps
+/// discovery from listing them either. Audio, image, realtime, transcription,
+/// embedding, and moderation models are not chat models.
 ///
 /// Per-model behaviour beyond capabilities belongs on this enum as another
 /// field rather than in a name-matching branch at the call site — that is what
@@ -449,23 +449,25 @@ String openAIModelAlias(String modelName) =>
 ///
 /// Tried in order: the name as given, its Azure-to-OpenAI spelling, and then
 /// each of those with a dated snapshot suffix stripped. Matching is
-/// case-insensitive; the OpenAI catalog is lower-case.
-KnownOpenAIModel? knownOpenAIModelFor(String modelName) =>
-    _lookUp(_knownOpenAIModelsByName, modelName);
-
-T? _lookUp<T>(Map<String, T> byName, String modelName) {
+/// case-insensitive; the OpenAI catalog is lower-case. A snapshot OpenAI has
+/// shut down is not curated, even when its alias is.
+KnownOpenAIModel? knownOpenAIModelFor(String modelName) {
   final id = modelName.toLowerCase();
+  if (_shutDownSnapshots.contains(openAIModelSpelling(id))) return null;
   for (final candidate in {
     id,
     openAIModelSpelling(id),
     openAIModelAlias(id),
     openAIModelAlias(openAIModelSpelling(id)),
   }) {
-    final match = byName[candidate];
+    final match = _knownOpenAIModelsByName[candidate];
     if (match != null) return match;
   }
   return null;
 }
+
+/// Dated snapshots OpenAI has shut down while their alias is still served.
+const _shutDownSnapshots = {'gpt-4o-2024-05-13'};
 
 /// Capability metadata for a model with no curated entry.
 ///
@@ -497,7 +499,7 @@ ModelInfo dynamicModelInfo(String modelName) {
 /// Whether [modelName] thinks before answering, and so accepts
 /// `reasoning_effort`; `null` when there is nothing to go on.
 ///
-/// A curated or retired entry answers when there is one. Otherwise an
+/// A curated entry answers when there is one. Otherwise an
 /// o-series name, or a GPT name from generation 5 on, is taken to reason:
 /// every model OpenAI has shipped under those names since `reasoning_effort`
 /// arrived accepts it. A `-chat` variant is left unclaimed, since the
@@ -505,8 +507,6 @@ ModelInfo dynamicModelInfo(String modelName) {
 bool? openAIModelReasons(String modelName) {
   final curated = knownOpenAIModelFor(modelName);
   if (curated != null) return curated.reasons;
-  final retired = _lookUp(_retiredByName, modelName);
-  if (retired != null) return retired.reasons;
 
   final id = openAIModelSpelling(modelName.toLowerCase());
   if (getModelType(id) != 'chat') return null;
@@ -588,161 +588,15 @@ final _compatInfo = <KnownOpenAIModel, ModelInfo>{
     model: ModelInfo(supports: model.info.supports),
 };
 
-/// [_multimodalLegacySupports] without image input.
-const _textOnlyLegacySupports = <String, dynamic>{
-  ..._chatCore,
-  'tools': true,
-  'toolChoice': true,
-  'media': false,
-  'output': ['text', 'json'],
-};
-
-/// [_textOnlyLegacySupports] for models that 400 on `response_format`.
-const _textOnlyNoJsonSupports = <String, dynamic>{
-  ..._chatCore,
-  'tools': true,
-  'toolChoice': true,
-  'media': false,
-  'output': ['text'],
-};
-
-/// [multimodalSupports] for models that predate structured outputs.
-const _multimodalLegacySupports = <String, dynamic>{
-  ..._chatCore,
-  'tools': true,
-  'toolChoice': true,
-  'media': true,
-  'output': ['text', 'json'],
-};
-
-/// [reasoningSupports] without image input.
-const _reasoningTextOnlySupports = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': false,
-  'tools': true,
-  'toolChoice': true,
-  'media': false,
-  'output': ['text', 'json'],
-  'constrained': true,
-};
-
-/// The first reasoning previews: no function calling, image input or system
-/// message.
-const _reasoningPreviewSupports = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': false,
-  'tools': false,
-  'media': false,
-  'output': ['text'],
-};
-
-/// Chat models OpenAI has shut down, with the capabilities they had.
-///
-/// Read by [compatModelInfo], for a gateway that still serves the name, and
-/// by [openAIModelReasons]. The OpenAI listing and [modelInfoFor] never see
-/// these.
-enum _RetiredOpenAIModel {
-  gpt5ChatLatest('gpt-5-chat-latest', multimodalNoToolsSupports),
-  gpt41Nano(
-    'gpt-4.1-nano',
-    multimodalSupports,
-    snapshots: ['gpt-4.1-nano-2025-04-14'],
-  ),
-  gpt45('gpt-4.5', multimodalSupports, snapshots: ['gpt-4.5-preview']),
-  chatgpt4oLatest('chatgpt-4o-latest', multimodalNoToolsSupports),
-  o4Mini(
-    'o4-mini',
-    reasoningSupports,
-    snapshots: ['o4-mini-2025-04-16'],
-    reasons: true,
-  ),
-  o3Mini(
-    'o3-mini',
-    _reasoningTextOnlySupports,
-    snapshots: ['o3-mini-2025-01-31'],
-    reasons: true,
-  ),
-  o1('o1', reasoningSupports, snapshots: ['o1-2024-12-17'], reasons: true),
-  o1Mini(
-    'o1-mini',
-    _reasoningPreviewSupports,
-    snapshots: ['o1-mini-2024-09-12'],
-  ),
-  o1Preview(
-    'o1-preview',
-    _reasoningPreviewSupports,
-    snapshots: ['o1-preview-2024-09-12'],
-  ),
-  gpt4Turbo(
-    'gpt-4-turbo',
-    _multimodalLegacySupports,
-    snapshots: ['gpt-4-turbo-2024-04-09', 'gpt-4-turbo-preview'],
-  ),
-  gpt40125Preview('gpt-4-0125-preview', _multimodalLegacySupports),
-  gpt41106Preview('gpt-4-1106-preview', _multimodalLegacySupports),
-  gpt4VisionPreview(
-    'gpt-4-vision-preview',
-    multimodalNoToolsSupports,
-    snapshots: ['gpt-4-1106-vision-preview', 'gpt-4-vision'],
-  ),
-  // The undated snapshots predate the `-YYYY-MM-DD` convention, so
-  // openAIModelAlias cannot reach them.
-  gpt4(
-    'gpt-4',
-    _textOnlyNoJsonSupports,
-    snapshots: ['gpt-4-0613', 'gpt-4-0314'],
-  ),
-  gpt432k(
-    'gpt-4-32k',
-    _textOnlyNoJsonSupports,
-    snapshots: ['gpt-4-32k-0613', 'gpt-4-32k-0314'],
-  ),
-  gpt35Turbo(
-    'gpt-3.5-turbo',
-    _textOnlyLegacySupports,
-    snapshots: [
-      'gpt-3.5-turbo-0125',
-      'gpt-3.5-turbo-1106',
-      'gpt-3.5-turbo-0613',
-      'gpt-3.5-turbo-16k',
-      'gpt-3.5-turbo-16k-0613',
-    ],
-  );
-
-  const _RetiredOpenAIModel(
-    this.id,
-    this.supports, {
-    this.snapshots = const [],
-    this.reasons = false,
-  });
-
-  final String id;
-  final Map<String, dynamic> supports;
-  final List<String> snapshots;
-
-  /// Whether the model accepts `reasoning_effort`.
-  final bool reasons;
-}
-
-final _retiredByName = <String, _RetiredOpenAIModel>{
-  for (final model in _RetiredOpenAIModel.values)
-    for (final name in [model.id, ...model.snapshots]) name: model,
-};
-
-final _retiredInfoByName = <String, ModelInfo>{
-  for (final MapEntry(:key, :value) in _retiredByName.entries)
-    key: ModelInfo(supports: Map.unmodifiable(value.supports)),
-};
-
 /// Capability metadata for [modelName] on an OpenAI-compatible backend that is
 /// not OpenAI itself.
 ///
 /// The capabilities carry over. A gateway or proxy that serves a name from
-/// OpenAI's catalog is nearly always serving that model — Azure, Cloudflare AI
-/// Gateway, LiteLLM and OpenRouter all route to OpenAI — so `gpt-3.5-turbo`
-/// behind one is still text-only, and describing it as multimodal would invite
-/// image parts the backend rejects. Models OpenAI has shut down keep the
-/// capabilities they had, since a gateway can outlive OpenAI's own shutdown.
+/// OpenAI's catalog is nearly always serving that model - Azure, Cloudflare AI
+/// Gateway, LiteLLM and OpenRouter all route to OpenAI - so `gpt-5-search-api`
+/// behind one still takes no image input, and describing it as multimodal
+/// would invite image parts the backend rejects. A model OpenAI has shut down
+/// is no longer curated, so it takes [dynamicModelInfo] like any other name.
 ///
 /// OpenAI's *deployment* does not carry over: the label names OpenAI's
 /// offering, the lifecycle stage tracks OpenAI's retirement schedule, and the
@@ -752,7 +606,7 @@ final _retiredInfoByName = <String, ModelInfo>{
 ModelInfo compatModelInfo(String modelName) {
   final curated = knownOpenAIModelFor(modelName);
   if (curated != null) return _compatInfo[curated]!;
-  return _lookUp(_retiredInfoByName, modelName) ?? dynamicModelInfo(modelName);
+  return dynamicModelInfo(modelName);
 }
 
 /// Whether [model] supports tools / function calling.
