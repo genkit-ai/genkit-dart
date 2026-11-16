@@ -2008,8 +2008,15 @@ Part removeId3FromAudio(Part part) {
 ///    and continues with `audio/l16` chunks (seen live). Those chunks go
 ///    into the WAV's `data` chunk, giving one WAV like a non-streamed
 ///    response.
-/// Other parts are kept as they are.
+/// In a message with audio, empty text parts that carry nothing else (no
+/// metadata such as a thought signature) are dropped: the server's last
+/// streamed chunk adds one (`{"text": ""}`, seen live on vertexAI
+/// generateContent TTS), which would otherwise sit next to the joined audio.
+/// JS keeps it. Other parts are kept as they are.
 List<Part> mergeStreamedAudio(List<Part> parts) {
+  if (parts.any((p) => p.media != null)) {
+    parts = parts.where((p) => !_isBareEmptyText(p)).toList();
+  }
   Uint8List concat(Iterable<Part> chunks) {
     final builder = BytesBuilder(copy: false);
     for (final chunk in chunks) {
@@ -2060,6 +2067,16 @@ List<Part> mergeStreamedAudio(List<Part> parts) {
     i++;
   }
   return merged;
+}
+
+/// Whether [part] is a text part with empty text and nothing else (no
+/// metadata, or an empty metadata map).
+bool _isBareEmptyText(Part part) {
+  final json = part.toJson();
+  final metadata = json['metadata'];
+  return json['text'] == '' &&
+      json.keys.every((k) => k == 'text' || k == 'metadata') &&
+      (metadata == null || (metadata is Map && metadata.isEmpty));
 }
 
 // ---------------------------------------------------------------------------

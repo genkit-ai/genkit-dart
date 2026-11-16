@@ -185,6 +185,35 @@ void _retrievalTests() {
       ]);
     });
 
+    test('a full data store path is used as is, on both APIs', () async {
+      // Its doc allows the full path; adding the prefix again made both
+      // APIs reject the name (seen live in review).
+      const path =
+          'projects/other-project/locations/eu/collections/'
+          'default_collection/dataStores/shared-store';
+      final config = {
+        'vertexRetrieval': {
+          'datastore': {'dataStoreId': path},
+        },
+      };
+
+      var client = MockHttpClient();
+      await _run(client, model: _generateContentModel, config: config);
+      final generateContentTool =
+          (_lastBody(client)['tools'] as List).single as Map;
+      expect((generateContentTool['retrieval'] as Map)['vertexAiSearch'], {
+        'datastore': path,
+      });
+
+      client = MockHttpClient();
+      await _run(client, model: _interactionsModel, config: config);
+      final interactionsTool =
+          (_lastBody(client)['tools'] as List).single as Map;
+      expect(interactionsTool['vertex_ai_search_config'], {
+        'datastores': [path],
+      });
+    });
+
     test('an empty dataStoreId throws INVALID_ARGUMENT', () async {
       await expectLater(
         _run(

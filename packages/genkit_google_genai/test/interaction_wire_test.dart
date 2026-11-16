@@ -19,6 +19,8 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/common.dart';
+import 'package:genkit_google_genai/src/api_client.dart'
+    show interactionsApiRevision;
 import 'package:genkit_google_genai/src/google_api_client.dart';
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';

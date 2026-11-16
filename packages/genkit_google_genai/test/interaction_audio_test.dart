@@ -267,5 +267,33 @@ void _audioPartTests() {
       final parts = [TextPart(text: 'a'), TextPart(text: 'b')];
       expect(mergeStreamedAudio(parts), [same(parts[0]), same(parts[1])]);
     });
+
+    test("drops the server's empty text part next to the audio", () {
+      // The last streamed generateContent TTS chunk adds {"text": ""} (seen
+      // live on vertexAI); it ends up next to the joined audio.
+      final result = mergeStreamedAudio([
+        _audioPart([1, 2]),
+        _audioPart([3, 4]),
+        TextPart(text: ''),
+        TextPart(text: '', metadata: {}),
+      ]);
+      expect(result, hasLength(1));
+      expect(_decode(result.single), [1, 2, 3, 4]);
+    });
+
+    test('keeps an empty text part that carries a thought signature', () {
+      final signed = TextPart(text: '', metadata: {'thoughtSignature': 'sig'});
+      final result = mergeStreamedAudio([
+        _audioPart([1, 2]),
+        signed,
+      ]);
+      expect(result, hasLength(2));
+      expect(result[1], same(signed));
+    });
+
+    test('keeps empty text parts when there is no audio', () {
+      final empty = TextPart(text: '');
+      expect(mergeStreamedAudio([empty]), [same(empty)]);
+    });
   });
 }

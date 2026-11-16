@@ -1149,6 +1149,9 @@ GenerationUsage? extractUsage(gcl.UsageMetadata? metadata) {
       // Same key as on the Interactions API (as in JS).
       if (metadata.toolUsePromptTokenCount case final tokens? when tokens != 0)
         'toolUseTokens': tokens,
+      // The 1.0 key, kept as it was (0 included) so code reading it keeps
+      // working; use `toolUseTokens`.
+      'toolUsePromptTokenCount': ?metadata.toolUsePromptTokenCount,
     },
   );
 }

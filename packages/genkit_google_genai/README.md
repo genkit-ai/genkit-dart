@@ -318,7 +318,8 @@ If your code reads the provider payload in `response.raw`, it differs:
    `outputTokens`, `thoughtsTokens`, ...). Token counts per modality are in
    `response.usage?.custom` (e.g. `inputTextTokens`, `inputImageTokens`,
    `outputAudioTokens`), and tool-use tokens in
-   `response.usage?.custom?['toolUseTokens']` (also on `generateContent`).
+   `response.usage?.custom?['toolUseTokens']` (also on `generateContent`,
+   which still reports the older `toolUsePromptTokenCount` key too).
    Grounding tool use is counted there too (e.g. `googleSearchCount`).
 
 

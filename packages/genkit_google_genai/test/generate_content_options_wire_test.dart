@@ -18,6 +18,8 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/common.dart';
+import 'package:genkit_google_genai/src/common_plugin.dart'
+    show toGeminiAudioResponseFormat, toGeminiLabels;
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 

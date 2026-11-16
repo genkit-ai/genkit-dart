@@ -221,12 +221,16 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   /// The data store path, filled in from the plugin project and location
   /// when the request doesn't set them (JS vertexai
   /// toVertexAISearchDatastore). A per-request `location` isn't used (same
-  /// as JS).
+  /// as JS). A `dataStoreId` that's already a full path (`projects/...`, as
+  /// its doc allows) is used as is; JS adds the prefix to it too (JS TODO).
   // TODO: Regional locations (e.g. us-central1) aren't data store locations
   // (those are global, us and eu); falling back to one probably fails on the
   // server. Kept as in JS until checked live.
   @override
   String vertexSearchDatastore(GeminiVertexDatastore datastore) {
+    if (datastore.dataStoreId.startsWith('projects/')) {
+      return datastore.dataStoreId;
+    }
     final projectId = datastore.projectId?.isNotEmpty ?? false
         ? datastore.projectId!
         : _getResolvedProjectId;
