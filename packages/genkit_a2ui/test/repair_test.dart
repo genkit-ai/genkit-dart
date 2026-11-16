@@ -99,8 +99,9 @@ void main() {
 
     List<Map<String, dynamic>> componentsOf(GenerateResult res) => [
       for (final e in a2uiEnvelopesFromParts(res.message?.content))
-        if (e['updateComponents'] case {'components': final List components})
-          ...components.cast<Map<String, dynamic>>(),
+        for (final body in e.values)
+          if (body case {'components': final List components})
+            ...components.cast<Map<String, dynamic>>(),
     ];
 
     test('fixes a block the model got wrong', () async {
@@ -500,12 +501,14 @@ go = Button(goLabel, "primary", Event("go"))''';
             content: [
               a2uiPart([
                 {
+                  'version': '1.0',
                   'createSurface': {
                     'surfaceId': 'w',
                     'catalogId': basicCatalog.id,
                   },
                 },
                 {
+                  'version': '1.0',
                   'updateComponents': {
                     'surfaceId': 'w',
                     'components': [

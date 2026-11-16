@@ -107,14 +107,20 @@ base class A2uiOptions {
     }
   }
 
-  /// The A2UI protocol version to emit. Only `'v0.9'` (the default) is
-  /// supported.
+  /// Expected A2UI protocol version (`'1.0'` or `'v0.9'`).
+  ///
+  /// Optional: the catalog itself decides which version a turn emits (see
+  /// `A2uiCatalog.protocolVersion`). Passing this asserts at call time that
+  /// the resolved catalog targets that version.
   String? get version {
     return _json['version'] as String?;
   }
 
-  /// The A2UI protocol version to emit. Only `'v0.9'` (the default) is
-  /// supported.
+  /// Expected A2UI protocol version (`'1.0'` or `'v0.9'`).
+  ///
+  /// Optional: the catalog itself decides which version a turn emits (see
+  /// `A2uiCatalog.protocolVersion`). Passing this asserts at call time that
+  /// the resolved catalog targets that version.
   set version(String? value) {
     if (value == null) {
       _json.remove('version');

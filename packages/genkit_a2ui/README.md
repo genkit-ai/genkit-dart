@@ -103,6 +103,8 @@ import 'package:genkit/client.dart';
 
 const a2uiMimeType = 'application/a2ui+json';
 
+const _envelopeKeys = {'checks', 'accessibility', 'catalogId', 'metadata'};
+
 /// The A2UI messages carried by a chunk's or message's parts.
 Iterable<Map<String, dynamic>> a2uiMessagesFrom(List<Part>? parts) sync* {
   for (final part in parts ?? const <Part>[]) {
@@ -111,9 +113,63 @@ Iterable<Map<String, dynamic>> a2uiMessagesFrom(List<Part>? parts) sync* {
     // payloads are skipped rather than throwing mid-stream.
     final data = part.data;
     if ((data?['messages'] ?? data?['envelopes']) case final List messages) {
-      yield* messages.whereType<Map>().map((m) => m.cast<String, dynamic>());
+      yield* messages.whereType<Map>().map(
+        (m) => _normalizeEnvelopeKeys(
+          m is Map<String, dynamic> ? m : m.cast<String, dynamic>(),
+        ),
+      );
     }
   }
+}
+
+bool _hasAtEnvelopeKey(Object? c) =>
+    c is Map &&
+    c.keys.any(
+      (k) =>
+          k is String &&
+          k.startsWith('@') &&
+          _envelopeKeys.contains(k.substring(1)) &&
+          !c.containsKey(k.substring(1)),
+    );
+
+/// Rewrites `@checks`, `@accessibility`, `@catalogId` and `@metadata` on v1.0
+/// components to the bare names that `a2ui_core` 0.7 expects, so this client
+/// keeps rendering if the agent moves to a newer SDK first. Delete it once your
+/// `a2ui_core` reads the `@` keys itself (a2ui-project/a2ui#4037): after the
+/// bare-key fallback is removed (a2ui-project/a2ui#4082), the rewritten keys
+/// are read as ordinary component properties and `checks` stop applying.
+Map<String, dynamic> _normalizeEnvelopeKeys(Map<String, dynamic> message) {
+  if (message['version'] != '1.0') return message;
+  for (final kind in const ['createSurface', 'updateComponents']) {
+    if (message[kind] case final Map body) {
+      if (body['components'] case final List components
+          when components.any(_hasAtEnvelopeKey)) {
+        return <String, dynamic>{
+          ...message,
+          kind: <String, dynamic>{
+            ...body.cast<String, dynamic>(),
+            'components': <Object?>[
+              for (final c in components)
+                if (c is Map)
+                  <String, dynamic>{
+                    for (final MapEntry(:key, :value) in c.entries)
+                      if (key is String &&
+                          key.startsWith('@') &&
+                          _envelopeKeys.contains(key.substring(1)) &&
+                          !c.containsKey(key.substring(1)))
+                        key.substring(1): value
+                      else
+                        '$key': value,
+                  }
+                else
+                  c,
+            ],
+          },
+        };
+      }
+    }
+  }
+  return message;
 }
 
 /// Wraps a surface action (e.g. a button press) as the next agent input.
@@ -140,8 +196,7 @@ renders one with an `A2uiSurface` widget:
 ```dart
 import 'package:a2ui_core/a2ui_core.dart';
 import 'package:a2ui_flutter/a2ui_flutter.dart';
-// The v0.9 edition of the basic components, which is what the agent sends.
-import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
+import 'package:a2ui_flutter/basic_catalog.dart';
 import 'package:genkit/experimental_client.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -199,10 +254,10 @@ validation:
 
 | Option         | Default    | Description                                                                                                                                                      |
 | -------------- | ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `catalog`      | `'basic'`  | The id of the catalog describing what the agent may render.                                                                                                     |
+| `catalog`      | `'basic'`  | The id of the catalog describing what the agent may render (`'basic'` is v1.0; `'basic-v0.9'` keeps v0.9).                                                      |
 | `instructions` | `'system'` | Where to inject catalog capabilities. `'none'` injects nothing.                                                                                                 |
 | `validate`     | `'warn'`   | What to do with a block that fails to compile or validate. `'warn'` logs and drops it; `'strict'` throws; `'off'` checks only that the block compiles, not the component tree (references, `root`). |
-| `version`      | `'v0.9'`   | A2UI protocol version. Only `'v0.9'` is supported.                                                                                                              |
+| `version`      | *from catalog* | Optional assertion (`'1.0'` or `'v0.9'`): throws if the resolved catalog targets another version.                                                          |
 | `repair`       | `true`     | Ask the model once to fix a block that failed to compile. Costs an extra call on the failure path only; see [Self-repair](#self-repair).                        |
 
 ### When the model renders
@@ -311,7 +366,8 @@ no accompanying text is needed.
 
 ### Forms
 
-Input components (`TextField`, `CheckBox`, `Slider`) do **not** send their values
+Input components (`TextField`, `CheckBox`, `Slider`, `ChoicePicker`,
+`DateTimeInput`) do **not** send their values
 automatically. To capture what the user entered, the model must:
 
 1. Bind each input's value to a data-model path:
@@ -327,23 +383,23 @@ model to do this. Without both steps, the action arrives with an empty `context`
 The renderer rejects a `createSurface` whose `catalogId` it does not hold (an
 `A2uiCatalogError` from `processMessages`), so that surface never appears. The
 client's catalog ids must match the server's: a2ui_flutter's `basicCatalog()`
-already uses the bundled basic catalog's id, and a custom catalog needs the
-same id on both sides. A v0.9 surface has one catalog, so the client's holds
-the basic components and functions next to your own:
+already uses the bundled basic catalog's id, and a custom catalog extended with
+`basicCatalog.extend(...)` needs the same id on both sides:
 
 ```dart
-import 'package:a2ui_core/a2ui_core.dart' show BasicCatalog;
+import 'package:a2ui_core/a2ui_core.dart'
+    show A2uiProtocolVersion, BasicCatalog;
 import 'package:a2ui_flutter/a2ui_flutter.dart';
-import 'package:a2ui_flutter/v0_9/basic_catalog.dart';
+import 'package:a2ui_flutter/basic_catalog.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 final catalog = CatalogImplementation(
   id: 'https://my-app.org/catalogs/custom.json',
+  protocolVersion: A2uiProtocolVersion.v1_0,
   components: [...BasicComponents.all, myCustomComponent],
-  functions: BasicCatalog.v0_9(
+  functions: BasicCatalog.v1_0(
     openUrl: (uri) => launchUrl(uri),
   ).functions.values.toList(),
-  themeSchema: BasicComponents.api.themeSchema,
   definitions: BasicComponents.api.definitions,
 );
 ```
@@ -355,20 +411,27 @@ for the full wiring.
 ## Wire format
 
 A2UI travels on its own part channel, following the
-[A2UI extension spec](https://a2ui.org/specification/v0.9.1-a2ui-extension-specification/):
+[A2UI extension spec](https://a2ui.org/specification/v1.0-a2ui-extension-specification/):
 a Genkit `data` part tagged `application/a2ui+json`. The spec puts the message
 list directly in `data`; a Genkit `data` must be an object, so the list sits
 under the spec's `messages` wrapper.
 
-Agent to client (one part per rendered block):
+Agent to client (one part per rendered block; v1.0 carries initial components
+and data on `createSurface`):
 
 ```json
 {
   "data": {
     "messages": [
-      { "version": "v0.9", "deleteSurface": { "surfaceId": "tokyo-weather" } },
-      { "version": "v0.9", "createSurface": { "surfaceId": "tokyo-weather", "catalogId": "https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json" } },
-      { "version": "v0.9", "updateComponents": { "surfaceId": "tokyo-weather", "components": [ { "id": "root", "component": "Text", "text": "Sunny, 18C" } ] } }
+      { "version": "1.0", "deleteSurface": { "surfaceId": "tokyo-weather" } },
+      {
+        "version": "1.0",
+        "createSurface": {
+          "surfaceId": "tokyo-weather",
+          "catalogId": "https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json",
+          "components": [ { "id": "root", "component": "Text", "text": "Sunny, 18C" } ]
+        }
+      }
     ]
   },
   "metadata": {
@@ -384,7 +447,7 @@ Client to agent (a user action):
 {
   "data": {
     "messages": [
-      { "version": "v0.9", "action": { "name": "refresh", "surfaceId": "tokyo-weather", "sourceComponentId": "refreshBtn", "timestamp": "2026-01-15T12:00:00Z", "context": { "city": "Tokyo" } } }
+      { "version": "1.0", "action": { "name": "refresh", "surfaceId": "tokyo-weather", "sourceComponentId": "refreshBtn", "timestamp": "2026-01-15T12:00:00Z", "context": { "city": "Tokyo" } } }
     ]
   },
   "metadata": { "mimeType": "application/a2ui+json" }
@@ -405,11 +468,13 @@ register it with `loadCatalog`, and reference it by id.
 ### Catalog format
 
 Catalogs use the A2UI specification's
-[`catalog.json`](https://a2ui.org/specification/v0_9/catalogs/basic/catalog.json)
+[`catalog.json`](https://a2ui.org/specification/v1_0/catalogs/basic/catalog.json)
 format, so a published catalog loads unmodified:
 
 - `catalogId`: A globally unique URI identifying the catalog (used as
   `catalogId` on `createSurface`).
+- `protocolVersion`: `'1.0'` for A2UI v1.0 catalogs (omitted on v0.9
+  catalogs). The catalog's protocol version decides what the middleware emits.
 - `components`: An object keyed by component name, where each value is the
   component's JSON Schema. The schema's `description` and property
   descriptions are what the model sees.
@@ -427,6 +492,7 @@ Create a JSON file (for example `./my-catalog.json`):
 ```json
 {
   "catalogId": "https://my-app.org/catalogs/custom.json",
+  "protocolVersion": "1.0",
   "components": {
     "Banner": {
       "type": "object",
@@ -434,7 +500,7 @@ Create a JSON file (for example `./my-catalog.json`):
       "properties": {
         "component": { "const": "Banner" },
         "title": {
-          "$ref": "https://a2ui.org/specification/v0_9/common_types.json#/$defs/DynamicString"
+          "$ref": "common_types.json#/$defs/DynamicString"
         },
         "severity": { "type": "string", "enum": ["info", "warning", "error"] }
       },
@@ -572,7 +638,7 @@ On each model call inside the agent's tool loop, `a2ui()`:
 2. Intercepts the model's output, both the streamed chunks and the final
    aggregated message.
 3. Extracts the `<a2ui>` Express blocks from the model's text.
-4. Compiles each block into A2UI v0.9 messages with
+4. Compiles each block into A2UI messages (v1.0 by default) with
    [`a2ui_agent`](https://pub.dev/packages/a2ui_agent), checking it against the
    catalog (per the `validate` option).
 5. Rewrites each block into a canonical a2ui data part, with the Express source
@@ -583,7 +649,7 @@ A2UI Express is a compact, positional notation for UI. The model writes:
 ```text
 surface("tokyo-weather")
 root = Card(Column([title, refresh]))
-title = Text("Weather in Tokyo", "h3")
+title = Text("## Weather in Tokyo")
 refresh = Button(Text("Refresh"), "primary", Event("refresh", {city: "Tokyo"}))
 ```
 
@@ -608,8 +674,13 @@ about prior surfaces and user actions:
 [genui](https://pub.dev/packages/genui) is discontinued. Its replacement is
 [`a2ui_flutter`](https://pub.dev/packages/a2ui_flutter) (the widgets) with
 [`a2ui_core`](https://pub.dev/packages/a2ui_core) (message processing and
-surface state), and the client examples here now use them. What the agent
-sends is unchanged, so a client can move at its own pace.
+surface state), and the client examples here now use them. `a2ui_flutter` ships
+both a v1.0 basic catalog (`package:a2ui_flutter/basic_catalog.dart`) and a
+v0.9 basic catalog (`package:a2ui_flutter/v0_9/basic_catalog.dart`). Their ids
+differ, so a client that registers both renders either server version. A client
+holds only one protocol version per catalog id, though, so for a custom catalog
+either give the v1.0 edition a new id (and keep the v0.9 one registered) or
+upgrade the server and its clients together.
 
 Replace `genui` with `a2ui_flutter` in the pubspec, raise `a2ui_core` to 0.7,
 and copy the helpers from
@@ -617,7 +688,7 @@ and copy the helpers from
 (`a2uiSubmitToMessage` became `a2uiActionToMessage`). Then:
 
 ```dart
-// genui
+// genui (v0.9)
 final controller = SurfaceController(catalogs: [BasicCatalogItems.asCatalog()]);
 controller.handleMessage(core.A2uiMessage.fromJson(m));
 controller.onSubmit.listen((submit) {
@@ -627,7 +698,9 @@ controller.onSubmit.listen((submit) {
 });
 Surface(surfaceContext: controller.contextFor(surfaceId));
 
-// a2ui_flutter
+// a2ui_flutter: import 'package:a2ui_flutter/basic_catalog.dart' for a v1.0
+// agent (the 0.6 default), or 'package:a2ui_flutter/v0_9/basic_catalog.dart'
+// while talking to a 0.5 server or `a2ui(catalog: 'basic-v0.9')`.
 final processor = MessageProcessor<ComponentImplementation>(
   catalogs: [basicCatalog(openUrl: (uri) => launchUrl(uri))],
   unifiedOutbound: true,
@@ -651,6 +724,41 @@ A2uiSurface(surface: processor.model.getSurface(surfaceId)!);
 - A surface whose catalog id the client does not hold is rejected with an
   `A2uiCatalogError`, where genui rendered a blank.
 - `genkit_a2ui` and `a2ui_flutter` can share a pubspec.
+
+### Agents: A2UI v1.0 by default
+
+`basicCatalog` and `A2uiCatalog(...)` now target A2UI **1.0** by default:
+messages carry `"version": "1.0"`, new surfaces inline their `components` and
+`dataModel` on `createSurface`, data bindings use `{"@path": ...}` and function
+calls use `{"@call": ...}`, and `Text.variant` drops `h1`..`h5` in favor of
+Markdown heading lines (`"## Heading"`). `basicCatalog` now exposes all 18
+components of the v1.0 basic catalog, adding `AudioPlayer`, `Video`, `Tabs`,
+`Modal`, `ChoicePicker`, and `DateTimeInput` to the 12 in `basicCatalogV09`.
+
+- **Staying on v0.9** (for example while clients still run `genui`): pass
+  `a2ui(catalog: 'basic-v0.9')` (`basicCatalogV09LookupId`), extend
+  `basicCatalogV09`, or pass `protocolVersion: 'v0.9'` to `A2uiCatalog(...)`.
+- **v1.0 catalog validation**: Dart-built `A2uiCatalog(...)` instances now run
+  `a2ui_core`'s v1.0 catalog checks (UAX #31 property identifiers, such as
+  rejecting `'aria-label'`, and `$ref`s restricted to `#/...` or
+  `common_types.json`). Pass `protocolVersion: 'v0.9'` if a catalog still needs
+  v0.9 schema rules.
+- **`version:` option**: `a2ui(version:)` no longer picks the version (the
+  catalog does), and now throws if the resolved catalog targets another version.
+  `a2uiVersion` is removed in favor of `catalog.protocolVersion`.
+- **`a2ui_core` 0.7 compatibility**: the published `a2ui_agent` 0.3 /
+  `a2ui_core` 0.7 SDKs still write bare `checks` rather than `@checks` on
+  components. `a2uiMessagesFrom` above normalizes `@checks`, `@accessibility`,
+  `@catalogId` and `@metadata` back to bare keys on v1.0 surfaces, so clients
+  that copy it tolerate the later SDK rename too. Delete `_normalizeEnvelopeKeys`
+  once your client's `a2ui_core` reads the `@` keys directly
+  (a2ui-project/a2ui#4037 / #4082), otherwise the rewritten bare keys will be
+  treated as ordinary component properties and `checks` will stop applying.
+- **Persisted v0.9 sessions**: a v1.0 agent cannot update a v0.9 surface in
+  place. Stored v0.9 surface parts are replayed to the model as a summary asking
+  it to re-render the surface in full (rather than replaying the v0.9 Express
+  source), and `repair` skips rootless deltas targeting a v0.9-only surface
+  instead of fabricating a stub replacement.
 
 ## Migrating from 0.4
 

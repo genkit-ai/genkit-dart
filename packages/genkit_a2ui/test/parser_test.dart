@@ -56,13 +56,10 @@ A2uiStreamParser newParser({
 /// The messages that rendered a minimal surface [id], as history.
 List<A2uiEnvelope> renderedSurface(String id) => [
   {
-    'version': a2uiVersion,
-    'createSurface': {'surfaceId': id, 'catalogId': basicCatalogId},
-  },
-  {
-    'version': a2uiVersion,
-    'updateComponents': {
+    'version': '1.0',
+    'createSurface': {
       'surfaceId': id,
+      'catalogId': basicCatalogId,
       'components': [
         {'id': 'root', 'component': 'Text', 'text': 'old'},
       ],
@@ -73,7 +70,7 @@ List<A2uiEnvelope> renderedSurface(String id) => [
 const weatherSource = '''
 surface("tokyo")
 root = Card(Column([title, temp]))
-title = Text("Weather in Tokyo", "h3")
+title = Text("## Weather in Tokyo")
 temp = Text(\$/temp)
 \$/temp = "18C"''';
 
@@ -99,8 +96,6 @@ void main() {
       expect(kinds(batchesOf(segments).single), [
         'deleteSurface',
         'createSurface',
-        'updateComponents',
-        'updateDataModel',
       ]);
     });
 
@@ -114,7 +109,22 @@ void main() {
 
     test('stamps the protocol version', () {
       final batch = batchesOf(collect(newParser(), [weatherBlock])).single;
+      expect(batch.map((e) => e['version']), everyElement('1.0'));
+    });
+
+    test('compiles v0.9 messages when given basicCatalogV09', () {
+      final parser = A2uiStreamParser(catalog: basicCatalogV09);
+      final batch = batchesOf(
+        collect(parser, [
+          '<a2ui>\nsurface("s")\nroot = Text("hi", "h3")\n</a2ui>\n',
+        ]),
+      ).single;
       expect(batch.map((e) => e['version']), everyElement('v0.9'));
+      expect(kinds(batch), [
+        'deleteSurface',
+        'createSurface',
+        'updateComponents',
+      ]);
     });
 
     test('keeps the Express source, without tags, on the segment', () {
@@ -185,7 +195,7 @@ void main() {
         ]),
       ).single;
       final components =
-          (batch.last['updateComponents'] as Map)['components'] as List;
+          (batch.last['createSurface'] as Map)['components'] as List;
       expect((components.single as Map)['text'], 'Use `dart run` to start.');
     });
 
@@ -333,12 +343,7 @@ void main() {
         // The client may hold the surface whether or not the server's history
         // records it; for a new surface the delete is a no-op.
         final batch = batchesOf(collect(newParser(), [weatherBlock])).single;
-        expect(kinds(batch), [
-          'deleteSurface',
-          'createSurface',
-          'updateComponents',
-          'updateDataModel',
-        ]);
+        expect(kinds(batch), ['deleteSurface', 'createSurface']);
         expect((batch.first['deleteSurface'] as Map)['surfaceId'], 'tokyo');
       });
 
@@ -388,11 +393,11 @@ void main() {
           catalog: basicCatalog,
           history: [
             {
-              'version': a2uiVersion,
+              'version': '1.0',
               'createSurface': {'surfaceId': 's', 'catalogId': basicCatalogId},
             },
             {
-              'version': a2uiVersion,
+              'version': '1.0',
               'updateComponents': {
                 'surfaceId': 's',
                 'components': [
@@ -407,7 +412,7 @@ void main() {
               },
             },
             {
-              'version': a2uiVersion,
+              'version': '1.0',
               'updateComponents': {
                 'surfaceId': 's',
                 'components': [
@@ -497,7 +502,7 @@ void main() {
               create('s'),
               withA,
               {
-                'version': '1.0',
+                'version': 'v0.9',
                 'deleteSurface': {'surfaceId': 's'},
               },
             ],
@@ -506,6 +511,34 @@ void main() {
             'updateComponents',
           ]);
         });
+
+        test(
+          'a v0.9.1 catalog replays v0.9 history messages for partial updates',
+          () {
+            final v091 = A2uiCatalog(
+              id: 'https://example.com/v091.json',
+              protocolVersion: 'v0.9.1',
+              components: basicCatalogV09.components.values,
+              functions: basicCatalogV09.functions.values,
+            );
+            final turn1 = batchesOf(
+              collect(A2uiStreamParser(catalog: v091), [
+                '<a2ui>\nsurface("s")\n\$/t = "a"\nroot = Text(\$/t)\n</a2ui>',
+              ]),
+            ).single;
+            final parser = A2uiStreamParser(catalog: v091, history: turn1);
+            expect(
+              kinds(
+                batchesOf(
+                  collect(parser, [
+                    '<a2ui>\nsurface("s")\n\$/t = "b"\n</a2ui>',
+                  ]),
+                ).single,
+              ),
+              ['updateDataModel'],
+            );
+          },
+        );
 
         test('a second create without a delete keeps the old tree', () {
           // The renderer rejects creating a live surface, so `a` survives.
@@ -625,11 +658,7 @@ void main() {
         final batch = batchesOf(
           collect(newParser(validate: A2uiValidateMode.off), [literalInIdSlot]),
         ).single;
-        expect(kinds(batch), [
-          'deleteSurface',
-          'createSurface',
-          'updateComponents',
-        ]);
+        expect(kinds(batch), ['deleteSurface', 'createSurface']);
       });
 
       test('off still drops a block that does not compile, silently', () {

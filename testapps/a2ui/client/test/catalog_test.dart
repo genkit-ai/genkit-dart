@@ -19,23 +19,22 @@ import 'package:a2ui_core/a2ui_core.dart';
 import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:genkit/client.dart';
 
 const _surfaceId = 'tokyo-weather';
 
-/// What the agent sends for a weather card, in A2UI v0.9.
+/// What the agent sends for a weather card, in A2UI 1.0 (components and data
+/// inlined on `createSurface`).
 const _messages = <Map<String, dynamic>>[
   {
-    'version': 'v0.9',
+    'version': '1.0',
     'deleteSurface': {'surfaceId': _surfaceId},
   },
   {
-    'version': 'v0.9',
-    'createSurface': {'surfaceId': _surfaceId, 'catalogId': weatherCatalogId},
-  },
-  {
-    'version': 'v0.9',
-    'updateComponents': {
+    'version': '1.0',
+    'createSurface': {
       'surfaceId': _surfaceId,
+      'catalogId': weatherCatalogId,
       'components': [
         {'id': 'root', 'component': 'Card', 'child': 'body'},
         {
@@ -43,12 +42,7 @@ const _messages = <Map<String, dynamic>>[
           'component': 'Column',
           'children': ['title', 'gauges', 'refresh'],
         },
-        {
-          'id': 'title',
-          'component': 'Text',
-          'text': 'Weather in Tokyo',
-          'variant': 'h3',
-        },
+        {'id': 'title', 'component': 'Text', 'text': '## Weather in Tokyo'},
         // A stretch Row inside a Column: surfaces sit in a scrolling list, so
         // this must lay out without a bounded height.
         {
@@ -60,7 +54,7 @@ const _messages = <Map<String, dynamic>>[
         {
           'id': 'temp',
           'component': 'Gauge',
-          'value': {'path': '/temp'},
+          'value': {'@path': '/temp'},
           'min': -10,
           'max': 40,
           'label': 'Temperature',
@@ -83,18 +77,15 @@ const _messages = <Map<String, dynamic>>[
               'name': 'refresh',
               'context': {
                 'city': 'Tokyo',
-                'temp': {'path': '/temp'},
+                'temp': {'@path': '/temp'},
               },
             },
           },
         },
         {'id': 'refresh_label', 'component': 'Text', 'text': 'Refresh'},
       ],
+      'dataModel': {'temp': 18},
     },
-  },
-  {
-    'version': 'v0.9',
-    'updateDataModel': {'surfaceId': _surfaceId, 'path': '/temp', 'value': 18},
   },
 ];
 
@@ -147,7 +138,7 @@ void main() {
 
     processor.processMessages([
       {
-        'version': 'v0.9',
+        'version': '1.0',
         'updateDataModel': {
           'surfaceId': _surfaceId,
           'path': '/temp',
@@ -177,7 +168,7 @@ void main() {
           'data': {
             'messages': [
               {
-                'version': 'v0.9',
+                'version': '1.0',
                 'action': {
                   'name': 'refresh',
                   'surfaceId': _surfaceId,
@@ -193,5 +184,92 @@ void main() {
         },
       ],
     });
+  });
+
+  testWidgets('normalizes @checks so newer agents render on this client', (
+    tester,
+  ) async {
+    final part = DataPart(
+      data: {
+        'messages': [
+          {
+            'version': '1.0',
+            'createSurface': {
+              'surfaceId': 'form',
+              'catalogId': weatherCatalogId,
+              'components': [
+                {
+                  'id': 'root',
+                  'component': 'Column',
+                  'children': ['email'],
+                },
+                {
+                  'id': 'email',
+                  'component': 'TextField',
+                  'label': 'Email',
+                  'value': {'@path': '/email'},
+                  '@checks': [
+                    {
+                      'condition': {
+                        '@call': 'required',
+                        'args': {
+                          'value': {'@path': '/email'},
+                        },
+                      },
+                      'message': 'Required',
+                    },
+                  ],
+                },
+              ],
+            },
+          },
+        ],
+      },
+      metadata: {'mimeType': a2uiMimeType},
+    );
+
+    for (final m in a2uiMessagesFrom([part])) {
+      expect(m['createSurface'], isA<Map<String, dynamic>>());
+      expect(
+        (m['createSurface'] as Map<String, dynamic>)['components'],
+        everyElement(isA<Map<String, dynamic>>()),
+      );
+      processor.processMessages([m]);
+    }
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: ListView(
+            children: [
+              A2uiSurface(surface: processor.model.getSurface('form')!),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Required'), findsOneWidget);
+
+    // Messages with no @ keys pass through without rebuilding maps.
+    final plain = <String, dynamic>{
+      'version': '1.0',
+      'createSurface': <String, dynamic>{
+        'surfaceId': 'plain',
+        'catalogId': weatherCatalogId,
+        'components': <Map<String, dynamic>>[
+          <String, dynamic>{'id': 'root', 'component': 'Text', 'text': 'Hi'},
+        ],
+      },
+    };
+    final out = a2uiMessagesFrom([
+      DataPart(
+        data: {
+          'messages': [plain],
+        },
+        metadata: {'mimeType': a2uiMimeType},
+      ),
+    ]).single;
+    expect(identical(out, plain), isTrue);
   });
 }
