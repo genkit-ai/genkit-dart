@@ -133,13 +133,13 @@ void main() {
       expect(supportsTools('o3'), true);
       expect(supportsTools('gpt-6-sol'), true);
       expect(supportsTools('gpt-6-luna'), true);
+      expect(supportsTools('gpt-6.1-terra'), true);
     });
 
     test('identifies models without function calling support', () {
       // Chat Completions takes their tools only on the Responses API.
       expect(supportsTools('gpt-6-astra'), false);
       expect(supportsTools('gpt-6.1-sol'), false);
-      expect(supportsTools('gpt-6.1-terra'), false);
       // ChatGPT-tuned snapshots do not take tools.
       expect(supportsTools('chatgpt-5-latest'), false);
       expect(supportsTools('chatgpt-4.1-latest'), false);

@@ -524,12 +524,12 @@ void main() {
       }
     });
 
-    test('only gpt-6-sol and gpt-6-luna advertise tools', () {
+    test('only gpt-6-sol, gpt-6-luna and gpt-6.1-terra advertise tools', () {
       expect(supportsTools('gpt-6-sol'), isTrue);
       expect(supportsTools('gpt-6-luna'), isTrue);
+      expect(supportsTools('gpt-6.1-terra'), isTrue);
       expect(supportsTools('gpt-6-astra'), isFalse);
       expect(supportsTools('gpt-6.1-sol'), isFalse);
-      expect(supportsTools('gpt-6.1-terra'), isFalse);
     });
   });
 
@@ -716,7 +716,6 @@ const _fixtureOther = [
 const _fixtureNoTools = {
   'gpt-6-astra',
   'gpt-6.1-sol',
-  'gpt-6.1-terra',
   'gpt-5-search-api',
   'gpt-5-search-api-2025-10-14',
 };

@@ -296,12 +296,12 @@ The catalog itself is internal and changes with OpenAI's model list in any
 release.
 
 `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano`, `gpt-5.5`, `gpt-5.6-sol`,
-`gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-6-sol` and `gpt-6-luna` advertise tools,
-but take function tools on Chat Completions only with
+`gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-6-sol`, `gpt-6-luna` and `gpt-6.1-terra`
+advertise tools, but take function tools on Chat Completions only with
 `reasoningEffort: 'none'`. GPT-5.4 and GPT-5.5 default to it; the others need it
 set. The plugin does not check the effort for you.
-`gpt-6-astra`, `gpt-6.1-sol` and `gpt-6.1-terra` take tools only on the
-Responses API, which this plugin does not use, so they advertise no tools.
+`gpt-6-astra` and `gpt-6.1-sol` take tools only on the Responses API, which
+this plugin does not use, so they advertise no tools.
 
 The catalog is not the set of usable models. Any OpenAI-compatible model works
 by passing its name to `model()`; a name that is not curated takes the current

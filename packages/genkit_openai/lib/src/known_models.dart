@@ -151,9 +151,9 @@ enum OpenAIModelStage {
 /// Catalog: https://developers.openai.com/api/docs/models
 /// Retirements: https://developers.openai.com/api/docs/deprecations
 enum KnownOpenAIModel {
-  // GPT-6. Chat Completions serves all five, but takes tools only on sol and
-  // luna, and only with `reasoning_effort: none`; astra, 6.1-sol and
-  // 6.1-terra take none. No dated snapshots yet.
+  // GPT-6. Chat Completions serves all five, but takes tools only on sol,
+  // luna and 6.1-terra, and only with `reasoning_effort: none`; astra and
+  // 6.1-sol take none. No dated snapshots yet.
   gpt61Sol(
     'gpt-6.1-sol',
     'OpenAI GPT-6.1 Sol',
@@ -163,7 +163,7 @@ enum KnownOpenAIModel {
   gpt61Terra(
     'gpt-6.1-terra',
     'OpenAI GPT-6.1 Terra',
-    multimodalNoChatToolsSupports,
+    multimodalSupports,
     reasons: true,
   ),
   gpt6Astra(
