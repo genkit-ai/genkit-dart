@@ -16,96 +16,65 @@
 ///
 /// The server advertises a `Gauge` component to the model (see
 /// `weatherCatalog` in `../server/lib/agent.dart`). Here we implement the
-/// matching Flutter widget as a genui [CatalogItem]. genui builds a widget for
-/// a component by looking up a [CatalogItem] whose [CatalogItem.name] equals the
-/// component's `component` field, so the name here (`'Gauge'`) MUST match the
-/// name the server catalog uses.
+/// matching Flutter widget as an a2ui_flutter [ComponentImplementation]. The
+/// renderer builds a widget for a component by looking up the implementation
+/// whose `name` equals the component's `component` field, so the name here
+/// (`'Gauge'`) MUST match the name the server catalog uses.
 ///
-/// A [CatalogItem] is three things:
+/// A [ComponentImplementation] is three things:
 ///  1. a `name` (the component type in the A2UI JSON),
-///  2. a `dataSchema` describing its props (used for client-side validation),
-///  3. a `widgetBuilder` that turns the parsed props into a Flutter widget.
+///  2. a `schema` describing its props (incoming components are checked
+///     against it),
+///  3. a `builder` that turns the resolved props into a Flutter widget.
 library;
 
 import 'dart:math' as math;
 
+import 'package:a2ui_core/a2ui_core.dart' show CommonSchemas;
+import 'package:a2ui_flutter/a2ui_flutter.dart';
 import 'package:flutter/material.dart';
-import 'package:genui/genui.dart';
 import 'package:json_schema_builder/json_schema_builder.dart';
 
-/// The prop schema for the `Gauge` component.
+/// The `Gauge` component.
 ///
-/// `value` uses [A2uiSchemas.numberReference] so it accepts either a literal
-/// number or a `{ "path": "/..." }` data-model binding, exactly like the basic
-/// catalog's Slider. The rest are simple literals.
-final _gaugeSchema = S.object(
-  description: 'A circular gauge visualizing a single numeric value.',
-  properties: {
-    'value': A2uiSchemas.numberReference(
-      description:
-          'The value to display. Literal number or a { path } binding.',
-    ),
-    'min': S.number(description: 'The minimum of the range. Defaults to 0.'),
-    'max': S.number(description: 'The maximum of the range. Defaults to 100.'),
-    'label': A2uiSchemas.stringReference(
-      description: 'An optional caption shown under the value.',
-    ),
-    'unit': S.string(description: 'An optional unit suffix, e.g. "°C" or "%".'),
-  },
-  required: ['value'],
-);
-
-/// The `Gauge` catalog item.
+/// `value` and `label` use [CommonSchemas], so each accepts either a literal
+/// or a `{ "path": "/..." }` data-model binding, exactly like the basic
+/// catalog's Slider. The rest are plain literals.
 ///
-/// Register it on the client by adding it to the catalog with
-/// `catalog.copyWith(newItems: [gaugeCatalogItem])`.
-final CatalogItem gaugeCatalogItem = CatalogItem(
+/// Register it by listing it in the client catalog's `components` (see
+/// `weatherCatalog` in `catalog.dart`).
+final ComponentImplementation gauge = ComponentImplementation(
   name: 'Gauge',
-  dataSchema: _gaugeSchema,
-  widgetBuilder: (itemContext) {
-    final data = itemContext.data as Map<String, Object?>;
-    final min = (data['min'] as num?)?.toDouble() ?? 0.0;
-    final max = (data['max'] as num?)?.toDouble() ?? 100.0;
-    final unit = data['unit'] as String?;
-
-    // `value` and `label` may be literals or { path } bindings, so resolve
-    // them through genui's Bound* widgets, which subscribe to the data model
-    // and rebuild when it changes.
-    return BoundNumber(
-      dataContext: itemContext.dataContext,
-      value: data['value'],
-      builder: (context, value) {
-        return BoundString(
-          dataContext: itemContext.dataContext,
-          value: data['label'],
-          builder: (context, label) {
-            return _GaugeView(
-              value: (value ?? min).toDouble(),
-              min: min,
-              max: max,
-              label: label,
-              unit: unit,
-            );
-          },
-        );
-      },
+  schema: Schema.object(
+    description: 'A circular gauge visualizing a single numeric value.',
+    properties: {
+      'value': CommonSchemas.dynamicNumber,
+      'min': Schema.number(
+        description: 'The minimum of the range. Defaults to 0.',
+      ),
+      'max': Schema.number(
+        description: 'The maximum of the range. Defaults to 100.',
+      ),
+      'label': CommonSchemas.dynamicString,
+      'unit': Schema.string(
+        description: 'An optional unit suffix, e.g. "°C" or "%".',
+      ),
+    },
+    required: ['value'],
+  ),
+  // `props` holds the resolved values: a bound `value` or `label` arrives as
+  // the data model's current value, and the builder runs again when it
+  // changes.
+  builder: (context, node, props, buildChild) {
+    final min = props.number('min') ?? 0.0;
+    return _GaugeView(
+      value: props.number('value') ?? min,
+      min: min,
+      max: props.number('max') ?? 100.0,
+      label: props.string('label'),
+      unit: props.string('unit'),
     );
   },
-  exampleData: [
-    () => '''
-      [
-        {
-          "id": "root",
-          "component": "Gauge",
-          "value": 18,
-          "min": -10,
-          "max": 40,
-          "unit": "\u00b0C",
-          "label": "Temperature"
-        }
-      ]
-    ''',
-  ],
 );
 
 /// A simple circular gauge painted with a [CustomPainter].

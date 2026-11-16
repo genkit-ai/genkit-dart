@@ -22,7 +22,7 @@
 //
 // This example prints the A2UI envelopes the model emits. In a real app you
 // would forward these to a client and render them with a renderer such as
-// `genui` (see the README and the full Flutter sample under `testapps/a2ui`).
+// `a2ui_flutter` (see the README and the full Flutter sample under `testapps/a2ui`).
 //
 // Run with:
 //   GEMINI_API_KEY=your-key dart run example/example.dart

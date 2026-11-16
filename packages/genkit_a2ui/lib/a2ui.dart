@@ -21,7 +21,7 @@
 ///
 /// Clients do not depend on this package. A2UI travels as spec-shaped data
 /// parts, so a client needs only `package:genkit` and a renderer such as
-/// `genui`; see the README for copy-paste helpers.
+/// `a2ui_flutter`; see the README for copy-paste helpers.
 library;
 
 export 'src/a2ui_middleware.dart'

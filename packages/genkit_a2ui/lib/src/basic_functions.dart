@@ -15,9 +15,10 @@
 /// The client functions of the A2UI basic catalog (v0.9.1), copied verbatim
 /// from the specification's `catalog.json`.
 ///
-/// Renderers of the basic catalog (genui among them) implement these, so the
-/// bundled catalog declares them: without them the model cannot use `?required`
-/// style checks or `formatString`, and the compiler rejects a block that does.
+/// Renderers of the basic catalog (a2ui_flutter among them) implement these,
+/// so the bundled catalog declares them: without them the model cannot use
+/// `?required` style checks or `formatString`, and the compiler rejects a
+/// block that does.
 /// `test/catalog_core_test.dart` checks this list against the published file.
 library;
 

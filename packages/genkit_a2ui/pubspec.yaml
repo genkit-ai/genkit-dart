@@ -13,7 +13,7 @@ topics:
   - ui
 
 screenshots:
-  - description: An A2UI weather card rendered by a Flutter genui client.
+  - description: An A2UI weather card rendered by a Flutter client.
     path: doc/a2ui.png
 
 environment:
