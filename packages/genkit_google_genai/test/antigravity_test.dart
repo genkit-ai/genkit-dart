@@ -483,12 +483,19 @@ void _routingAndListingTests() {
           modelsResponse:
               '{"models": ['
               '{"name": "models/antigravity-future"}, '
+              '{"name": "models/antigravity-preview-latest", '
+              '"supportedGenerationMethods": '
+              '["generateContent", "countTokens"]}, '
+              '{"name": "models/antigravity-realtime", '
+              '"supportedGenerationMethods": ["bidiGenerateContent"]}, '
               '{"name": "models/antigravity-old", '
               '"description": "deprecated"}]}',
         ),
       );
       final names = (await plugin.list()).map((a) => a.name).toList();
       expect(names, contains('googleai/antigravity-future'));
+      expect(names, contains('googleai/antigravity-preview-latest'));
+      expect(names, isNot(contains('googleai/antigravity-realtime')));
       expect(names, isNot(contains('googleai/antigravity-old')));
       expect(names.where((n) => n == 'googleai/$_agent'), hasLength(1));
     });

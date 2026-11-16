@@ -3617,8 +3617,16 @@ base class LyriaOptions {
 
   LyriaOptions._(this._json);
 
-  LyriaOptions({String? apiKey, List<String>? responseModalities}) {
-    _json = {'apiKey': ?apiKey, 'responseModalities': ?responseModalities};
+  LyriaOptions({
+    String? apiKey,
+    List<String>? responseModalities,
+    bool? store,
+  }) {
+    _json = {
+      'apiKey': ?apiKey,
+      'responseModalities': ?responseModalities,
+      'store': ?store,
+    };
   }
 
   late final Map<String, dynamic> _json;
@@ -3648,6 +3656,18 @@ base class LyriaOptions {
       _json.remove('responseModalities');
     } else {
       _json['responseModalities'] = value;
+    }
+  }
+
+  bool? get store {
+    return _json['store'] as bool?;
+  }
+
+  set store(bool? value) {
+    if (value == null) {
+      _json.remove('store');
+    } else {
+      _json['store'] = value;
     }
   }
 
@@ -3686,6 +3706,11 @@ base class _LyriaOptionsTypeFactory extends SchemanticType<LyriaOptions> {
           'description':
               'The modalities to be used in response: TEXT, IMAGE, AUDIO. Defaults to AUDIO and TEXT for Lyria (the music, plus the lyrics or caption).',
           'items': <String, Object?>{'type': 'string'},
+        },
+        'store': <String, Object?>{
+          'type': 'boolean',
+          'description':
+              'Whether to store the interaction for later retrieval. Defaults to the plugin\'s store option, else false.',
         },
       },
     },

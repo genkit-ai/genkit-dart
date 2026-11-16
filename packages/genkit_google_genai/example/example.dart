@@ -411,6 +411,72 @@ void main(List<String> args) async {
     },
   );
 
+  // --- Video Generation Flow (Gemini Omni) ---
+  ai.defineFlow(
+    name: 'textToVideo',
+    inputSchema: .string(
+      defaultValue:
+          'An origami butterfly flaps its wings and flies out of the window.',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.geminiVideo('gemini-omni-1.1-flash'),
+        prompt: prompt,
+        // A small portrait video, to keep generation quick.
+        config: GeminiVideoOptions(
+          videoFormat: GeminiVideoFormat(
+            aspectRatio: '9:16',
+            resolution: '360p',
+          ),
+        ),
+      );
+      if (response.media == null) {
+        throw Exception('No video generated');
+      }
+      // An MP4 video (video/mp4), returned directly as a data URL.
+      return response.media!;
+    },
+  );
+
+  // --- Music Generation Flow (Lyria) ---
+  ai.defineFlow(
+    name: 'musicClip',
+    inputSchema: .string(
+      defaultValue: 'A cheerful acoustic folk song with guitar and harmonica.',
+    ),
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.lyria('lyria-3-clip-preview'),
+        prompt: prompt,
+      );
+      if (response.media == null) {
+        throw Exception('No music generated');
+      }
+      // The music, plus the lyrics or a caption as text.
+      return {'lyrics': response.text, 'audio': response.media!.toJson()};
+    },
+  );
+
+  // --- Agent Flow (Antigravity) ---
+  ai.defineFlow(
+    name: 'agentTask',
+    inputSchema: .string(
+      defaultValue: 'Read Hacker News, summarize the top 10 stories.',
+    ),
+    outputSchema: .string(),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.antigravity('antigravity-preview-09-2026'),
+        prompt: prompt,
+        // The agent works in a new remote sandbox, with its default tools.
+        config: AntigravityOptions(environment: 'remote'),
+      );
+      return response.text;
+    },
+  );
+
   ai.defineFlow(
     name: 'embedding',
     inputSchema: .string(defaultValue: 'Hello Genkit'),

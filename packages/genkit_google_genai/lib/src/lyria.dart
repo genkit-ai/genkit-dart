@@ -24,6 +24,10 @@
 //   fields).
 // - A streamed request gets the final response without chunks (JS doesn't
 //   stream these models either).
+// - `store` is sent like on the Gemini Interactions models (request, then
+//   plugin option, else false); JS sends none, so the server stores every
+//   call. Lyria accepts both values (live, Nov 2026: store false returns no
+//   interaction ID).
 
 import 'package:genkit/plugin.dart';
 
@@ -97,6 +101,9 @@ Model createLyriaModel(CommonGoogleGenPlugin plugin, String modelName) {
         responseFormat: toInteractionResponseFormat(
           modalities: options.responseModalities ?? const ['AUDIO', 'TEXT'],
         ),
+        // Not stored unless asked for, as on the Gemini Interactions models
+        // (the server stores by default); the request's value wins.
+        store: options.store ?? plugin.store ?? false,
       );
 
       final service = await plugin.getApiClient(options.apiKey);

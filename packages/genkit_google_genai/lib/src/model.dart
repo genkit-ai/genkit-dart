@@ -552,6 +552,13 @@ abstract class $LyriaOptions {
         'to AUDIO and TEXT for Lyria (the music, plus the lyrics or caption).',
   )
   List<String>? get responseModalities;
+
+  @Field(
+    description:
+        'Whether to store the interaction for later retrieval. Defaults to '
+        "the plugin's store option, else false.",
+  )
+  bool? get store;
 }
 
 /// Options for the Antigravity agent (e.g. antigravity-preview-09-2026).

@@ -94,8 +94,12 @@ void main() async {
 ### Built-in tools
 
 Google Search, code execution, URL context and file search have their own
-options; other built-in tools go in `tools` as maps. For Google Maps, set the
-user's location with `retrievalConfig`:
+options; other built-in tools go in `tools` as maps. Name the tool with its
+camelCase key (`{'googleMaps': {...}}`): that form works on every model,
+whichever API it's called through. A map with its own `type` (`{'type':
+'google_maps'}`) only works on models called through the Interactions API
+(see below). For Google Maps, set the user's location with
+`retrievalConfig`:
 
 ```dart
 final response = await ai.generate(
@@ -179,7 +183,9 @@ final lyrics = response.text; // the lyrics or a caption
 ```
 
 `lyria-3.5` and `lyria-3-pro-preview` make full-length songs; images in the
-prompt are used as inspiration.
+prompt are used as inspiration. As with the Gemini models on the
+Interactions API, calls aren't stored on the server unless `store: true` is
+set (in `LyriaOptions` or `googleAI(store: true)`).
 
 ### Antigravity agent
 

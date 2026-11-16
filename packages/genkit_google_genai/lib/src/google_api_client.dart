@@ -138,8 +138,12 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
 
       final curated = curatedModelMetadata(discoveredNames: discoveredNames);
 
-      // Lyria and Antigravity (Interactions only, so no generateContent
-      // check), without the ones marked deprecated, as in JS.
+      // Lyria and Antigravity, without the ones marked deprecated (as in
+      // JS) and without the ones that don't list generateContent: every
+      // callable Lyria / Antigravity model lists it, while e.g.
+      // `lyria-realtime-exp` only lists `bidiGenerateMusic` and can't be
+      // called here (models.list, Nov 2026). JS doesn't check it yet. An
+      // absent list admits the model, matching the Gemini filter above.
       final discoveredOthers = <String>{};
       final others = (modelsResponse.models ?? [])
           .where((model) {
@@ -147,6 +151,10 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
             return bareName != null &&
                 (isLyriaModelName(bareName) ||
                     isAntigravityModelName(bareName)) &&
+                (model.supportedGenerationMethods?.contains(
+                      'generateContent',
+                    ) ??
+                    true) &&
                 !(model.description?.contains('deprecated') ?? false);
           })
           .map((model) {

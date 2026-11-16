@@ -95,8 +95,34 @@ void _requestTests() {
           ],
         },
       ]);
-      // Nothing else: no store, tools or generation config.
-      expect(body.keys.toSet(), {'model', 'input', 'response_format'});
+      // Nothing else: no tools or generation config.
+      expect(body.keys.toSet(), {'model', 'input', 'response_format', 'store'});
+    });
+
+    test('is not stored unless store is set', () async {
+      // Lyria accepts store: false (live, Nov 2026: no interaction ID).
+      final plugin = InteractionsWirePlugin(response: _interaction);
+      await _run(plugin);
+      expect(plugin.lastBody['store'], false);
+    });
+
+    test("uses the plugin's store when the request doesn't set it", () async {
+      final plugin = InteractionsWirePlugin(
+        response: _interaction,
+        store: true,
+      );
+      await _run(plugin);
+      expect(plugin.lastBody['store'], true);
+    });
+
+    test("the request's store wins over the plugin's", () async {
+      var plugin = InteractionsWirePlugin(response: _interaction, store: true);
+      await _run(plugin, config: {'store': false});
+      expect(plugin.lastBody['store'], false);
+
+      plugin = InteractionsWirePlugin(response: _interaction, store: false);
+      await _run(plugin, config: {'store': true});
+      expect(plugin.lastBody['store'], true);
     });
 
     test('sends explicit responseModalities as response_format '
@@ -207,7 +233,9 @@ void _listTests() {
           modelsResponse:
               '{"models": ['
               '{"name": "models/lyria-9-future", '
-              '"supportedGenerationMethods": ["createInteraction"]}, '
+              '"supportedGenerationMethods": '
+              '["generateContent", "countTokens"]}, '
+              '{"name": "models/lyria-no-methods"}, '
               '{"name": "models/lyria-old", '
               '"description": "This model is deprecated."}]}',
         ),
@@ -215,6 +243,8 @@ void _listTests() {
       final names = actions.map((a) => a.name).toList();
 
       expect(names, contains('googleai/lyria-9-future'));
+      // An absent list admits the model (as for Gemini models).
+      expect(names, contains('googleai/lyria-no-methods'));
       expect(names, isNot(contains('googleai/lyria-old')));
       final discovered = actions.firstWhere(
         (a) => a.name == 'googleai/lyria-9-future',
@@ -222,6 +252,24 @@ void _listTests() {
       final info = (discovered.metadata['model'] as Map)
           .cast<String, dynamic>();
       expect(info['supports'], lyriaSupports);
+    });
+
+    test('leaves out models that do not list generateContent', () async {
+      // As models.list returned it (Nov 2026): the realtime model is only
+      // served through bidiGenerateMusic, so it can't be called here.
+      final actions = await pluginWith(
+        ListingClient(
+          modelsResponse:
+              '{"models": [{"name": "models/lyria-realtime-exp", '
+              '"supportedGenerationMethods": ["bidiGenerateMusic"]}]}',
+        ),
+      ).list();
+      final names = actions.map((a) => a.name).toList();
+
+      expect(names, isNot(contains('googleai/lyria-realtime-exp')));
+      for (final model in KnownLyriaModel.values) {
+        expect(names, contains('googleai/${model.id}'));
+      }
     });
 
     test('lists the known models once, discovered or not', () async {
