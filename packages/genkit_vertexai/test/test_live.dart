@@ -35,7 +35,8 @@ abstract class $CalculatorInput {
 
 void main() {
   final projectId = Platform.environment['GCLOUD_PROJECT'];
-  // The Interactions API (used by gemini-3.8-flash) is on `global`.
+  // `global` serves gemini-3.8-flash (Interactions API); other locations
+  // work too if the model is available there.
   final location = Platform.environment['GCLOUD_LOCATION'] ?? 'global';
 
   final configs = [

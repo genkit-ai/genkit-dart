@@ -1156,7 +1156,6 @@ extension type const ResponseModality(String value) {
 }
 
 /// A safety setting: the threshold for blocking one harm category.
-/// vertexAI only (googleAI rejects `safety_settings` with a 400).
 extension type InteractionSafetySetting.fromJson(Map<String, Object?> json) {
   InteractionSafetySetting({
     required String type,
@@ -1265,7 +1264,7 @@ extension type CreateInteractionRequest.fromJson(Map<String, Object?> json) {
 
   ServiceTier? get serviceTier => _wrap(json['service_tier'], ServiceTier.new);
 
-  /// Safety settings. vertexAI only (googleAI rejects it with a 400).
+  /// Safety settings (googleAI doesn't accept a `block_none` threshold).
   List<InteractionSafetySetting>? get safetySettings =>
       _wrapAll(json['safety_settings'], InteractionSafetySetting.fromJson);
 }

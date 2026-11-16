@@ -239,14 +239,13 @@ void _storeTests() {
         expect(warnings, [dropped(_textModel)]);
       });
 
-      test('the plugin store option: true warns, false does not', () async {
+      test('the plugin store option is not sent and not warned '
+          'about', () async {
+        // A plugin-wide store: true is meant for the Interactions models;
+        // only a request's own store: true warns (above).
         final warnings = _captureWarnings();
         final body = await _bodyFor(_NoStorePlugin([], store: true));
         expect(body, isNot(contains('store')));
-        expect(warnings, [dropped(_textModel)]);
-
-        resetDroppedConfigFieldWarnings();
-        warnings.clear();
         await _bodyFor(_NoStorePlugin([], store: false));
         // The request's false wins over the plugin's true.
         await _bodyFor(
@@ -254,6 +253,13 @@ void _storeTests() {
           config: {'store': false},
         );
         expect(warnings, isEmpty);
+
+        // The request's own true still warns.
+        await _bodyFor(
+          _NoStorePlugin([], store: false),
+          config: {'store': true},
+        );
+        expect(warnings, [dropped(_textModel)]);
       });
     });
   });

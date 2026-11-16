@@ -52,8 +52,8 @@ class VertexAiPluginHandle {
   /// models called through the Interactions API it stores interactions on
   /// the server (not set = not stored); a stored interaction is continued by
   /// the next request, which then only sends the newer messages. On
-  /// generateContent models `store: true` is ignored with a warning (the
-  /// platform has nothing to store).
+  /// generateContent models it's ignored (the platform has nothing to
+  /// store); a request's own `store: true` there logs a warning.
   GenkitPlugin call({
     String? projectId,
     String? location,

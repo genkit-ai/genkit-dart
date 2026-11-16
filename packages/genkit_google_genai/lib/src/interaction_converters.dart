@@ -478,9 +478,11 @@ Object? toInteractionResponseFormat({
 /// shape: `type` without the `HARM_CATEGORY_` prefix, and lower-case values
 /// (`HARM_CATEGORY_HATE_SPEECH` / `BLOCK_LOW_AND_ABOVE` -> `hate_speech` /
 /// `block_low_and_above`). The server rejects the upper-case values with a
-/// 400. `method` (`SEVERITY` / `PROBABILITY`) is lower-cased too.
-/// `HARM_CATEGORY_UNSPECIFIED` has no equivalent and is left out. Other
-/// fields are passed through in snake_case.
+/// 400. `HARM_CATEGORY_UNSPECIFIED` has no equivalent and is left out; a
+/// setting without a category or threshold is left out with a warning (as
+/// on generateContent), instead of a vague 400 for an empty value. Unlike
+/// JS (whose config schema passes unknown keys through), only the two typed
+/// fields of [GeminiSafetySettings] are read.
 ///
 /// With [blockNoneAsOff] (googleAI), `BLOCK_NONE` is sent as `off`: the
 /// Gemini API rejects `block_none` with a 400 ("allowed on the Gemini
@@ -493,34 +495,28 @@ List<InteractionSafetySetting>? toInteractionSafetySettings(
   bool blockNoneAsOff = false,
 }) {
   if (settings == null) return null;
-  final result = [
-    for (final setting in settings)
-      if (setting.category != 'HARM_CATEGORY_UNSPECIFIED')
-        _toInteractionSafetySetting(setting.toJson(), blockNoneAsOff),
-  ];
+  final result = <InteractionSafetySetting>[];
+  for (final setting in settings) {
+    final category = setting.category;
+    final threshold = setting.threshold;
+    if (category == 'HARM_CATEGORY_UNSPECIFIED') continue;
+    if (category == null || threshold == null) {
+      logger.warning(
+        'Dropping safety setting without a category or threshold: the API '
+        'needs both.',
+      );
+      continue;
+    }
+    result.add(
+      InteractionSafetySetting(
+        type: category.replaceFirst('HARM_CATEGORY_', '').toLowerCase(),
+        threshold: blockNoneAsOff && threshold.toUpperCase() == 'BLOCK_NONE'
+            ? 'off'
+            : threshold.toLowerCase(),
+      ),
+    );
+  }
   return result.isEmpty ? null : result;
-}
-
-InteractionSafetySetting _toInteractionSafetySetting(
-  Map<String, dynamic> setting,
-  bool blockNoneAsOff,
-) {
-  final rest = {...setting}
-    ..remove('category')
-    ..remove('threshold')
-    ..remove('method');
-  final method = setting['method'];
-  final threshold = setting['threshold'] as String? ?? '';
-  return InteractionSafetySetting.fromJson({
-    ...toSnakeCaseObj(rest),
-    'type': (setting['category'] as String? ?? '')
-        .replaceFirst(RegExp('^HARM_CATEGORY_'), '')
-        .toLowerCase(),
-    'threshold': blockNoneAsOff && threshold.toUpperCase() == 'BLOCK_NONE'
-        ? 'off'
-        : threshold.toLowerCase(),
-    if (method is String) 'method': method.toLowerCase(),
-  });
 }
 
 /// Converts a generateContent-style `speechConfig` to the Interactions API

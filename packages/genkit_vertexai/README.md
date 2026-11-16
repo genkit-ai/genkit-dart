@@ -156,9 +156,10 @@ models still use `generateContent`:
   models (`gemini-*-tts*`): the platform's Interactions API doesn't support
   them
 
-The Interactions API is available on the `global` location (the default)
-and on the `us` and `eu` multi-regions. A location you set is used as is,
-and the server returns an error if the model isn't available there.
+The Interactions API is available on `global` (the default), the `us` and
+`eu` multi-regions and regional locations (e.g. `us-central1`). A location
+you set is used as is, and the server returns an error if the model isn't
+available there.
 
 ### Differences on the Interactions API
 
@@ -166,7 +167,8 @@ and the server returns an error if the model isn't available there.
   `GeminiOptions(store: true)` on a request (or `vertexAI(store: true)` for
   every request; a request's own `store` wins) to store interactions and
   continue a conversation from the previous response's messages. On models
-  that use `generateContent`, `store: true` is ignored with a warning.
+  that use `generateContent`, `store` is ignored (a request's own
+  `store: true` logs a warning; the plugin option doesn't).
 - **Safety settings** are supported (unlike the Gemini API plugin).
 - In a stateless conversation, earlier results of server-side tools other
   than code execution (Google Search, URL context, Google Maps, file search,

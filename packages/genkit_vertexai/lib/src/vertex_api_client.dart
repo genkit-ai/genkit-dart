@@ -28,6 +28,14 @@ import 'known_models.dart';
 String vertexBaseUrl(String location) =>
     'https://${vertexApiHostForLocation(location)}/';
 
+/// Appended to the platform's "not supported by the Interactions API" error
+/// (see [VertexAiPluginImpl.handleException]).
+@visibleForTesting
+const interactionsUnsupportedModelHint =
+    'Check the model name and that the model is available in this location. '
+    "Models not in the vertexAI plugin's model list are called through the "
+    'Interactions API, which not every model supports.';
+
 @visibleForTesting
 class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String? projectId;
@@ -75,6 +83,26 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   /// The platform accepts `safety_settings` on the Interactions API.
   @override
   bool get supportsInteractionSafetySettings => true;
+
+  /// Adds what to check to the platform's 400 "Model '...' is not supported
+  /// by the Interactions API.": every name not in the catalog is sent there,
+  /// so it's what a typo, a model not available in the location, or a model
+  /// that only supports generateContent all get (checked live, Nov 2026).
+  /// The status stays INVALID_ARGUMENT: the model may well exist.
+  @override
+  GenkitException handleException(Object e, StackTrace stack) {
+    final error = super.handleException(e, stack);
+    if (!error.message.contains('is not supported by the Interactions API')) {
+      return error;
+    }
+    return GenkitException(
+      '${error.message} $interactionsUnsupportedModelHint',
+      status: error.status,
+      details: error.details,
+      cause: error.cause ?? e,
+      stackTrace: error.stackTrace ?? stack,
+    );
+  }
 
   /// Server-side tool step types that are intentionally NOT sent back in a
   /// stateless history (`input`) on this platform (JS vertexai

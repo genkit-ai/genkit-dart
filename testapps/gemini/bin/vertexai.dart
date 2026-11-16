@@ -420,6 +420,54 @@ void main(List<String> args) async {
     },
   );
 
+  // Plugin-wide store: vertexAI(store: true) stores every Interactions
+  // request that doesn't set `store` itself, so the second turn continues
+  // the first without any per-request option. A request's own store: false
+  // wins: the third request isn't stored (no interaction ID comes back).
+  // A separate Genkit instance keeps the setting away from the other flows;
+  // isDevEnv: false so it doesn't start a second reflection server (its
+  // generate calls still show up in this flow's trace).
+  final storingAi = Genkit(
+    plugins: [
+      vertexAI(
+        projectId: Platform.environment['GCLOUD_PROJECT'],
+        location: Platform.environment['GCLOUD_LOCATION'] ?? 'global',
+        store: true,
+      ),
+    ],
+    isDevEnv: false,
+    promptDir: null,
+  );
+  ai.defineFlow(
+    name: 'multiTurnPluginStore',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (_, _) async {
+      final turn1 = await storingAi.generate(
+        model: vertexAI.gemini('gemini-3.8-flash'),
+        prompt: 'My secret code is RED-MANGO-17. Remember this secret code.',
+      );
+      final turn2 = await storingAi.generate(
+        model: vertexAI.gemini('gemini-3.8-flash'),
+        messages: turn1.messages,
+        prompt: 'What was my secret code?',
+      );
+      final notStored = await storingAi.generate(
+        model: vertexAI.gemini('gemini-3.8-flash'),
+        prompt: 'Say hello in three words.',
+        config: GeminiOptions(store: false),
+      );
+      return {
+        'turn1Answer': turn1.text,
+        'turn2Answer': turn2.text,
+        'turn1InteractionId': turn1.message?.metadata?['interactionId'],
+        'turn2InteractionId': turn2.message?.metadata?['interactionId'],
+        'storeFalseAnswer': notStored.text,
+        'storeFalseStored':
+            notStored.message?.metadata?['interactionId'] != null,
+      };
+    },
+  );
+
   // A stateless (store: false) two-turn conversation with Google Search.
   // The platform rejects earlier search steps when they're sent back, so
   // the plugin leaves them out of turn 2's history (with a warning); the

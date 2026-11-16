@@ -252,10 +252,12 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         // Logs and Datasets); there's nothing to continue. Sent only when
         // set; otherwise the project's logging setting applies. Where the
         // API has no `store` (the Gemini Enterprise Agent Platform), nothing
-        // is stored for later anyway, so only `store: true` asks for
-        // something that can't happen.
+        // is stored for later anyway, so only a request's own `store: true`
+        // asks for something that can't happen. A plugin-wide `store: true`
+        // is meant for the Interactions models and isn't warned about here
+        // (JS warns for it too; JS TODO).
         final generateContentStore = storeFromConfig ?? store;
-        if (generateContentStore == true && !supportsGenerateContentStore) {
+        if (storeFromConfig == true && !supportsGenerateContentStore) {
           warnDroppedConfigField(modelName, 'store');
         }
         if (serviceTier != null && !supportsServiceTier) {

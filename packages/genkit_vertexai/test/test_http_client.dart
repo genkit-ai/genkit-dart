@@ -24,6 +24,7 @@ class MockHttpClient extends http.BaseClient {
     this.publisherModelsResponse,
     this.publisherModelsStatus = 200,
     this.interactionResponse = defaultInteraction,
+    this.interactionStatus = 200,
   });
 
   /// A completed interaction with the text `"ok"` (it also parses as JSON).
@@ -41,6 +42,9 @@ class MockHttpClient extends http.BaseClient {
 
   /// The JSON returned for Interactions API requests.
   final Map<String, Object?> interactionResponse;
+
+  /// The HTTP status returned for Interactions API requests.
+  final int interactionStatus;
 
   final bool returnEmptyPredictions;
   final bool returnInvalidTextPrediction;
@@ -86,7 +90,7 @@ class MockHttpClient extends http.BaseClient {
     if (request.url.path.endsWith('/interactions')) {
       return http.StreamedResponse(
         Stream.value(utf8.encode(jsonEncode(interactionResponse))),
-        200,
+        interactionStatus,
         headers: {'content-type': 'application/json'},
       );
     }

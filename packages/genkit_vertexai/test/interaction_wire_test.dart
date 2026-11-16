@@ -116,6 +116,63 @@ void _routingTests() {
         );
       }
     });
+
+    test('a model the Interactions API rejects gets a hint on what to '
+        'check', () async {
+      // The platform's answer (live, Nov 2026) for a typo, a model not in
+      // the location, or a model that only supports generateContent.
+      final client = MockHttpClient(
+        interactionStatus: 400,
+        interactionResponse: {
+          'error': {
+            'message':
+                "Model 'gemini-typo-9' is not supported by the Interactions "
+                'API.',
+            'code': 'invalid_request',
+          },
+        },
+      );
+      await expectLater(
+        _run(client, model: 'gemini-typo-9'),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
+              .having(
+                (e) => e.message,
+                'message',
+                allOf(
+                  contains(
+                    "Model 'gemini-typo-9' is not supported by the "
+                    'Interactions API.',
+                  ),
+                  endsWith(interactionsUnsupportedModelHint),
+                ),
+              ),
+        ),
+      );
+    });
+
+    test('other errors get no hint', () async {
+      final client = MockHttpClient(
+        interactionStatus: 400,
+        interactionResponse: {
+          'error': {
+            'message': "Unknown parameter 'foo'.",
+            'code': 'invalid_request',
+          },
+        },
+      );
+      await expectLater(
+        _run(client),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.message,
+            'message',
+            isNot(contains(interactionsUnsupportedModelHint)),
+          ),
+        ),
+      );
+    });
   });
 }
 

@@ -18,6 +18,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/src/interaction_converters.dart';
 import 'package:genkit_google_genai/src/interaction_types.dart';
 import 'package:genkit_google_genai/src/model.dart';
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 /// The parts as JSON, for comparisons.
@@ -989,24 +990,44 @@ void main() {
         );
       });
 
-      test('lower-cases method and passes other fields in snake_case', () {
-        // The server rejects 'SEVERITY' with a 400 (JS review).
+      test('reads only the category and threshold', () {
+        // GeminiSafetySettings has no other fields; extra keys in its JSON
+        // aren't sent.
         expect(
           toInteractionSafetySettings([
             setting({
               'category': 'HARM_CATEGORY_HATE_SPEECH',
               'threshold': 'BLOCK_ONLY_HIGH',
               'method': 'SEVERITY',
-              'someField': 1,
             }),
           ])!.single.json,
-          {
-            'some_field': 1,
-            'type': 'hate_speech',
-            'threshold': 'block_only_high',
-            'method': 'severity',
-          },
+          {'type': 'hate_speech', 'threshold': 'block_only_high'},
         );
+      });
+
+      test('leaves out a setting without a category or threshold, with a '
+          'warning', () {
+        final warnings = <String>[];
+        final subscription = Logger.root.onRecord
+            .where((r) => r.level == Level.WARNING)
+            .listen((r) => warnings.add(r.message));
+        addTearDown(subscription.cancel);
+
+        expect(
+          toInteractionSafetySettings([
+            setting({'threshold': 'BLOCK_ONLY_HIGH'}),
+            setting({'category': 'HARM_CATEGORY_HARASSMENT'}),
+            setting({
+              'category': 'HARM_CATEGORY_HATE_SPEECH',
+              'threshold': 'BLOCK_ONLY_HIGH',
+            }),
+          ])!.map((s) => s.json),
+          [
+            {'type': 'hate_speech', 'threshold': 'block_only_high'},
+          ],
+        );
+        expect(warnings, hasLength(2));
+        expect(warnings.first, startsWith('Dropping safety setting without'));
       });
 
       test('leaves out HARM_CATEGORY_UNSPECIFIED', () {

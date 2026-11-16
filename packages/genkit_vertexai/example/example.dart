@@ -22,8 +22,8 @@ void main(List<String> args) async {
     plugins: [
       vertexAI(
         projectId: Platform.environment['GCLOUD_PROJECT'],
-        // Newer models use the Interactions API, which is on `global` (and
-        // the `us` / `eu` multi-regions).
+        // `global` serves the most models; any other location works too if
+        // the model is available there.
         location: Platform.environment['GCLOUD_LOCATION'] ?? 'global',
       ),
     ],
