@@ -137,7 +137,7 @@ abstract final class GenkitConverter {
     }
     if (part.isMedia) {
       final media = part.media!;
-      final mimeType = _baseMimeType(media);
+      final mimeType = mimeTypeOf(media);
       final isImage = mimeType.toLowerCase().startsWith('image/');
 
       if (media.url.startsWith('data:')) {
@@ -175,16 +175,32 @@ abstract final class GenkitConverter {
   static bool sendsAsFilePart(Part part) {
     final media = part.media;
     if (media == null || !media.url.startsWith('data:')) return false;
-    return !_baseMimeType(media).toLowerCase().startsWith('image/');
+    return !mimeTypeOf(media).toLowerCase().startsWith('image/');
   }
 
-  /// The MIME type of [media] without parameters, defaulting to `image/png`.
+  /// The MIME type of [media] without parameters.
+  ///
+  /// [Media.contentType] when set, else the type a `data:` URL declares in its
+  /// header, else `image/png`. A PDF data URL with no `contentType` is still a
+  /// PDF, and sending it as an image would only have the host reject it.
   ///
   /// The MIME type may include parameters (e.g. "application/pdf;
   /// charset=utf-8"). They are stripped so matching and extension derivation
   /// work against the base type.
-  static String _baseMimeType(Media media) =>
-      (media.contentType ?? 'image/png').split(';').first.trim();
+  static String mimeTypeOf(Media media) {
+    final declared = media.contentType ?? _dataUrlMimeType(media.url);
+    final base = (declared ?? '').split(';').first.trim();
+    return base.isEmpty ? 'image/png' : base;
+  }
+
+  /// The MIME type in a `data:` URL's header, or null when it names none.
+  static String? _dataUrlMimeType(String url) {
+    if (!url.startsWith('data:')) return null;
+    final comma = url.indexOf(',');
+    if (comma < 0) return null;
+    final type = url.substring('data:'.length, comma).split(';').first.trim();
+    return type.isEmpty ? null : type;
+  }
 
   /// Derives a synthetic filename for an OpenAI `file` content part.
   ///
@@ -331,8 +347,14 @@ abstract final class GenkitConverter {
       msg.reasoning,
       msg.reasoningDetails,
     );
-    if (reasoning != null) {
-      parts.add(ReasoningPart(reasoning: reasoning));
+    final signature = reasoningSignatureOf(msg.reasoningDetails);
+    if (reasoning != null || signature != null) {
+      parts.add(
+        ReasoningPart(
+          reasoning: reasoning ?? '',
+          metadata: reasoningMetadata(signature),
+        ),
+      );
     }
 
     // Handle refusal
@@ -407,6 +429,24 @@ abstract final class GenkitConverter {
     }
     return null;
   }
+
+  /// The signature of the reasoning in a `reasoning_details` list - the last
+  /// one, since a signature covers the reasoning before it - or null when it
+  /// carries none.
+  ///
+  /// Mistral signs a thinking chunk, which arrives here as a `reasoning.text`
+  /// entry; OpenRouter signs the `reasoning.text` of the upstreams that do.
+  static String? reasoningSignatureOf(List<sdk.ReasoningDetail>? details) =>
+      details?.map((d) => d.signature).nonNulls.lastOrNull;
+
+  /// A reasoning part's metadata for [signature], under the key the other
+  /// Genkit plugins read and write it as, or null when there is none.
+  static Map<String, dynamic>? reasoningMetadata(String? signature) =>
+      signature == null ? null : {thoughtSignatureKey: signature};
+
+  /// Metadata key for a reasoning part's signature, shared across the Genkit
+  /// plugins and SDKs.
+  static const thoughtSignatureKey = 'thoughtSignature';
 
   /// The readable text in a `reasoning_details` list.
   ///

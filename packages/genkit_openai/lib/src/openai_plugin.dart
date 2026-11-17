@@ -138,6 +138,8 @@ class OpenAIPlugin extends GenkitPlugin {
     if (baseUrl == null) return true;
     final dialled = Uri.tryParse(baseUrl)?.host;
     if (dialled == null || dialled.isEmpty) return false;
+    final ownHosts = provider.ownHosts;
+    if (ownHosts != null) return ownHosts.contains(dialled);
     final own = provider.defaultBaseUrl == null
         ? _openAIHost
         : Uri.tryParse(provider.defaultBaseUrl!)?.host;
@@ -252,11 +254,17 @@ class OpenAIPlugin extends GenkitPlugin {
   /// so it would 404 on every request. A spelling that names a path - `/v1`,
   /// DeepSeek's `/beta` - is sent exactly as written, as is any host we do
   /// not recognise: the caller may well mean that path.
+  ///
+  /// The host itself is kept, so a provider with several own hosts - Mistral's
+  /// regional ones - is dialled on the one the caller named.
   String? get _wireBaseUrl {
     final url = baseUrl;
-    if (!_ownHost || url == null) return url;
-    final path = Uri.tryParse(url)?.path ?? '';
-    return path.isEmpty || path == '/' ? provider.defaultBaseUrl : url;
+    final defaultUrl = provider.defaultBaseUrl;
+    if (!_ownHost || url == null || defaultUrl == null) return url;
+    final parsed = Uri.tryParse(url);
+    final path = parsed?.path ?? '';
+    if (parsed == null || (path.isNotEmpty && path != '/')) return url;
+    return parsed.replace(path: Uri.parse(defaultUrl).path).toString();
   }
 
   /// Lists the plugin's models and embedders, enriching the curated catalogs
@@ -444,9 +452,15 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Embedder metadata for [embedderName] on this plugin instance, split the
   /// same way [_infoFor] splits a model's.
-  Map<String, dynamic> _embedderInfoFor(String embedderName) => _ownHost
-      ? embedderInfoFor(embedderName)
-      : compatEmbedderInfo(embedderName);
+  Map<String, dynamic> _embedderInfoFor(String embedderName) {
+    final providerInfo = provider.embedderInfoFor;
+    if (providerInfo != null) {
+      return providerInfo(embedderName, compat: !_ownHost);
+    }
+    return _ownHost
+        ? embedderInfoFor(embedderName)
+        : compatEmbedderInfo(embedderName);
+  }
 
   @override
   Action? resolve(ActionType actionType, String name) {
@@ -747,9 +761,14 @@ class OpenAIPlugin extends GenkitPlugin {
   /// when the caller supplied none, since the SDK will no longer build one of
   /// its own.
   http.Client? _chatTransport() {
-    final rewrite = provider.rewriteChatBody;
-    if (rewrite == null) return httpClient;
-    return ChatBodyClient(httpClient ?? http.Client(), rewrite);
+    final rewriteRequest = provider.rewriteChatBody;
+    final rewriteReply = provider.rewriteChatReply;
+    if (rewriteRequest == null && rewriteReply == null) return httpClient;
+    return ChatBodyClient(
+      httpClient ?? http.Client(),
+      rewriteRequest: rewriteRequest,
+      rewriteReply: rewriteReply,
+    );
   }
 
   /// Maps a failure from the OpenAI SDK onto a [GenkitException], preserving
@@ -813,7 +832,8 @@ class OpenAIPlugin extends GenkitPlugin {
       for (final part in message.content) {
         if (!GenkitConverter.sendsAsFilePart(part)) continue;
         throw GenkitException(
-          '$_pluginName does not accept inline ${part.media!.contentType} '
+          '$_pluginName does not accept inline '
+          '${GenkitConverter.mimeTypeOf(part.media!)} '
           'media. Only images can be sent inline.',
           status: StatusCode.invalidArgument,
         );
@@ -846,11 +866,19 @@ class OpenAIPlugin extends GenkitPlugin {
           delta?.reasoning,
           delta?.reasoningDetails,
         );
-        if (reasoningDelta != null) {
+        final signature = GenkitConverter.reasoningSignatureOf(
+          delta?.reasoningDetails,
+        );
+        if (reasoningDelta != null || signature != null) {
           ctx.sendChunk(
             ModelResponseChunk(
               index: 0,
-              content: [ReasoningPart(reasoning: reasoningDelta)],
+              content: [
+                ReasoningPart(
+                  reasoning: reasoningDelta ?? '',
+                  metadata: GenkitConverter.reasoningMetadata(signature),
+                ),
+              ],
             ),
           );
         }

@@ -543,15 +543,17 @@ final response = await ai.generate(
 ```
 
 The key comes from `MISTRAL_API_KEY`. The plugin curates the `-latest`
-aliases of Mistral Small and Ministral 14B, 8B and 3B (image input, tools,
-JSON schema) and Codestral (text only), plus the `mistral-embed` and
-`codestral-embed` embedders. `mistral-medium-latest` points at Medium 3.5,
-which Mistral has deprecated; it is curated as `legacy` until it retires.
-Mistral Large 4 (`mistral-large-4`, and `mistral-large-latest`, which now
-points at it) is left out, like Magistral: it answers with thinking chunks
-even without a reasoning effort, and the plugin can't read those yet. Any other name resolves too, described as
-text-only chat with neither tools nor JSON output claimed, since Mistral lists
-those per model.
+aliases of Mistral Large (Large 4), Mistral Small and Ministral 14B, 8B and 3B
+(image input, tools, JSON schema) and Codestral (text only), plus the
+`mistral-embed` (1024 dimensions) and `codestral-embed` (1536 dimensions)
+embedders. `mistral-medium-latest` points at Medium 3.5, which Mistral has
+deprecated; it is curated as `legacy` until it retires. Any other name resolves
+too, described as text-only chat with neither tools nor JSON output claimed,
+since Mistral lists those per model.
+
+`baseUrl` can name any of Mistral's hosts: `api.mistral.ai`,
+`api.eu.mistral.ai`, `api.us.mistral.ai` and `codestral.mistral.ai` all get the
+catalog and checks above. Any other host is treated as a gateway.
 
 Four things differ on the wire, and the plugin handles each:
 
@@ -568,14 +570,20 @@ unchanged. Inline non-image media, such as a PDF data URI, is refused before
 the request goes out: the plugin would send it as OpenAI's `file` part, and
 Mistral's `file` part takes only the id of an uploaded file.
 
+A model that thinks - Large 4 always, Small 4 and Medium 3.5 when given a
+`reasoningEffort`, Magistral and Z.ai GLM - answers with `thinking` chunks
+ahead of its text. Each comes back as a `ReasoningPart`, streamed as it
+arrives, with Mistral's signature, when it sends one, in the part's metadata
+under `thoughtSignature`. Reasoning is not sent back on the next turn.
+
+`reasoningEffort` goes out for Large, Small and Medium, and for any name the
+catalog does not know. On Mistral's own hosts it is refused before the request
+goes out for the curated models Mistral does not take it on (Ministral and
+Codestral). A model declared through `models:` with a `CustomModelDefinition`
+skips that check, so the effort is sent and the API decides.
+
 Not handled yet:
 
-- Magistral, Z.ai GLM, and any model asked for a `reasoningEffort` that makes
-  it think, answers with `content` as an array of `thinking` and `text`
-  chunks. The plugin does not read that shape, so those replies would fail.
-  For that reason the Magistral and GLM models are left out of the catalog and
-  out of the discovered listing, and `reasoningEffort` is refused before the
-  request goes out.
 - The embedder `dimensions` option is sent as `dimensions`; Mistral calls it
   `output_dimension`. The embedder `user` option is sent too, and Mistral has
   no such field. Leave both unset.

@@ -38,6 +38,15 @@ final class OpenAIProvider {
   /// which the SDK supplies.
   final String? defaultBaseUrl;
 
+  /// Every host that is this provider's own API, or null when that is only
+  /// [defaultBaseUrl]'s.
+  ///
+  /// For a provider that serves the same API from more than one host, such as
+  /// Mistral's regional ones. A base URL on any of them gets the provider's
+  /// catalog and request checks, where any other host is treated as a
+  /// gateway.
+  final Set<String>? ownHosts;
+
   /// Environment variable consulted for the API key.
   final String apiKeyEnvVar;
 
@@ -67,6 +76,15 @@ final class OpenAIProvider {
   final Map<String, dynamic> Function(Map<String, dynamic> body)?
   rewriteChatBody;
 
+  /// Rewrites a decoded chat-completions reply - a whole completion, or one
+  /// streamed chunk - into the shape `openai_dart` parses, or null when the
+  /// host already replies in OpenAI's.
+  ///
+  /// Applied before the SDK sees the reply, for the same reason
+  /// [rewriteChatBody] is applied after it encodes the request.
+  final Map<String, dynamic> Function(Map<String, dynamic> reply)?
+  rewriteChatReply;
+
   /// Whether the host reads `max_tokens` rather than `max_completion_tokens`.
   ///
   /// OpenAI deprecated the former for the latter; most compatible hosts never
@@ -77,6 +95,11 @@ final class OpenAIProvider {
   /// Model ids listed without network access, when the plugin is pointed at
   /// this provider's own host.
   final List<String> catalogIds;
+
+  /// Embedder metadata for [embedderIds] and any other name, split on
+  /// `compat` the way [infoFor] is. Null means the OpenAI catalog's.
+  final Map<String, dynamic> Function(String embedder, {required bool compat})?
+  embedderInfoFor;
 
   /// Embedder ids listed the same way, or empty for a provider with no
   /// embeddings API.
@@ -128,11 +151,14 @@ final class OpenAIProvider {
     required this.infoFor,
     required this.catalogIds,
     required this.reasonsFor,
+    this.ownHosts,
     this.embedderIds = const [],
+    this.embedderInfoFor,
     this.speechIds = const [],
     this.transcriptionIds = const [],
     this.replaysReasoning = false,
     this.rewriteChatBody,
+    this.rewriteChatReply,
     this.usesLegacyMaxTokens = false,
     this.supportsJsonSchema = true,
     this.acceptsFileParts = true,
@@ -209,25 +235,27 @@ final xaiProvider = OpenAIProvider(
 /// `json_schema`, tools and image input are sent unchanged. A non-image
 /// document is refused locally: Mistral's `file` part takes only the id of an
 /// uploaded file, not OpenAI's inline `file_data`.
+///
+/// A model that thinks replies with `content` as an array of `thinking` and
+/// `text` chunks, which [mistralChatReply] turns into the reasoning fields the
+/// SDK reads.
 final mistralProvider = OpenAIProvider(
   defaultNamespace: defaultMistralNamespace,
   defaultBaseUrl: 'https://api.mistral.ai/v1',
+  ownHosts: mistralHosts,
   apiKeyEnvVar: 'MISTRAL_API_KEY',
   infoFor: (model, {required compat}) =>
       compat ? compatMistralModelInfo(model) : mistralModelInfoFor(model),
   catalogIds: knownMistralChatModels,
-  // Refused on every model for now. Mistral does take `reasoning_effort`, but
-  // a model that thinks answers with `content` as an array of `thinking` and
-  // `text` chunks, which the plugin cannot parse yet. Failing before the
-  // request beats failing on the reply.
-  reasonsFor: (_) => false,
+  reasonsFor: (model) => knownMistralModelFor(model)?.reasons,
   embedderIds: knownMistralEmbedderModels,
-  // Mistral's `/models` lists models chat completions cannot serve here: the
-  // Magistral reasoning models and Z.ai GLM, which always reply with thinking
-  // chunks the plugin cannot parse yet, and the OCR models, which are served by
-  // `/v1/ocr`. `resolve` still serves any id named explicitly.
-  servesModel: _mistralServesModel,
+  embedderInfoFor: mistralEmbedderInfoFor,
+  // Mistral's `/models` lists the OCR models, which chat completions cannot
+  // serve: they are served by `/v1/ocr`. `resolve` still serves any id named
+  // explicitly.
+  servesModel: (model) => !model.toLowerCase().contains('ocr'),
   rewriteChatBody: mistralChatBody,
+  rewriteChatReply: mistralChatReply,
   usesLegacyMaxTokens: true,
   acceptsFileParts: false,
 );
@@ -252,18 +280,93 @@ Map<String, dynamic> mistralChatBody(Map<String, dynamic> body) {
   };
 }
 
-/// Whether a model id Mistral lists is one this plugin can serve.
+/// Mistral's API hosts: global, EU and US, and `codestral.mistral.ai`, which
+/// serves Codestral-only keys.
+const mistralHosts = {
+  'api.mistral.ai',
+  'api.eu.mistral.ai',
+  'api.us.mistral.ai',
+  'codestral.mistral.ai',
+};
+
+/// Rewrites a Mistral reply whose `content` is an array of chunks into the
+/// shape `openai_dart` reads, where `content` is a string.
 ///
-/// Mistral Large 4 answers with thinking chunks even with no reasoning effort,
-/// and `mistral-large-latest` now points at it. Large 3 snapshots such as
-/// `mistral-large-2512` answer with plain text and stay.
-bool _mistralServesModel(String model) {
-  final id = model.toLowerCase();
-  return !id.startsWith('mistral-large-4') &&
-      id != 'mistral-large-latest' &&
-      !id.contains('magistral') &&
-      !id.contains('zai-glm') &&
-      !id.contains('ocr');
+/// A model that thinks answers with a `thinking` chunk ahead of its `text`
+/// chunks, in a whole completion's `message` and in a streamed chunk's
+/// `delta` alike. The text chunks are joined into `content`. Each thinking
+/// chunk becomes a `reasoning.text` entry in `reasoning_details`, the field
+/// the SDK already parses for OpenRouter, with its `signature` when Mistral
+/// sent one. Chunk types the plugin cannot represent, such as references, are
+/// dropped.
+///
+/// Anything else, including a string `content`, passes through untouched.
+///
+/// https://docs.mistral.ai/capabilities/reasoning
+Map<String, dynamic> mistralChatReply(Map<String, dynamic> reply) {
+  final choices = reply['choices'];
+  if (choices is! List) return reply;
+  return {
+    ...reply,
+    'choices': [
+      for (final choice in choices)
+        if (choice is Map<String, dynamic>)
+          {
+            for (final entry in choice.entries)
+              entry.key: entry.key == 'message' || entry.key == 'delta'
+                  ? _flattenChunks(entry.value)
+                  : entry.value,
+          }
+        else
+          choice,
+    ],
+  };
+}
+
+/// [mistralChatReply] for one message or delta.
+Object? _flattenChunks(Object? message) {
+  if (message is! Map<String, dynamic>) return message;
+  final content = message['content'];
+  if (content is! List) return message;
+
+  final text = StringBuffer();
+  final details = <Map<String, dynamic>>[];
+  for (final chunk in content) {
+    if (chunk is! Map) continue;
+    switch (chunk['type']) {
+      case 'text':
+        text.write(chunk['text'] as String? ?? '');
+      case 'thinking':
+        final thinking = _thinkingText(chunk['thinking']);
+        final signature = chunk['signature'];
+        if (thinking.isEmpty && signature is! String) continue;
+        details.add({
+          'type': 'reasoning.text',
+          'text': thinking,
+          if (signature is String) 'signature': signature,
+        });
+    }
+  }
+
+  return {
+    for (final entry in message.entries)
+      if (entry.key != 'content') entry.key: entry.value,
+    // A delta made only of thinking carries no text, and an empty string
+    // would be streamed as an empty text chunk.
+    'content': text.isEmpty && details.isNotEmpty ? null : text.toString(),
+    if (details.isNotEmpty) 'reasoning_details': details,
+  };
+}
+
+/// The text of a thinking chunk's `thinking`, which is a list of text chunks.
+String _thinkingText(Object? thinking) {
+  if (thinking is String) return thinking;
+  if (thinking is! List) return '';
+  return thinking
+      .whereType<Map>()
+      .where((chunk) => chunk['type'] == 'text')
+      .map((chunk) => chunk['text'] as String? ?? '')
+      .join();
 }
 
 /// Request fields that never reach Mistral under their OpenAI names.

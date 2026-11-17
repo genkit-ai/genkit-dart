@@ -14,6 +14,7 @@
 
 import 'package:genkit/plugin.dart';
 
+import 'known_embedders.dart' show curatedEmbedderInfo;
 import 'known_models.dart' show OpenAIModelStage, multimodalSupports;
 
 /// Default plugin / namespace name for the Mistral handle.
@@ -38,8 +39,7 @@ const mistralTextSupports = <String, dynamic>{
 /// and nothing else.
 ///
 /// Mistral lists structured outputs and function calling per model card, not
-/// API-wide, so neither is claimed for a name the catalog does not know. This
-/// matches the JS plugin's fallback.
+/// API-wide, so neither is claimed for a name the catalog does not know.
 const mistralUnknownSupports = <String, dynamic>{
   'multiturn': true,
   'systemRole': true,
@@ -51,22 +51,33 @@ const mistralUnknownSupports = <String, dynamic>{
 /// Mistral models the plugin curates capability metadata for.
 ///
 /// Curated by their `-latest` aliases, which are what Mistral's own samples
-/// use. `mistral-medium-latest` points at Medium 3.5, which Mistral has
-/// deprecated, with retirement announced for 4/30/2027; it is curated as
-/// [OpenAIModelStage.legacy] until then. Any other name still resolves,
-/// taking [dynamicMistralModelInfo].
+/// use. `mistral-large-latest` points at Large 4. `mistral-medium-latest`
+/// points at Medium 3.5, which Mistral has deprecated, with retirement
+/// announced for 2027-04-30; it is curated as [OpenAIModelStage.legacy] until
+/// then. Any other name still resolves, taking [dynamicMistralModelInfo].
 ///
-/// Mistral Large 4 (`mistral-large-4`, and `mistral-large-latest`, which now
-/// points at it) and the Magistral reasoning models are deliberately absent.
-/// They answer with `content` as an array of `thinking` and `text` chunks,
-/// Large 4 even with no `reasoning_effort` sent, and the plugin does not read
-/// those yet, so listing them would offer models whose every reply fails to
-/// parse.
+/// [reasons] is whether the model takes `reasoning_effort`: Mistral answers
+/// "reasoning_effort is not enabled for this model" for the others.
 ///
 /// Catalog: https://docs.mistral.ai/models
 enum KnownMistralModel {
+  /// Mistral Large, currently Large 4. Image input.
+  ///
+  /// Thinks before every answer, with or without a `reasoning_effort`.
+  mistralLarge(
+    'mistral-large-latest',
+    'Mistral Large',
+    multimodalSupports,
+    reasons: true,
+  ),
+
   /// Mistral Small, currently Small 4. Image input.
-  mistralSmall('mistral-small-latest', 'Mistral Small', multimodalSupports),
+  mistralSmall(
+    'mistral-small-latest',
+    'Mistral Small',
+    multimodalSupports,
+    reasons: true,
+  ),
 
   /// Ministral 3 14B. Image input.
   ministral14b('ministral-14b-latest', 'Ministral 14B', multimodalSupports),
@@ -82,12 +93,12 @@ enum KnownMistralModel {
 
   /// Mistral Medium 3.5, which this alias points at. Image input.
   ///
-  /// Deprecated by Mistral in favour of Large 4, still served until its
-  /// announced retirement.
+  /// Deprecated by Mistral, still served until its announced retirement.
   mistralMedium(
     'mistral-medium-latest',
     'Mistral Medium',
     multimodalSupports,
+    reasons: true,
     stage: OpenAIModelStage.legacy,
   );
 
@@ -95,6 +106,7 @@ enum KnownMistralModel {
     this.id,
     this.label,
     this.supports, {
+    this.reasons = false,
     this.stage = OpenAIModelStage.stable,
   });
 
@@ -106,6 +118,9 @@ enum KnownMistralModel {
 
   /// Capability map registered for this model.
   final Map<String, dynamic> supports;
+
+  /// Whether the model takes a `reasoning_effort`.
+  final bool reasons;
 
   /// Lifecycle stage, in the same vocabulary the OpenAI catalog uses.
   ///
@@ -140,15 +155,55 @@ final List<String> knownMistralChatModels = List.unmodifiable([
     if (model.stage != OpenAIModelStage.deprecated) model.id,
 ]);
 
-/// Mistral embedders the plugin lists without network access.
+/// Mistral embedders the plugin curates, with the length of the vector each
+/// returns by default.
 ///
 /// Listed so that `resolve` serves them: a provider with no curated embedders
 /// declines every embedder lookup, and Mistral's `/models` reports these
 /// anyway.
-const List<String> knownMistralEmbedderModels = [
-  'mistral-embed',
-  'codestral-embed',
-];
+enum KnownMistralEmbedder {
+  /// General-purpose text embeddings.
+  mistralEmbed('mistral-embed', 'Mistral Embed', 1024),
+
+  /// Code embeddings.
+  codestralEmbed('codestral-embed', 'Codestral Embed', 1536);
+
+  const KnownMistralEmbedder(this.id, this.label, this.dimensions);
+
+  /// Bare model name (no plugin prefix).
+  final String id;
+
+  /// Human-readable label surfaced in listings.
+  final String label;
+
+  /// Length of the returned vector.
+  final int dimensions;
+}
+
+/// Mistral embedders the plugin lists without network access.
+final List<String> knownMistralEmbedderModels = List.unmodifiable([
+  for (final embedder in KnownMistralEmbedder.values) embedder.id,
+]);
+
+final _knownMistralEmbeddersByName = <String, KnownMistralEmbedder>{
+  for (final embedder in KnownMistralEmbedder.values)
+    embedder.id.toLowerCase(): embedder,
+};
+
+/// Embedder metadata for [embedderName], in the shape the OpenAI catalog uses.
+///
+/// On a gateway ([compat]) the vector length carries over and the label does
+/// not, as for the OpenAI embedders. An uncurated name claims no length.
+Map<String, dynamic> mistralEmbedderInfoFor(
+  String embedderName, {
+  required bool compat,
+}) {
+  final curated = _knownMistralEmbeddersByName[embedderName.toLowerCase()];
+  return curatedEmbedderInfo(
+    label: compat ? null : curated?.label,
+    dimensions: curated?.dimensions,
+  );
+}
 
 final _knownMistralModelsByName = <String, KnownMistralModel>{
   for (final model in KnownMistralModel.values) model.id.toLowerCase(): model,

@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:convert';
+
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
 import 'package:genkit_openai/src/known_mistral_models.dart';
@@ -20,10 +22,145 @@ import 'package:genkit_openai/src/known_models.dart'
 import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/provider.dart';
 import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:test/test.dart';
 
 import 'fake_openai_server.dart';
 import 'recording_client.dart';
+
+/// The fields Mistral's `ChatCompletionRequest` declares
+/// (https://docs.mistral.ai/openapi.yaml). Its schema is closed: any other
+/// top-level field is a 422.
+const _mistralChatFields = {
+  'model',
+  'messages',
+  'temperature',
+  'top_p',
+  'max_tokens',
+  'stream',
+  'stop',
+  'random_seed',
+  'metadata',
+  'response_format',
+  'tools',
+  'tool_choice',
+  'presence_penalty',
+  'frequency_penalty',
+  'min_tokens',
+  'repetition_penalty',
+  'top_k',
+  'logprobs',
+  'top_logprobs',
+  'prompt_logprobs',
+  'top_prompt_logprobs',
+  'n',
+  'prediction',
+  'parallel_tool_calls',
+  'reasoning_effort',
+  'prompt_mode',
+  'guardrails',
+  'prompt_cache_key',
+  'service_tier',
+  'safe_prompt',
+};
+
+/// Every field the plugin can be asked to set, at once.
+final _everyOption = OpenAIChatOptions(
+  temperature: 0.2,
+  topP: 0.9,
+  maxTokens: 64,
+  stop: ['END'],
+  presencePenalty: 0.1,
+  frequencyPenalty: 0.1,
+  seed: 7,
+  user: 'end-user-1',
+  reasoningEffort: 'high',
+  verbosity: 'low',
+);
+
+const _reasoning = 'Two loaves, one each.';
+const _signature = 'sig-abc';
+
+/// A thinking chunk as Mistral sends it: its text is itself a list of chunks.
+Map<String, dynamic> _thinking(String text, {String? signature}) => {
+  'type': 'thinking',
+  'thinking': [
+    {'type': 'text', 'text': text},
+  ],
+  'closed': true,
+  'signature': ?signature,
+};
+
+/// A completion whose `content` is Mistral's array of chunks.
+Map<String, dynamic> _thinkingCompletion() => {
+  ...chatCompletion(),
+  'choices': [
+    {
+      'index': 0,
+      'message': {
+        'role': 'assistant',
+        'content': [
+          _thinking(_reasoning, signature: _signature),
+          {'type': 'text', 'text': 'bonjour'},
+        ],
+      },
+      'finish_reason': 'stop',
+    },
+  ],
+};
+
+/// A streamed chunk whose delta `content` is [content], string or array.
+Map<String, dynamic> _delta(Object content, {String? finishReason}) => {
+  ...chatChunk(finishReason: finishReason),
+  'choices': [
+    {
+      'index': 0,
+      'delta': {'content': content},
+      'finish_reason': finishReason,
+    },
+  ],
+};
+
+/// The deltas Mistral streams for a model that thinks: an array holding a
+/// thinking chunk, an array holding the signed last thinking chunk and the
+/// first text chunk, then plain strings.
+List<Map<String, dynamic>> _thinkingDeltas() => [
+  _delta([_thinking('Two loaves,')]),
+  _delta([
+    _thinking(' one each.', signature: _signature),
+    {'type': 'text', 'text': 'bon'},
+  ]),
+  _delta('jour', finishReason: 'stop'),
+];
+
+/// Answers every chat request with [reply], as JSON or, when the request asked
+/// for a stream, as SSE frames.
+MockClient _replyingClient(
+  List<http.Request> requests, {
+  required Map<String, dynamic> Function() reply,
+  required List<Map<String, dynamic>> Function() stream,
+}) {
+  return MockClient((request) async {
+    requests.add(request);
+    final body = jsonDecode(request.body) as Map;
+    if (body['stream'] == true) {
+      final frames = [
+        for (final frame in stream()) 'data: ${jsonEncode(frame)}\n\n',
+        'data: [DONE]\n\n',
+      ];
+      return http.Response(
+        frames.join(),
+        200,
+        headers: {'content-type': 'text/event-stream'},
+      );
+    }
+    return http.Response(
+      jsonEncode(reply()),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  });
+}
 
 void main() {
   group('catalog', () {
@@ -86,13 +223,47 @@ void main() {
       ]);
     });
 
-    test('Large 4 and the Magistral models are not curated', () {
-      // They answer with `thinking` chunks in a content array, which the
-      // plugin does not read yet.
-      expect(knownMistralModelFor('magistral-medium-latest'), isNull);
-      expect(knownMistralModelFor('mistral-large-4'), isNull);
-      expect(knownMistralModelFor('mistral-large-latest'), isNull);
-      expect(knownMistralModelFor('magistral-small-latest'), isNull);
+    test('Large is curated by its alias, with image input', () {
+      final info = mistralModelInfoFor('mistral-large-latest');
+
+      expect(info.label, 'Mistral Large');
+      expect(info.supports?['media'], isTrue);
+      expect(info.stage, 'stable');
+      expect(knownMistralChatModels, contains('mistral-large-latest'));
+    });
+
+    test('only the models Mistral takes reasoning_effort on reason', () {
+      // Mistral answers the others with "reasoning_effort is not enabled for
+      // this model".
+      expect(
+        [
+          for (final model in KnownMistralModel.values)
+            if (model.reasons) model.id,
+        ],
+        unorderedEquals([
+          'mistral-large-latest',
+          'mistral-small-latest',
+          'mistral-medium-latest',
+        ]),
+      );
+    });
+
+    test('the embedders declare their vector length', () {
+      expect(
+        mistralEmbedderInfoFor('mistral-embed', compat: false)['dimensions'],
+        1024,
+      );
+      expect(
+        mistralEmbedderInfoFor('codestral-embed', compat: false)['dimensions'],
+        1536,
+      );
+      final gateway = mistralEmbedderInfoFor('mistral-embed', compat: true);
+      expect(gateway['dimensions'], 1024);
+      expect(gateway, isNot(contains('label')));
+      expect(
+        mistralEmbedderInfoFor('some-embed', compat: false),
+        isNot(contains('dimensions')),
+      );
     });
 
     test('lookup is case-insensitive', () {
@@ -103,8 +274,7 @@ void main() {
     });
 
     test('an uncurated name claims neither tools nor JSON output', () {
-      // Mistral lists both per model card, not API-wide. Same as the JS
-      // plugin's fallback.
+      // Mistral lists both per model card, not API-wide.
       final info = mistralModelInfoFor('open-mistral-nemo');
 
       expect(info.label, isNull);
@@ -251,9 +421,8 @@ void main() {
           .map((m) => m.name)
           .toSet();
 
-      expect(models, isNot(contains('mistral/mistral-large-4')));
       expect(models, contains('mistral/ministral-14b-latest'));
-      expect(models, isNot(contains('mistral/mistral-large-latest')));
+      expect(models, contains('mistral/mistral-large-latest'));
       expect(models, contains('mistral/codestral-latest'));
       expect(models.any((n) => n.contains('gpt-')), isFalse);
       expect(models.any((n) => n.contains('tts')), isFalse);
@@ -278,70 +447,176 @@ void main() {
       expect(info.containsKey('versions'), isFalse);
     });
 
-    test('refuses an effort before the request goes out', () async {
-      // A model that thinks answers with `thinking` chunks the plugin cannot
-      // parse, so the effort is refused locally rather than spent on a reply
-      // that fails.
-      final requests = <http.Request>[];
-      final ai = Genkit(
-        plugins: [mistral(apiKey: 'k', httpClient: recordingClient(requests))],
-      );
-      addTearDown(ai.shutdown);
-
-      final response = await ai.generate(
-        model: mistral.model('mistral-small-latest'),
-        prompt: 'hi',
-        config: OpenAIChatOptions(reasoningEffort: 'high'),
+    test('lists the embedders with their vector length', () async {
+      final plugin = OpenAIPlugin(
+        provider: mistralProvider,
+        apiKey: 'm-key',
+        httpClient: recordingClient([]),
       );
 
-      expect(response.finishReason, FinishReason.failed);
-      expect(
-        response.error?.message,
-        contains('mistral-small-latest does not accept reasoningEffort'),
-      );
-      expect(requests, isEmpty);
+      final embedders = {
+        for (final m in await plugin.list())
+          if (m.actionType == ActionType.embedder) m.name: m.metadata['model'],
+      };
+
+      expect((embedders['mistral/mistral-embed'] as Map)['dimensions'], 1024);
+      expect((embedders['mistral/codestral-embed'] as Map)['dimensions'], 1536);
     });
 
-    test(
-      'Large 4, Magistral, Z.ai GLM and OCR are filtered out of discovery',
-      () async {
-        // Mistral lists them, so leaving them out of the curated catalog is not
-        // enough: discovery would put them straight back. Large 4 and GLM answer
-        // with thinking chunks whatever `reasoning_effort` says.
+    group('reasoningEffort', () {
+      Future<(GenerateResult<dynamic>, List<http.Request>)> generate(
+        String model, {
+        String? baseUrl,
+        List<CustomModelDefinition>? models,
+      }) async {
+        final requests = <http.Request>[];
+        final ai = Genkit(
+          plugins: [
+            mistral(
+              apiKey: 'k',
+              baseUrl: baseUrl,
+              models: models,
+              httpClient: recordingClient(requests),
+            ),
+          ],
+        );
+        addTearDown(ai.shutdown);
+        final response = await ai.generate(
+          model: mistral.model(model),
+          prompt: 'hi',
+          config: OpenAIChatOptions(reasoningEffort: 'high'),
+        );
+        return (response, requests);
+      }
+
+      test('goes out for a curated model that takes it', () async {
+        final (response, requests) = await generate('mistral-small-latest');
+
+        expect(response.finishReason, FinishReason.stop);
+        expect(chatBodyOf(requests)['reasoning_effort'], 'high');
+      });
+
+      test('is refused for a curated model that does not', () async {
+        final (response, requests) = await generate('ministral-14b-latest');
+
+        expect(response.finishReason, FinishReason.failed);
+        expect(
+          response.error?.message,
+          contains('ministral-14b-latest does not accept reasoningEffort'),
+        );
+        expect(requests, isEmpty);
+      });
+
+      test('is left to the API for an uncurated model', () async {
+        final (response, requests) = await generate('magistral-medium-2509');
+
+        expect(response.finishReason, FinishReason.stop);
+        expect(chatBodyOf(requests)['reasoning_effort'], 'high');
+      });
+
+      test('is left to the API for a declared model', () async {
+        final (response, requests) = await generate(
+          'ministral-14b-latest',
+          models: [
+            CustomModelDefinition(
+              name: 'ministral-14b-latest',
+              info: ModelInfo(supports: {'multiturn': true}),
+            ),
+          ],
+        );
+
+        expect(response.finishReason, FinishReason.stop);
+        expect(chatBodyOf(requests)['reasoning_effort'], 'high');
+      });
+
+      test('is checked on every one of Mistral\'s hosts', () async {
+        for (final host in mistralHosts) {
+          final (response, requests) = await generate(
+            'codestral-latest',
+            baseUrl: 'https://$host/v1',
+          );
+
+          expect(response.finishReason, FinishReason.failed, reason: host);
+          expect(requests, isEmpty, reason: host);
+        }
+      });
+
+      test('is left to a gateway', () async {
+        final (response, requests) = await generate(
+          'ministral-14b-latest',
+          baseUrl: 'https://gateway.example/v1',
+        );
+
+        expect(response.finishReason, FinishReason.stop);
+        expect(chatBodyOf(requests)['reasoning_effort'], 'high');
+      });
+    });
+
+    test('only the OCR models are filtered out of discovery', () async {
+      // Mistral lists them, but they are served by `/v1/ocr`, not chat
+      // completions.
+      final plugin = OpenAIPlugin(
+        provider: mistralProvider,
+        apiKey: 'm-key',
+        httpClient: recordingClient(
+          [],
+          modelIds: [
+            'mistral-small-latest',
+            'mistral-large-4',
+            'mistral-large-latest',
+            'magistral-medium-latest',
+            'zai-glm-5-3',
+            'mistral-ocr-latest',
+          ],
+        ),
+      );
+
+      final names = (await plugin.list()).map((m) => m.name).toSet();
+
+      expect(names, contains('mistral/mistral-small-latest'));
+      expect(names, contains('mistral/mistral-large-4'));
+      expect(names, contains('mistral/mistral-large-latest'));
+      expect(names, contains('mistral/magistral-medium-latest'));
+      expect(names, contains('mistral/zai-glm-5-3'));
+      expect(names, isNot(contains('mistral/mistral-ocr-latest')));
+    });
+
+    test('every one of Mistral\'s hosts is its own', () async {
+      for (final host in mistralHosts) {
+        final requests = <http.Request>[];
         final plugin = OpenAIPlugin(
           provider: mistralProvider,
           apiKey: 'm-key',
+          baseUrl: 'https://$host',
           httpClient: recordingClient(
-            [],
-            modelIds: [
-              'mistral-small-latest',
-              'mistral-large-4',
-              'mistral-large-4-0',
-              'mistral-large-latest',
-              'mistral-large-2512',
-              'magistral-medium-latest',
-              'magistral-small-2509',
-              'zai-glm-5-3',
-              'zai-glm-5-3-flash',
-              'mistral-ocr-latest',
-            ],
+            requests,
+            modelIds: ['mistral-ocr-latest', 'mistral-small-latest'],
           ),
         );
 
-        final names = (await plugin.list()).map((m) => m.name).toSet();
+        final listed = await plugin.list();
+        final names = listed.map((m) => m.name).toSet();
+        final small = listed.firstWhere(
+          (m) => m.name == 'mistral/mistral-small-latest',
+        );
 
-        expect(names, contains('mistral/mistral-small-latest'));
-        expect(names, isNot(contains('mistral/mistral-large-4')));
-        expect(names, isNot(contains('mistral/mistral-large-4-0')));
-        expect(names, isNot(contains('mistral/mistral-large-latest')));
-        expect(names, contains('mistral/mistral-large-2512'));
-        expect(names, isNot(contains('mistral/magistral-medium-latest')));
-        expect(names, isNot(contains('mistral/magistral-small-2509')));
-        expect(names, isNot(contains('mistral/zai-glm-5-3')));
-        expect(names, isNot(contains('mistral/zai-glm-5-3-flash')));
-        expect(names, isNot(contains('mistral/mistral-ocr-latest')));
-      },
-    );
+        // Catalog, discovery filter and deployment details all apply.
+        expect(
+          names,
+          isNot(contains('mistral/mistral-ocr-latest')),
+          reason: host,
+        );
+        expect(names, contains('mistral/codestral-latest'), reason: host);
+        expect(
+          (small.metadata['model'] as Map)['label'],
+          'Mistral Small',
+          reason: host,
+        );
+        // The versionless spelling is dialled on the host named, at /v1.
+        expect(requests.single.url.host, host);
+        expect(requests.single.url.path, '/v1/models');
+      }
+    });
 
     test('a name it declines still resolves when asked for', () {
       final plugin = OpenAIPlugin(provider: mistralProvider, apiKey: 'm-key');
@@ -387,16 +662,14 @@ void main() {
       expect(body, isNot(contains('max_completion_tokens')));
     });
 
-    test('drops user, which Mistral does not define', () async {
-      final body = await bodyFor(OpenAIChatOptions(user: 'end-user-1'));
+    test('sends only fields Mistral defines, whatever is set', () async {
+      // Mistral's schema is closed, so a field the SDK starts writing after a
+      // bump would fail every request: this catches it, where asserting the
+      // known extras are gone would not.
+      final body = await bodyFor(_everyOption);
 
-      expect(body, isNot(contains('user')));
-    });
-
-    test('drops verbosity, which Mistral does not define', () async {
-      final body = await bodyFor(OpenAIChatOptions(verbosity: 'low'));
-
-      expect(body, isNot(contains('verbosity')));
+      expect(_mistralChatFields, containsAll(body.keys));
+      expect(body['reasoning_effort'], 'high');
     });
 
     test('drops stream_options on a stream', () async {
@@ -411,15 +684,13 @@ void main() {
       final stream = ai.generateStream(
         model: mistral.model('mistral-small-latest'),
         prompt: 'hi',
-        config: OpenAIChatOptions(seed: 7, user: 'u', maxTokens: 64),
+        config: _everyOption,
       );
       await stream.drain<void>();
 
       final body = chatBodyOf(requests);
       expect(body['stream'], isTrue);
-      expect(body, isNot(contains('stream_options')));
-      expect(body, isNot(contains('user')));
-      expect(body, isNot(contains('seed')));
+      expect(_mistralChatFields, containsAll(body.keys));
       expect(body['random_seed'], 7);
       expect(body['max_tokens'], 64);
     });
@@ -439,6 +710,7 @@ void main() {
       );
 
       final body = chatBodyOf(requests);
+      expect(_mistralChatFields, containsAll(body.keys));
       final format = (body['response_format'] as Map).cast<String, dynamic>();
       expect(format['type'], 'json_schema');
       expect(body['messages'], hasLength(1));
@@ -464,6 +736,7 @@ void main() {
       );
 
       final body = chatBodyOf(requests);
+      expect(_mistralChatFields, containsAll(body.keys));
       final tool = (body['tools'] as List).single as Map;
       expect((tool['function'] as Map)['name'], 'lookup');
       expect(body['tool_choice'], 'required');
@@ -487,6 +760,33 @@ void main() {
               url: 'data:application/pdf;base64,JVBERi0xLjcK',
               contentType: 'application/pdf',
             ),
+          ),
+        ],
+      );
+
+      expect(response.finishReason, FinishReason.failed);
+      expect(
+        response.error?.message,
+        contains('does not accept inline application/pdf media'),
+      );
+      expect(requests, isEmpty);
+    });
+
+    test('refuses a PDF data URL that declares no contentType', () async {
+      // The data URL's own header says what it is; defaulting to image/png
+      // would send it as image_url and past the refusal.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [mistral(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      final response = await ai.generate(
+        model: mistral.model('mistral-small-latest'),
+        promptParts: [
+          TextPart(text: 'summarise this'),
+          MediaPart(
+            media: Media(url: 'data:application/pdf;base64,JVBERi0xLjcK'),
           ),
         ],
       );
@@ -575,6 +875,114 @@ void main() {
     });
   });
 
+  group('reply dialect', () {
+    Genkit mistralReplying(List<http.Request> requests) {
+      final ai = Genkit(
+        plugins: [
+          mistral(
+            apiKey: 'k',
+            httpClient: _replyingClient(
+              requests,
+              reply: _thinkingCompletion,
+              stream: _thinkingDeltas,
+            ),
+          ),
+        ],
+      );
+      addTearDown(ai.shutdown);
+      return ai;
+    }
+
+    test('a thinking chunk is a reasoning part, signature kept', () async {
+      final ai = mistralReplying([]);
+
+      final response = await ai.generate(
+        model: mistral.model('mistral-large-latest'),
+        prompt: 'Bread for two?',
+      );
+
+      expect(response.finishReason, FinishReason.stop);
+      expect(response.text, 'bonjour');
+      final reasoning = response.message!.content
+          .where((p) => p.isReasoning)
+          .single;
+      expect(reasoning.reasoning, _reasoning);
+      expect(reasoning.metadata, {'thoughtSignature': _signature});
+      // Reasoning leads the answer it produced.
+      expect(response.message!.content.first.isReasoning, isTrue);
+    });
+
+    test('streamed thinking chunks are reasoning chunks', () async {
+      final ai = mistralReplying([]);
+
+      final chunks = <GenerateResponseChunk<dynamic>>[];
+      final stream = ai.generateStream(
+        model: mistral.model('mistral-large-latest'),
+        prompt: 'Bread for two?',
+      );
+      await for (final chunk in stream) {
+        chunks.add(chunk);
+      }
+      final response = await stream.onResult;
+
+      final streamedReasoning = [
+        for (final c in chunks)
+          for (final p in c.content)
+            if (p.isReasoning) p,
+      ];
+      expect(streamedReasoning.map((p) => p.reasoning).join(), _reasoning);
+      expect(streamedReasoning.last.metadata, {'thoughtSignature': _signature});
+      expect(
+        [
+          for (final c in chunks)
+            for (final p in c.content)
+              if (p.isText) p.text,
+        ],
+        ['bon', 'jour'],
+      );
+
+      expect(response.text, 'bonjour');
+      final reasoning = response.message!.content
+          .where((p) => p.isReasoning)
+          .single;
+      expect(reasoning.reasoning, _reasoning);
+      expect(reasoning.metadata, {'thoughtSignature': _signature});
+    });
+
+    test('a reply with no signature gets no metadata', () {
+      final reply = mistralChatReply({
+        'choices': [
+          {
+            'message': {
+              'role': 'assistant',
+              'content': [
+                _thinking('hmm'),
+                {'type': 'text', 'text': 'a'},
+                {'type': 'text', 'text': 'b'},
+              ],
+            },
+          },
+        ],
+      });
+
+      expect((reply['choices'] as List).single, {
+        'message': {
+          'role': 'assistant',
+          'content': 'ab',
+          'reasoning_details': [
+            {'type': 'reasoning.text', 'text': 'hmm'},
+          ],
+        },
+      });
+    });
+
+    test('a string content passes through untouched', () {
+      final reply = chatCompletion(content: 'bonjour');
+
+      expect(mistralChatReply(reply), reply);
+    });
+  });
+
   group('against the fake server', () {
     // Every test above hands the plugin an httpClient. These let it build its
     // own, which is the client real users get and the one the body rewrite
@@ -642,6 +1050,35 @@ void main() {
       expect(body['stream'], isTrue);
       expect(body, isNot(contains('stream_options')));
       expect(body['random_seed'], 7);
+    });
+
+    test('a thinking reply is read through the real client', () async {
+      server.enqueue(FakeResponse.json(_thinkingCompletion()));
+      server.enqueue(FakeResponse.sse(_thinkingDeltas()));
+      final ai = Genkit(
+        plugins: [mistral(apiKey: 'm-key', baseUrl: server.baseUrl)],
+      );
+      addTearDown(ai.shutdown);
+
+      final buffered = await ai.generate(
+        model: mistral.model('mistral-large-latest'),
+        prompt: 'hi',
+      );
+      final stream = ai.generateStream(
+        model: mistral.model('mistral-large-latest'),
+        prompt: 'hi',
+      );
+      await stream.drain<void>();
+      final streamed = await stream.onResult;
+
+      for (final response in [buffered, streamed]) {
+        expect(response.text, 'bonjour');
+        final reasoning = response.message!.content
+            .where((p) => p.isReasoning)
+            .single;
+        expect(reasoning.reasoning, _reasoning);
+        expect(reasoning.metadata, {'thoughtSignature': _signature});
+      }
     });
 
     test('embeds through /v1/embeddings', () async {
