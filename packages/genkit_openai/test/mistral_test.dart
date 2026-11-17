@@ -16,6 +16,7 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_openai/genkit_openai.dart';
+import 'package:genkit_openai/src/converters.dart';
 import 'package:genkit_openai/src/known_mistral_models.dart';
 import 'package:genkit_openai/src/known_models.dart'
     show OpenAIModelStage, multimodalSupports;
@@ -23,6 +24,7 @@ import 'package:genkit_openai/src/openai_plugin.dart';
 import 'package:genkit_openai/src/provider.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:openai_dart/openai_dart.dart' as sdk;
 import 'package:test/test.dart';
 
 import 'fake_openai_server.dart';
@@ -80,6 +82,62 @@ final _everyOption = OpenAIChatOptions(
 
 const _reasoning = 'Two loaves, one each.';
 const _signature = 'sig-abc';
+
+/// The metadata of a reasoning part read from Mistral.
+Map<String, dynamic> _mistralMeta([String? signature]) => {
+  'reasoningSource': 'mistral',
+  'thoughtSignature': ?signature,
+};
+
+/// A reasoning part as the plugin reads it from a Mistral thinking chunk.
+ReasoningPart _mistralReasoning(String text, {String? signature}) =>
+    ReasoningPart(reasoning: text, metadata: _mistralMeta(signature));
+
+/// The message of a completion, as the SDK parses it.
+sdk.AssistantMessage sdkMessageOf(Map<String, dynamic> completion) =>
+    sdk.ChatCompletion.fromJson(completion).choices.first.message;
+
+/// The assistant messages of a chat request body.
+List<Map<String, dynamic>> _assistantMessages(Map<String, dynamic> body) => [
+  for (final m in body['messages'] as List)
+    if ((m as Map)['role'] == 'assistant') m.cast<String, dynamic>(),
+];
+
+/// Answers chat requests with [replies] in turn, recording each request.
+MockClient _scriptedClient(
+  List<http.Request> requests,
+  List<Map<String, dynamic>> replies,
+) {
+  var next = 0;
+  return MockClient((request) async {
+    requests.add(request);
+    return http.Response(
+      jsonEncode(replies[next++]),
+      200,
+      headers: {'content-type': 'application/json'},
+    );
+  });
+}
+
+/// A completion whose message `content` is [content], with [toolCalls].
+Map<String, dynamic> _completion(
+  List<Map<String, dynamic>> content, {
+  List<Map<String, dynamic>>? toolCalls,
+  String finishReason = 'stop',
+}) => {
+  ...chatCompletion(),
+  'choices': [
+    {
+      'index': 0,
+      'message': {
+        'role': 'assistant',
+        'content': content,
+        'tool_calls': ?toolCalls,
+      },
+      'finish_reason': finishReason,
+    },
+  ],
+};
 
 /// A thinking chunk as Mistral sends it: its text is itself a list of chunks.
 Map<String, dynamic> _thinking(String text, {String? signature}) => {
@@ -907,7 +965,7 @@ void main() {
           .where((p) => p.isReasoning)
           .single;
       expect(reasoning.reasoning, _reasoning);
-      expect(reasoning.metadata, {'thoughtSignature': _signature});
+      expect(reasoning.metadata, _mistralMeta(_signature));
       // Reasoning leads the answer it produced.
       expect(response.message!.content.first.isReasoning, isTrue);
     });
@@ -931,7 +989,7 @@ void main() {
             if (p.isReasoning) p,
       ];
       expect(streamedReasoning.map((p) => p.reasoning).join(), _reasoning);
-      expect(streamedReasoning.last.metadata, {'thoughtSignature': _signature});
+      expect(streamedReasoning.last.metadata, _mistralMeta(_signature));
       expect(
         [
           for (final c in chunks)
@@ -946,7 +1004,38 @@ void main() {
           .where((p) => p.isReasoning)
           .single;
       expect(reasoning.reasoning, _reasoning);
-      expect(reasoning.metadata, {'thoughtSignature': _signature});
+      expect(reasoning.metadata, _mistralMeta(_signature));
+    });
+
+    test('each thinking chunk is its own part, with its own signature', () {
+      final message = GenkitConverter.fromOpenAIAssistantMessage(
+        sdkMessageOf(
+          mistralChatReply(
+            _completion([
+              _thinking('first', signature: 's1'),
+              _thinking('second', signature: 's2'),
+              _thinking('', signature: 's3'),
+              {'type': 'text', 'text': 'done'},
+            ]),
+          ),
+        ),
+        reasoningSource: mistralReasoningSource,
+      );
+
+      expect(
+        [
+          for (final p in message.content)
+            if (p.isReasoning) {'text': p.reasoning, 'meta': p.metadata},
+        ],
+        [
+          {'text': 'first', 'meta': _mistralMeta('s1')},
+          {'text': 'second', 'meta': _mistralMeta('s2')},
+          // A chunk with only a signature is kept: the signature is what has
+          // to go back.
+          {'text': '', 'meta': _mistralMeta('s3')},
+        ],
+      );
+      expect(message.text, 'done');
     });
 
     test('a reply with no signature gets no metadata', () {
@@ -980,6 +1069,299 @@ void main() {
       final reply = chatCompletion(content: 'bonjour');
 
       expect(mistralChatReply(reply), reply);
+    });
+  });
+
+  group('reasoning replay', () {
+    const thinkingChunk = {
+      'type': 'thinking',
+      'thinking': [
+        {'type': 'text', 'text': _reasoning},
+      ],
+      'signature': _signature,
+    };
+
+    for (final streamed in [false, true]) {
+      test(
+        'a ${streamed ? 'streamed' : 'buffered'} reply\'s reasoning goes back '
+        'as a thinking chunk',
+        () async {
+          final requests = <http.Request>[];
+          final ai = Genkit(
+            plugins: [
+              mistral(
+                apiKey: 'k',
+                httpClient: _replyingClient(
+                  requests,
+                  reply: _thinkingCompletion,
+                  stream: _thinkingDeltas,
+                ),
+              ),
+            ],
+          );
+          addTearDown(ai.shutdown);
+
+          final GenerateResult<dynamic> first;
+          if (streamed) {
+            final stream = ai.generateStream(
+              model: mistral.model('mistral-large-latest'),
+              prompt: 'Bread for two?',
+            );
+            await stream.drain<void>();
+            first = await stream.onResult;
+          } else {
+            first = await ai.generate(
+              model: mistral.model('mistral-large-latest'),
+              prompt: 'Bread for two?',
+            );
+          }
+          await ai.generate(
+            model: mistral.model('mistral-large-latest'),
+            messages: [
+              ...first.messages,
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'Three?')],
+              ),
+            ],
+          );
+
+          final body = jsonDecode(requests.last.body) as Map<String, dynamic>;
+          expect(_assistantMessages(body).single['content'], [
+            thinkingChunk,
+            {'type': 'text', 'text': 'bonjour'},
+          ]);
+        },
+      );
+    }
+
+    test('each reasoning part goes back as its own chunk, in order', () async {
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [mistral(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: mistral.model('mistral-small-latest'),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hi')],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              _mistralReasoning('first', signature: 's1'),
+              _mistralReasoning('second'),
+              _mistralReasoning('', signature: 's3'),
+              TextPart(text: 'hello'),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'again')],
+          ),
+        ],
+      );
+
+      expect(_assistantMessages(chatBodyOf(requests)).single, {
+        'role': 'assistant',
+        'content': [
+          {
+            'type': 'thinking',
+            'thinking': [
+              {'type': 'text', 'text': 'first'},
+            ],
+            'signature': 's1',
+          },
+          {
+            'type': 'thinking',
+            'thinking': [
+              {'type': 'text', 'text': 'second'},
+            ],
+          },
+          {
+            'type': 'thinking',
+            'thinking': [
+              {'type': 'text', 'text': ''},
+            ],
+            'signature': 's3',
+          },
+          {'type': 'text', 'text': 'hello'},
+        ],
+      });
+    });
+
+    test('a tool loop sends the thinking back with the tool call', () async {
+      // Large 4 always thinks, so the turn that calls the tool carries
+      // reasoning that has to reach Mistral on the follow-up request.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [
+          mistral(
+            apiKey: 'k',
+            httpClient: _scriptedClient(requests, [
+              _completion(
+                [_thinking(_reasoning, signature: _signature)],
+                toolCalls: [
+                  {
+                    'id': 'call-1',
+                    'type': 'function',
+                    'function': {
+                      'name': 'lookup',
+                      'arguments': '{"dish":"baguette"}',
+                    },
+                  },
+                ],
+                finishReason: 'tool_calls',
+              ),
+              _completion([
+                _thinking('In stock.'),
+                {'type': 'text', 'text': 'Yes.'},
+              ]),
+            ]),
+          ),
+        ],
+      );
+      addTearDown(ai.shutdown);
+      ai.defineTool(
+        name: 'lookup',
+        description: 'look a dish up',
+        fn: (input, ctx) async => .response({'stock': 'in'}),
+      );
+
+      final response = await ai.generate(
+        model: mistral.model('mistral-large-latest'),
+        prompt: 'Is the baguette in stock?',
+        toolNames: ['lookup'],
+      );
+
+      expect(response.text, 'Yes.');
+      expect(requests, hasLength(2));
+      final body = jsonDecode(requests.last.body) as Map<String, dynamic>;
+      final assistant = _assistantMessages(body).single;
+      expect(assistant['content'], [thinkingChunk]);
+      expect(((assistant['tool_calls'] as List).single as Map)['id'], 'call-1');
+      for (final message in body['messages'] as List) {
+        expect(message, isNot(contains('reasoning_details')));
+        expect(message, isNot(contains('reasoning_content')));
+      }
+    });
+
+    test('reasoning from another model is not sent', () async {
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [mistral(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: mistral.model('mistral-small-latest'),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hi')],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              ReasoningPart(reasoning: 'unmarked'),
+              ReasoningPart(
+                reasoning: 'from elsewhere',
+                metadata: {'reasoningSource': 'other', 'thoughtSignature': 'x'},
+              ),
+              TextPart(text: 'hello'),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'again')],
+          ),
+        ],
+      );
+
+      expect(_assistantMessages(chatBodyOf(requests)).single, {
+        'role': 'assistant',
+        'content': 'hello',
+      });
+    });
+
+    test('survives a JSON round trip of the history', () async {
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [
+          mistral(
+            apiKey: 'k',
+            httpClient: _replyingClient(
+              requests,
+              reply: _thinkingCompletion,
+              stream: _thinkingDeltas,
+            ),
+          ),
+        ],
+      );
+      addTearDown(ai.shutdown);
+
+      final first = await ai.generate(
+        model: mistral.model('mistral-large-latest'),
+        prompt: 'Bread for two?',
+      );
+      final saved = jsonEncode([for (final m in first.messages) m.toJson()]);
+      final history = [
+        for (final m in jsonDecode(saved) as List)
+          Message.fromJson((m as Map).cast<String, dynamic>()),
+      ];
+      await ai.generate(
+        model: mistral.model('mistral-large-latest'),
+        messages: [
+          ...history,
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'Three?')],
+          ),
+        ],
+      );
+
+      final body = jsonDecode(requests.last.body) as Map<String, dynamic>;
+      expect(
+        (_assistantMessages(body).single['content'] as List).first,
+        thinkingChunk,
+      );
+    });
+
+    test('OpenAI never gets reasoning back', () async {
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [openAI(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.generate(
+        model: openAI.model('gpt-4o'),
+        messages: [
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'hi')],
+          ),
+          Message(
+            role: Role.model,
+            content: [
+              _mistralReasoning('first', signature: 's1'),
+              TextPart(text: 'hello'),
+            ],
+          ),
+          Message(
+            role: Role.user,
+            content: [TextPart(text: 'again')],
+          ),
+        ],
+      );
+
+      expect(_assistantMessages(chatBodyOf(requests)).single, {
+        'role': 'assistant',
+        'content': 'hello',
+      });
     });
   });
 
@@ -1077,7 +1459,7 @@ void main() {
             .where((p) => p.isReasoning)
             .single;
         expect(reasoning.reasoning, _reasoning);
-        expect(reasoning.metadata, {'thoughtSignature': _signature});
+        expect(reasoning.metadata, _mistralMeta(_signature));
       }
     });
 

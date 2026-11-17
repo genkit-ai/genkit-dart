@@ -679,6 +679,7 @@ class OpenAIPlugin extends GenkitPlugin {
             // context, and the rest of the time the field is ignored.
             replayReasoning:
                 provider.replaysReasoning && tools != null && tools.isNotEmpty,
+            replayReasoningSource: provider.reasoningSource,
           );
 
           // A host that cannot be handed a schema needs the prompt to carry
@@ -864,26 +865,14 @@ class OpenAIPlugin extends GenkitPlugin {
         // arrives rather than held back until the final message - watching a
         // reasoning model think is most of why its stream is worth reading.
         final delta = chunk.choices?.firstOrNull?.delta;
-        final reasoningDelta = GenkitConverter.reasoningTextOf(
-          delta?.reasoningContent,
-          delta?.reasoning,
-          delta?.reasoningDetails,
+        final reasoning = GenkitConverter.reasoningParts(
+          reasoningContent: delta?.reasoningContent,
+          reasoning: delta?.reasoning,
+          reasoningDetails: delta?.reasoningDetails,
+          reasoningSource: provider.reasoningSource,
         );
-        final signature = GenkitConverter.reasoningSignatureOf(
-          delta?.reasoningDetails,
-        );
-        if (reasoningDelta != null || signature != null) {
-          ctx.sendChunk(
-            ModelResponseChunk(
-              index: 0,
-              content: [
-                ReasoningPart(
-                  reasoning: reasoningDelta ?? '',
-                  metadata: GenkitConverter.reasoningMetadata(signature),
-                ),
-              ],
-            ),
-          );
+        if (reasoning.isNotEmpty) {
+          ctx.sendChunk(ModelResponseChunk(index: 0, content: reasoning));
         }
 
         final textDelta = chunk.textDelta;
@@ -904,7 +893,11 @@ class OpenAIPlugin extends GenkitPlugin {
 
     final response = accumulator.toChatCompletion();
     final choice = response.choices.first;
-    final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
+    final message = GenkitConverter.fromOpenAIAssistantMessage(
+      choice.message,
+      reasoningSource: provider.reasoningSource,
+      streamed: true,
+    );
 
     return ModelResponse(
       finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
@@ -926,7 +919,10 @@ class OpenAIPlugin extends GenkitPlugin {
     }
 
     final choice = response.choices.first;
-    final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
+    final message = GenkitConverter.fromOpenAIAssistantMessage(
+      choice.message,
+      reasoningSource: provider.reasoningSource,
+    );
 
     return ModelResponse(
       finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),

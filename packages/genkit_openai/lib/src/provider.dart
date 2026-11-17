@@ -68,6 +68,20 @@ final class OpenAIProvider {
   /// never asked for the field, so it is not sent there at all.
   final bool replaysReasoning;
 
+  /// The `reasoningSource` this provider's reasoning parts are marked with,
+  /// or null for a host whose reasoning is never sent back.
+  ///
+  /// Set, every reasoning part read from a reply is marked with it and holds
+  /// its own signature, one part per reasoning entry, and on later turns the
+  /// reasoning parts so marked are carried to [rewriteChatBody] as
+  /// `reasoning_details` for it to put where the host reads them. Reasoning
+  /// another model left in the history has a different mark, or none, and is
+  /// dropped. The mark matches the JS and Python plugins'.
+  ///
+  /// Unset, reasoning is read as before: one part of joined text, with no
+  /// metadata.
+  final String? reasoningSource;
+
   /// Rewrites an encoded chat-completions body, or null when the request the
   /// SDK builds is already the one the host reads.
   ///
@@ -157,6 +171,7 @@ final class OpenAIProvider {
     this.speechIds = const [],
     this.transcriptionIds = const [],
     this.replaysReasoning = false,
+    this.reasoningSource,
     this.rewriteChatBody,
     this.rewriteChatReply,
     this.usesLegacyMaxTokens = false,
@@ -248,6 +263,7 @@ final mistralProvider = OpenAIProvider(
       compat ? compatMistralModelInfo(model) : mistralModelInfoFor(model),
   catalogIds: knownMistralChatModels,
   reasonsFor: (model) => knownMistralModelFor(model)?.reasons,
+  reasoningSource: mistralReasoningSource,
   embedderIds: knownMistralEmbedderModels,
   embedderInfoFor: mistralEmbedderInfoFor,
   // Mistral's `/models` lists the OCR models, which chat completions cannot
@@ -267,18 +283,62 @@ final mistralProvider = OpenAIProvider(
 /// - `stream_options` is dropped. The plugin always asks for
 ///   `include_usage` on a stream, and Mistral reports usage on the last
 ///   streamed chunk without being asked.
+/// - An assistant message's `reasoning_details`, which carry the Mistral
+///   reasoning of that turn (see [OpenAIProvider.reasoningSource]), go back as
+///   leading `thinking` chunks in its `content`, one per entry with its
+///   signature, ahead of the text. Mistral asks for the whole assistant
+///   message, thinking included, on later turns. No message keeps a
+///   `reasoning_details` or `reasoning_content` field: Mistral defines neither.
 ///
 /// Everything else passes through untouched.
 ///
 /// https://docs.mistral.ai/api/#tag/chat/operation/chat_completion_v1_chat_completions_post
+/// https://docs.mistral.ai/inference/conversations/reasoning
 Map<String, dynamic> mistralChatBody(Map<String, dynamic> body) {
   final seed = body['seed'];
+  final messages = body['messages'];
   return {
     for (final entry in body.entries)
       if (!_mistralDroppedFields.contains(entry.key)) entry.key: entry.value,
     'random_seed': ?seed,
+    if (messages is List)
+      'messages': [for (final message in messages) _mistralMessage(message)],
   };
 }
+
+/// [mistralChatBody] for one message.
+Object? _mistralMessage(Object? message) {
+  if (message is! Map) return message;
+  final details = message['reasoning_details'];
+  final rest = {
+    for (final entry in message.entries)
+      if (!_mistralDroppedMessageFields.contains(entry.key))
+        entry.key as String: entry.value,
+  };
+  if (message['role'] != 'assistant' || details is! List || details.isEmpty) {
+    return rest;
+  }
+  final content = rest['content'];
+  return {
+    ...rest,
+    'content': [
+      for (final detail in details.whereType<Map>())
+        {
+          'type': 'thinking',
+          'thinking': [
+            {'type': 'text', 'text': detail['text'] as String? ?? ''},
+          ],
+          if (detail['signature'] is String) 'signature': detail['signature'],
+        },
+      if (content is String && content.isNotEmpty)
+        {'type': 'text', 'text': content},
+    ],
+  };
+}
+
+/// The `reasoningSource` Mistral's reasoning parts are marked with, the same
+/// mark the JS and Python plugins use.
+const mistralReasoningSource = 'mistral';
 
 /// Mistral's API hosts: global, EU and US, and `codestral.mistral.ai`, which
 /// serves Codestral-only keys.
@@ -297,7 +357,8 @@ const mistralHosts = {
 /// `delta` alike. The text chunks are joined into `content`. Each thinking
 /// chunk becomes a `reasoning.text` entry in `reasoning_details`, the field
 /// the SDK already parses for OpenRouter, with its `signature` when Mistral
-/// sent one. Chunk types the plugin cannot represent, such as references, are
+/// sent one; each entry is then read as its own reasoning part (see
+/// [OpenAIProvider.reasoningSource]). Chunk types the plugin cannot represent, such as references, are
 /// dropped.
 ///
 /// Anything else, including a string `content`, passes through untouched.
@@ -371,6 +432,14 @@ String _thinkingText(Object? thinking) {
 
 /// Request fields that never reach Mistral under their OpenAI names.
 const _mistralDroppedFields = {'seed', 'user', 'verbosity', 'stream_options'};
+
+/// Message fields Mistral does not define. A turn's reasoning goes back in its
+/// `content` instead.
+const _mistralDroppedMessageFields = {
+  'reasoning_details',
+  'reasoning_content',
+  'reasoning',
+};
 
 /// Adds the `thinking` object DeepSeek derives its mode from.
 ///
