@@ -86,6 +86,7 @@ Embedder createVertexEmbedder({
       }
 
       final service = await getApiClient();
+      final disposeAbort = service.abortOn(ctx.cancel);
       try {
         final options = req.options != null
             ? google.GoogleGenAiEmbedderOptions.fromJson(req.options!)
@@ -130,6 +131,7 @@ Embedder createVertexEmbedder({
       } catch (e, stack) {
         throw handleException(e, stack);
       } finally {
+        disposeAbort();
         service.client.close();
       }
     },

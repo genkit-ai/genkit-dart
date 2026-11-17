@@ -180,10 +180,10 @@ Model createAntigravityModel(CommonGoogleGenPlugin plugin, String modelName) {
         tools: tools.isEmpty ? null : tools,
       );
 
-      final service = await plugin.getApiClient(options.apiKey);
-      // Aborts the in-flight request on a plugin-owned client (see
-      // generateWithInteractions).
-      final disposeCancel = ctx.cancel?.onCancel(service.client.close);
+      // Applies the request's apiKey, baseUrl and apiVersion.
+      final service = await plugin.getApiClientForRequest(req.config);
+      // Cancelling aborts the request in flight (see abortOn).
+      final disposeAbort = service.abortOn(ctx.cancel);
       try {
         ctx.cancel?.throwIfCancelled();
         final interaction = await service.createInteraction(request);
@@ -192,7 +192,7 @@ Model createAntigravityModel(CommonGoogleGenPlugin plugin, String modelName) {
       } catch (e, stack) {
         throw plugin.handleException(e, stack);
       } finally {
-        disposeCancel?.call();
+        disposeAbort();
         service.client.close();
       }
     },

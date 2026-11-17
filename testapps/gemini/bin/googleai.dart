@@ -22,7 +22,9 @@ import 'package:genkit_google_genai/genkit_google_genai.dart';
 import 'src/model.dart';
 
 void main(List<String> args) async {
-  final ai = Genkit(plugins: [googleAI()]);
+  // experimentalDebugTraces: each model API call gets an httpRequest span
+  // with the request and the response (as in the JS testapp).
+  final ai = Genkit(plugins: [googleAI(experimentalDebugTraces: true)]);
 
   // --- Basic Generate Flow ---
   ai.defineFlow(
@@ -454,6 +456,67 @@ void main(List<String> args) async {
         'turn1InteractionId': turn1.message?.metadata?['interactionId'],
         'turn2InteractionId': turn2.message?.metadata?['interactionId'],
       };
+    },
+  );
+
+  // Custom headers: googleAI(customHeaders: ...) adds them to every request.
+  // X-Genkit-Testapp is a made-up name the API ignores; the x-goog-api-client
+  // entry is one of the plugin's own headers, so it is left out and the
+  // plugin's value is sent instead. Check the headers in the httpRequest
+  // span. A separate Genkit instance, as for multiTurnPluginStore. A lite
+  // model: gemini-flash-latest can take over a minute here.
+  final customHeadersAi = Genkit(
+    plugins: [
+      googleAI(
+        customHeaders: {
+          'X-Genkit-Testapp': 'customHeaders-flow',
+          'x-goog-api-client': 'should-be-ignored',
+        },
+        experimentalDebugTraces: true,
+      ),
+    ],
+    isDevEnv: false,
+    promptDir: null,
+  );
+  ai.defineFlow(
+    name: 'customHeaders',
+    outputSchema: .string(),
+    fn: (_, _) async {
+      final response = await customHeadersAi.generate(
+        model: googleAI.gemini('gemini-flash-lite-latest'),
+        prompt: 'Say hello in one short sentence.',
+      );
+      return response.text;
+    },
+  );
+
+  // A per-request API version: v1 (stable) instead of the default v1beta.
+  // Two requests on purpose, one per API: an Interactions model and a
+  // generateContent model. v1 doesn't serve the -latest aliases (NOT_FOUND,
+  // seen live) or v1beta-only features (e.g. TTS speech config). The
+  // httpRequest spans show the /v1/ URLs. Throws if either request fails (a
+  // failed generate returns a result rather than throwing).
+  ai.defineFlow(
+    name: 'apiVersionV1',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (_, _) async {
+      final config = GeminiOptions(apiVersion: 'v1');
+      final answers = <String, String>{};
+      for (final (api, model) in [
+        ('interactions', 'gemini-3.8-flash'),
+        ('generateContent', 'gemini-3.1-flash-lite'),
+      ]) {
+        final response = await ai.generate(
+          model: googleAI.gemini(model),
+          prompt: 'Say hello in one short sentence.',
+          config: config,
+        );
+        if (response.error case final error?) {
+          throw Exception('$api ($model) on v1: ${error.message}');
+        }
+        answers[api] = response.text;
+      }
+      return answers;
     },
   );
 

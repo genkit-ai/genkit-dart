@@ -27,6 +27,9 @@ void main(List<String> args) async {
       vertexAI(
         projectId: Platform.environment['GCLOUD_PROJECT'],
         location: Platform.environment['GCLOUD_LOCATION'] ?? 'global',
+        // Each model API call gets an httpRequest span with the request and
+        // the response (as in the JS testapp).
+        experimentalDebugTraces: true,
       ),
     ],
   );
@@ -748,6 +751,35 @@ void main(List<String> args) async {
         config: GeminiOptions(location: location),
       );
       return response.text;
+    },
+  );
+
+  // A per-request API version: v1 instead of the default v1beta1. Two
+  // requests on purpose, one per API: an Interactions model and a
+  // generateContent model (both served on v1, seen live). The httpRequest
+  // spans show the /v1/ URLs. Throws if either request fails (a failed
+  // generate returns a result rather than throwing).
+  ai.defineFlow(
+    name: 'apiVersionV1',
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (_, _) async {
+      final config = GeminiOptions(apiVersion: 'v1');
+      final answers = <String, String>{};
+      for (final (api, model) in [
+        ('interactions', 'gemini-3.8-flash'),
+        ('generateContent', 'gemini-3.5-flash'),
+      ]) {
+        final response = await ai.generate(
+          model: vertexAI.gemini(model),
+          prompt: 'Say hello in one short sentence.',
+          config: config,
+        );
+        if (response.error case final error?) {
+          throw Exception('$api ($model) on v1: ${error.message}');
+        }
+        answers[api] = response.text;
+      }
+      return answers;
     },
   );
 

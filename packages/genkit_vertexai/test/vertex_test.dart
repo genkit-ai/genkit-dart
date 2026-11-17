@@ -12,10 +12,16 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/common.dart' show CreateInteractionRequest;
+import 'package:genkit/src/o11y/instrumentation.dart' show resetInstrumentation;
+import 'package:genkit/telemetry.dart';
+import 'package:genkit_google_genai/common.dart'
+    show CreateInteractionRequest, resetDroppedConfigFieldWarnings;
+import 'package:genkit_vertex_auth/genkit_vertex_auth.dart'
+    show googleApiClientHeaderValue;
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
@@ -195,6 +201,154 @@ void main() {
     }
   });
 
+  group('apiVersion (JS vertexAI calculateRequestOptions)', () {
+    Future<Uri> urlFor(
+      String modelName, {
+      String? pluginVersion,
+      Map<String, dynamic>? config,
+    }) async {
+      final mockClient = MockHttpClient();
+      await VertexAiPluginImpl(
+            projectId: 'my-project',
+            location: 'global',
+            apiVersion: pluginVersion,
+            authClient: mockClient,
+          )
+          .resolve(.model, modelName)!
+          .run(
+            ModelRequest(
+              messages: [
+                Message(
+                  role: Role.user,
+                  content: [TextPart(text: 'hello')],
+                ),
+              ],
+              config: config,
+            ),
+          );
+      return mockClient.lastUrl!;
+    }
+
+    const base = 'https://aiplatform.googleapis.com';
+    const parent = 'projects/my-project/locations/global';
+
+    test('the plugin apiVersion replaces v1beta1 on both APIs', () async {
+      expect(
+        '${await urlFor('gemini-2.5-pro', pluginVersion: 'v1')}',
+        '$base/v1/$parent/publishers/google/models/gemini-2.5-pro:generateContent',
+      );
+      expect(
+        '${await urlFor('gemini-3.8-flash', pluginVersion: 'v1')}',
+        '$base/v1/$parent/interactions',
+      );
+    });
+
+    test("a request's apiVersion wins over the plugin's", () async {
+      expect(
+        '${await urlFor('gemini-3.8-flash', pluginVersion: 'v1beta1', config: {'apiVersion': 'v1'})}',
+        '$base/v1/$parent/interactions',
+      );
+    });
+
+    test('model listing uses the plugin apiVersion', () async {
+      final mockClient = MockHttpClient();
+      await VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'global',
+        apiVersion: 'v1',
+        authClient: mockClient,
+      ).list();
+      expect(
+        mockClient.requestUrls.map((u) => u.path),
+        contains('/v1/publishers/google/models'),
+      );
+    });
+
+    test("a request's baseUrl is dropped with a warning", () async {
+      resetDroppedConfigFieldWarnings();
+      final warnings = <String>[];
+      final subscription = Logger.root.onRecord
+          .where((r) => r.level == Level.WARNING)
+          .listen((r) => warnings.add(r.message));
+      addTearDown(subscription.cancel);
+      final url = await urlFor(
+        'gemini-3.8-flash',
+        config: {'baseUrl': 'https://proxy.test'},
+      );
+      expect(url.host, 'aiplatform.googleapis.com');
+      expect(warnings.single, contains('baseUrl'));
+    });
+  });
+
+  test('vertexAI(experimentalDebugTraces: true) traces a model call, token '
+      'hidden', () async {
+    final spans = <SpanMetadata>[];
+    configureInstrumentation(_SpanRecorder(spans));
+    addTearDown(resetInstrumentation);
+    await VertexAiPluginImpl(
+          projectId: 'my-project',
+          location: 'global',
+          experimentalDebugTraces: true,
+          authClient: MockHttpClient(),
+        )
+        .resolve(.model, 'gemini-3.8-flash')!
+        .run(
+          ModelRequest(
+            messages: [
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'hello')],
+              ),
+            ],
+          ),
+        );
+    final input = (spans.single.input! as Map).cast<String, Object?>();
+    expect(
+      input['apiEndpoint'],
+      'https://aiplatform.googleapis.com/v1beta1/projects/my-project/locations/global/interactions',
+    );
+    expect(
+      (input['headers']! as Map)['Authorization'],
+      startsWith('<REDACTED> ('),
+    );
+  });
+
+  group('request headers', () {
+    // The mock serves the token endpoints (metadata server or OAuth), so
+    // the token is whatever it returns; only its shape is checked here.
+    final bearer = matches(RegExp(r'^Bearer \S+$'));
+
+    for (final (label, modelName) in [
+      ('generateContent', 'gemini-2.5-pro'),
+      ('Interactions', 'gemini-3.8-flash'),
+    ]) {
+      test('$label: bearer token and api client, no API key', () async {
+        final mockClient = MockHttpClient();
+        final model = VertexAiPluginImpl(
+          projectId: 'my-project',
+          location: 'global',
+          authClient: mockClient,
+        ).resolve(.model, modelName)!;
+        await model.run(
+          ModelRequest(
+            messages: [
+              Message(
+                role: Role.user,
+                content: [TextPart(text: 'hello')],
+              ),
+            ],
+            config: {'payGo': 'flex'},
+          ),
+        );
+        final headers = mockClient.lastHeaders!;
+        expect(headers['Authorization'], bearer);
+        expect(headers['X-Goog-Api-Client'], googleApiClientHeaderValue());
+        expect(headers['X-Vertex-AI-LLM-Shared-Request-Type'], 'flex');
+        expect(headers, isNot(contains('x-goog-api-key')));
+      });
+    }
+  });
+
   group('injected client lifecycle', () {
     VertexAiPluginImpl pluginWith(MockHttpClient client) => VertexAiPluginImpl(
       projectId: 'my-project',
@@ -253,6 +407,31 @@ void main() {
       },
     );
 
+    for (final modelName in ['gemini-2.5-pro', 'gemini-3.8-flash']) {
+      test('cancelling aborts the request in flight ($modelName)', () async {
+        final mockClient = _HangOnModelCallClient();
+        final controller = CancellationController();
+        final run = pluginWith(mockClient)
+            .resolve(.model, modelName)!
+            .run(
+              ModelRequest(
+                messages: [
+                  Message(
+                    role: Role.user,
+                    content: [TextPart(text: 'hello')],
+                  ),
+                ],
+              ),
+              cancel: controller.token,
+            );
+        await mockClient.modelCallReceived;
+        controller.cancel();
+
+        await expectLater(run, throwsA(isA<CancelledException>()));
+        expect(mockClient.closed, isFalse);
+      });
+    }
+
     test('embedder does not close the injected client', () async {
       final mockClient = MockHttpClient();
       final embedder =
@@ -272,6 +451,22 @@ void main() {
   });
 }
 
+/// Records the metadata of every `httpRequest` span.
+class _SpanRecorder implements Instrumentation {
+  _SpanRecorder(this.spans);
+
+  final List<SpanMetadata> spans;
+
+  @override
+  Future<O> runInNewSpan<O>(
+    SpanMetadata metadata,
+    Future<O> Function([SpanContext? span]) next,
+  ) {
+    if (metadata.name == 'httpRequest') spans.add(metadata);
+    return next();
+  }
+}
+
 /// Cancels [controller] while serving a generateContent request, standing in
 /// for a user cancelling while the request is in flight.
 class _CancelOnGenerateClient extends MockHttpClient {
@@ -283,5 +478,29 @@ class _CancelOnGenerateClient extends MockHttpClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) {
     if (request.url.path.endsWith(':generateContent')) controller.cancel();
     return super.send(request);
+  }
+}
+
+/// Serves the token requests, but holds a model call (generateContent or
+/// Interactions) until its abort trigger fires, then fails it the way
+/// `http`'s own clients do.
+class _HangOnModelCallClient extends MockHttpClient {
+  final Completer<void> _received = Completer<void>();
+
+  /// Completes once the model call has arrived.
+  Future<void> get modelCallReceived => _received.future;
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final path = request.url.path;
+    if (!path.endsWith(':generateContent') && !path.endsWith('/interactions')) {
+      return super.send(request);
+    }
+    if (!_received.isCompleted) _received.complete();
+    if (request case http.Abortable(:final abortTrigger?)) {
+      await abortTrigger;
+      throw http.RequestAbortedException(request.url);
+    }
+    throw StateError('request has no abort trigger: ${request.url}');
   }
 }

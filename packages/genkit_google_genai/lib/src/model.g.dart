@@ -30,6 +30,8 @@ base class GeminiOptions {
 
   GeminiOptions({
     String? apiKey,
+    String? baseUrl,
+    String? apiVersion,
     List<GeminiSafetySettings>? safetySettings,
     bool? codeExecution,
     GeminiFunctionCallingConfig? functionCallingConfig,
@@ -63,6 +65,8 @@ base class GeminiOptions {
   }) {
     _json = {
       'apiKey': ?apiKey,
+      'baseUrl': ?baseUrl,
+      'apiVersion': ?apiVersion,
       'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
       'codeExecution': ?codeExecution,
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
@@ -111,6 +115,30 @@ base class GeminiOptions {
       _json.remove('apiKey');
     } else {
       _json['apiKey'] = value;
+    }
+  }
+
+  String? get baseUrl {
+    return _json['baseUrl'] as String?;
+  }
+
+  set baseUrl(String? value) {
+    if (value == null) {
+      _json.remove('baseUrl');
+    } else {
+      _json['baseUrl'] = value;
+    }
+  }
+
+  String? get apiVersion {
+    return _json['apiVersion'] as String?;
+  }
+
+  set apiVersion(String? value) {
+    if (value == null) {
+      _json.remove('apiVersion');
+    } else {
+      _json['apiVersion'] = value;
     }
   }
 
@@ -534,6 +562,16 @@ base class _GeminiOptionsTypeFactory extends SchemanticType<GeminiOptions> {
       'type': 'object',
       'properties': <String, Object?>{
         'apiKey': <String, Object?>{'type': 'string'},
+        'baseUrl': <String, Object?>{
+          'type': 'string',
+          'description':
+              'googleAI only. Overrides the plugin-configured or default base URL (https://generativelanguage.googleapis.com), if specified.',
+        },
+        'apiVersion': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Overrides the plugin-configured or default API version, if specified (googleAI: default v1beta; vertexAI: v1 or v1beta1, default v1beta1).',
+        },
         'safetySettings': <String, Object?>{
           'type': 'array',
           'items': <String, Object?>{r'$ref': r'#/$defs/GeminiSafetySettings'},
@@ -1009,6 +1047,8 @@ base class GeminiTtsOptions {
 
   GeminiTtsOptions({
     String? apiKey,
+    String? baseUrl,
+    String? apiVersion,
     List<GeminiSafetySettings>? safetySettings,
     bool? codeExecution,
     GeminiFunctionCallingConfig? functionCallingConfig,
@@ -1043,6 +1083,8 @@ base class GeminiTtsOptions {
   }) {
     _json = {
       'apiKey': ?apiKey,
+      'baseUrl': ?baseUrl,
+      'apiVersion': ?apiVersion,
       'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
       'codeExecution': ?codeExecution,
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
@@ -1092,6 +1134,30 @@ base class GeminiTtsOptions {
       _json.remove('apiKey');
     } else {
       _json['apiKey'] = value;
+    }
+  }
+
+  String? get baseUrl {
+    return _json['baseUrl'] as String?;
+  }
+
+  set baseUrl(String? value) {
+    if (value == null) {
+      _json.remove('baseUrl');
+    } else {
+      _json['baseUrl'] = value;
+    }
+  }
+
+  String? get apiVersion {
+    return _json['apiVersion'] as String?;
+  }
+
+  set apiVersion(String? value) {
+    if (value == null) {
+      _json.remove('apiVersion');
+    } else {
+      _json['apiVersion'] = value;
     }
   }
 
@@ -1532,6 +1598,16 @@ base class _GeminiTtsOptionsTypeFactory
       'type': 'object',
       'properties': <String, Object?>{
         'apiKey': <String, Object?>{'type': 'string'},
+        'baseUrl': <String, Object?>{
+          'type': 'string',
+          'description':
+              'googleAI only. Overrides the plugin-configured or default base URL (https://generativelanguage.googleapis.com), if specified.',
+        },
+        'apiVersion': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Overrides the plugin-configured or default API version, if specified (googleAI: default v1beta; vertexAI: v1 or v1beta1, default v1beta1).',
+        },
         'safetySettings': <String, Object?>{
           'type': 'array',
           'items': <String, Object?>{r'$ref': r'#/$defs/GeminiSafetySettings'},
@@ -1656,6 +1732,8 @@ base class GeminiImageOptions {
 
   GeminiImageOptions({
     String? apiKey,
+    String? baseUrl,
+    String? apiVersion,
     List<GeminiSafetySettings>? safetySettings,
     bool? codeExecution,
     GeminiFunctionCallingConfig? functionCallingConfig,
@@ -1690,6 +1768,8 @@ base class GeminiImageOptions {
   }) {
     _json = {
       'apiKey': ?apiKey,
+      'baseUrl': ?baseUrl,
+      'apiVersion': ?apiVersion,
       'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
       'codeExecution': ?codeExecution,
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
@@ -1739,6 +1819,30 @@ base class GeminiImageOptions {
       _json.remove('apiKey');
     } else {
       _json['apiKey'] = value;
+    }
+  }
+
+  String? get baseUrl {
+    return _json['baseUrl'] as String?;
+  }
+
+  set baseUrl(String? value) {
+    if (value == null) {
+      _json.remove('baseUrl');
+    } else {
+      _json['baseUrl'] = value;
+    }
+  }
+
+  String? get apiVersion {
+    return _json['apiVersion'] as String?;
+  }
+
+  set apiVersion(String? value) {
+    if (value == null) {
+      _json.remove('apiVersion');
+    } else {
+      _json['apiVersion'] = value;
     }
   }
 
@@ -2179,6 +2283,16 @@ base class _GeminiImageOptionsTypeFactory
       'type': 'object',
       'properties': <String, Object?>{
         'apiKey': <String, Object?>{'type': 'string'},
+        'baseUrl': <String, Object?>{
+          'type': 'string',
+          'description':
+              'googleAI only. Overrides the plugin-configured or default base URL (https://generativelanguage.googleapis.com), if specified.',
+        },
+        'apiVersion': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Overrides the plugin-configured or default API version, if specified (googleAI: default v1beta; vertexAI: v1 or v1beta1, default v1beta1).',
+        },
         'safetySettings': <String, Object?>{
           'type': 'array',
           'items': <String, Object?>{r'$ref': r'#/$defs/GeminiSafetySettings'},
@@ -2305,6 +2419,8 @@ base class GeminiVideoOptions {
 
   GeminiVideoOptions({
     String? apiKey,
+    String? baseUrl,
+    String? apiVersion,
     List<GeminiSafetySettings>? safetySettings,
     bool? codeExecution,
     GeminiFunctionCallingConfig? functionCallingConfig,
@@ -2340,6 +2456,8 @@ base class GeminiVideoOptions {
   }) {
     _json = {
       'apiKey': ?apiKey,
+      'baseUrl': ?baseUrl,
+      'apiVersion': ?apiVersion,
       'safetySettings': ?safetySettings?.map((e) => e.toJson()).toList(),
       'codeExecution': ?codeExecution,
       'functionCallingConfig': ?functionCallingConfig?.toJson(),
@@ -2390,6 +2508,30 @@ base class GeminiVideoOptions {
       _json.remove('apiKey');
     } else {
       _json['apiKey'] = value;
+    }
+  }
+
+  String? get baseUrl {
+    return _json['baseUrl'] as String?;
+  }
+
+  set baseUrl(String? value) {
+    if (value == null) {
+      _json.remove('baseUrl');
+    } else {
+      _json['baseUrl'] = value;
+    }
+  }
+
+  String? get apiVersion {
+    return _json['apiVersion'] as String?;
+  }
+
+  set apiVersion(String? value) {
+    if (value == null) {
+      _json.remove('apiVersion');
+    } else {
+      _json['apiVersion'] = value;
     }
   }
 
@@ -2846,6 +2988,16 @@ base class _GeminiVideoOptionsTypeFactory
       'type': 'object',
       'properties': <String, Object?>{
         'apiKey': <String, Object?>{'type': 'string'},
+        'baseUrl': <String, Object?>{
+          'type': 'string',
+          'description':
+              'googleAI only. Overrides the plugin-configured or default base URL (https://generativelanguage.googleapis.com), if specified.',
+        },
+        'apiVersion': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Overrides the plugin-configured or default API version, if specified (googleAI: default v1beta; vertexAI: v1 or v1beta1, default v1beta1).',
+        },
         'safetySettings': <String, Object?>{
           'type': 'array',
           'items': <String, Object?>{r'$ref': r'#/$defs/GeminiSafetySettings'},
@@ -4175,12 +4327,16 @@ base class LyriaOptions {
 
   LyriaOptions({
     String? apiKey,
+    String? baseUrl,
+    String? apiVersion,
     List<String>? responseModalities,
     bool? store,
     String? location,
   }) {
     _json = {
       'apiKey': ?apiKey,
+      'baseUrl': ?baseUrl,
+      'apiVersion': ?apiVersion,
       'responseModalities': ?responseModalities,
       'store': ?store,
       'location': ?location,
@@ -4202,6 +4358,30 @@ base class LyriaOptions {
       _json.remove('apiKey');
     } else {
       _json['apiKey'] = value;
+    }
+  }
+
+  String? get baseUrl {
+    return _json['baseUrl'] as String?;
+  }
+
+  set baseUrl(String? value) {
+    if (value == null) {
+      _json.remove('baseUrl');
+    } else {
+      _json['baseUrl'] = value;
+    }
+  }
+
+  String? get apiVersion {
+    return _json['apiVersion'] as String?;
+  }
+
+  set apiVersion(String? value) {
+    if (value == null) {
+      _json.remove('apiVersion');
+    } else {
+      _json['apiVersion'] = value;
     }
   }
 
@@ -4271,6 +4451,16 @@ base class _LyriaOptionsTypeFactory extends SchemanticType<LyriaOptions> {
           'description':
               'Overrides the plugin-configured API key, if specified.',
         },
+        'baseUrl': <String, Object?>{
+          'type': 'string',
+          'description':
+              'googleAI only. Overrides the plugin-configured or default base URL (https://generativelanguage.googleapis.com), if specified.',
+        },
+        'apiVersion': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Overrides the plugin-configured or default API version, if specified (googleAI: default v1beta; vertexAI: v1 or v1beta1, default v1beta1).',
+        },
         'responseModalities': <String, Object?>{
           'type': 'array',
           'description':
@@ -4303,6 +4493,8 @@ base class AntigravityOptions {
 
   AntigravityOptions({
     String? apiKey,
+    String? baseUrl,
+    String? apiVersion,
     String? previousInteractionId,
     bool? store,
     Object? environment,
@@ -4312,6 +4504,8 @@ base class AntigravityOptions {
   }) {
     _json = {
       'apiKey': ?apiKey,
+      'baseUrl': ?baseUrl,
+      'apiVersion': ?apiVersion,
       'previousInteractionId': ?previousInteractionId,
       'store': ?store,
       'environment': ?environment,
@@ -4336,6 +4530,30 @@ base class AntigravityOptions {
       _json.remove('apiKey');
     } else {
       _json['apiKey'] = value;
+    }
+  }
+
+  String? get baseUrl {
+    return _json['baseUrl'] as String?;
+  }
+
+  set baseUrl(String? value) {
+    if (value == null) {
+      _json.remove('baseUrl');
+    } else {
+      _json['baseUrl'] = value;
+    }
+  }
+
+  String? get apiVersion {
+    return _json['apiVersion'] as String?;
+  }
+
+  set apiVersion(String? value) {
+    if (value == null) {
+      _json.remove('apiVersion');
+    } else {
+      _json['apiVersion'] = value;
     }
   }
 
@@ -4441,6 +4659,16 @@ base class _AntigravityOptionsTypeFactory
           'type': 'string',
           'description':
               'Overrides the plugin-configured API key, if specified.',
+        },
+        'baseUrl': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Overrides the plugin-configured or default base URL (https://generativelanguage.googleapis.com), if specified.',
+        },
+        'apiVersion': <String, Object?>{
+          'type': 'string',
+          'description':
+              'Overrides the plugin-configured or default API version (default v1beta), if specified.',
         },
         'previousInteractionId': <String, Object?>{
           'type': 'string',

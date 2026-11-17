@@ -114,6 +114,9 @@ Model createLyriaModel(
       if (options.location != null && !plugin.supportsVertexOptions) {
         warnDroppedConfigField(modelName, 'location');
       }
+      if (options.baseUrl != null && !plugin.supportsBaseUrl) {
+        warnDroppedConfigField(modelName, 'baseUrl');
+      }
       final request = CreateInteractionRequest(
         model: modelName,
         input: toInteractionSteps(ensureToolIds(req.messages)),
@@ -125,11 +128,11 @@ Model createLyriaModel(
         store: options.store ?? plugin.store ?? false,
       );
 
-      // Applies the request's apiKey (googleAI) or location (vertexAI).
+      // Applies the request's apiKey, baseUrl and apiVersion (googleAI) or
+      // location and apiVersion (vertexAI).
       final service = await plugin.getApiClientForRequest(req.config);
-      // Aborts the in-flight request on a plugin-owned client (see
-      // generateWithInteractions).
-      final disposeCancel = ctx.cancel?.onCancel(service.client.close);
+      // Cancelling aborts the request in flight (see abortOn).
+      final disposeAbort = service.abortOn(ctx.cancel);
       try {
         ctx.cancel?.throwIfCancelled();
         final interaction = await service.createInteraction(request);
@@ -138,7 +141,7 @@ Model createLyriaModel(
       } catch (e, stack) {
         throw plugin.handleException(e, stack);
       } finally {
-        disposeCancel?.call();
+        disposeAbort();
         service.client.close();
       }
     },

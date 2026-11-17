@@ -55,10 +55,20 @@ class VertexAiPluginHandle {
   /// `GOOGLE_CLOUD_PROJECT`/`GCLOUD_PROJECT`, and [location] defaults to
   /// `global`.
   ///
+  /// [apiVersion] is the API version in request paths: `v1` or `v1beta1`
+  /// (the default). A request's own `apiVersion` option wins over it.
+  ///
+  /// [experimentalDebugTraces] runs each model API call in an `httpRequest`
+  /// trace span with the endpoint, the request, the headers (the access
+  /// token hidden) and the response (`[Streaming Response]` for streamed
+  /// calls). Experimental: the option and the span's shape may change.
+  ///
   /// [authClient] replaces the default transport for credential and API calls.
-  /// It is never closed by the plugin; the caller owns its lifecycle. Because
-  /// close() is suppressed, cancellation cannot abort an in-flight request on
-  /// an injected client.
+  /// It is never closed by the plugin; the caller owns its lifecycle.
+  /// Cancellation aborts its in-flight requests when it passes each request on
+  /// as is (as `http`'s own clients do); a client that copies requests (e.g.
+  /// googleapis_auth's) drops the abort, and cancellation then lands once the
+  /// request returns.
   ///
   /// [store] is used by requests that don't set `store` themselves. On
   /// models called through the Interactions API it stores interactions on
@@ -69,12 +79,16 @@ class VertexAiPluginHandle {
   GenkitPlugin call({
     String? projectId,
     String? location,
+    String? apiVersion,
+    bool experimentalDebugTraces = false,
     http.Client? authClient,
     bool? store,
   }) {
     return VertexAiPluginImpl(
       projectId: projectId,
       location: location,
+      apiVersion: apiVersion,
+      experimentalDebugTraces: experimentalDebugTraces,
       authClient: authClient,
       store: store,
     );

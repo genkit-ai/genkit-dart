@@ -108,4 +108,132 @@ void main() {
       expect(e.status, StatusCode.permissionDenied);
     });
   });
+
+  group('error details (JS detail: the whole error body)', () {
+    final body = {
+      'error': {
+        'code': 400,
+        'message': 'boom',
+        'status': 'INVALID_ARGUMENT',
+        'details': [
+          {
+            '@type': 'type.googleapis.com/google.rpc.BadRequest',
+            'fieldViolations': [
+              {'field': 'contents', 'description': 'empty'},
+            ],
+          },
+        ],
+      },
+    };
+
+    test('keeps a Google error body, including its details', () async {
+      final e = await _errorFor(400, jsonEncode(body));
+      expect(jsonDecode(e.details!), body);
+    });
+
+    test('drops the list wrapping of an Interactions error body', () async {
+      final e = await _errorFor(400, jsonEncode([body]));
+      expect(jsonDecode(e.details!), body);
+    });
+
+    test('has none when the body is not a Google error', () async {
+      final e = await _errorFor(503, '<html>Service Unavailable</html>');
+      expect(e.details, isNull);
+      expect(e.message, contains('<html>'));
+    });
+
+    test('a streaming call keeps the body too', () async {
+      final e = await _streamErrorFor(400, jsonEncode(body));
+      expect(jsonDecode(e.details!), body);
+    });
+
+    test('an error body sent in a stream with a 200 keeps it too', () async {
+      final e = await _streamErrorFor(200, jsonEncode(body));
+      expect(e.status, StatusCode.invalidArgument);
+      expect(jsonDecode(e.details!), body);
+    });
+  });
+
+  group('streamGenerateContent body (as JS processStream)', () {
+    /// Streams [body] (sent with a 200) and returns the chunks' text.
+    Future<List<String?>> texts(String body) => _failingClient(200, body)
+        .streamGenerateContent(GenerateContentRequest(), model: 'models/m')
+        .map((r) => r.candidates?.first.content?.parts?.first.text)
+        .toList();
+
+    String chunk(String text) => jsonEncode({
+      'candidates': [
+        {
+          'content': {
+            'parts': [
+              {'text': text},
+            ],
+          },
+        },
+      ],
+    });
+
+    test('reads data: lines and skips blank lines, SSE fields and the '
+        'array brackets', () async {
+      expect(
+        await texts(
+          ': comment\nevent: message\nid: 1\nretry: 10\n[\n'
+          'data: ${chunk('a')}\n\n,\ndata:${chunk('b')}\n\n]\n',
+        ),
+        ['a', 'b'],
+      );
+    });
+
+    test('a data: line that is not JSON throws INTERNAL', () async {
+      await expectLater(
+        texts('data: ${chunk('a')}\n\ndata: {not json\n\n'),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.internal)
+              .having(
+                (e) => e.message,
+                'message',
+                'Error parsing JSON response: "{not json"',
+              ),
+        ),
+      );
+    });
+
+    test(
+      'an error body sent with a 200 keeps its status and message',
+      () async {
+        // A plain JSON error instead of SSE (e.g. when the API is overloaded,
+        // per JS parseStreamErrorText).
+        final e = await _streamErrorFor(
+          200,
+          _googleError('UNAVAILABLE', message: 'The model is overloaded.'),
+        );
+        expect(e.status, StatusCode.unavailable);
+        expect(e.message, 'Google AI Error: The model is overloaded.');
+      },
+    );
+
+    test('an error body without a gRPC status uses its code', () async {
+      final e = await _streamErrorFor(
+        200,
+        jsonEncode({
+          'error': {'code': 429, 'message': 'slow down'},
+        }),
+      );
+      expect(e.status, StatusCode.resourceExhausted);
+    });
+
+    test(
+      'other leftover text throws INTERNAL, cut to 500 characters',
+      () async {
+        final page = '<html>${'x' * 600}</html>';
+        final e = await _streamErrorFor(200, page);
+        expect(e.status, StatusCode.internal);
+        expect(
+          e.message,
+          'Failed to parse stream: ${page.substring(0, 500)}...',
+        );
+      },
+    );
+  });
 }
