@@ -262,9 +262,8 @@ void main(List<String> args) async {
     name: 'safetySettings',
     // Example of configuring safety settings.
     // Note: The model might not block the default content if it's not harmful enough.
-    // Blocking thresholds need a model called through generateContent: models
-    // called through the Interactions API (e.g. gemini-flash-latest) only
-    // accept BLOCK_NONE and throw INVALID_ARGUMENT for stricter thresholds.
+    // gemini-3.1-flash-lite is called through generateContent; see
+    // safetySettingsInteractions for a model on the Interactions API.
     inputSchema: .string(defaultValue: 'Some potentially harmful content'),
     outputSchema: .string(),
     fn: (prompt, _) async {
@@ -281,6 +280,38 @@ void main(List<String> args) async {
         ),
       );
       return response.text;
+    },
+  );
+
+  // Safety settings on a model called through the Interactions API: sent as
+  // `safety_settings`, with BLOCK_NONE sent as `off` (the Gemini API
+  // rejects `block_none`). The request must be accepted (no 400).
+  ai.defineFlow(
+    name: 'safetySettingsInteractions',
+    inputSchema: .string(defaultValue: 'Some potentially harmful content'),
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: googleAI.gemini('gemini-flash-latest'),
+        prompt: prompt,
+        config: GeminiOptions(
+          safetySettings: [
+            GeminiSafetySettings(
+              category: 'HARM_CATEGORY_HATE_SPEECH',
+              threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+            ),
+            GeminiSafetySettings(
+              category: 'HARM_CATEGORY_HARASSMENT',
+              threshold: 'BLOCK_NONE',
+            ),
+          ],
+        ),
+      );
+      return {
+        'finishReason': response.finishReason.toString(),
+        'finishMessage': response.finishMessage,
+        'text': response.text,
+      };
     },
   );
 

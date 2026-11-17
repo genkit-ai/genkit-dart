@@ -18,6 +18,7 @@ import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/src/interaction_converters.dart';
 import 'package:genkit_google_genai/src/interaction_types.dart';
 import 'package:genkit_google_genai/src/model.dart';
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 /// The parts as JSON, for comparisons.
@@ -962,6 +963,108 @@ void main() {
         selectInteractionInput(history, true, 'v1_x').previousInteractionId,
         'v1_x',
       );
+    });
+
+    group('toInteractionSafetySettings', () {
+      GeminiSafetySettings setting(Map<String, dynamic> json) =>
+          GeminiSafetySettings.fromJson(json);
+
+      test('converts to lower-case types and thresholds', () {
+        // The server rejects upper-case values with a 400 listing the
+        // lower-case ones (seen live by the JS plugin on vertexAI).
+        expect(
+          toInteractionSafetySettings([
+            setting({
+              'category': 'HARM_CATEGORY_HATE_SPEECH',
+              'threshold': 'BLOCK_LOW_AND_ABOVE',
+            }),
+            setting({
+              'category': 'HARM_CATEGORY_HARASSMENT',
+              'threshold': 'BLOCK_NONE',
+            }),
+          ])!.map((s) => s.json),
+          [
+            {'type': 'hate_speech', 'threshold': 'block_low_and_above'},
+            {'type': 'harassment', 'threshold': 'block_none'},
+          ],
+        );
+      });
+
+      test('reads only the category and threshold', () {
+        // GeminiSafetySettings has no other fields; extra keys in its JSON
+        // aren't sent.
+        expect(
+          toInteractionSafetySettings([
+            setting({
+              'category': 'HARM_CATEGORY_HATE_SPEECH',
+              'threshold': 'BLOCK_ONLY_HIGH',
+              'method': 'SEVERITY',
+            }),
+          ])!.single.json,
+          {'type': 'hate_speech', 'threshold': 'block_only_high'},
+        );
+      });
+
+      test('leaves out a setting without a category or threshold, with a '
+          'warning', () {
+        final warnings = <String>[];
+        final subscription = Logger.root.onRecord
+            .where((r) => r.level == Level.WARNING)
+            .listen((r) => warnings.add(r.message));
+        addTearDown(subscription.cancel);
+
+        expect(
+          toInteractionSafetySettings([
+            setting({'threshold': 'BLOCK_ONLY_HIGH'}),
+            setting({'category': 'HARM_CATEGORY_HARASSMENT'}),
+            setting({
+              'category': 'HARM_CATEGORY_HATE_SPEECH',
+              'threshold': 'BLOCK_ONLY_HIGH',
+            }),
+          ])!.map((s) => s.json),
+          [
+            {'type': 'hate_speech', 'threshold': 'block_only_high'},
+          ],
+        );
+        expect(warnings, hasLength(2));
+        expect(warnings.first, startsWith('Dropping safety setting without'));
+      });
+
+      test('leaves out HARM_CATEGORY_UNSPECIFIED', () {
+        expect(
+          toInteractionSafetySettings([
+            setting({
+              'category': 'HARM_CATEGORY_UNSPECIFIED',
+              'threshold': 'BLOCK_ONLY_HIGH',
+            }),
+          ]),
+          isNull,
+        );
+      });
+
+      test('returns null when not set', () {
+        expect(toInteractionSafetySettings(null), isNull);
+      });
+
+      test('sends BLOCK_NONE as off with blockNoneAsOff (googleAI)', () {
+        // The Gemini API rejects block_none with a 400 (seen live, Nov 2026).
+        expect(
+          toInteractionSafetySettings([
+            setting({
+              'category': 'HARM_CATEGORY_HARASSMENT',
+              'threshold': 'BLOCK_NONE',
+            }),
+            setting({
+              'category': 'HARM_CATEGORY_HATE_SPEECH',
+              'threshold': 'BLOCK_MEDIUM_AND_ABOVE',
+            }),
+          ], blockNoneAsOff: true)!.map((s) => s.json),
+          [
+            {'type': 'harassment', 'threshold': 'off'},
+            {'type': 'hate_speech', 'threshold': 'block_medium_and_above'},
+          ],
+        );
+      });
     });
 
     group('toInteractionConfigTool', () {

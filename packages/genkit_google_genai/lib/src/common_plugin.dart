@@ -104,6 +104,26 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   /// Gemini Enterprise Agent Platform has no such field).
   bool get supportsGenerateContentStore => false;
 
+  /// Whether Interactions requests send `safety_settings` (both plugins do).
+  /// When false, permissive settings are dropped and blocking ones throw.
+  bool get supportsInteractionSafetySettings => false;
+
+  /// Whether `BLOCK_NONE` is sent as `off` in Interactions
+  /// `safety_settings`. The Gemini API rejects `block_none` (400) and `off`
+  /// means the same there (googleAI); the platform accepts `block_none`.
+  bool get interactionSafetyBlockNoneAsOff => false;
+
+  /// Server-side tool step types left out of a stateless (`store: false`)
+  /// history on the Interactions API, because the server rejects them when
+  /// they're sent back (vertexAI). A warning is logged once when any are
+  /// left out.
+  Set<String> get unsupportedResentStepTypes => const {};
+
+  /// Whether Interactions requests to text-to-speech models ask for audio
+  /// by default (a `{type: audio}` response format). The Gemini API needs
+  /// it; vertexAI sends its TTS models through generateContent.
+  bool get defaultsTtsToAudio => true;
+
   /// Whether this plugin sends the `serviceTier` option to the API. When
   /// false, it is dropped with a warning (the vertexAI plugin has no service
   /// tier option in JS).
@@ -232,10 +252,12 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         // Logs and Datasets); there's nothing to continue. Sent only when
         // set; otherwise the project's logging setting applies. Where the
         // API has no `store` (the Gemini Enterprise Agent Platform), nothing
-        // is stored for later anyway, so only `store: true` asks for
-        // something that can't happen.
+        // is stored for later anyway, so only a request's own `store: true`
+        // asks for something that can't happen. A plugin-wide `store: true`
+        // is meant for the Interactions models and isn't warned about here
+        // (JS warns for it too; JS TODO).
         final generateContentStore = storeFromConfig ?? store;
-        if (generateContentStore == true && !supportsGenerateContentStore) {
+        if (storeFromConfig == true && !supportsGenerateContentStore) {
           warnDroppedConfigField(modelName, 'store');
         }
         if (serviceTier != null && !supportsServiceTier) {

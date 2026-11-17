@@ -27,7 +27,6 @@
 // a stream).
 //
 // Not ported yet (translate from the JS file when the feature arrives):
-// - toInteractionSafetySettings: vertexAI only.
 // - fromInteraction (to an Operation): needs background models.
 // - toInteractionRole: unused in JS.
 //
@@ -473,6 +472,51 @@ Object? toInteractionResponseFormat({
   final result = entries.values.toList();
   if (result.isEmpty) return null;
   return result.length == 1 ? result.single : result;
+}
+
+/// Converts generateContent-style safety settings to the Interactions API
+/// shape: `type` without the `HARM_CATEGORY_` prefix, and lower-case values
+/// (`HARM_CATEGORY_HATE_SPEECH` / `BLOCK_LOW_AND_ABOVE` -> `hate_speech` /
+/// `block_low_and_above`). The server rejects the upper-case values with a
+/// 400. `HARM_CATEGORY_UNSPECIFIED` has no equivalent and is left out; a
+/// setting without a category or threshold is left out with a warning (as
+/// on generateContent), instead of a vague 400 for an empty value. Unlike
+/// JS (whose config schema passes unknown keys through), only the two typed
+/// fields of [GeminiSafetySettings] are read.
+///
+/// With [blockNoneAsOff] (googleAI), `BLOCK_NONE` is sent as `off`: the
+/// Gemini API rejects `block_none` with a 400 ("allowed on the Gemini
+/// Enterprise Agent Platform"; seen live Nov 2026) and `off` means the same
+/// there. The platform accepts `block_none`, so vertexAI keeps it.
+///
+/// Returns null when [settings] is null or nothing is left.
+List<InteractionSafetySetting>? toInteractionSafetySettings(
+  List<GeminiSafetySettings>? settings, {
+  bool blockNoneAsOff = false,
+}) {
+  if (settings == null) return null;
+  final result = <InteractionSafetySetting>[];
+  for (final setting in settings) {
+    final category = setting.category;
+    final threshold = setting.threshold;
+    if (category == 'HARM_CATEGORY_UNSPECIFIED') continue;
+    if (category == null || threshold == null) {
+      logger.warning(
+        'Dropping safety setting without a category or threshold: the API '
+        'needs both.',
+      );
+      continue;
+    }
+    result.add(
+      InteractionSafetySetting(
+        type: category.replaceFirst('HARM_CATEGORY_', '').toLowerCase(),
+        threshold: blockNoneAsOff && threshold.toUpperCase() == 'BLOCK_NONE'
+            ? 'off'
+            : threshold.toLowerCase(),
+      ),
+    );
+  }
+  return result.isEmpty ? null : result;
 }
 
 /// Converts a generateContent-style `speechConfig` to the Interactions API

@@ -84,6 +84,16 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   @override
   bool get supportsServiceTier => true;
 
+  /// The Gemini API accepts `safety_settings` on interactions (lower case,
+  /// no HARM_CATEGORY_ prefix; seen live Nov 2026), but not `block_none`:
+  /// it's sent as `off`, which means the same.
+  /// See https://ai.google.dev/gemini-api/docs/safety-settings
+  @override
+  bool get supportsInteractionSafetySettings => true;
+
+  @override
+  bool get interactionSafetyBlockNoneAsOff => true;
+
   @override
   Future<GenerativeLanguageBaseClient> getApiClient([
     String? requestApiKey,

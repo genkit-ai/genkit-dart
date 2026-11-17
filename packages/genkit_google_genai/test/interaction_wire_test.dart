@@ -562,6 +562,14 @@ void _configTests() {
       expect(warnings.single, startsWith('Multiple candidates are not'));
     });
 
+    test('googleAI keeps its resend history whole and asks TTS models for '
+        'audio', () async {
+      final plugin = InteractionsWirePlugin();
+      expect(plugin.unsupportedResentStepTypes, isEmpty);
+      await _run(plugin, model: 'gemini-3.8-flash-tts');
+      expect(plugin.lastBody['response_format'], {'type': 'audio'});
+    });
+
     test('sends serviceTier', () async {
       final plugin = InteractionsWirePlugin();
       await _run(plugin, config: {'serviceTier': 'flex'});
@@ -574,7 +582,10 @@ void _configTests() {
 
 void _safetyAndSpeechTests() {
   group('safety and speech', () {
-    test('drops permissive safety settings', () async {
+    test('sends safety settings (BLOCK_NONE as off)', () async {
+      // The Gemini API accepts safety_settings on interactions, lower case
+      // without the HARM_CATEGORY_ prefix, but rejects block_none with a
+      // 400 (seen live, Nov 2026); off means the same there.
       final plugin = InteractionsWirePlugin();
       await _run(
         plugin,
@@ -585,32 +596,48 @@ void _safetyAndSpeechTests() {
               'threshold': 'BLOCK_NONE',
             },
             {
-              'category': 'HARM_CATEGORY_UNSPECIFIED',
+              'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
               'threshold': 'BLOCK_ONLY_HIGH',
+            },
+            {
+              'category': 'HARM_CATEGORY_HARASSMENT',
+              'threshold': 'BLOCK_LOW_AND_ABOVE',
+            },
+            {
+              'category': 'HARM_CATEGORY_UNSPECIFIED',
+              'threshold': 'BLOCK_LOW_AND_ABOVE',
+            },
+          ],
+        },
+      );
+      expect(plugin.lastBody['safety_settings'], [
+        {'type': 'hate_speech', 'threshold': 'off'},
+        {'type': 'dangerous_content', 'threshold': 'block_only_high'},
+        {'type': 'harassment', 'threshold': 'block_low_and_above'},
+      ]);
+      expect(
+        plugin.lastBody['generation_config'],
+        isNot(contains('safety_settings')),
+      );
+    });
+
+    test('sends no safety settings when none are left', () async {
+      final plugin = InteractionsWirePlugin();
+      await _run(
+        plugin,
+        config: {
+          'safetySettings': [
+            {
+              'category': 'HARM_CATEGORY_UNSPECIFIED',
+              'threshold': 'BLOCK_LOW_AND_ABOVE',
             },
           ],
         },
       );
       expect(plugin.lastBody, isNot(contains('safety_settings')));
-    });
 
-    test('throws for blocking safety settings', () async {
-      final plugin = InteractionsWirePlugin();
-      await expectLater(
-        _run(
-          plugin,
-          config: {
-            'safetySettings': [
-              {
-                'category': 'HARM_CATEGORY_HATE_SPEECH',
-                'threshold': 'BLOCK_ONLY_HIGH',
-              },
-            ],
-          },
-        ),
-        _throwsStatus(StatusCode.invalidArgument, contains('BLOCK_NONE')),
-      );
-      expect(plugin.requests, isEmpty);
+      await _run(plugin);
+      expect(plugin.lastBody, isNot(contains('safety_settings')));
     });
 
     test('maps the speech config', () async {
@@ -896,6 +923,23 @@ void _storeTests() {
       final plugin = InteractionsWirePlugin(store: true);
       await _run(plugin, messages: history);
       expect(plugin.lastBody['previous_interaction_id'], 'v1_prev');
+    });
+
+    test("the request's store wins over the plugin's", () async {
+      // false in the request turns off a plugin-wide true (JS ORs them).
+      var plugin = InteractionsWirePlugin(store: true);
+      await _run(plugin, messages: history, config: {'store': false});
+      var body = plugin.lastBody;
+      expect(body['store'], false);
+      expect(body, isNot(contains('previous_interaction_id')));
+      expect((body['input'] as List).length, 3);
+
+      // true in the request turns on storing over a plugin-wide false.
+      plugin = InteractionsWirePlugin(store: false);
+      await _run(plugin, messages: history, config: {'store': true});
+      body = plugin.lastBody;
+      expect(body['store'], true);
+      expect(body['previous_interaction_id'], 'v1_prev');
     });
 
     test('plugin-wide store: false is the default (stateless)', () async {
