@@ -555,7 +555,7 @@ since Mistral lists those per model.
 `api.eu.mistral.ai`, `api.us.mistral.ai` and `codestral.mistral.ai` all get the
 catalog and checks above. Any other host is treated as a gateway.
 
-Four things differ on the wire, and the plugin handles each:
+These differ on the wire, and the plugin handles each:
 
 - The token limit goes out as `max_tokens`. Mistral has no
   `max_completion_tokens`.
@@ -564,29 +564,38 @@ Four things differ on the wire, and the plugin handles each:
 - `stream_options` is dropped from streaming requests. The plugin asks every
   other host for usage that way, and Mistral reports usage on the last chunk
   without being asked.
+- The embedder `dimensions` option goes out as `output_dimension`, and the
+  embedder `user` option is dropped.
+- A reply cut off at the model's context length (`model_length`) finishes with
+  `FinishReason.length`.
 
 Tools, `toolChoice`, JSON schema structured output and image input go out
-unchanged. Inline non-image media, such as a PDF data URI, is refused before
-the request goes out: the plugin would send it as OpenAI's `file` part, and
-Mistral's `file` part takes only the id of an uploaded file.
+unchanged. Other media is refused before the request goes out: inline data
+such as a PDF data URI, because the plugin would send it as OpenAI's `file`
+part and Mistral's `file` part takes only the id of an uploaded file; and a URL
+whose `contentType` is not an image, because it would go out as `image_url`.
+
+Discovery lists what Mistral's `/v1/models` says serves chat completions
+(`capabilities.completion_chat`), plus the embedders. The OCR, moderation,
+transcription and text-to-speech models are left out; this plugin calls none
+of their endpoints.
 
 A model that thinks - Large 4 always, Small 4 and Medium 3.5 when given a
-`reasoningEffort`, Magistral and Z.ai GLM - answers with `thinking` chunks
-ahead of its text. Each comes back as a `ReasoningPart`, streamed as it
-arrives, with Mistral's signature, when it sends one, in the part's metadata
-under `thoughtSignature`. Reasoning is not sent back on the next turn.
+`reasoningEffort` of `high` - answers with `thinking` chunks ahead of its
+text. Each chunk comes back as its own `ReasoningPart`, streamed as it arrives,
+with `reasoningSource: 'mistral'` in its metadata and Mistral's signature, when
+it sends one, under `thoughtSignature`. A streamed reply's chunks are joined
+into one part in the final message. On later turns those parts go back to
+Mistral as `thinking` chunks ahead of the assistant's text, as Mistral asks, so
+a tool loop keeps its reasoning. Reasoning from other models in the history
+is not sent.
 
 `reasoningEffort` goes out for Large, Small and Medium, and for any name the
-catalog does not know. On Mistral's own hosts it is refused before the request
-goes out for the curated models Mistral does not take it on (Ministral and
-Codestral). A model declared through `models:` with a `CustomModelDefinition`
-skips that check, so the effort is sent and the API decides.
-
-Not handled yet:
-
-- The embedder `dimensions` option is sent as `dimensions`; Mistral calls it
-  `output_dimension`. The embedder `user` option is sent too, and Mistral has
-  no such field. Leave both unset.
+catalog does not know. On Mistral's own hosts it is checked before the request
+goes out: Large takes `low`, `medium` and `high`; Small and Medium take `none`
+and `high`; Ministral and Codestral take none. A model declared through
+`models:` with a `CustomModelDefinition` skips that check, so the effort is
+sent and the API decides.
 
 ## Reasoning
 

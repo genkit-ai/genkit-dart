@@ -615,7 +615,7 @@ void main() {
       });
 
       test('is left to the API for an uncurated model', () async {
-        final (response, requests) = await generate('magistral-medium-2509');
+        final (response, requests) = await generate('zai-glm-5-3');
 
         expect(response.finishReason, FinishReason.stop);
         expect(chatBodyOf(requests)['reasoning_effort'], 'high');
@@ -671,7 +671,7 @@ void main() {
             'mistral-small-latest',
             'mistral-large-4',
             'mistral-large-latest',
-            'magistral-medium-latest',
+            'labs-leanstral-1-5',
             'zai-glm-5-3',
             'mistral-ocr-latest',
           ],
@@ -683,7 +683,7 @@ void main() {
       expect(names, contains('mistral/mistral-small-latest'));
       expect(names, contains('mistral/mistral-large-4'));
       expect(names, contains('mistral/mistral-large-latest'));
-      expect(names, contains('mistral/magistral-medium-latest'));
+      expect(names, contains('mistral/labs-leanstral-1-5'));
       expect(names, contains('mistral/zai-glm-5-3'));
       expect(names, isNot(contains('mistral/mistral-ocr-latest')));
     });
@@ -802,7 +802,7 @@ void main() {
     test('a name it declines still resolves when asked for', () {
       final plugin = OpenAIPlugin(provider: mistralProvider, apiKey: 'm-key');
 
-      expect(plugin.resolve(.model, 'magistral-medium-latest'), isNotNull);
+      expect(plugin.resolve(.model, 'mistral-ocr-latest'), isNotNull);
     });
   });
 
