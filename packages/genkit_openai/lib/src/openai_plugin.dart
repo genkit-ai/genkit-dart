@@ -256,14 +256,17 @@ class OpenAIPlugin extends GenkitPlugin {
   /// not recognise: the caller may well mean that path.
   ///
   /// The host itself is kept, so a provider with several own hosts - Mistral's
-  /// regional ones - is dialled on the one the caller named.
+  /// regional ones - is dialled on the one the caller named. OpenAI has no
+  /// default of its own here, so a path-less `https://api.openai.com` goes
+  /// out as null and gets the SDK's default, which carries `/v1`.
   String? get _wireBaseUrl {
     final url = baseUrl;
-    final defaultUrl = provider.defaultBaseUrl;
-    if (!_ownHost || url == null || defaultUrl == null) return url;
+    if (!_ownHost || url == null) return url;
     final parsed = Uri.tryParse(url);
     final path = parsed?.path ?? '';
     if (parsed == null || (path.isNotEmpty && path != '/')) return url;
+    final defaultUrl = provider.defaultBaseUrl;
+    if (defaultUrl == null) return null;
     return parsed.replace(path: Uri.parse(defaultUrl).path).toString();
   }
 
