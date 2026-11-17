@@ -30,11 +30,22 @@ import 'package:http/http.dart' as http;
 /// SDK decodes it.
 ///
 /// Both the buffered and the streaming chat calls build an `http.Request` and
-/// send it through this client, so one decorator covers both.
+/// send it through this client, so one decorator covers both. The embeddings
+/// call goes through it too, with [endpoint] set to `/embeddings`, for a host
+/// that spells the embeddings request differently.
 class ChatBodyClient extends http.BaseClient {
-  ChatBodyClient(this._inner, {this.rewriteRequest, this.rewriteReply});
+  ChatBodyClient(
+    this._inner, {
+    this.rewriteRequest,
+    this.rewriteReply,
+    this.endpoint = '/chat/completions',
+  });
 
   final http.Client _inner;
+
+  /// The path suffix of the requests this client rewrites. Every other
+  /// request passes through untouched.
+  final String endpoint;
 
   /// Rewrites the decoded request body, or null to send it as encoded.
   final Map<String, dynamic> Function(Map<String, dynamic> body)?
@@ -48,7 +59,7 @@ class ChatBodyClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     if (request is! http.Request ||
         request.method != 'POST' ||
-        !request.url.path.endsWith('/chat/completions')) {
+        !request.url.path.endsWith(endpoint)) {
       return _inner.send(request);
     }
 

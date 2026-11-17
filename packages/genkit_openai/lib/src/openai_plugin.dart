@@ -589,11 +589,19 @@ class OpenAIPlugin extends GenkitPlugin {
         final inputs = embed.embeddingInputs(req.input);
 
         final resolvedConfig = await _resolveClientConfig();
+        final rewrite = provider.rewriteEmbeddingBody;
+        final transport = rewrite == null
+            ? httpClient
+            : ChatBodyClient(
+                httpClient ?? http.Client(),
+                rewriteRequest: rewrite,
+                endpoint: '/embeddings',
+              );
         final client = sdk.OpenAIClient.withApiKey(
           resolvedConfig.apiKey,
           baseUrl: resolvedConfig.baseUrl,
           defaultHeaders: resolvedConfig.headers,
-          httpClient: httpClient,
+          httpClient: transport,
         );
 
         try {
@@ -623,6 +631,7 @@ class OpenAIPlugin extends GenkitPlugin {
         } finally {
           if (httpClient == null) {
             client.close();
+            transport?.close();
           }
         }
       },

@@ -1533,5 +1533,122 @@ void main() {
       expect(request.body['model'], 'mistral-embed');
       expect(request.body, isNot(contains('dimensions')));
     });
+
+    test('sends dimensions as output_dimension, and no user', () async {
+      server.enqueue(
+        FakeResponse.json({
+          'object': 'list',
+          'model': 'codestral-embed',
+          'data': [
+            {
+              'object': 'embedding',
+              'index': 0,
+              'embedding': [0.1, 0.2],
+            },
+          ],
+          'usage': {'prompt_tokens': 1, 'total_tokens': 1},
+        }),
+      );
+      final ai = Genkit(
+        plugins: [mistral(apiKey: 'm-key', baseUrl: server.baseUrl)],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.embed(
+        embedder: mistral.embedder('codestral-embed'),
+        document: DocumentData(content: [TextPart(text: 'hello')]),
+        options: OpenAIEmbedderOptions(dimensions: 256, user: 'end-user-1'),
+      );
+
+      final body = server.requests.single.body;
+      expect(body['output_dimension'], 256);
+      expect(body, isNot(contains('dimensions')));
+      expect(body, isNot(contains('user')));
+      // Mistral's EmbeddingRequest is closed.
+      expect(
+        body.keys.toSet().difference(const {
+          'model',
+          'input',
+          'metadata',
+          'output_dimension',
+          'output_dtype',
+          'encoding_format',
+        }),
+        isEmpty,
+      );
+    });
+  });
+
+  group('embedding dialect', () {
+    test('renames dimensions and drops user, leaving the rest', () {
+      expect(
+        mistralEmbeddingBody({
+          'model': 'mistral-embed',
+          'input': ['a'],
+          'dimensions': 8,
+          'user': 'u',
+        }),
+        {
+          'model': 'mistral-embed',
+          'input': ['a'],
+          'output_dimension': 8,
+        },
+      );
+    });
+
+    test('adds nothing when no dimensions were asked for', () {
+      expect(
+        mistralEmbeddingBody({
+          'model': 'mistral-embed',
+          'input': ['a'],
+        }),
+        {
+          'model': 'mistral-embed',
+          'input': ['a'],
+        },
+      );
+    });
+
+    test('goes through an injected client too', () async {
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [
+          mistral(
+            apiKey: 'k',
+            httpClient: MockClient((request) async {
+              requests.add(request);
+              return http.Response(
+                jsonEncode({
+                  'object': 'list',
+                  'model': 'mistral-embed',
+                  'data': [
+                    {
+                      'object': 'embedding',
+                      'index': 0,
+                      'embedding': [0.5],
+                    },
+                  ],
+                  'usage': {'prompt_tokens': 1, 'total_tokens': 1},
+                }),
+                200,
+                headers: {'content-type': 'application/json'},
+              );
+            }),
+          ),
+        ],
+      );
+      addTearDown(ai.shutdown);
+
+      await ai.embed(
+        embedder: mistral.embedder('mistral-embed'),
+        document: DocumentData(content: [TextPart(text: 'hello')]),
+        options: OpenAIEmbedderOptions(dimensions: 512),
+      );
+
+      final body = jsonDecode(requests.single.body) as Map<String, dynamic>;
+      expect(requests.single.url.path, '/v1/embeddings');
+      expect(body['output_dimension'], 512);
+      expect(body, isNot(contains('dimensions')));
+    });
   });
 }

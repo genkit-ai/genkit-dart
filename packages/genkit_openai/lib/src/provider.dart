@@ -99,6 +99,11 @@ final class OpenAIProvider {
   final Map<String, dynamic> Function(Map<String, dynamic> reply)?
   rewriteChatReply;
 
+  /// Rewrites an encoded `/embeddings` body, or null when the request the
+  /// SDK builds is already the one the host reads. See [rewriteChatBody].
+  final Map<String, dynamic> Function(Map<String, dynamic> body)?
+  rewriteEmbeddingBody;
+
   /// Whether the host reads `max_tokens` rather than `max_completion_tokens`.
   ///
   /// OpenAI deprecated the former for the latter; most compatible hosts never
@@ -174,6 +179,7 @@ final class OpenAIProvider {
     this.reasoningSource,
     this.rewriteChatBody,
     this.rewriteChatReply,
+    this.rewriteEmbeddingBody,
     this.usesLegacyMaxTokens = false,
     this.supportsJsonSchema = true,
     this.acceptsFileParts = true,
@@ -272,6 +278,7 @@ final mistralProvider = OpenAIProvider(
   servesModel: (model) => !model.toLowerCase().contains('ocr'),
   rewriteChatBody: mistralChatBody,
   rewriteChatReply: mistralChatReply,
+  rewriteEmbeddingBody: mistralEmbeddingBody,
   usesLegacyMaxTokens: true,
   acceptsFileParts: false,
 );
@@ -339,6 +346,25 @@ Object? _mistralMessage(Object? message) {
 /// The `reasoningSource` Mistral's reasoning parts are marked with, the same
 /// mark the JS and Python plugins use.
 const mistralReasoningSource = 'mistral';
+
+/// Rewrites an embeddings request into the fields Mistral defines.
+///
+/// - `dimensions` goes out as `output_dimension`, Mistral's name for it.
+/// - `user` is dropped: Mistral has no such field.
+///
+/// Mistral's `EmbeddingRequest` is closed like its chat request, so either
+/// field under its OpenAI name is a 422.
+///
+/// https://docs.mistral.ai/api/#tag/embeddings
+Map<String, dynamic> mistralEmbeddingBody(Map<String, dynamic> body) {
+  final dimensions = body['dimensions'];
+  return {
+    for (final entry in body.entries)
+      if (entry.key != 'dimensions' && entry.key != 'user')
+        entry.key: entry.value,
+    'output_dimension': ?dimensions,
+  };
+}
 
 /// Mistral's API hosts: global, EU and US, and `codestral.mistral.ai`, which
 /// serves Codestral-only keys.
