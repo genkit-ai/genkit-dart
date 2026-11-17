@@ -143,6 +143,18 @@ abstract final class GenkitConverter {
       if (media.url.startsWith('data:')) {
         // Parse data URI: data:<mediaType>;base64,<data>
         final commaIdx = media.url.indexOf(',');
+        if (!_isBase64DataUrl(media.url)) {
+          // Both the image and the file part are rebuilt as
+          // `data:<type>;base64,<data>`, so a percent-encoded payload such as
+          // `data:text/plain,hello` would go out claiming to be base64 when
+          // it is not.
+          throw GenkitException(
+            'Only base64 data URLs can be sent inline; got a $mimeType data '
+            'URL without ";base64". Encode the data as base64 '
+            '("data:$mimeType;base64,...").',
+            status: StatusCode.invalidArgument,
+          );
+        }
         final base64Data = media.url.substring(commaIdx + 1);
         if (isImage) {
           return sdk.ContentPart.imageBase64(
@@ -191,6 +203,17 @@ abstract final class GenkitConverter {
     final declared = media.contentType ?? _dataUrlMimeType(media.url);
     final base = (declared ?? '').split(';').first.trim();
     return base.isEmpty ? 'image/png' : base;
+  }
+
+  /// Whether [url] is a well-formed `data:` URL whose header says `base64`.
+  static bool _isBase64DataUrl(String url) {
+    final comma = url.indexOf(',');
+    if (comma < 0) return false;
+    return url
+        .substring('data:'.length, comma)
+        .split(';')
+        .skip(1)
+        .any((param) => param.trim().toLowerCase() == 'base64');
   }
 
   /// The MIME type in a `data:` URL's header, or null when it names none.
