@@ -57,7 +57,9 @@ final _isBlockedWithoutRatingsException = anyOf(
       ),
 );
 
-/// A part firebase_ai still cannot parse (firebase/flutterfire#18881).
+/// A part firebase_ai cannot parse: every version allowed by
+/// `>=3.15.0 <6.0.0` rejects a functionCall without a name. Synthetic; Gemini
+/// always sends one.
 final _unparseable = {
   'candidates': [
     {
@@ -65,7 +67,7 @@ final _unparseable = {
         'role': 'model',
         'parts': [
           {
-            'codeExecutionResult': {'outcome': 'OUTCOME_OK'},
+            'functionCall': {'args': <String, dynamic>{}},
           },
         ],
       },
@@ -179,8 +181,13 @@ void main() {
       ],
     );
 
-    expect(result.finishReason, FinishReason.failed);
     expect(client.requests, hasLength(1));
+    expect(result.finishReason, FinishReason.failed);
+    expect(result.error?.status, StatusCode.unknown.wireName);
+    expect(
+      result.error?.message,
+      contains('Unhandled format for functionCall'),
+    );
   });
 
   test('a response with candidates is returned even when promptFeedback '

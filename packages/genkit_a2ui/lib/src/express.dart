@@ -19,9 +19,11 @@
 /// narrow adapter: if it changes, only this file should need to.
 library;
 
+import 'dart:convert';
+
 import 'package:a2ui_agent/a2ui_agent.dart';
 import 'package:a2ui_core/a2ui_core.dart'
-    show A2uiError, A2uiProtocolVersion, AgentToRendererMessage;
+    show A2uiError, A2uiProtocolVersion, AgentToRendererMessage, CatalogApi;
 import 'package:logging/logging.dart';
 
 import 'catalog_types.dart';
@@ -29,14 +31,72 @@ import 'types.dart';
 
 final _logger = Logger('genkit_a2ui.express');
 
+const _atComponentKeys = {
+  '@checks': 'checks',
+  '@accessibility': 'accessibility',
+  '@catalogId': 'catalogId',
+  '@metadata': 'metadata',
+};
+
+final _jsonBlockRe = RegExp(r'```json[ \t]*\r?\n([\s\S]*?)\r?\n```');
+
+/// Normalizes `@checks`, `@accessibility`, `@catalogId` and `@metadata` inside
+/// fenced JSON examples in [core]'s instructions to the bare keys that
+/// `a2ui_agent` 0.3's `ExpressDecompiler` expects, keeping [A2uiCatalog.toJson]
+/// lossless on published v1.0 `catalog.json` files.
+CatalogApi _forExpress(CatalogApi core) {
+  final instructions = core.instructions;
+  if (instructions == null || !instructions.contains('"@')) return core;
+  var changed = false;
+  Object? rewrite(Object? node) => switch (node) {
+    final List<Object?> l => [for (final item in l) rewrite(item)],
+    final Map<Object?, Object?> m => <String, Object?>{
+      for (final MapEntry(:key, :value) in m.entries)
+        switch (_atComponentKeys[key]) {
+          final String bare when !m.containsKey(bare) => () {
+            changed = true;
+            return bare;
+          }(),
+          _ => '$key',
+        }: rewrite(
+          value,
+        ),
+    },
+    _ => node,
+  };
+  final normalized = instructions.replaceAllMapped(_jsonBlockRe, (match) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(match[1]!);
+    } on FormatException {
+      return match[0]!;
+    }
+    var blockChanged = false;
+    final prev = changed;
+    changed = false;
+    final updated = rewrite(decoded);
+    blockChanged = changed;
+    changed = prev || blockChanged;
+    if (!blockChanged) return match[0]!;
+    return '```json\n${const JsonEncoder.withIndent('  ').convert(updated)}\n```';
+  });
+  return changed
+      ? core.derive(catalogId: core.id, instructions: normalized)
+      : core;
+}
+
 /// Prompts for and compiles A2UI Express against one catalog.
 final class ExpressEngine {
   ExpressEngine._(A2uiCatalog catalog)
+    : this._core(_forExpress(catalog.toCore()));
+
+  ExpressEngine._core(CatalogApi core)
     : _processor = A2uiRequestProcessor(
-        activeCatalogs: [catalog.toCore()],
+        activeCatalogs: [core],
         formatFactory: const ExpressFormatFactory(),
       ),
-      _format = const ExpressFormatFactory().createFormat([catalog.toCore()]);
+      _format = const ExpressFormatFactory().createFormat([core]),
+      version = core.protocolVersion ?? A2uiProtocolVersion.v0_9;
 
   /// The engine for [catalog], created once per catalog instance.
   factory ExpressEngine.of(A2uiCatalog catalog) =>
@@ -47,6 +107,21 @@ final class ExpressEngine {
   final A2uiRequestProcessor _processor;
   final InferenceFormat _format;
 
+  /// The protocol version the catalog targets, which decides the shape of every
+  /// message compiled against it.
+  final A2uiProtocolVersion version;
+
+  /// Wire `version` values in this catalog's protocol family, which can be
+  /// replayed into its mirror.
+  Set<String> get compatibleVersions =>
+      version.isAtLeast(A2uiProtocolVersion.v1_0)
+      ? {version.jsonValue}
+      // a2ui_agent stamps every pre-1.0 message 'v0.9', also for v0.9.1.
+      : {
+          A2uiProtocolVersion.v0_9.jsonValue,
+          A2uiProtocolVersion.v0_9_1.jsonValue,
+        };
+
   /// Reused across blocks: setting a parser up costs more than compiling a
   /// typical block.
   late final _parser = _format.createParser();
@@ -55,10 +130,10 @@ final class ExpressEngine {
   /// signatures, as model-facing prompt text.
   late final String promptSnippet = _processor.promptSnippet;
 
-  /// Compiles one Express block (without its `<a2ui>` tags) into v0.9
-  /// envelopes, running only the compiler's own checks (syntax, catalog
-  /// membership, property schemas). [SurfaceMirror.apply] checks the result
-  /// the way a renderer would.
+  /// Compiles one Express block (without its `<a2ui>` tags) into A2UI
+  /// envelopes matching [version], running only the compiler's own checks
+  /// (syntax, catalog membership, property schemas). [SurfaceMirror.apply]
+  /// checks the result the way a renderer would.
   ///
   /// Throws an `A2uiError` from `a2ui_core` when the block is rejected:
   /// `A2uiParseError` for a syntax error, `A2uiValidationError` for something
@@ -73,15 +148,15 @@ final class ExpressEngine {
   /// is skipped, so one bad message from an earlier turn (or from before this
   /// package compiled Express) does not hide the surfaces that did render.
   SurfaceMirror mirror(Iterable<A2uiEnvelope> history) {
-    final mirror = SurfaceMirror._(_processor.createState());
+    final mirror = SurfaceMirror._(_processor.createState(), version);
     var skipped = 0;
     Object? firstError;
-    for (final envelope in _liveHistory(history)) {
+    for (final envelope in _liveHistory(history, compatibleVersions)) {
       try {
         // History written by a client may leave out the version.
         mirror._state.apply(
-          SurfaceMirror._parse([
-            {'version': a2uiVersion, ...envelope},
+          mirror._parse([
+            {'version': version.jsonValue, ...envelope},
           ]),
         );
       } on A2uiError catch (e) {
@@ -112,12 +187,15 @@ final class ExpressEngine {
 /// and drops surfaces that ended deleted. It follows the renderer's rules: a
 /// `createSurface` for a surface that is already live is rejected there, so it
 /// is ignored here too, and the updates after it still apply to the old tree.
-List<A2uiEnvelope> _liveHistory(Iterable<A2uiEnvelope> history) {
+List<A2uiEnvelope> _liveHistory(
+  Iterable<A2uiEnvelope> history,
+  Set<String> versions,
+) {
   final live = <String, List<(int, A2uiEnvelope)>>{};
   for (final (i, e) in history.indexed) {
     // A message of another protocol version is rejected when replayed, so it
     // must not decide what is live either.
-    if (e['version'] case final Object v when v != a2uiVersion) continue;
+    if (e['version'] case final Object v when !versions.contains(v)) continue;
     switch (e) {
       case {'createSurface': {'surfaceId': final String id}}:
         if (!live.containsKey(id)) live[id] = [(i, e)];
@@ -140,9 +218,10 @@ List<A2uiEnvelope> _liveHistory(Iterable<A2uiEnvelope> history) {
 /// earlier turn rendered (a block without `root` targets an existing surface),
 /// and a component reference resolves against what the renderer already holds.
 final class SurfaceMirror {
-  SurfaceMirror._(this._state);
+  SurfaceMirror._(this._state, this._version);
 
   final RendererState _state;
+  final A2uiProtocolVersion _version;
 
   /// Applies [envelopes] as one unit, checking them the way a renderer would:
   /// every update targets a live surface, every reference resolves, every
@@ -169,8 +248,8 @@ final class SurfaceMirror {
     });
   }
 
-  static List<AgentToRendererMessage> _parse(List<A2uiEnvelope> envelopes) =>
+  List<AgentToRendererMessage> _parse(List<A2uiEnvelope> envelopes) =>
       AgentToRendererMessage.parseAll([
         for (final e in envelopes) e.cast<String, Object?>(),
-      ], protocolVersion: A2uiProtocolVersion.v0_9).messages;
+      ], protocolVersion: _version).messages;
 }

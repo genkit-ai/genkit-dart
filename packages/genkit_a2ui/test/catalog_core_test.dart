@@ -25,26 +25,39 @@ import 'package:genkit_a2ui/a2ui.dart';
 import 'package:genkit_a2ui/src/catalog_types.dart' show A2uiCatalogCore;
 import 'package:test/test.dart';
 
+/// The published v1.0 basic catalog, used unmodified.
+A2uiCatalog loadSpecCatalog() =>
+    loadFixture('test/fixtures/basic_catalog_v1_0.json');
+
 /// The published v0.9.1 basic catalog, used unmodified.
-A2uiCatalog loadSpecCatalog() => A2uiCatalog.fromJson(
-  jsonDecode(File('test/fixtures/basic_catalog_v0_9_1.json').readAsStringSync())
-      as Map<String, dynamic>,
+A2uiCatalog loadSpecV09Catalog() =>
+    loadFixture('test/fixtures/basic_catalog_v0_9_1.json');
+
+A2uiCatalog loadFixture(String path) => A2uiCatalog.fromJson(
+  jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>,
 );
 
 /// Compiles one Express block against [catalog] and returns its components.
+///
+/// v1.0 inlines the tree on `createSurface`; v0.9 emits `updateComponents`.
 List<Map<String, Object?>> compile(A2uiCatalog catalog, String block) {
   final format = const ExpressFormatFactory().createFormat([catalog.toCore()]);
-  final messages = format.createParser().compile(block);
-  final update = messages
-      .map((m) => m.toJson())
-      .firstWhere((m) => m.containsKey('updateComponents'));
-  return ((update['updateComponents']! as Map)['components']! as List)
-      .cast<Map<String, Object?>>();
+  final messages = [
+    for (final m in format.createParser().compile(block)) m.toJson(),
+  ];
+  final carrier = messages.firstWhere(
+    (m) =>
+        m.containsKey('updateComponents') ||
+        (m['createSurface'] as Map?)?.containsKey('components') == true,
+  );
+  final body =
+      (carrier['updateComponents'] ?? carrier['createSurface'])! as Map;
+  return (body['components']! as List).cast<Map<String, Object?>>();
 }
 
 const weatherCard = '''
 surface("tokyo")
-title = Text("Tokyo", "h3")
+title = Text("## Tokyo")
 refresh = Button(Text("Refresh"), action=Event("refresh", {city: "Tokyo"}))
 root = Card(Column([title, refresh]))
 ''';
@@ -87,16 +100,21 @@ void main() {
             for (final key in props.keys)
               if (key != 'component') key as String,
       ];
-      final published = loadSpecCatalog();
-      for (final MapEntry(key: name, value: bundled)
-          in basicCatalog.components.entries) {
-        final mine = order(bundled.schema);
-        final theirs = order(published.components[name]!.schema);
-        expect(
-          theirs.take(mine.length),
-          mine,
-          reason: '$name: $mine is not a prefix of the published $theirs',
-        );
+      for (final (bundledCatalog, published) in [
+        (basicCatalog, loadSpecCatalog()),
+        (basicCatalogV09, loadSpecV09Catalog()),
+      ]) {
+        for (final MapEntry(key: name, value: bundled)
+            in bundledCatalog.components.entries) {
+          final mine = order(bundled.schema);
+          final theirs = order(published.components[name]!.schema);
+          expect(
+            theirs.take(mine.length),
+            mine,
+            reason:
+                '${bundledCatalog.id} $name: $mine is not a prefix of $theirs',
+          );
+        }
       }
     });
 
@@ -108,16 +126,20 @@ void main() {
     });
 
     test('declares the published basic catalog functions verbatim', () {
-      final published = loadSpecCatalog().functions;
-      expect(basicCatalog.functions.keys, published.keys);
-      basicCatalog.functions.forEach((name, function) {
-        // Encoded, so key order (positional in Express) is compared too.
-        expect(
-          jsonEncode(function.toJson()),
-          jsonEncode(published[name]!.toJson()),
-          reason: name,
-        );
-      });
+      for (final (bundledCatalog, published) in [
+        (basicCatalog, loadSpecCatalog().functions),
+        (basicCatalogV09, loadSpecV09Catalog().functions),
+      ]) {
+        expect(bundledCatalog.functions.keys, published.keys);
+        bundledCatalog.functions.forEach((name, function) {
+          // Encoded, so key order (positional in Express) is compared too.
+          expect(
+            jsonEncode(function.toJson()),
+            jsonEncode(published[name]!.toJson()),
+            reason: '${bundledCatalog.id}: $name',
+          );
+        });
+      }
     });
 
     test('is parsed once per catalog', () {
@@ -137,8 +159,7 @@ void main() {
         expect(byId['title'], {
           'id': 'title',
           'component': 'Text',
-          'text': 'Tokyo',
-          'variant': 'h3',
+          'text': '## Tokyo',
         });
         // `child` is a component-id slot, so the inline Text is hoisted.
         expect(byId['refresh']!['child'], 'refresh_child');
@@ -178,7 +199,7 @@ void main() {
       expect(gauge, {
         'id': 'root',
         'component': 'Gauge',
-        'value': {'path': '/temp'},
+        'value': {'@path': '/temp'},
         'max': 40,
         'unit': 'C',
       });
@@ -356,7 +377,7 @@ void main() {
       );
       final loaded = loadSpecCatalog();
       expect(
-        () => (loaded.components['Text']!.schema['allOf'] as List).clear(),
+        () => (loaded.components['TextField']!.schema['allOf'] as List).clear(),
         throwsUnsupportedError,
       );
     });
@@ -382,6 +403,77 @@ void main() {
         'minimum': 1,
       });
       expect(c.schema['required'], ['component', 'size']);
+    });
+
+    test('defaults Dart-built catalogs to protocolVersion 1.0', () {
+      final v1 = A2uiCatalog(
+        id: 'x',
+        components: [
+          A2uiCatalogComponent.simple(
+            name: 'Banner',
+            params: [const A2uiParam.dynamicValue('title', required: true)],
+          ),
+        ],
+      );
+      expect(v1.protocolVersion, '1.0');
+      expect(v1.toCore().protocolVersion?.jsonValue, '1.0');
+      final compiled = compile(v1, r'root = Banner($/t)').single;
+      expect(compiled['title'], {'@path': '/t'});
+
+      final v09 = A2uiCatalog(
+        id: 'y',
+        protocolVersion: 'v0.9',
+        components: [
+          A2uiCatalogComponent.simple(
+            name: 'Banner',
+            params: [const A2uiParam.dynamicValue('title', required: true)],
+          ),
+        ],
+      );
+      expect(v09.protocolVersion, 'v0.9');
+      expect(v09.toJson().containsKey('protocolVersion'), isFalse);
+      expect(compile(v09, r'root = Banner($/t)').single['title'], {
+        'path': '/t',
+      });
+    });
+
+    test(
+      'canonicalizes semver protocolVersion spellings and rejects invalid ones',
+      () {
+        final fromDoc = A2uiCatalog.fromJson({
+          'catalogId': 'x',
+          'protocolVersion': '1.0.0',
+          'components': <String, dynamic>{},
+        });
+        expect(fromDoc.protocolVersion, '1.0');
+        expect(fromDoc.toJson()['protocolVersion'], '1.0.0');
+
+        final v09Short = A2uiCatalog(
+          id: 'y',
+          protocolVersion: '0.9',
+          components: const [],
+        );
+        expect(v09Short.protocolVersion, 'v0.9');
+        expect(v09Short.toJson().containsKey('protocolVersion'), isFalse);
+
+        expect(
+          () => A2uiCatalog(
+            id: 'bad',
+            protocolVersion: '9.9',
+            components: const [],
+          ),
+          throwsArgumentError,
+        );
+      },
+    );
+
+    test('decompiles @checks examples from published v1.0 catalog.json without '
+        'mutating toJson()', () {
+      final spec = loadSpecCatalog();
+      expect(spec.toJson()['instructions'], contains('"@checks"'));
+      final rendered = renderCatalogInstructions(spec);
+      expect(rendered, isNot(contains('```json')));
+      expect(rendered, contains('?required("Deal value is required.")'));
     });
   });
 }

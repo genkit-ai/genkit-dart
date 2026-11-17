@@ -13,15 +13,15 @@ topics:
   - ui
 
 screenshots:
-  - description: An A2UI weather card rendered by a Flutter genui client.
+  - description: An A2UI weather card rendered by a Flutter client.
     path: doc/a2ui.png
 
 environment:
   sdk: ^3.12.0
 
 dependencies:
-  a2ui_agent: ^0.1.0
-  a2ui_core: ^0.5.0
+  a2ui_agent: ^0.3.0
+  a2ui_core: ^0.7.0
   genkit: ^1.0.2
   logging: ^1.3.0
   meta: ^1.17.0

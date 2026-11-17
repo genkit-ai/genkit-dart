@@ -77,6 +77,11 @@ jobs:
         working-directory: testapps/a2ui/client
         run: flutter analyze
 
+      # Renders canned A2UI messages; needs neither the server nor an API key.
+      - name: "testapps/a2ui/client: Tests"
+        working-directory: testapps/a2ui/client
+        run: flutter test
+
       - name: Verify clean git tree
         run: |
           git diff --exit-code

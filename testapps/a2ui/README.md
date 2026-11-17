@@ -1,4 +1,4 @@
-# A2UI sample (server + Flutter genui client)
+# A2UI sample (server + Flutter client)
 
 A complete, runnable sample of [A2UI](https://a2ui.org/) with Genkit Dart, split
 into two packages:
@@ -8,17 +8,19 @@ into two packages:
   `package:genkit_a2ui/a2ui.dart` in the agent's `use` list. It is a member of
   the root pub workspace.
 - **`client/`**: a Flutter app that streams the agent with `remoteAgent` and
-  renders each surface with the [`genui`](https://pub.dev/packages/genui)
-  renderer (`SurfaceController` + `Surface`). Button presses and form submits
-  are sent back to the agent as the next turn.
+  renders each surface with
+  [`a2ui_flutter`](https://pub.dev/packages/a2ui_flutter) (an `a2ui_core`
+  `MessageProcessor` plus an `A2uiSurface` widget per surface). Button presses
+  and form submits are sent back to the agent as the next turn.
 
 The client deliberately does **not** depend on `genkit_a2ui`. A2UI travels as
-spec-shaped data parts, so the client needs only `package:genkit`, `genui`, and
-the two helpers in `client/lib/a2ui_helpers.dart` (copied from the
-`genkit_a2ui` README). That way the server package's dependencies can never
-constrain which `genui` version the client uses. It is also why the two halves
-are separate packages: pub resolves a whole package at once, so a shared
-pubspec would pull the server's dependencies into the client.
+spec-shaped data parts, so the client needs only `package:genkit`,
+`a2ui_flutter`, `a2ui_core`, and the two helpers in
+`client/lib/a2ui_helpers.dart` (copied from the `genkit_a2ui` README). That way
+the server package's dependencies can never constrain which renderer version
+the client uses. It is also why the two halves are separate packages: pub
+resolves a whole package at once, so a shared pubspec would pull the server's
+dependencies into the client.
 
 It also demonstrates a **custom catalog**: a bespoke `Gauge` component that is
 not part of the bundled basic catalog. See ["Custom catalog"](#custom-catalog)
@@ -53,6 +55,9 @@ below.
    Point it at a different server with
    `--dart-define=AGENT_BASE_URL=http://host:port`.
 
+The client's widget tests (`flutter test` in `client/`) render a surface from
+canned messages, so they need neither the server nor an API key.
+
 ## Try it
 
 - "What's the weather in Tokyo?" renders a weather card.
@@ -67,13 +72,13 @@ below.
 - The `a2ui()` middleware turns the model's UI blocks into a2ui `data` parts
   (`{"messages": [...]}`, mime `application/a2ui+json`) on both the streamed
   chunks and the final message.
-- The client reads those messages with `a2uiMessagesFrom`, converts each to a
-  genui `A2uiMessage`, and feeds it to a `SurfaceController`. The client catalog
-  is tagged with the same catalog id the agent uses, so surfaces resolve to real
+- The client reads those messages with `a2uiMessagesFrom` and feeds each to a
+  `MessageProcessor`, which creates and updates the surfaces. The client
+  catalog has the same catalog id the agent uses, so surfaces resolve to real
   widgets.
-- genui reports a button press as a spec-shaped `{version, action}` envelope.
-  `a2uiSubmitToMessage` forwards it untouched as the next turn, and the
-  middleware summarizes it for the model.
+- The renderer reports a button press as a spec-shaped `{version, action}`
+  message. `a2uiActionToMessage` forwards it untouched as the next turn, and
+  the middleware summarizes it for the model.
 
 ## Custom catalog
 
@@ -89,12 +94,10 @@ catalog id (here `com.example.a2ui.weather`, in each package's
   in the catalog. `registerCatalogs()` (called from `server/bin/server.dart`)
   registers it with `loadCatalog(...)`, and the agent selects it with
   `a2ui(catalog: weatherCatalogId, validate: 'strict')`.
-- **Client** (`client/lib/gauge.dart` + `client/lib/main.dart`):
-  `gaugeCatalogItem` is a genui `CatalogItem` (a `name`, a prop `dataSchema`,
-  and a `widgetBuilder` that paints the gauge). `main.dart` adds it to genui's
-  basic widgets and re-tags the whole catalog with the same id
-  (`BasicCatalogItems.asCatalog().copyWith(newItems: [gaugeCatalogItem],
-  catalogId: weatherCatalogId)`).
+- **Client** (`client/lib/gauge.dart` + `client/lib/catalog.dart`): `gauge` is
+  an a2ui_flutter `ComponentImplementation` (a `name`, a prop `schema`, and a
+  `builder` that paints the gauge). `catalog.dart` lists it next to the basic
+  components in a `CatalogImplementation` under the same id.
 
 The `name` on both sides (`'Gauge'`) and the catalog id must match, otherwise the
 model would emit a `Gauge` the client can't render, or the client would register

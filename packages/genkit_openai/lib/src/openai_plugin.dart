@@ -851,7 +851,7 @@ class OpenAIPlugin extends GenkitPlugin {
     final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
 
     return ModelResponse(
-      finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
+      finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.value),
       message: message,
       usage: GenkitConverter.mapUsage(response.usage),
       raw: response.toJson(),
@@ -873,7 +873,7 @@ class OpenAIPlugin extends GenkitPlugin {
     final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
 
     return ModelResponse(
-      finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
+      finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.value),
       message: message,
       usage: GenkitConverter.mapUsage(response.usage),
       raw: response.toJson(),

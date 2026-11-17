@@ -16,18 +16,16 @@
 ///
 /// They are copied rather than imported so the client never depends on
 /// genkit_a2ui (and so genkit_a2ui's dependencies can never constrain which
-/// genui version the client uses). Keep [a2uiMessagesFrom] and
-/// [a2uiSubmitToMessage] in sync with the README.
+/// renderer version the client uses). Keep them in sync with the README.
 library;
 
-import 'dart:convert';
-
+import 'package:a2ui_core/a2ui_core.dart'
+    show ActionMessage, RendererToAgentMessagePayload;
 import 'package:genkit/client.dart';
-// genui also exports `Part`/`DataPart` (from genai_primitives), so take only
-// what is needed.
-import 'package:genui/genui.dart' show ChatMessage, UiPartExtension;
 
 const a2uiMimeType = 'application/a2ui+json';
+
+const _envelopeKeys = {'checks', 'accessibility', 'catalogId', 'metadata'};
 
 /// The A2UI messages carried by a chunk's or message's parts.
 Iterable<Map<String, dynamic>> a2uiMessagesFrom(List<Part>? parts) sync* {
@@ -37,47 +35,76 @@ Iterable<Map<String, dynamic>> a2uiMessagesFrom(List<Part>? parts) sync* {
     // payloads are skipped rather than throwing mid-stream.
     final data = part.data;
     if ((data?['messages'] ?? data?['envelopes']) case final List messages) {
-      yield* messages.whereType<Map>().map((m) => m.cast<String, dynamic>());
+      yield* messages.whereType<Map>().map(
+        (m) => _normalizeEnvelopeKeys(
+          m is Map<String, dynamic> ? m : m.cast<String, dynamic>(),
+        ),
+      );
     }
   }
 }
 
-/// Turns a genui surface submission (e.g. a button press) into the next agent
-/// input, or null when it carries no user action: genui also reports renderer
-/// errors through `onSubmit`, and those are not turns. genui already emits
-/// spec-shaped `{version, action}` messages, so they are forwarded untouched.
-Message? a2uiSubmitToMessage(ChatMessage submit) {
-  final actions = <Map<String, dynamic>>[
-    for (final part in submit.parts)
-      if (part.asUiInteractionPart case final ui?)
-        if (_decodeJson(ui.interaction) case final Map<String, dynamic> m
-            when m.containsKey('action'))
-          m,
-  ];
-  if (actions.isEmpty) return null;
-  return Message(
-    role: Role.user,
-    content: [
-      DataPart(
-        data: {'messages': actions},
-        metadata: {'mimeType': a2uiMimeType},
-      ),
-    ],
-  );
-}
+bool _hasAtEnvelopeKey(Object? c) =>
+    c is Map &&
+    c.keys.any(
+      (k) =>
+          k is String &&
+          k.startsWith('@') &&
+          _envelopeKeys.contains(k.substring(1)) &&
+          !c.containsKey(k.substring(1)),
+    );
 
-Object? _decodeJson(String source) {
-  try {
-    return jsonDecode(source);
-  } on FormatException {
-    return null;
+/// Rewrites `@checks`, `@accessibility`, `@catalogId` and `@metadata` on v1.0
+/// components to the bare names that `a2ui_core` 0.7 expects, so this client
+/// still renders surfaces if the agent upgrades past it. Delete it once your
+/// `a2ui_core` reads the `@` keys itself (a2ui-project/a2ui#4037): after the
+/// bare-key fallback is removed (a2ui-project/a2ui#4082), the rewritten keys
+/// are read as ordinary component properties and `checks` stop applying.
+Map<String, dynamic> _normalizeEnvelopeKeys(Map<String, dynamic> message) {
+  if (message['version'] != '1.0') return message;
+  for (final kind in const ['createSurface', 'updateComponents']) {
+    if (message[kind] case final Map body) {
+      if (body['components'] case final List components
+          when components.any(_hasAtEnvelopeKey)) {
+        return <String, dynamic>{
+          ...message,
+          kind: <String, dynamic>{
+            ...body.cast<String, dynamic>(),
+            'components': <Object?>[
+              for (final c in components)
+                if (c is Map)
+                  <String, dynamic>{
+                    for (final MapEntry(:key, :value) in c.entries)
+                      if (key is String &&
+                          key.startsWith('@') &&
+                          _envelopeKeys.contains(key.substring(1)) &&
+                          !c.containsKey(key.substring(1)))
+                        key.substring(1): value
+                      else
+                        '$key': value,
+                  }
+                else
+                  c,
+            ],
+          },
+        };
+      }
+    }
   }
+  return message;
 }
 
-/// The action names in a message built by [a2uiSubmitToMessage], for display.
+/// Wraps a surface action (e.g. a button press) as the next agent input.
 ///
-/// Not part of the README helpers: the sample uses it to label the chat log.
-List<String> a2uiActionNames(Message message) => [
-  for (final m in a2uiMessagesFrom(message.content))
-    if (m['action'] case {'name': final String name}) name,
-];
+/// `a2ui_core` writes the `{messages: [...]}` wrapper the agent reads, with
+/// the action in a spec-shaped `{version, action}` message, so it is forwarded
+/// as is.
+Message a2uiActionToMessage(ActionMessage action) => Message(
+  role: .user,
+  content: [
+    DataPart(
+      data: RendererToAgentMessagePayload.of(action).toJson(),
+      metadata: {'mimeType': a2uiMimeType},
+    ),
+  ],
+);

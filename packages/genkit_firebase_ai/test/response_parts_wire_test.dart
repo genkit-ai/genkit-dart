@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import 'dart:io';
+
 import 'package:firebase_ai/firebase_ai.dart' show FirebaseAISdkException;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
@@ -27,7 +29,26 @@ Map<String, dynamic> partsResponse(List<Map<String, dynamic>> parts) => {
   ],
 };
 
+/// Whether the resolved firebase_ai is older than [major].[minor].
+///
+/// Reads `pubspec.lock` in the package directory, where `flutter test` runs.
+bool firebaseAiOlderThan(int major, int minor) {
+  final lock = File('pubspec.lock').readAsStringSync();
+  final match = RegExp(
+    r'^  firebase_ai:\r?\n(?:    .*\r?\n)*?    version: "(\d+)\.(\d+)\.',
+    multiLine: true,
+  ).firstMatch(lock);
+  if (match == null) {
+    throw StateError('No firebase_ai version in pubspec.lock');
+  }
+  final foundMajor = int.parse(match.group(1)!);
+  final foundMinor = int.parse(match.group(2)!);
+  return foundMajor < major || (foundMajor == major && foundMinor < minor);
+}
+
 void main() {
+  final olderThan52 = firebaseAiOlderThan(5, 2);
+
   setUpAll(setUpFirebaseApp);
 
   test('codeExecution config sends a codeExecution tool and maps code '
@@ -130,32 +151,75 @@ void main() {
     }
   });
 
-  test('codeExecutionResult without output fails in firebase_ai parsing '
-      '(pins upstream firebase_ai limitation: output is required)', () async {
-    final model = wireModel(
-      WireClient(
+  test(
+    'codeExecutionResult without output fails in firebase_ai parsing',
+    skip: olderThan52 ? null : 'firebase_ai 5.2 and later parse the part',
+    () async {
+      final model = wireModel(
+        WireClient(
+          response: partsResponse([
+            {
+              'codeExecutionResult': {'outcome': 'OUTCOME_OK'},
+            },
+          ]),
+        ),
+      );
+
+      await expectLater(
+        model(userRequest('run it', config: {'codeExecution': true})),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.unknown)
+              .having(
+                (e) => e.message,
+                'message',
+                contains('Unhandled format for codeExecutionResult'),
+              )
+              .having((e) => e.cause, 'cause', isA<FirebaseAISdkException>()),
+        ),
+      );
+    },
+  );
+
+  test(
+    'codeExecutionResult without output becomes a code execution part '
+    'with an empty output, and goes back as history with one',
+    skip: olderThan52 ? 'firebase_ai before 5.2 fails to parse the part' : null,
+    () async {
+      final client = WireClient(
         response: partsResponse([
           {
             'codeExecutionResult': {'outcome': 'OUTCOME_OK'},
           },
         ]),
-      ),
-    );
+      );
+      final model = wireModel(client);
+      final config = {'codeExecution': true};
 
-    await expectLater(
-      model(userRequest('run it', config: {'codeExecution': true})),
-      throwsA(
-        isA<GenkitException>()
-            .having((e) => e.status, 'status', StatusCode.unknown)
-            .having(
-              (e) => e.message,
-              'message',
-              contains('Unhandled format for codeExecutionResult'),
-            )
-            .having((e) => e.cause, 'cause', isA<FirebaseAISdkException>()),
-      ),
-    );
-  });
+      final first = await model(userRequest('run it', config: config));
+      await model(
+        ModelRequest(
+          messages: [
+            ...userRequest('run it').messages,
+            first.message!,
+            ...userRequest('again').messages,
+          ],
+          config: config,
+        ),
+      );
+
+      expect(first.message!.content.single.custom, {
+        'codeExecutionResult': {'outcome': 'OUTCOME_OK', 'output': ''},
+      });
+      final history = client.requests.last.body['contents'] as List;
+      expect((history[1] as Map)['parts'], [
+        {
+          'thought': false,
+          'codeExecutionResult': {'outcome': 'OUTCOME_OK', 'output': ''},
+        },
+      ]);
+    },
+  );
 
   test('code execution parts survive streaming aggregation', () async {
     final client = WireClient(
