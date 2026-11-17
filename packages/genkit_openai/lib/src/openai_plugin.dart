@@ -835,7 +835,8 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   /// Rejects a `reasoningEffort` aimed at a curated model that does not
-  /// accept it.
+  /// accept it, or at a level the model does not take where the provider
+  /// lists them (see [OpenAIProvider.reasoningEffortsFor]).
   ///
   /// OpenAI's 400 names the parameter but not the model. Uncurated and
   /// caller-declared models are left to the API.
@@ -845,17 +846,28 @@ class OpenAIPlugin extends GenkitPlugin {
     // can: `models:` is how a name is corrected or extended, so a declared
     // model is left to the API to judge, as an uncurated one is.
     if (customModels.any((m) => m.name == modelName)) return;
-    if (provider.reasonsFor(modelName) != false) return;
-
-    throw GenkitException(
-      // The name that will be on the wire, not the curated alias it resolved
-      // through: a `version` of `gpt-4o-2024-11-20` is what the caller set
-      // and what the host will answer for. Says only that the effort is not
-      // settable, not that the model does not reason: o1-mini and o1-preview
-      // do reason, they simply predate the parameter.
-      '$modelName does not accept reasoningEffort.',
-      status: StatusCode.invalidArgument,
-    );
+    final reasons = provider.reasonsFor(modelName);
+    if (reasons == false) {
+      throw GenkitException(
+        // The name that will be on the wire, not the curated alias it
+        // resolved through: a `version` of `gpt-4o-2024-11-20` is what the
+        // caller set and what the host will answer for. Says only that the
+        // effort is not settable, not that the model does not reason:
+        // o1-mini and o1-preview do reason, they simply predate the parameter.
+        '$modelName does not accept reasoningEffort.',
+        status: StatusCode.invalidArgument,
+      );
+    }
+    final levels = provider.reasoningEffortsFor?.call(modelName);
+    if (reasons == true &&
+        levels != null &&
+        !levels.contains(reasoningEffort)) {
+      throw GenkitException(
+        '$modelName accepts a reasoningEffort of ${levels.join(', ')}, not '
+        '"$reasoningEffort".',
+        status: StatusCode.invalidArgument,
+      );
+    }
   }
 
   /// Rejects inline non-image media for a host that takes no OpenAI `file`

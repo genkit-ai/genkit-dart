@@ -56,27 +56,32 @@ const mistralUnknownSupports = <String, dynamic>{
 /// announced for 2027-04-30; it is curated as [OpenAIModelStage.legacy] until
 /// then. Any other name still resolves, taking [dynamicMistralModelInfo].
 ///
-/// [reasons] is whether the model takes `reasoning_effort`: Mistral answers
-/// "reasoning_effort is not enabled for this model" for the others.
+/// [efforts] are the `reasoning_effort` levels the model takes, and empty for
+/// a model that takes none: Mistral answers "reasoning_effort is not enabled
+/// for this model" for those. Each reasoning model takes its own set, and
+/// Mistral answers any other level with a 400.
 ///
 /// Catalog: https://docs.mistral.ai/models
 enum KnownMistralModel {
   /// Mistral Large, currently Large 4. Image input.
   ///
-  /// Thinks before every answer, with or without a `reasoning_effort`.
+  /// Thinks before every answer, with or without a `reasoning_effort`, which
+  /// defaults to `high` and cannot be `none`.
   mistralLarge(
     'mistral-large-latest',
     'Mistral Large',
     multimodalSupports,
-    reasons: true,
+    efforts: {'low', 'medium', 'high'},
   ),
 
   /// Mistral Small, currently Small 4. Image input.
+  ///
+  /// Thinks only when given a `reasoning_effort` of `high`.
   mistralSmall(
     'mistral-small-latest',
     'Mistral Small',
     multimodalSupports,
-    reasons: true,
+    efforts: {'none', 'high'},
   ),
 
   /// Ministral 3 14B. Image input.
@@ -94,11 +99,12 @@ enum KnownMistralModel {
   /// Mistral Medium 3.5, which this alias points at. Image input.
   ///
   /// Deprecated by Mistral, still served until its announced retirement.
+  /// Thinks only when given a `reasoning_effort` of `high`.
   mistralMedium(
     'mistral-medium-latest',
     'Mistral Medium',
     multimodalSupports,
-    reasons: true,
+    efforts: {'none', 'high'},
     stage: OpenAIModelStage.legacy,
   );
 
@@ -106,7 +112,7 @@ enum KnownMistralModel {
     this.id,
     this.label,
     this.supports, {
-    this.reasons = false,
+    this.efforts = const {},
     this.stage = OpenAIModelStage.stable,
   });
 
@@ -119,8 +125,12 @@ enum KnownMistralModel {
   /// Capability map registered for this model.
   final Map<String, dynamic> supports;
 
-  /// Whether the model takes a `reasoning_effort`.
-  final bool reasons;
+  /// The `reasoning_effort` levels the model takes, per
+  /// https://docs.mistral.ai/inference/conversations/reasoning.
+  final Set<String> efforts;
+
+  /// Whether the model takes a `reasoning_effort` at all.
+  bool get reasons => efforts.isNotEmpty;
 
   /// Lifecycle stage, in the same vocabulary the OpenAI catalog uses.
   ///

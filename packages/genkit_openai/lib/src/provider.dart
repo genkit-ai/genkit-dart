@@ -61,6 +61,15 @@ final class OpenAIProvider {
   /// is not curated and so has no claim to check.
   final bool? Function(String model) reasonsFor;
 
+  /// The `reasoningEffort` levels the named model takes, or null when any
+  /// level the plugin knows is left to the host.
+  ///
+  /// For a provider whose reasoning models each take their own set, such as
+  /// Mistral's, so a level the model would answer with a 400 is refused with
+  /// the levels it does take. Checked only where [reasonsFor] is: on the
+  /// provider's own host, for a model the caller did not declare.
+  final Set<String>? Function(String model)? reasoningEffortsFor;
+
   /// Whether the host needs previous turns' reasoning replayed on a request
   /// that carries tools.
   ///
@@ -180,6 +189,7 @@ final class OpenAIProvider {
     required this.infoFor,
     required this.catalogIds,
     required this.reasonsFor,
+    this.reasoningEffortsFor,
     this.ownHosts,
     this.embedderIds = const [],
     this.embedderInfoFor,
@@ -280,6 +290,7 @@ final mistralProvider = OpenAIProvider(
       compat ? compatMistralModelInfo(model) : mistralModelInfoFor(model),
   catalogIds: knownMistralChatModels,
   reasonsFor: (model) => knownMistralModelFor(model)?.reasons,
+  reasoningEffortsFor: (model) => knownMistralModelFor(model)?.efforts,
   reasoningSource: mistralReasoningSource,
   embedderIds: knownMistralEmbedderModels,
   embedderInfoFor: mistralEmbedderInfoFor,

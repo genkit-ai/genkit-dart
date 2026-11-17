@@ -306,6 +306,14 @@ void main() {
       );
     });
 
+    test('each reasoning model lists the levels Mistral takes on it', () {
+      // https://docs.mistral.ai/inference/conversations/reasoning, and checked
+      // against the API: anything else is a 400.
+      expect(KnownMistralModel.mistralLarge.efforts, {'low', 'medium', 'high'});
+      expect(KnownMistralModel.mistralSmall.efforts, {'none', 'high'});
+      expect(KnownMistralModel.mistralMedium.efforts, {'none', 'high'});
+    });
+
     test('the embedders declare their vector length', () {
       expect(
         mistralEmbedderInfoFor('mistral-embed', compat: false)['dimensions'],
@@ -526,6 +534,7 @@ void main() {
         String model, {
         String? baseUrl,
         List<CustomModelDefinition>? models,
+        String effort = 'high',
       }) async {
         final requests = <http.Request>[];
         final ai = Genkit(
@@ -542,10 +551,50 @@ void main() {
         final response = await ai.generate(
           model: mistral.model(model),
           prompt: 'hi',
-          config: OpenAIChatOptions(reasoningEffort: 'high'),
+          config: OpenAIChatOptions(reasoningEffort: effort),
         );
         return (response, requests);
       }
+
+      for (final (model, taken, refused) in [
+        ('mistral-large-latest', ['low', 'medium', 'high'], ['none', 'xhigh']),
+        ('mistral-small-latest', ['none', 'high'], ['low', 'medium']),
+        ('mistral-medium-latest', ['none', 'high'], ['low', 'medium']),
+      ]) {
+        test('$model takes only its own levels', () async {
+          for (final effort in taken) {
+            final (response, requests) = await generate(model, effort: effort);
+            expect(response.finishReason, FinishReason.stop, reason: effort);
+            expect(chatBodyOf(requests)['reasoning_effort'], effort);
+          }
+          for (final effort in refused) {
+            final (response, requests) = await generate(model, effort: effort);
+            expect(response.finishReason, FinishReason.failed, reason: effort);
+            expect(
+              response.error?.message,
+              contains('$model accepts a reasoningEffort of'),
+              reason: effort,
+            );
+            expect(requests, isEmpty, reason: effort);
+          }
+        });
+      }
+
+      test('a level is left to a gateway and to a declared model', () async {
+        final (viaGateway, _) = await generate(
+          'mistral-large-latest',
+          effort: 'none',
+          baseUrl: 'https://gateway.example/v1',
+        );
+        final (declared, _) = await generate(
+          'mistral-large-latest',
+          effort: 'none',
+          models: [CustomModelDefinition(name: 'mistral-large-latest')],
+        );
+
+        expect(viaGateway.finishReason, FinishReason.stop);
+        expect(declared.finishReason, FinishReason.stop);
+      });
 
       test('goes out for a curated model that takes it', () async {
         final (response, requests) = await generate('mistral-small-latest');
