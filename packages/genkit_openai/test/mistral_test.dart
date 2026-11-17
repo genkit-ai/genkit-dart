@@ -980,6 +980,68 @@ void main() {
       expect(requests, isEmpty);
     });
 
+    test('refuses a PDF by URL before the request goes out', () async {
+      // It would go out as image_url, which Mistral fails as an image.
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [mistral(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      final response = await ai.generate(
+        model: mistral.model('mistral-small-latest'),
+        promptParts: [
+          TextPart(text: 'summarise this'),
+          MediaPart(
+            media: Media(
+              url: 'https://example.com/a.pdf',
+              contentType: 'application/pdf',
+            ),
+          ),
+        ],
+      );
+
+      expect(response.finishReason, FinishReason.failed);
+      expect(
+        response.error?.message,
+        contains('does not accept application/pdf media by URL'),
+      );
+      expect(requests, isEmpty);
+    });
+
+    test('an image by URL still goes out as image_url', () async {
+      final requests = <http.Request>[];
+      final ai = Genkit(
+        plugins: [mistral(apiKey: 'k', httpClient: recordingClient(requests))],
+      );
+      addTearDown(ai.shutdown);
+
+      for (final media in [
+        Media(url: 'https://example.com/loaf.png', contentType: 'image/png'),
+        // No contentType: the plugin takes a URL to be an image, as before.
+        Media(url: 'https://example.com/loaf'),
+      ]) {
+        await ai.generate(
+          model: mistral.model('mistral-small-latest'),
+          promptParts: [
+            TextPart(text: 'what is this?'),
+            MediaPart(media: media),
+          ],
+        );
+      }
+
+      for (final request in requests) {
+        final user = ((jsonDecode(request.body) as Map)['messages'] as List)
+            .cast<Map>()
+            .firstWhere((m) => m['role'] == 'user');
+        expect((user['content'] as List).map((c) => (c as Map)['type']), [
+          'text',
+          'image_url',
+        ]);
+      }
+      expect(requests, hasLength(2));
+    });
+
     test('an inline image still goes out as image_url', () async {
       final requests = <http.Request>[];
       final ai = Genkit(

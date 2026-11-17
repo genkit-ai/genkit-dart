@@ -870,21 +870,36 @@ class OpenAIPlugin extends GenkitPlugin {
     }
   }
 
-  /// Rejects inline non-image media for a host that takes no OpenAI `file`
-  /// part, rather than sending a request it will reject as a whole.
+  /// Rejects non-image media for a host that takes no OpenAI `file` part,
+  /// rather than sending a request it will reject as a whole.
+  ///
+  /// Inline data is refused because it would go out as a `file` part. A URL
+  /// whose declared type is not an image is refused too: it would go out as
+  /// `image_url`, and the host would fail it as an image it cannot read.
   ///
   /// Only user turns are checked: they are the only ones whose media is sent.
   void _refuseFileParts(List<Message> messages) {
     for (final message in messages) {
       if (message.role != Role.user) continue;
       for (final part in message.content) {
-        if (!GenkitConverter.sendsAsFilePart(part)) continue;
-        throw GenkitException(
-          '$_pluginName does not accept inline '
-          '${GenkitConverter.mimeTypeOf(part.media!)} '
-          'media. Only images can be sent inline.',
-          status: StatusCode.invalidArgument,
-        );
+        final media = part.media;
+        if (media == null) continue;
+        final mimeType = GenkitConverter.mimeTypeOf(media);
+        if (GenkitConverter.sendsAsFilePart(part)) {
+          throw GenkitException(
+            '$_pluginName does not accept inline $mimeType media. Only images '
+            'can be sent inline.',
+            status: StatusCode.invalidArgument,
+          );
+        }
+        if (!media.url.startsWith('data:') &&
+            !mimeType.toLowerCase().startsWith('image/')) {
+          throw GenkitException(
+            '$_pluginName does not accept $mimeType media by URL. Only images '
+            'can be sent.',
+            status: StatusCode.invalidArgument,
+          );
+        }
       }
     }
   }
