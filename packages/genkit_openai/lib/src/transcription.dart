@@ -15,6 +15,7 @@
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
+import 'known_models.dart' show OpenAIModelStage;
 import 'utils.dart';
 
 part 'transcription.g.dart';
@@ -84,6 +85,12 @@ const List<String> knownTranscriptionModels = [
   'gpt-4o-mini-transcribe',
 ];
 
+const Set<String> _deprecatedTranscriptionModels = {
+  'whisper-1',
+  'gpt-4o-transcribe',
+  'gpt-4o-mini-transcribe',
+};
+
 /// Maps an audio MIME type to the filename sent with the upload.
 ///
 /// OpenAI infers the codec from this filename, so it has to be a real audio
@@ -128,9 +135,15 @@ bool supportsTranslation(String modelId) {
 }
 
 /// Capability metadata for a transcription model.
-ModelInfo transcriptionModelInfo(String modelId) {
+///
+/// [compat] is true for any host but OpenAI's own, where OpenAI's lifecycle
+/// stage describes something the backend is not.
+ModelInfo transcriptionModelInfo(String modelId, {bool compat = false}) {
   return ModelInfo(
     label: modelId,
+    stage: !compat && _deprecatedTranscriptionModels.contains(modelId)
+        ? OpenAIModelStage.deprecated.wireName
+        : null,
     supports: {
       'media': true,
       'output': ['text', 'json'],

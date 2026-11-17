@@ -527,7 +527,7 @@ class OpenAIPlugin extends GenkitPlugin {
   ]) {
     return modelMetadata(
       '$_pluginName/$modelId',
-      info: info ?? speech.speechModelInfo(modelId),
+      info: info ?? speech.speechModelInfo(modelId, compat: !_ownHost),
       customOptions: speech.speechModelOptionsSchema(),
     );
   }
@@ -536,7 +536,9 @@ class OpenAIPlugin extends GenkitPlugin {
   _transcriptionModelMetadata(String modelId, [ModelInfo? info]) {
     return modelMetadata(
       '$_pluginName/$modelId',
-      info: info ?? transcription.transcriptionModelInfo(modelId),
+      info:
+          info ??
+          transcription.transcriptionModelInfo(modelId, compat: !_ownHost),
       customOptions: transcription.transcriptionModelOptionsSchema(),
     );
   }
@@ -886,7 +888,8 @@ class OpenAIPlugin extends GenkitPlugin {
   /// [MediaPart] holding a base64 data URL. Streaming is not supported by the
   /// `/audio/speech` endpoint, so streaming requests are ignored.
   Model _createSpeechModel(String modelName, ModelInfo? info) {
-    final modelInfo = info ?? speech.speechModelInfo(modelName);
+    final modelInfo =
+        info ?? speech.speechModelInfo(modelName, compat: !_ownHost);
 
     return Model(
       name: '$_pluginName/$modelName',
@@ -1022,7 +1025,9 @@ class OpenAIPlugin extends GenkitPlugin {
   /// and its `create()` always JSON-decodes the response, which breaks the
   /// `text`, `srt` and `vtt` formats.
   Model _createTranscriptionModel(String modelName, ModelInfo? info) {
-    final modelInfo = info ?? transcription.transcriptionModelInfo(modelName);
+    final modelInfo =
+        info ??
+        transcription.transcriptionModelInfo(modelName, compat: !_ownHost);
 
     return Model(
       name: '$_pluginName/$modelName',

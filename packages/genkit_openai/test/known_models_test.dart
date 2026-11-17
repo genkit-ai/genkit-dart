@@ -319,6 +319,67 @@ void main() {
       );
     });
 
+    test(
+      'the curated speech and transcription models are deprecated',
+      () async {
+        final plugin = pluginListing(const []);
+        final listing = await plugin.list();
+
+        for (final id in [
+          'tts-1',
+          'tts-1-hd',
+          'gpt-4o-mini-tts',
+          'whisper-1',
+          'gpt-4o-transcribe',
+          'gpt-4o-mini-transcribe',
+        ]) {
+          final listed = listing.firstWhere((m) => m.name == 'openai/$id');
+          expect(modelMetadataOf(listed)['stage'], 'deprecated', reason: id);
+          expect(
+            modelInfoOf(plugin.resolve(.model, id)!)['stage'],
+            'deprecated',
+            reason: id,
+          );
+        }
+      },
+    );
+
+    test('an uncurated speech or transcription model has no stage', () async {
+      const ids = [
+        'tts-1-1106',
+        'gpt-4o-mini-tts-2025-12-15',
+        'gpt-transcribe',
+      ];
+      final plugin = pluginListing(ids);
+      final listing = await plugin.list();
+
+      for (final id in ids) {
+        final listed = listing.firstWhere((m) => m.name == 'openai/$id');
+        expect(modelMetadataOf(listed).containsKey('stage'), isFalse);
+        expect(
+          modelInfoOf(plugin.resolve(.model, id)!).containsKey('stage'),
+          isFalse,
+          reason: id,
+        );
+      }
+    });
+
+    test('a custom baseUrl drops the speech and transcription stage', () async {
+      const ids = ['tts-1', 'whisper-1'];
+      final plugin = pluginListing(ids, baseUrl: 'https://example.com/v1');
+      final listing = await plugin.list();
+
+      for (final id in ids) {
+        final listed = listing.firstWhere((m) => m.name == 'openai/$id');
+        expect(modelMetadataOf(listed).containsKey('stage'), isFalse);
+        expect(
+          modelInfoOf(plugin.resolve(.model, id)!).containsKey('stage'),
+          isFalse,
+          reason: id,
+        );
+      }
+    });
+
     test('a removed model still resolves by name, with the defaults', () {
       // Removing a shut-down model takes it out of the catalog and the
       // listing, not out of reach: resolve builds any name, and OpenAI is
