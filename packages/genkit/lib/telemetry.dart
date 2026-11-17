@@ -42,6 +42,11 @@
 /// A provider that holds resources (subscriptions, clients) can implement
 /// `DisposableInstrumentation`; Genkit disposes it on `Genkit.shutdown()`.
 ///
+/// Plugins can open spans of their own with `runInNewSpan` (e.g. one per
+/// HTTP request to a model API). The span goes to every configured provider
+/// and nests under the active span; with no provider configured it costs
+/// nothing.
+///
 /// For OpenTelemetry GenAI semantic-convention telemetry, add the
 /// `genkit_otel` package and configure its `GenAiInstrumentation` provider. It
 /// is built on the `dartastic_opentelemetry` SDK, which the application owns and
@@ -54,4 +59,5 @@ export 'src/o11y/instrumentation.dart'
         Instrumentation,
         SpanContext,
         SpanMetadata,
-        configureInstrumentation;
+        configureInstrumentation,
+        runInNewSpan;
