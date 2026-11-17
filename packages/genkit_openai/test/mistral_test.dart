@@ -1065,6 +1065,45 @@ void main() {
       });
     });
 
+    for (final streamed in [false, true]) {
+      test('model_length is a length stop (streamed: $streamed)', () async {
+        final ai = Genkit(
+          plugins: [
+            mistral(
+              apiKey: 'k',
+              httpClient: _replyingClient(
+                [],
+                reply: () => chatCompletion(
+                  content: 'cut',
+                  finishReason: 'model_length',
+                ),
+                stream: () => [_delta('cut', finishReason: 'model_length')],
+              ),
+            ),
+          ],
+        );
+        addTearDown(ai.shutdown);
+
+        final GenerateResult<dynamic> response;
+        if (streamed) {
+          final stream = ai.generateStream(
+            model: mistral.model('mistral-small-latest'),
+            prompt: 'hi',
+          );
+          await stream.drain<void>();
+          response = await stream.onResult;
+        } else {
+          response = await ai.generate(
+            model: mistral.model('mistral-small-latest'),
+            prompt: 'hi',
+          );
+        }
+
+        expect(response.finishReason, FinishReason.length);
+        expect(response.text, 'cut');
+      });
+    }
+
     test('a string content passes through untouched', () {
       final reply = chatCompletion(content: 'bonjour');
 

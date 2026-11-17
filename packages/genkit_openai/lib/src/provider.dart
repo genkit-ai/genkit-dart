@@ -361,6 +361,8 @@ const mistralHosts = {
 /// [OpenAIProvider.reasoningSource]). Chunk types the plugin cannot represent, such as references, are
 /// dropped.
 ///
+/// A `finish_reason` of `model_length` is rewritten to `length`.
+///
 /// Anything else, including a string `content`, passes through untouched.
 ///
 /// https://docs.mistral.ai/capabilities/reasoning
@@ -374,9 +376,14 @@ Map<String, dynamic> mistralChatReply(Map<String, dynamic> reply) {
         if (choice is Map<String, dynamic>)
           {
             for (final entry in choice.entries)
-              entry.key: entry.key == 'message' || entry.key == 'delta'
-                  ? _flattenChunks(entry.value)
-                  : entry.value,
+              entry.key: switch (entry.key) {
+                'message' || 'delta' => _flattenChunks(entry.value),
+                // Mistral's reason for a reply cut off at the model's context
+                // length. The SDK knows no such value and would read it as
+                // unknown; it is a length stop like any other.
+                'finish_reason' when entry.value == 'model_length' => 'length',
+                _ => entry.value,
+              },
           }
         else
           choice,
