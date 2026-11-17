@@ -16,9 +16,12 @@
 final RegExp oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
 final RegExp _gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
 
-/// Legacy completion base models and their fine-tunes (`curie:ft-...`).
+/// Legacy completion-era ids, their fine-tunes (`curie:ft-...`), and the
+/// similarity and search models built on them.
 final RegExp _legacyCompletionPattern = RegExp(
-  r'^(?:ada|babbage|curie|davinci)(?:[-:]|$)',
+  r'(?:^|-)(?:babbage|curie|davinci|cushman)(?:[-:]|$)'
+  r'|^(?:(?:text|code)-)?ada(?:-\d{3}$|:|$)'
+  r'|^(?:text|code)-(?:similarity|search)-',
 );
 
 /// Determines the type of model based on its ID.
@@ -35,8 +38,8 @@ final RegExp _legacyCompletionPattern = RegExp(
 /// - 'image': Image generation models (DALL-E, gpt-image)
 /// - 'video': Video generation models (Sora)
 /// - 'moderation': Content moderation models
-/// - 'completion': Legacy text completion models (instruct, ada, babbage,
-///   curie, davinci)
+/// - 'completion': Legacy completion-era models (instruct, ada, babbage,
+///   curie, davinci, cushman, and their similarity and search variants)
 /// - 'code': Code generation models (codex)
 /// - 'research': Research-specific models (research, deep-research)
 /// - 'unknown': Unknown or unrecognized model type

@@ -297,6 +297,28 @@ void main() {
       expect(names, isNot(contains('openai/gpt-4')));
     });
 
+    test(
+      'a custom name that only resembles a legacy id stays listed',
+      () async {
+        const ids = ['ada-lovelace-7b', 'adapter-llama', 'acme-search-large'];
+        final names = modelNames(
+          await pluginListing(ids, baseUrl: 'https://example.com/v1').list(),
+        );
+
+        expect(names, {for (final id in ids) 'openai/$id'});
+      },
+    );
+
+    test('ada-002 is listed as an embedder, not hidden as legacy', () async {
+      final listing = await pluginListing(['text-embedding-ada-002']).list();
+
+      expect(embedderNames(listing), contains('openai/text-embedding-ada-002'));
+      expect(
+        modelNames(listing),
+        isNot(contains('openai/text-embedding-ada-002')),
+      );
+    });
+
     test('a removed model still resolves by name, with the defaults', () {
       // Removing a shut-down model takes it out of the catalog and the
       // listing, not out of reach: resolve builds any name, and OpenAI is
@@ -629,8 +651,25 @@ const _fixtureHidden = [
   'gpt-realtime-whisper',
   'omni-moderation-2024-09-26',
   'omni-moderation-latest',
+  'davinci',
+  'curie',
+  'babbage',
+  'ada',
   'davinci-002',
   'babbage-002',
+  'davinci-instruct-beta',
+  'curie-instruct-beta',
+  'text-davinci-003',
+  'text-davinci-edit-001',
+  'text-curie-001',
+  'text-ada-001',
+  'code-davinci-002',
+  'code-cushman-001',
+  'text-similarity-ada-001',
+  'text-similarity-curie-001',
+  'text-search-ada-doc-001',
+  'code-search-ada-code-001',
+  'ada:ft-acme-2023-01-01-00-00-00',
   'curie:ft-acme-2023-06-07-10-19-42',
   'davinci:ft-acme-2023-01-01-00-00-00',
 ];

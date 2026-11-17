@@ -195,17 +195,49 @@ void main() {
       'classifies legacy base models and their fine-tunes as completion',
       () {
         for (final id in [
+          'davinci',
+          'curie',
+          'babbage',
+          'ada',
           'davinci-002',
           'babbage-002',
-          'ada',
+          'davinci-instruct-beta',
+          'curie-instruct-beta',
+          'text-davinci-003',
+          'text-davinci-edit-001',
+          'text-curie-001',
+          'text-babbage-001',
+          'text-ada-001',
+          'code-davinci-002',
+          'code-cushman-001',
+          'text-similarity-ada-001',
+          'text-similarity-curie-001',
+          'text-search-ada-doc-001',
+          'text-search-davinci-query-001',
+          'code-search-ada-code-001',
+          'code-search-babbage-text-001',
           'curie:ft-acme-2023-06-07-10-19-42',
           'ada:ft-acme-2023-01-01-00-00-00',
         ]) {
           expect(getModelType(id), 'completion', reason: id);
         }
-        expect(getModelType('adapter-7b'), 'unknown');
       },
     );
+
+    test('a name that only resembles a legacy id is not a completion', () {
+      for (final id in [
+        'adapter-7b',
+        'adapter-llama',
+        'ada-lovelace-7b',
+        'acme-search-large',
+        'code-llama-34b',
+        'text-bison-001',
+      ]) {
+        expect(getModelType(id), 'unknown', reason: id);
+      }
+      expect(getModelType('text-embedding-ada-002'), 'embedding');
+      expect(getModelType('gpt-5-search-api'), 'chat');
+    });
 
     test('classifies embedders a compat host spells without -ing', () {
       expect(getModelType('text-embedding-3-small'), 'embedding');
