@@ -168,30 +168,35 @@ class OpenAIPlugin extends GenkitPlugin {
       ),
   ];
 
-  /// Fetch available model IDs from OpenAI API
-  Future<List<String>> _fetchAvailableModels(
-    _ResolvedClientConfig resolvedConfig,
-  ) async {
+  /// Fetches the host's `GET /models` listing.
+  ///
+  /// Each entry's raw JSON is kept alongside its id when the provider reads
+  /// more of the listing than the id - see [OpenAIProvider.chatFromListing].
+  /// The SDK's `Model` keeps only OpenAI's fields, so the raw body is read off
+  /// the wire on its way to the SDK.
+  Future<List<({String id, Map<String, dynamic>? listing})>>
+  _fetchAvailableModels(_ResolvedClientConfig resolvedConfig) async {
+    final capture = provider.chatFromListing == null
+        ? null
+        : _ListingCapture(httpClient ?? http.Client());
     final client = sdk.OpenAIClient.withApiKey(
       resolvedConfig.apiKey,
       baseUrl: resolvedConfig.baseUrl,
       defaultHeaders: resolvedConfig.headers,
-      httpClient: httpClient,
+      httpClient: capture ?? httpClient,
     );
 
     try {
       final response = await client.models.list();
-      final modelIds = <String>[];
-
-      // Collect all model IDs
-      for (final model in response.data) {
-        modelIds.add(model.id);
-      }
-
-      return modelIds;
+      final listings = capture?.listings ?? const {};
+      return [
+        for (final model in response.data)
+          (id: model.id, listing: listings[model.id]),
+      ];
     } finally {
       if (httpClient == null) {
         client.close();
+        capture?.close();
       }
     }
   }
@@ -292,7 +297,25 @@ class OpenAIPlugin extends GenkitPlugin {
       // A keyless request is a guaranteed 401, so don't spend it.
       final config = await _resolveClientConfigOrNull();
       if (config != null) {
-        for (final modelId in await _fetchAvailableModels(config)) {
+        for (final (id: modelId, :listing) in await _fetchAvailableModels(
+          config,
+        )) {
+          // The host's own word on what an entry is wins over every name
+          // rule below: Mistral lists `voxtral-mini-tts-latest`, which reads
+          // like a speech model, as a model chat completions cannot serve.
+          final servesChat = listing == null
+              ? null
+              : provider.chatFromListing?.call(listing);
+          if (servesChat == true) {
+            discovered.add(modelId);
+            continue;
+          }
+          if (servesChat == false) {
+            if (getModelType(modelId) == 'embedding') {
+              discoveredEmbedders.add(modelId);
+            }
+            continue;
+          }
           if (speech.isSpeechModel(modelId)) {
             discoveredSpeech.add(modelId);
             continue;
@@ -1369,3 +1392,51 @@ sdk.ToolChoice? _toOpenAIToolChoice(ToolChoice? choice) =>
       'none' => const sdk.ToolChoiceNone(),
       _ => null,
     };
+
+/// Keeps the raw entries of a `GET /models` reply as it passes through to the
+/// SDK, keyed by id.
+class _ListingCapture extends http.BaseClient {
+  _ListingCapture(this._inner);
+
+  final http.Client _inner;
+
+  /// The entries of the last listing read, by id.
+  final listings = <String, Map<String, dynamic>>{};
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final response = await _inner.send(request);
+    if (request.method != 'GET' ||
+        !request.url.path.endsWith('/models') ||
+        response.statusCode < 200 ||
+        response.statusCode >= 300) {
+      return response;
+    }
+    final bytes = await response.stream.toBytes();
+    try {
+      final decoded = jsonDecode(utf8.decode(bytes));
+      final data = decoded is Map ? decoded['data'] : null;
+      if (data is List) {
+        for (final entry in data.whereType<Map>()) {
+          final id = entry['id'];
+          if (id is String) listings[id] = entry.cast<String, dynamic>();
+        }
+      }
+    } on FormatException {
+      // The SDK reports a body it cannot read; that is not ours to do.
+    }
+    return http.StreamedResponse(
+      Stream.value(bytes),
+      response.statusCode,
+      contentLength: bytes.length,
+      request: response.request,
+      headers: response.headers,
+      isRedirect: response.isRedirect,
+      persistentConnection: response.persistentConnection,
+      reasonPhrase: response.reasonPhrase,
+    );
+  }
+
+  @override
+  void close() => _inner.close();
+}

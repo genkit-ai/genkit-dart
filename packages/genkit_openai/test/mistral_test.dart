@@ -639,6 +639,80 @@ void main() {
       expect(names, isNot(contains('mistral/mistral-ocr-latest')));
     });
 
+    test('discovery reads each entry\'s completion_chat', () async {
+      // The shape Mistral's `/v1/models` returns, trimmed to the fields read.
+      Map<String, dynamic> entry(String id, {required bool chat}) => {
+        'id': id,
+        'object': 'model',
+        'created': 0,
+        'owned_by': 'mistralai',
+        'capabilities': {'completion_chat': chat},
+      };
+      final plugin = OpenAIPlugin(
+        provider: mistralProvider,
+        apiKey: 'm-key',
+        httpClient: MockClient((request) async {
+          return http.Response(
+            jsonEncode({
+              'object': 'list',
+              'data': [
+                entry('mistral-small-2603', chat: true),
+                entry('voxtral-small-latest', chat: true),
+                entry('mistral-embed-2312', chat: false),
+                entry('voxtral-mini-tts-latest', chat: false),
+                entry('voxtral-mini-transcribe-3', chat: false),
+                entry('voxtral-mini-realtime-latest', chat: false),
+                entry('mistral-moderation-2603', chat: false),
+                entry('mistral-ocr-latest', chat: false),
+                // No capabilities: the name rules still apply.
+                {'id': 'mistral-ocr-4', 'object': 'model', 'created': 0},
+                {'id': 'labs-model', 'object': 'model', 'created': 0},
+              ],
+            }),
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+
+      final listed = {
+        for (final m in await plugin.list()) m.name: m.actionType,
+      };
+
+      expect(listed['mistral/mistral-small-2603'], ActionType.model);
+      expect(listed['mistral/voxtral-small-latest'], ActionType.model);
+      expect(listed['mistral/mistral-embed-2312'], ActionType.embedder);
+      expect(listed['mistral/labs-model'], ActionType.model);
+      for (final name in [
+        'voxtral-mini-tts-latest',
+        'voxtral-mini-transcribe-3',
+        'voxtral-mini-realtime-latest',
+        'mistral-moderation-2603',
+        'mistral-ocr-latest',
+        'mistral-ocr-4',
+      ]) {
+        expect(listed, isNot(contains('mistral/$name')), reason: name);
+      }
+    });
+
+    test('the capability says chat even where a name rule would not', () {
+      expect(
+        mistralServesChat({
+          'id': 'voxtral-small-latest',
+          'capabilities': {'completion_chat': true, 'audio': true},
+        }),
+        isTrue,
+      );
+      expect(
+        mistralServesChat({
+          'id': 'voxtral-mini-tts-latest',
+          'capabilities': {'completion_chat': false, 'audio_speech': true},
+        }),
+        isFalse,
+      );
+      expect(mistralServesChat({'id': 'x'}), isNull);
+    });
+
     test('every one of Mistral\'s hosts is its own', () async {
       for (final host in mistralHosts) {
         final requests = <http.Request>[];

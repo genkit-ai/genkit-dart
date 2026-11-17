@@ -148,6 +148,16 @@ final class OpenAIProvider {
   /// listing; `resolve` still serves any id named explicitly.
   final bool Function(String model) servesModel;
 
+  /// What a `GET /models` entry says about whether chat completions serve
+  /// it: true or false when the entry says, null when it does not, or null
+  /// for a host whose listing carries nothing beyond OpenAI's fields.
+  ///
+  /// Set, it decides ahead of every name rule in discovery: an entry it calls
+  /// chat is listed as a chat model, one it rules out is listed only if its
+  /// name is an embedder's, and only a null answer falls through to the name
+  /// rules and [servesModel]. `resolve` still serves any id named explicitly.
+  final bool? Function(Map<String, dynamic> listing)? chatFromListing;
+
   /// Whether the host takes OpenAI's `file` content part, which carries a
   /// non-image document such as a PDF inline.
   ///
@@ -184,6 +194,7 @@ final class OpenAIProvider {
     this.supportsJsonSchema = true,
     this.acceptsFileParts = true,
     this.servesModel = _servesAnyModel,
+    this.chatFromListing,
   });
 }
 
@@ -272,8 +283,11 @@ final mistralProvider = OpenAIProvider(
   reasoningSource: mistralReasoningSource,
   embedderIds: knownMistralEmbedderModels,
   embedderInfoFor: mistralEmbedderInfoFor,
-  // Mistral's `/models` lists the OCR models, which chat completions cannot
-  // serve: they are served by `/v1/ocr`. `resolve` still serves any id named
+  // Each `/models` entry says whether it serves chat completions, which rules
+  // out OCR, moderation, transcription and speech models alike.
+  chatFromListing: mistralServesChat,
+  // For a listing without capabilities: the OCR models are served by
+  // `/v1/ocr`, not chat completions. `resolve` still serves any id named
   // explicitly.
   servesModel: (model) => !model.toLowerCase().contains('ocr'),
   rewriteChatBody: mistralChatBody,
@@ -346,6 +360,16 @@ Object? _mistralMessage(Object? message) {
 /// The `reasoningSource` Mistral's reasoning parts are marked with, the same
 /// mark the JS and Python plugins use.
 const mistralReasoningSource = 'mistral';
+
+/// Whether a Mistral `/models` entry serves chat completions, from its
+/// `capabilities.completion_chat`, or null when it carries no capabilities.
+///
+/// https://docs.mistral.ai/api/#tag/models
+bool? mistralServesChat(Map<String, dynamic> listing) {
+  final capabilities = listing['capabilities'];
+  if (capabilities is! Map) return null;
+  return capabilities['completion_chat'] == true;
+}
 
 /// Rewrites an embeddings request into the fields Mistral defines.
 ///
