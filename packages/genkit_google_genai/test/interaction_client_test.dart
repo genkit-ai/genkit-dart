@@ -15,7 +15,8 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
-import 'package:genkit_google_genai/common.dart';
+import 'package:genkit_google_genai/src/api_client.dart';
+import 'package:genkit_google_genai/src/interaction_types.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:test/test.dart';

@@ -19,6 +19,8 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/common.dart';
+import 'package:genkit_google_genai/src/api_client.dart'
+    show interactionsApiRevision;
 import 'package:genkit_google_genai/src/google_api_client.dart';
 import 'package:logging/logging.dart';
 import 'package:test/test.dart';
@@ -889,6 +891,41 @@ void _toolAndFormatOptionTests() {
         'video_config': {'task': 'text_to_video'},
       });
       expect(warnings, isEmpty);
+    });
+
+    test('drops the vertexAI-only options with a warning, once per model '
+        'and field', () async {
+      final warnings = _captureWarnings();
+      final plugin = InteractionsWirePlugin();
+      final config = {
+        'location': 'us',
+        'labels': {'team': 'genkit'},
+        'vertexRetrieval': {
+          'datastore': {'dataStoreId': 'my-store'},
+        },
+        'payGo': 'flex',
+        'videoFormat': {'resolution': '720p', 'gcsUri': 'gs://bucket/out'},
+      };
+      const model = 'gemini-omni-1.1-flash';
+      await _run(plugin, model: model, config: config);
+      await _run(plugin, model: model, config: config);
+
+      final body = plugin.lastBody;
+      for (final key in ['location', 'labels', 'tools', 'pay_go']) {
+        expect(body, isNot(contains(key)), reason: key);
+      }
+      expect(body['response_format'], {'type': 'video', 'resolution': '720p'});
+      // The request config isn't changed.
+      expect(config['videoFormat'], containsPair('gcsUri', 'gs://bucket/out'));
+      String dropped(String field) =>
+          "$field is not supported by '$model' and was ignored.";
+      expect(warnings, [
+        dropped('location'),
+        dropped('labels'),
+        dropped('vertexRetrieval'),
+        dropped('payGo'),
+        dropped('videoFormat.gcsUri'),
+      ]);
     });
   });
 }

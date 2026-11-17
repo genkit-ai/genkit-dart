@@ -352,8 +352,24 @@ void main() {
         toolUsePromptTokenCount: 5,
       );
       final derived = extractUsage(usage);
-      expect(derived!.custom!['toolUsePromptTokenCount'], 5);
-      expect(derived.custom!.containsKey('promptTokensDetails'), isFalse);
+      // toolUseTokens: same key as on the Interactions API (as in JS);
+      // toolUsePromptTokenCount: the 1.0 key, kept for existing code.
+      expect(derived!.custom, {
+        'toolUseTokens': 5,
+        'toolUsePromptTokenCount': 5,
+      });
+    });
+
+    test('a zero count keeps only the 1.0 key, as 1.0 sent it', () {
+      final derived = extractUsage(
+        gcl.UsageMetadata(promptTokenCount: 1, toolUsePromptTokenCount: 0),
+      );
+      expect(derived!.custom, {'toolUsePromptTokenCount': 0});
+    });
+
+    test('custom is empty without tool use tokens', () {
+      final derived = extractUsage(gcl.UsageMetadata(promptTokenCount: 1));
+      expect(derived!.custom, isEmpty);
     });
   });
 }

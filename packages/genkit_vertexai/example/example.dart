@@ -43,6 +43,51 @@ void main(List<String> args) async {
     },
   );
 
+  // --- Image Generation Flow (Nano Banana) ---
+  ai.defineFlow(
+    name: 'imageGenerator',
+    inputSchema: .string(
+      defaultValue:
+          'A cozy reading nook with a window seat on a rainy afternoon.',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: vertexAI.geminiImage('gemini-nano-banana-2.1'),
+        prompt: prompt,
+        config: GeminiImageOptions(
+          imageConfig: GeminiImageConfig(aspectRatio: '9:16', imageSize: '1K'),
+        ),
+      );
+      if (response.media == null) {
+        throw Exception('No image generated');
+      }
+      return response.media!;
+    },
+  );
+
+  // --- Music Generation Flow (Lyria) ---
+  ai.defineFlow(
+    name: 'musicClip',
+    inputSchema: .string(
+      defaultValue: 'A cheerful acoustic folk song with guitar and harmonica.',
+    ),
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: vertexAI.lyria('lyria-3-clip-preview'),
+        prompt: prompt,
+        // Lyria is only served on `global`, whatever the plugin's location.
+        config: LyriaOptions(location: 'global'),
+      );
+      if (response.media == null) {
+        throw Exception('No music generated');
+      }
+      // The music, plus the lyrics or a caption as text.
+      return {'lyrics': response.text, 'audio': response.media!.toJson()};
+    },
+  );
+
   // --- Embedding Flow ---
   ai.defineFlow(
     name: 'embedding',

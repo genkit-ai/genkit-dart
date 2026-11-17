@@ -14,6 +14,7 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit_google_genai/common.dart';
+import 'package:genkit_vertexai/genkit_vertexai.dart' show vertexAI;
 import 'package:genkit_vertexai/src/known_models.dart';
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
 import 'package:test/test.dart';
@@ -87,26 +88,20 @@ void main() {
   });
 
   group('vertexAiKnownModels', () {
-    test('curates the Gemini text and image set, not Gemma or TTS', () {
-      expect(vertexAiKnownModels, isNotEmpty);
+    test('curates every Gemini family, not Gemma', () {
       expect(vertexAiKnownModels.keys, everyElement(startsWith('gemini-')));
-      expect(
-        vertexAiKnownModels.keys.where((id) => id.contains('-tts')),
-        isEmpty,
-      );
-      expect(
-        vertexAiKnownModels.keys.where(
-          (id) => GeminiModelFamily.of(id) == GeminiModelFamily.image,
-        ),
-        isNotEmpty,
-      );
+      expect({
+        for (final id in vertexAiKnownModels.keys) GeminiModelFamily.of(id),
+      }, GeminiModelFamily.values.toSet());
     });
 
     test('keeps its own list, independent of the Gemini API catalog', () {
-      // The JS vertexAI names that change routing or stage (newer JS models
-      // come in a later PR). The two lists change separately: models come
-      // and go differently on the two endpoints.
+      // The JS vertexAI lists (KNOWN_*_MODELS and HIDDEN_MODELS). The two
+      // lists change separately: models come and go differently on the two
+      // endpoints.
       expect(vertexAiKnownModels.keys, {
+        'gemini-4-argon',
+        'gemini-4-argon-cyber-permissive',
         'gemini-3.8-flash',
         'gemini-3.8-flash-cyber',
         'gemini-3.7-flash',
@@ -116,10 +111,15 @@ void main() {
         'gemini-3.1-pro-preview',
         'gemini-3.1-pro-preview-customtools',
         'gemini-3-flash-preview',
+        'gemini-nano-banana-2.1',
         'gemini-3.1-flash-lite-image',
         'gemini-3.1-flash-image',
         'gemini-3-pro-image',
         'gemini-2.5-flash-image',
+        'gemini-3.8-flash-tts',
+        'gemini-3.8-flash-lite-tts',
+        'gemini-omni-1.1-flash-preview',
+        'gemini-omni-flash-preview',
         'gemini-2.5-pro',
         'gemini-2.5-flash',
         'gemini-2.5-flash-lite',
@@ -149,9 +149,48 @@ void main() {
       expect(vertexAiKnownModels['gemini-2.5-pro']?.stage, 'deprecated');
     });
 
-    test('leaves out Gemini API TTS names', () {
-      expect(knownGeminiModels, contains('gemini-3.8-flash-tts'));
-      expect(vertexAiKnownModels, isNot(contains('gemini-3.8-flash-tts')));
+    test('gives Nano Banana 2.1 the full image profile (unlike googleAI)', () {
+      // JS vertexAI keeps the default image `supports` for it; googleAI turns
+      // off constrained output.
+      expect(
+        vertexAiKnownModels['gemini-nano-banana-2.1']?.supports,
+        GeminiModelFamily.image.supports,
+      );
+      expect(
+        knownGeminiModels['gemini-nano-banana-2.1']?.supports?['constrained'],
+        isFalse,
+      );
+    });
+
+    test('handles carry their family options type', () {
+      expect(vertexAI.gemini('x').customOptions, same(GeminiOptions.$schema));
+      expect(
+        vertexAI.geminiImage('x').customOptions,
+        same(GeminiImageOptions.$schema),
+      );
+      expect(
+        vertexAI.geminiTts('x').customOptions,
+        same(GeminiTtsOptions.$schema),
+      );
+      expect(
+        vertexAI.geminiVideo('x').customOptions,
+        same(GeminiVideoOptions.$schema),
+      );
+      expect(
+        vertexAI.geminiTts('gemini-3.8-flash-tts').name,
+        'vertexai/gemini-3.8-flash-tts',
+      );
+    });
+
+    test('resolves curated TTS and video models with their options type', () {
+      for (final (id, options) in [
+        ('gemini-3.8-flash-tts', GeminiTtsOptions.$schema),
+        ('gemini-omni-1.1-flash-preview', GeminiVideoOptions.$schema),
+        ('gemini-nano-banana-2.1', GeminiImageOptions.$schema),
+      ]) {
+        final action = plugin().resolve(.model, id) as Model;
+        expect(action.customOptions, same(options), reason: id);
+      }
     });
 
     for (final model in KnownVertexGeminiModel.values) {
@@ -181,10 +220,13 @@ void main() {
           'gemini-3.1-pro-preview',
           'gemini-3.1-pro-preview-customtools',
           'gemini-3-flash-preview',
+          'gemini-nano-banana-2.1',
           'gemini-3.1-flash-lite-image',
           'gemini-3.1-flash-image',
           'gemini-3-pro-image',
           'gemini-2.5-flash-image',
+          'gemini-3.8-flash-tts',
+          'gemini-3.8-flash-lite-tts',
           'gemini-2.5-pro',
           'gemini-2.5-flash',
           'gemini-2.5-flash-lite',
@@ -206,7 +248,10 @@ void main() {
         'gemini-3.5-flash-lite',
         'gemini-3.6-flash',
         'gemini-4-argon',
+        'gemini-4-argon-cyber-permissive',
         'gemini-omni-1.1-flash-preview',
+        'gemini-omni-flash-preview',
+        'gemini-omni-2-flash',
         'gemini-future-model',
       ]) {
         expect(vertexUsesInteractions(name), isTrue, reason: name);
@@ -215,9 +260,9 @@ void main() {
 
     test('unlisted image and TTS names stay on generateContent', () {
       for (final name in [
-        'gemini-nano-banana-2.1',
+        'gemini-nano-banana-3',
         'gemini-9-flash-image',
-        'gemini-3.8-flash-tts',
+        'gemini-9-flash-tts',
         'gemini-2.5-flash-tts',
       ]) {
         expect(vertexUsesInteractions(name), isFalse, reason: name);
@@ -302,7 +347,13 @@ void main() {
       for (final id in vertexAiKnownModels.keys) {
         expect(names, contains('vertexai/$id'));
       }
-      expect(names.where((n) => n.contains('embedding')), isEmpty);
+      // Only the curated embedders (like googleAI).
+      expect(
+        names.where((n) => n.contains('embedding')),
+        unorderedEquals([
+          for (final id in vertexAiKnownEmbedders.keys) 'vertexai/$id',
+        ]),
+      );
       final curated = actions.firstWhere(
         (a) => a.name == 'vertexai/gemini-3.5-flash',
       );

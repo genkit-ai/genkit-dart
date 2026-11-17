@@ -1768,21 +1768,27 @@ Part _fromFunctionResultContent(FunctionResultContent content) {
 }
 
 /// Converts Interactions API token usage to Genkit usage.
+///
+/// The per-modality breakdowns are token counts, so they go in `custom` as
+/// e.g. `inputTextTokens` / `outputImageTokens`: Genkit's `inputCharacters`,
+/// `inputImages`, ... fields count characters and media parts.
 GenerationUsage _fromInteractionUsage(Usage usage) {
-  int? tokensFor(List<ModalityTokens>? byModality, String modality) {
-    // Like JS, the last entry for a modality wins.
-    int? tokens;
-    for (final m in byModality ?? const <ModalityTokens>[]) {
-      if (m.modality?.value == modality) tokens = m.tokens;
-    }
-    return tokens;
-  }
-
-  final input = usage.inputTokensByModality;
-  final output = usage.outputTokensByModality;
-
   // Genkit has no standard fields for these.
   final custom = <String, dynamic>{};
+  void addModalityTokens(String direction, List<ModalityTokens>? breakdown) {
+    for (final m in breakdown ?? const <ModalityTokens>[]) {
+      final modality = m.modality?.value;
+      final tokens = m.tokens;
+      if (!_isEmpty(modality) && tokens != null) {
+        final name = modality![0].toUpperCase() + modality.substring(1);
+        final key = '$direction${name}Tokens';
+        custom[key] = ((custom[key] as int?) ?? 0) + tokens;
+      }
+    }
+  }
+
+  addModalityTokens('input', usage.inputTokensByModality);
+  addModalityTokens('output', usage.outputTokensByModality);
   // Tokens loaded by tools, e.g. video frames read during agentic video
   // understanding.
   final toolUseTokens = usage.totalToolUseTokens;
@@ -1805,14 +1811,6 @@ GenerationUsage _fromInteractionUsage(Usage usage) {
     totalTokens: usage.totalTokens,
     cachedContentTokens: usage.totalCachedTokens,
     thoughtsTokens: usage.totalThoughtTokens,
-    inputCharacters: tokensFor(input, 'text'),
-    inputImages: tokensFor(input, 'image'),
-    inputAudioFiles: tokensFor(input, 'audio'),
-    inputVideos: tokensFor(input, 'video'),
-    outputCharacters: tokensFor(output, 'text'),
-    outputImages: tokensFor(output, 'image'),
-    outputAudioFiles: tokensFor(output, 'audio'),
-    outputVideos: tokensFor(output, 'video'),
     custom: custom.isEmpty ? null : custom,
   );
 }
@@ -2010,8 +2008,15 @@ Part removeId3FromAudio(Part part) {
 ///    and continues with `audio/l16` chunks (seen live). Those chunks go
 ///    into the WAV's `data` chunk, giving one WAV like a non-streamed
 ///    response.
-/// Other parts are kept as they are.
+/// In a message with audio, empty text parts that carry nothing else (no
+/// metadata such as a thought signature) are dropped: the server's last
+/// streamed chunk adds one (`{"text": ""}`, seen live on vertexAI
+/// generateContent TTS), which would otherwise sit next to the joined audio.
+/// JS keeps it. Other parts are kept as they are.
 List<Part> mergeStreamedAudio(List<Part> parts) {
+  if (parts.any((p) => p.media != null)) {
+    parts = parts.where((p) => !_isBareEmptyText(p)).toList();
+  }
   Uint8List concat(Iterable<Part> chunks) {
     final builder = BytesBuilder(copy: false);
     for (final chunk in chunks) {
@@ -2062,6 +2067,16 @@ List<Part> mergeStreamedAudio(List<Part> parts) {
     i++;
   }
   return merged;
+}
+
+/// Whether [part] is a text part with empty text and nothing else (no
+/// metadata, or an empty metadata map).
+bool _isBareEmptyText(Part part) {
+  final json = part.toJson();
+  final metadata = json['metadata'];
+  return json['text'] == '' &&
+      json.keys.every((k) => k == 'text' || k == 'metadata') &&
+      (metadata == null || (metadata is Map && metadata.isEmpty));
 }
 
 // ---------------------------------------------------------------------------

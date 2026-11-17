@@ -20,19 +20,31 @@ import 'src/vertex_api_client.dart';
 
 export 'package:genkit_google_genai/genkit_google_genai.dart'
     show
+        GeminiAudioFormat,
         GeminiFileSearch,
         GeminiFunctionCallingConfig,
         GeminiGoogleSearch,
+        GeminiImageConfig,
+        GeminiImageOptions,
+        GeminiLatLng,
         GeminiMultiSpeakerVoiceConfig,
         GeminiOptions,
         GeminiPrebuiltVoiceConfig,
+        GeminiRetrievalConfig,
         GeminiSafetySettings,
         GeminiSpeakerVoiceConfig,
         GeminiSpeechConfig,
         GeminiThinkingConfig,
         GeminiTtsOptions,
+        GeminiUrlContext,
+        GeminiVertexDatastore,
+        GeminiVertexRetrieval,
+        GeminiVideoConfig,
+        GeminiVideoFormat,
+        GeminiVideoOptions,
         GeminiVoiceConfig,
-        GoogleGenAiEmbedderOptions;
+        GoogleGenAiEmbedderOptions,
+        LyriaOptions;
 
 const VertexAiPluginHandle vertexAI = VertexAiPluginHandle();
 
@@ -68,8 +80,58 @@ class VertexAiPluginHandle {
     );
   }
 
+  /// A [ModelRef] for the Gemini model [name].
+  ///
+  /// Carries [GeminiOptions]. It works for every Gemini model, including
+  /// image, text-to-speech and video models; their own handles
+  /// ([geminiImage], [geminiTts], [geminiVideo]) add the options only those
+  /// models take.
   ModelRef<GeminiOptions> gemini(String name) {
     return modelRef('vertexai/$name', customOptions: GeminiOptions.$schema);
+  }
+
+  /// A [ModelRef] for the Gemini image model [name] (e.g.
+  /// `gemini-nano-banana-2.1`).
+  ///
+  /// Carries [GeminiImageOptions]: the [GeminiOptions] fields plus
+  /// `imageConfig` (aspect ratio and size).
+  ModelRef<GeminiImageOptions> geminiImage(String name) {
+    return modelRef(
+      'vertexai/$name',
+      customOptions: GeminiImageOptions.$schema,
+    );
+  }
+
+  /// A [ModelRef] for the Gemini text-to-speech model [name] (e.g.
+  /// `gemini-3.8-flash-tts`).
+  ///
+  /// Carries [GeminiTtsOptions]: the [GeminiOptions] fields plus
+  /// `audioFormat`.
+  ModelRef<GeminiTtsOptions> geminiTts(String name) {
+    return modelRef('vertexai/$name', customOptions: GeminiTtsOptions.$schema);
+  }
+
+  /// A [ModelRef] for the Gemini video model [name] (e.g.
+  /// `gemini-omni-1.1-flash-preview`).
+  ///
+  /// Carries [GeminiVideoOptions]: the [GeminiOptions] fields plus
+  /// `videoFormat` (aspect ratio, resolution, delivery, gcsUri) and
+  /// `videoConfig` (the kind of generation).
+  ModelRef<GeminiVideoOptions> geminiVideo(String name) {
+    return modelRef(
+      'vertexai/$name',
+      customOptions: GeminiVideoOptions.$schema,
+    );
+  }
+
+  /// A [ModelRef] for the Lyria music generation model [name] (e.g.
+  /// `lyria-3-clip-preview`).
+  ///
+  /// Carries [LyriaOptions]. Lyria returns the music as audio, plus its
+  /// lyrics or caption as text. It is only served on the `global` location
+  /// (set `location: 'global'` if the plugin uses another one).
+  ModelRef<LyriaOptions> lyria(String name) {
+    return modelRef('vertexai/$name', customOptions: LyriaOptions.$schema);
   }
 
   EmbedderRef<GoogleGenAiEmbedderOptions> textEmbedding(String name) {
