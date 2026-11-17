@@ -20,6 +20,7 @@ import 'dart:convert';
 
 import 'package:a2ui_core/a2ui_core.dart' show A2uiDataError;
 import 'package:a2ui_server/agent.dart';
+import 'package:genkit/experimental.dart' show Agent;
 import 'package:genkit/genkit.dart';
 import 'package:genkit_a2ui/a2ui.dart';
 import 'package:logging/logging.dart';
@@ -183,11 +184,13 @@ Future<RunRecord> runScenario(
   Scenario scenario,
   int run, {
   Duration turnTimeout = const Duration(seconds: 120),
+  Agent? agent,
 }) async {
+  final targetAgent = agent ?? uiAgent;
   final record = RunRecord(scenario.name, run);
   final renderer = HeadlessRenderer();
   final historyRenderer = HeadlessRenderer();
-  final chat = uiAgent.chat();
+  final chat = targetAgent.chat();
   var before = <SurfaceSnapshot>[];
   var seen = 0;
   TurnRecord? last;
@@ -202,6 +205,7 @@ Future<RunRecord> runScenario(
     before = snapshot();
     final sw = Stopwatch()..start();
     void Function()? abortTurn;
+    Message? resMessage;
     try {
       final res = await runZoned(
         () async {
@@ -217,16 +221,26 @@ Future<RunRecord> runScenario(
         zoneValues: {_turnLogKey: t.logs, _turnUsageKey: t.usage},
       ).timeout(turnTimeout);
       if (res.error case final e?) t.error = '${e.status}: ${e.message}';
-      // Read from the persisted session so model messages written alongside
-      // intermediate tool calls are captured too (`chat.messages` holds only
-      // the final message when the agent uses a session store).
+      resMessage = res.message;
+    } on TimeoutException {
+      abortTurn?.call();
+      t.error = 'timed out after ${turnTimeout.inSeconds}s';
+      record.abortedAt = 't${t.index} timed out';
+    } catch (e) {
+      t.error = '$e';
+    }
+    if (record.abortedAt == null) {
+      // Read from the persisted session even when a later tool-loop step
+      // failed (`AgentChat` throws `AgentError` after updating `snapshotId`),
+      // so intermediate model steps match `t.streamed` and advance `seen`
+      // before the next turn.
       final session = chat.snapshotId == null
           ? null
-          : await uiAgent.getSnapshot(snapshotId: chat.snapshotId!);
+          : await targetAgent.getSnapshot(snapshotId: chat.snapshotId!);
       final all = session?.messages ?? chat.messages;
       final produced = all.length > seen
           ? all.skip(seen).where((m) => m.role == Role.model)
-          : [?res.message];
+          : [?resMessage];
       seen = all.length;
       final prose = StringBuffer();
       for (final m in produced) {
@@ -241,12 +255,6 @@ Future<RunRecord> runScenario(
         }
       }
       t.prose = prose.toString();
-    } on TimeoutException {
-      abortTurn?.call();
-      t.error = 'timed out after ${turnTimeout.inSeconds}s';
-      record.abortedAt = 't${t.index} timed out';
-    } catch (e) {
-      t.error = '$e';
     }
     t.duration = sw.elapsed;
 

@@ -16,7 +16,9 @@ import 'package:a2ui_eval/src/renderer.dart';
 import 'package:a2ui_eval/src/report.dart';
 import 'package:a2ui_eval/src/runner.dart';
 import 'package:a2ui_eval/src/scenario.dart';
+import 'package:genkit/experimental.dart';
 import 'package:genkit/genkit.dart';
+import 'package:genkit_a2ui/a2ui.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -85,7 +87,7 @@ void main() {
       expect(r['s']!.version, '1.0');
       expect(r['s']!.labelOf('root'), 'Refresh');
 
-      // Re-rendering under the same id reads as a replacement.
+      // Re-rendering under the same id on a later turn reads as a replacement.
       final replace = r.applyTurn(1, [
         {
           'version': '1.0',
@@ -105,6 +107,63 @@ void main() {
       expect(replace.violations, isEmpty);
       expect(replace.changes, {'s': SurfaceChange.replaced});
     });
+
+    test(
+      'keeps SurfaceChange.created when a new surface is re-created in the same turn',
+      () {
+        final r = HeadlessRenderer();
+        final res = r.applyTurn(0, [
+          {
+            'version': '1.0',
+            'deleteSurface': {'surfaceId': 'tokyo'},
+          },
+          {
+            'version': '1.0',
+            'createSurface': {
+              'surfaceId': 'tokyo',
+              'catalogId': 'c',
+              'components': [
+                {'id': 'root', 'component': 'Text', 'text': 'Loading...'},
+              ],
+            },
+          },
+          {
+            'version': '1.0',
+            'deleteSurface': {'surfaceId': 'tokyo'},
+          },
+          {
+            'version': '1.0',
+            'createSurface': {
+              'surfaceId': 'tokyo',
+              'catalogId': 'c',
+              'components': [
+                {'id': 'root', 'component': 'Text', 'text': 'Tokyo 18C'},
+              ],
+            },
+          },
+          // A temporary surface created and deleted within the same turn leaves
+          // no net change.
+          {
+            'version': '1.0',
+            'createSurface': {
+              'surfaceId': 'temp',
+              'catalogId': 'c',
+              'components': [
+                {'id': 'root', 'component': 'Text', 'text': 'scratch'},
+              ],
+            },
+          },
+          {
+            'version': '1.0',
+            'deleteSurface': {'surfaceId': 'temp'},
+          },
+        ]);
+        expect(res.violations, isEmpty);
+        expect(res.changes, {'tokyo': SurfaceChange.created});
+        expect(r['tokyo']!.order, 0);
+        expect(r['tokyo']!.createdTurn, 0);
+      },
+    );
 
     test('reports missing root and dangling component references', () {
       final r = HeadlessRenderer();
@@ -229,6 +288,24 @@ void main() {
         ]);
         expect(r['s']!.data, isEmpty);
         expect(bad.violations, [contains('root value must be an object')]);
+
+        // In v1.0, explicit `'value': null` at `/` is a valid root clear.
+        final cleared = r.applyTurn(2, [
+          {
+            'version': '1.0',
+            'updateDataModel': {
+              'surfaceId': 's',
+              'path': '/k',
+              'value': 'populated',
+            },
+          },
+          {
+            'version': '1.0',
+            'updateDataModel': {'surfaceId': 's', 'value': null},
+          },
+        ]);
+        expect(cleared.violations, isEmpty);
+        expect(r['s']!.data, isEmpty);
       },
     );
 
@@ -840,5 +917,115 @@ void main() {
       expect(SurfaceRef.nth(0).resolve(snapshots)?.id, 's');
       expect(SurfaceRef.nth(1).resolve(snapshots), isNull);
     });
+  });
+
+  group('runScenario failed multi-step turn alignment', () {
+    test(
+      'reads persisted step-1 surface and advances seen when step 2 fails',
+      () async {
+        final gk = Genkit(isDevEnv: false, plugins: [A2uiPlugin()]);
+        addTearDown(gk.shutdown);
+
+        final ping = gk.defineTool(
+          name: 'ping',
+          description: 'No-op tool',
+          inputSchema: .string(),
+          outputSchema: .string(),
+          fn: (input, _) async => .response('pong:$input'),
+        );
+
+        var call = 0;
+        final model = gk.defineModel(
+          name: 'fake',
+          fn: (req, ctx) async {
+            switch (call++) {
+              case 0:
+                final parts = <Part>[
+                  TextPart(
+                    text:
+                        'Step 1 prose\n<a2ui>\nsurface("s1")\nroot = Text("Provisional")\n</a2ui>',
+                  ),
+                  ToolRequestPart(
+                    toolRequest: ToolRequest(name: 'ping', input: 'x'),
+                  ),
+                ];
+                if (ctx.streamingRequested) {
+                  ctx.sendChunk(ModelResponseChunk(content: parts));
+                }
+                return ModelResponse(
+                  finishReason: FinishReason.stop,
+                  message: Message(role: Role.model, content: parts),
+                );
+              case 1:
+                const bad =
+                    '<a2ui>\nsurface("s1")\nroot = UnknownWidget("boom")\n</a2ui>';
+                if (ctx.streamingRequested) {
+                  ctx.sendChunk(
+                    ModelResponseChunk(content: [TextPart(text: bad)]),
+                  );
+                }
+                return ModelResponse(
+                  finishReason: FinishReason.stop,
+                  message: Message(
+                    role: Role.model,
+                    content: [TextPart(text: bad)],
+                  ),
+                );
+              default:
+                const ok =
+                    'Turn 2 prose\n<a2ui>\nsurface("s2")\nroot = Text("Recovered")\n</a2ui>';
+                if (ctx.streamingRequested) {
+                  ctx.sendChunk(
+                    ModelResponseChunk(content: [TextPart(text: ok)]),
+                  );
+                }
+                return ModelResponse(
+                  finishReason: FinishReason.stop,
+                  message: Message(
+                    role: Role.model,
+                    content: [TextPart(text: ok)],
+                  ),
+                );
+            }
+          },
+        );
+
+        final agent = gk.defineAgent(
+          name: 'testAgent',
+          model: model,
+          tools: [ping],
+          use: [a2ui(validate: 'strict', repair: false)],
+          store: InMemorySessionStore(),
+        );
+
+        final rec = await runScenario(
+          Scenario('multi-step failure', [
+            const Say('first'),
+            const Say('second'),
+            Expect.shows('Recovered'),
+          ]),
+          0,
+          agent: agent,
+        );
+
+        expect(rec.turns, hasLength(2));
+        final t0 = rec.turns[0];
+        expect(
+          t0.checks.firstWhere((c) => c.name == 'turn ok').passed,
+          isFalse,
+        );
+        expect(
+          t0.checks
+              .firstWhere((c) => c.name == 'stream matches history')
+              .passed,
+          isTrue,
+        );
+        expect(t0.prose.trim(), 'Step 1 prose');
+
+        final t1 = rec.turns[1];
+        expect(t1.prose.trim(), 'Turn 2 prose');
+        expect(t1.checks.every((c) => c.passed), isTrue);
+      },
+    );
   });
 }

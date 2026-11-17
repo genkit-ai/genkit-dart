@@ -305,8 +305,9 @@ final class HeadlessRenderer {
   ) {
     final changes = <String, SurfaceChange>{};
     final violations = <String>[];
-    // Surfaces deleted earlier in this same turn, so a delete followed by a
-    // create of the same id reads as a replace.
+    final existedBefore = _surfaces.keys.toSet();
+    // Surfaces deleted earlier in this same turn, so re-creating the same id
+    // preserves its original creation `order` and `createdTurn`.
     final deletedThisTurn = <String, SurfaceState>{};
 
     for (final m in messages) {
@@ -336,7 +337,7 @@ final class HeadlessRenderer {
         if (c['dataModel'] case final Map data) {
           s.setData('/', data);
         }
-        changes[id] = prior != null
+        changes[id] = existedBefore.contains(id)
             ? SurfaceChange.replaced
             : SurfaceChange.created;
       } else if (m['updateComponents'] case {
@@ -364,7 +365,7 @@ final class HeadlessRenderer {
         final path = (u['path'] as String?) ?? '/';
         final atRoot = path.isEmpty || path == '/';
         try {
-          if (atRoot && u.containsKey('value') && u['value'] is! Map) {
+          if (atRoot && u['value'] != null && u['value'] is! Map) {
             violations.add(
               'updateDataModel on "$id": root value must be an object',
             );
@@ -383,7 +384,11 @@ final class HeadlessRenderer {
         final s = _surfaces.remove(id);
         if (s == null) continue;
         deletedThisTurn[id] = s;
-        changes[id] = SurfaceChange.deleted;
+        if (existedBefore.contains(id)) {
+          changes[id] = SurfaceChange.deleted;
+        } else {
+          changes.remove(id);
+        }
       }
     }
 
