@@ -584,8 +584,10 @@ A model that thinks - Large 4 always, Small 4 and Medium 3.5 when given a
 `reasoningEffort` of `high` - answers with `thinking` chunks ahead of its
 text. Each chunk comes back as its own `ReasoningPart`, streamed as it arrives,
 with `reasoningSource: 'mistral'` in its metadata and Mistral's signature, when
-it sends one, under `thoughtSignature`. A streamed reply's chunks are joined
-into one part in the final message. On later turns those parts go back to
+it sends one, under `thoughtSignature`. In the final message of a stream, the
+fragments are joined back into one part per thinking chunk: a fragment that
+carries a signature ends its chunk, so each part keeps its own signature. On
+later turns those parts go back to
 Mistral as `thinking` chunks ahead of the assistant's text, as Mistral asks, so
 a tool loop keeps its reasoning. Reasoning from other models in the history
 is not sent.

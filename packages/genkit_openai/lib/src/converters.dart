@@ -377,7 +377,7 @@ abstract final class GenkitConverter {
   ///
   /// With a [reasoningSource] the reasoning is read as that provider's: see
   /// [reasoningParts]. [streamed] says [msg] was assembled from a stream, whose
-  /// reasoning fragments are joined back into one part.
+  /// reasoning fragments are joined back into one part per thinking chunk.
   static Message fromOpenAIAssistantMessage(
     sdk.AssistantMessage msg, {
     String? reasoningSource,
@@ -478,9 +478,12 @@ abstract final class GenkitConverter {
   /// stays with the text it signs, and an entry that carries only a signature
   /// is kept, since the signature is what has to round-trip. Every part is
   /// marked with [reasoningSourceKey] so only this provider's reasoning is
-  /// replayed to it. [merge] joins the parts into one, carrying the last
-  /// signature: a stream splits one thinking chunk across many deltas, with
-  /// nothing to tell where one chunk ends and the next begins.
+  /// replayed to it. [merge] is for a stream, which splits one thinking chunk
+  /// across many deltas and sends its signature, if any, on the last of them:
+  /// adjacent entries are joined, and an entry carrying a signature closes
+  /// the part, so the next entry starts a new one. Each part then pairs a
+  /// chunk's text with that chunk's own signature, as in a buffered reply,
+  /// the same way the JS and Python plugins rebuild a streamed reply.
   static List<ReasoningPart> reasoningParts({
     String? reasoningContent,
     String? reasoning,
@@ -512,12 +515,21 @@ abstract final class GenkitConverter {
       },
     );
     if (!merge) return [for (final e in entries) part(e.text, e.sig)];
-    return [
-      part(
-        entries.map((e) => e.text).join(),
-        entries.map((e) => e.sig).nonNulls.lastOrNull,
-      ),
-    ];
+
+    final parts = <ReasoningPart>[];
+    final text = StringBuffer();
+    var open = false;
+    for (final e in entries) {
+      text.write(e.text);
+      open = true;
+      if (e.sig != null) {
+        parts.add(part(text.toString(), e.sig));
+        text.clear();
+        open = false;
+      }
+    }
+    if (open) parts.add(part(text.toString(), null));
+    return parts;
   }
 
   /// [msg]'s reasoning parts marked as [source]'s, as `reasoning_details`

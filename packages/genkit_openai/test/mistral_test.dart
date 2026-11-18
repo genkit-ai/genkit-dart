@@ -1223,6 +1223,114 @@ void main() {
       expect(message.text, 'done');
     });
 
+    group('a stream is joined back into its thinking chunks', () {
+      /// The final message of a stream of [deltas].
+      Future<Message> streamed(List<Map<String, dynamic>> deltas) async {
+        final ai = Genkit(
+          plugins: [
+            mistral(
+              apiKey: 'k',
+              httpClient: _replyingClient(
+                [],
+                reply: _thinkingCompletion,
+                stream: () => deltas,
+              ),
+            ),
+          ],
+        );
+        addTearDown(ai.shutdown);
+        final stream = ai.generateStream(
+          model: mistral.model('mistral-large-latest'),
+          prompt: 'Bread for two?',
+        );
+        await stream.drain<void>();
+        return (await stream.onResult).message!;
+      }
+
+      List<Map<String, dynamic>> reasoningOf(Message message) => [
+        for (final p in message.content)
+          if (p.isReasoning) {'text': p.reasoning, 'meta': p.metadata},
+      ];
+
+      test(
+        'two signed chunks stay two parts, each with its signature',
+        () async {
+          final message = await streamed([
+            _delta([_thinking('Two ')]),
+            _delta([_thinking('loaves.', signature: 's1')]),
+            _delta([_thinking('One ')]),
+            _delta([_thinking('each.', signature: 's2')]),
+            _delta('bonjour', finishReason: 'stop'),
+          ]);
+
+          expect(reasoningOf(message), [
+            {'text': 'Two loaves.', 'meta': _mistralMeta('s1')},
+            {'text': 'One each.', 'meta': _mistralMeta('s2')},
+          ]);
+          expect(message.text, 'bonjour');
+        },
+      );
+
+      test('think, text, think keeps each chunk\'s signature', () async {
+        final message = await streamed([
+          _delta([_thinking('First ')]),
+          _delta([
+            _thinking('thought.', signature: 's1'),
+            {'type': 'text', 'text': 'bon'},
+          ]),
+          _delta([_thinking('Second ')]),
+          _delta([_thinking('thought.', signature: 's2')]),
+          _delta('jour', finishReason: 'stop'),
+        ]);
+
+        expect(reasoningOf(message), [
+          {'text': 'First thought.', 'meta': _mistralMeta('s1')},
+          {'text': 'Second thought.', 'meta': _mistralMeta('s2')},
+        ]);
+        expect(message.text, 'bonjour');
+      });
+
+      test('unsigned deltas are one part, with no signature', () async {
+        final message = await streamed([
+          _delta([_thinking('Two ')]),
+          _delta([_thinking('loaves, ')]),
+          _delta([_thinking('one each.')]),
+          _delta('bonjour', finishReason: 'stop'),
+        ]);
+
+        expect(reasoningOf(message), [
+          {'text': 'Two loaves, one each.', 'meta': _mistralMeta()},
+        ]);
+      });
+
+      test('a signature-only fragment closes the chunk before it', () {
+        final parts = GenkitConverter.reasoningParts(
+          reasoningDetails: [
+            const sdk.ReasoningDetail(type: 'reasoning.text', text: 'a'),
+            const sdk.ReasoningDetail(type: 'reasoning.text', text: 'b'),
+            const sdk.ReasoningDetail(
+              type: 'reasoning.text',
+              text: '',
+              signature: 's1',
+            ),
+            const sdk.ReasoningDetail(type: 'reasoning.text', text: 'c'),
+          ],
+          reasoningSource: mistralReasoningSource,
+          merge: true,
+        );
+
+        expect(
+          [
+            for (final p in parts) {'text': p.reasoning, 'meta': p.metadata},
+          ],
+          [
+            {'text': 'ab', 'meta': _mistralMeta('s1')},
+            {'text': 'c', 'meta': _mistralMeta()},
+          ],
+        );
+      });
+    });
+
     test('a reply with no signature gets no metadata', () {
       final reply = mistralChatReply({
         'choices': [
