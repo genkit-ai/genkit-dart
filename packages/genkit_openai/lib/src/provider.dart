@@ -167,6 +167,17 @@ final class OpenAIProvider {
   /// rules and [servesModel]. `resolve` still serves any id named explicitly.
   final bool? Function(Map<String, dynamic> listing)? chatFromListing;
 
+  /// Capability metadata a `GET /models` entry gives for a model, or null to
+  /// leave the model to [infoFor].
+  ///
+  /// Only consulted for a model discovery lists as chat. A curated model keeps
+  /// its curated metadata, so this answers null for one; it is for the models
+  /// the catalog does not know, which would otherwise claim nothing beyond
+  /// text. The info is used for the listing and for the action resolved under
+  /// that name afterwards.
+  final ModelInfo? Function(String model, Map<String, dynamic> listing)?
+  infoFromListing;
+
   /// Whether the host takes OpenAI's `file` content part, which carries a
   /// non-image document such as a PDF inline.
   ///
@@ -205,6 +216,7 @@ final class OpenAIProvider {
     this.acceptsFileParts = true,
     this.servesModel = _servesAnyModel,
     this.chatFromListing,
+    this.infoFromListing,
   });
 }
 
@@ -297,6 +309,8 @@ final mistralProvider = OpenAIProvider(
   // Each `/models` entry says whether it serves chat completions, which rules
   // out OCR, moderation, transcription and speech models alike.
   chatFromListing: mistralServesChat,
+  // An uncurated model takes tools and image input from the same entry.
+  infoFromListing: mistralInfoFromListing,
   // For a listing without capabilities: the OCR models are served by
   // `/v1/ocr`, not chat completions. `resolve` still serves any id named
   // explicitly.
@@ -380,6 +394,31 @@ bool? mistralServesChat(Map<String, dynamic> listing) {
   final capabilities = listing['capabilities'];
   if (capabilities is! Map) return null;
   return capabilities['completion_chat'] == true;
+}
+
+/// Capability metadata for an uncurated Mistral model from its `/models`
+/// entry: tools from `capabilities.function_calling`, image input from
+/// `capabilities.vision`, as the JS plugin reads them. Output stays text only,
+/// since the entry does not say whether the model takes a JSON schema.
+///
+/// Null for a curated model, which keeps its curated metadata, and for an
+/// entry with no capabilities, which leaves the model to
+/// [dynamicMistralModelInfo].
+///
+/// https://docs.mistral.ai/api/#tag/models
+ModelInfo? mistralInfoFromListing(String model, Map<String, dynamic> listing) {
+  if (knownMistralModelFor(model) != null) return null;
+  final capabilities = listing['capabilities'];
+  if (capabilities is! Map) return null;
+  final tools = capabilities['function_calling'] == true;
+  return ModelInfo(
+    supports: Map.unmodifiable({
+      ...mistralUnknownSupports,
+      'tools': tools,
+      'toolChoice': tools,
+      'media': capabilities['vision'] == true,
+    }),
+  );
 }
 
 /// Rewrites an embeddings request into the fields Mistral defines.

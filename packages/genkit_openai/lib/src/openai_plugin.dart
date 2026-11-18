@@ -79,6 +79,10 @@ class OpenAIPlugin extends GenkitPlugin {
   /// a different API and deliberately does not match.
   final bool _ownHost;
 
+  /// Capability metadata the last successful discovery read from the host's
+  /// `GET /models` entries, by model id. See [OpenAIProvider.infoFromListing].
+  final _listedInfo = <String, ModelInfo>{};
+
   /// Extra HTTP headers sent with every request.
   final Map<String, String>? headers;
 
@@ -289,6 +293,7 @@ class OpenAIPlugin extends GenkitPlugin {
     final discoveredEmbedders = <String>{};
     final discoveredSpeech = <String>{};
     final discoveredTranscription = <String>{};
+    final listedInfo = <String, ModelInfo>{};
 
     // Key resolution is inside the try on purpose: an apiKeyProvider that
     // throws must degrade like any other discovery failure, not take the
@@ -308,6 +313,8 @@ class OpenAIPlugin extends GenkitPlugin {
               : provider.chatFromListing?.call(listing);
           if (servesChat == true) {
             discovered.add(modelId);
+            final info = provider.infoFromListing?.call(modelId, listing!);
+            if (info != null) listedInfo[modelId] = info;
             continue;
           }
           if (servesChat == false) {
@@ -342,6 +349,9 @@ class OpenAIPlugin extends GenkitPlugin {
           discovered.add(modelId);
         }
       }
+      _listedInfo
+        ..clear()
+        ..addAll(listedInfo);
     } catch (e, stackTrace) {
       _logger.warning(
         'Failed to list models from $_pluginName; '
@@ -428,7 +438,7 @@ class OpenAIPlugin extends GenkitPlugin {
       for (final id in ids)
         modelMetadata(
           '$_pluginName/$id',
-          info: infoOverrides[id] ?? _infoFor(id),
+          info: infoOverrides[id] ?? _listedInfo[id] ?? _infoFor(id),
           customOptions: chat.chatModelOptionsSchema(),
         ),
       for (final id in speechIds) _speechModelMetadata(id, infoOverrides[id]),
@@ -662,7 +672,7 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   Model _createModel(String modelName, ModelInfo? info) {
-    final modelInfo = info ?? _infoFor(modelName);
+    final modelInfo = info ?? _listedInfo[modelName] ?? _infoFor(modelName);
 
     return Model(
       name: '$_pluginName/$modelName',

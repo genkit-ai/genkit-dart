@@ -578,7 +578,9 @@ whose `contentType` is not an image, because it would go out as `image_url`.
 Discovery lists what Mistral's `/v1/models` says serves chat completions
 (`capabilities.completion_chat`), plus the embedders. The OCR, moderation,
 transcription and text-to-speech models are left out; this plugin calls none
-of their endpoints.
+of their endpoints. A listed model the catalog does not know takes tool calling
+and image input from the entry's `function_calling` and `vision` capabilities,
+with text output only.
 
 A model that thinks - Large 4 always, Small 4 and Medium 3.5 when given a
 `reasoningEffort` of `high` - answers with `thinking` chunks ahead of its

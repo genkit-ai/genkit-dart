@@ -744,6 +744,148 @@ void main() {
       }
     });
 
+    group('an uncurated model takes its capabilities from discovery', () {
+      Map<String, dynamic> entry(String id, Map<String, dynamic> caps) => {
+        'id': id,
+        'object': 'model',
+        'created': 0,
+        'owned_by': 'mistralai',
+        'capabilities': {'completion_chat': true, ...caps},
+      };
+
+      OpenAIPlugin listing(List<Map<String, dynamic>> entries) => OpenAIPlugin(
+        provider: mistralProvider,
+        apiKey: 'm-key',
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/models')) {
+            return http.Response(
+              jsonEncode({'object': 'list', 'data': entries}),
+              200,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          return http.Response('{}', 404);
+        }),
+      );
+
+      Map<String, dynamic> supportsOf(
+        List<ActionMetadata<dynamic, dynamic, dynamic, dynamic>> listed,
+        String id,
+      ) =>
+          ((listed.firstWhere((m) => m.name == 'mistral/$id').metadata['model']
+                      as Map)['supports']
+                  as Map)
+              .cast<String, dynamic>();
+
+      test('tools and image input as the entry lists them', () async {
+        final listed = await listing([
+          entry('labs-both', {'function_calling': true, 'vision': true}),
+          entry('labs-tools', {'function_calling': true, 'vision': false}),
+          entry('labs-vision', {'vision': true}),
+          entry('labs-neither', {}),
+        ]).list();
+
+        Map<String, dynamic> axes(String id) {
+          final s = supportsOf(listed, id);
+          return {
+            'tools': s['tools'],
+            'toolChoice': s['toolChoice'],
+            'media': s['media'],
+            'output': s['output'],
+          };
+        }
+
+        expect(axes('labs-both'), {
+          'tools': true,
+          'toolChoice': true,
+          'media': true,
+          'output': ['text'],
+        });
+        expect(axes('labs-tools'), {
+          'tools': true,
+          'toolChoice': true,
+          'media': false,
+          'output': ['text'],
+        });
+        expect(axes('labs-vision'), {
+          'tools': false,
+          'toolChoice': false,
+          'media': true,
+          'output': ['text'],
+        });
+        expect(axes('labs-neither'), {
+          'tools': false,
+          'toolChoice': false,
+          'media': false,
+          'output': ['text'],
+        });
+        // Nothing in the entry says it takes a schema.
+        expect(supportsOf(listed, 'labs-both')['constrained'], isNull);
+      });
+
+      test('a curated model keeps its curated metadata', () async {
+        final listed = await listing([
+          entry('codestral-latest', {
+            'function_calling': false,
+            'vision': true,
+          }),
+        ]).list();
+
+        expect(
+          supportsOf(listed, 'codestral-latest'),
+          knownMistralModelFor('codestral-latest')!.info.supports,
+        );
+      });
+
+      test('an entry without capabilities gets the default', () async {
+        final listed = await listing([
+          {'id': 'labs-bare', 'object': 'model', 'created': 0},
+        ]).list();
+
+        expect(
+          supportsOf(listed, 'labs-bare'),
+          dynamicMistralModelInfo.supports,
+        );
+      });
+
+      test('the resolved action carries the listed info', () async {
+        final plugin = listing([
+          entry('labs-both', {'function_calling': true, 'vision': true}),
+        ]);
+        expect(
+          (plugin.resolve(.model, 'labs-both')!.metadata['model']
+              as Map)['supports'],
+          dynamicMistralModelInfo.supports,
+          reason: 'before discovery, nothing is known about it',
+        );
+
+        await plugin.list();
+        final supports =
+            (plugin.resolve(.model, 'labs-both')!.metadata['model']
+                    as Map)['supports']
+                as Map;
+
+        expect(supports['tools'], isTrue);
+        expect(supports['media'], isTrue);
+      });
+
+      test('reads function_calling and vision', () {
+        expect(
+          mistralInfoFromListing('labs-x', {
+            'capabilities': {'function_calling': true, 'vision': true},
+          })!.supports,
+          containsPair('tools', true),
+        );
+        expect(mistralInfoFromListing('labs-x', {'id': 'labs-x'}), isNull);
+        expect(
+          mistralInfoFromListing('mistral-large-latest', {
+            'capabilities': {'function_calling': true},
+          }),
+          isNull,
+        );
+      });
+    });
+
     test('the capability says chat even where a name rule would not', () {
       expect(
         mistralServesChat({
