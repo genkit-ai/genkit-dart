@@ -435,10 +435,11 @@ class VersionPlanner {
         // already in proposedBumps); don't graduate them via a dependency.
         if (_isBelowFloor(pkg)) continue;
 
+        // Only regular deps propagate: dev deps don't affect consumers of the
+        // published package. VersionApplier still rewrites dev dep
+        // constraints, it just doesn't bump the version for them.
         var hasBumpedDep = false;
-        final deps = List<String>.from(pkg.dependencies.keys)
-          ..addAll(pkg.devDependencies.keys);
-        for (final depName in deps) {
+        for (final depName in pkg.dependencies.keys) {
           if (proposedBumps.containsKey(depName)) {
             hasBumpedDep = true;
             break;
