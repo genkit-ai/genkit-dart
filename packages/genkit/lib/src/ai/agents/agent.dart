@@ -642,7 +642,7 @@ class SessionRunner<State> {
             _notifyEndTurn(snapshotId, finishReason);
             return false;
           },
-          actionType: ActionType.flowStep.value,
+          actionType: ActionType.flowStep,
           input: input,
         );
         if (aborted) break;

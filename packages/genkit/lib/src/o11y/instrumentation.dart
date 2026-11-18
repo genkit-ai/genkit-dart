@@ -16,6 +16,7 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 
+import '../core/action_type.dart';
 import 'instrumentation_api.dart';
 
 export 'instrumentation_api.dart'
@@ -76,18 +77,26 @@ void setCustomMetadataAttributes(Map<String, Object?> attributes) {
 /// Runs [fn] inside a new span, dispatching to all configured
 /// [Instrumentation] providers as a middleware chain.
 ///
+/// The span is named [name] and nests under the active span. [input] and
+/// [fn]'s return value are recorded as the span's input and output
+/// (providers JSON-encode them); an error thrown by [fn] is recorded on the
+/// span and rethrown. The span ends when [fn]'s future completes, so for a
+/// streaming call don't return the `Stream` or `StreamedResponse` from [fn]:
+/// return something encodable instead (the collected chunks, or a
+/// placeholder like JS's `'[Streaming Response]'`).
+///
 /// When no providers are configured, [fn] runs directly with a no-op
-/// [SpanContext] (empty trace/span ids).
-Future<Output> runInNewSpan<Input, Output>(
+/// [SpanContext] (empty trace/span ids), so the call is effectively a no-op.
+Future<T> runInNewSpan<T>(
   String name,
-  Future<Output> Function(SpanContext) fn, {
-  String? actionType,
-  Input? input,
+  Future<T> Function(SpanContext span) fn, {
+  ActionType? actionType,
+  Object? input,
   Map<String, Object?>? attributes,
 }) {
   final metadata = SpanMetadata(
     name: name,
-    actionType: actionType,
+    actionType: actionType?.value,
     input: input,
     attributes: attributes ?? const {},
   );
@@ -105,7 +114,7 @@ Future<Output> runInNewSpan<Input, Output>(
   // trace/span ids from the first provider that supplies them.
   final spans = <SpanContext>[];
 
-  Future<Output> build(int index) {
+  Future<T> build(int index) {
     if (index == instrumentations.length) {
       return _runWithSpan(_CompositeSpanContext(spans), fn);
     }

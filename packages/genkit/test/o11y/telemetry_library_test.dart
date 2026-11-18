@@ -56,7 +56,7 @@ void main() {
     tearDown(resetInstrumentation);
 
     test('passes name, input and attributes and returns the output', () async {
-      final result = await runInNewSpan<Map<String, Object?>, String>(
+      final result = await runInNewSpan(
         'httpRequest',
         (_) async => 'response',
         input: {'apiEndpoint': 'https://example.test/v1/models'},
@@ -68,15 +68,23 @@ void main() {
       expect(span.name, 'httpRequest');
       expect(span.input, {'apiEndpoint': 'https://example.test/v1/models'});
       expect(span.attributes, {'custom:attr': 'value'});
+      expect(span.actionType, isNull);
       expect(recorder.outputs, ['response']);
+    });
+
+    test('passes actionType to the provider as its string value', () async {
+      await runInNewSpan(
+        'httpRequest',
+        (_) async => 'ok',
+        actionType: ActionType.util,
+      );
+
+      expect(recorder.started.single.actionType, 'util');
     });
 
     test('rethrows an error from the function', () async {
       await expectLater(
-        runInNewSpan<void, void>(
-          'httpRequest',
-          (_) async => throw StateError('boom'),
-        ),
+        runInNewSpan('httpRequest', (_) async => throw StateError('boom')),
         throwsStateError,
       );
       expect(recorder.errors.single, isStateError);
