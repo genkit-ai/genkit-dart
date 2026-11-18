@@ -138,12 +138,19 @@ extension type InteractionToolChoice._(Object json) {
     : this._({'allowed_tools': allowedTools});
 
   /// The plain mode, or null when this is an `allowed_tools` config.
-  String? get mode => json is String ? json as String : null;
+  String? get mode => switch (json) {
+    final String mode => mode,
+    _ => null,
+  };
 
   /// The `allowed_tools` config, or null when this is a plain mode.
-  InteractionAllowedTools? get allowedTools => json is Map
-      ? _wrap((json as Map)['allowed_tools'], InteractionAllowedTools.fromJson)
-      : null;
+  InteractionAllowedTools? get allowedTools => switch (json) {
+    final Map<Object?, Object?> map => _wrap(
+      map['allowed_tools'],
+      InteractionAllowedTools.fromJson,
+    ),
+    _ => null,
+  };
 }
 
 /// A tool that can be used by the model to connect to remote MCP servers.
