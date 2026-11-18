@@ -1,3 +1,10 @@
+## 1.0.1-rc.1
+
+### Other Changes
+
+ - fix wire tests for firebase_ai 5.2 (#751)
+
+
 ## 1.0.0
 
 ### Breaking Changes

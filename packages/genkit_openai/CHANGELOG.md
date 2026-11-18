@@ -1,3 +1,10 @@
+## 1.0.3-rc.1
+
+### Fixes
+
+ - map tool_calls and content_filter finish reasons (#753)
+
+
 ## 1.0.2
 
  - updated internal dependencies.

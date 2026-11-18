@@ -1,3 +1,10 @@
+## 0.2.3-rc.1
+
+### Features
+
+ - call newer Gemini models through the Interactions API (#661)
+
+
 ## 0.2.2
 
  - updated internal dependencies.

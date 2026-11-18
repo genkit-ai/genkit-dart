@@ -10,8 +10,8 @@ environment:
 
 dependencies:
   genkit: ^1.0.2
-  genkit_a2ui: ^0.5.0
-  genkit_google_genai: ^1.1.0
+  genkit_a2ui: ^0.6.0-rc.1
+  genkit_google_genai: ^1.2.0-rc.1
   schemantic: ^1.0.0
 
 dev_dependencies:

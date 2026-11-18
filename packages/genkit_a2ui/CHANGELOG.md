@@ -1,3 +1,15 @@
+## 0.6.0-rc.1
+
+### Breaking Changes
+
+ - switch default protocol to A2UI 1.0 (#742)
+
+### Other Changes
+
+ - move sample client and docs from genui to a2ui_flutter (#741)
+ - bump a2ui_agent to ^0.3.0 and a2ui_core to ^0.7.0 (#740)
+
+
 ## 0.5.0
 
 ### Breaking Changes
