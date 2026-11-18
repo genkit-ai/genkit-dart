@@ -353,7 +353,7 @@ class GenerativeLanguageBaseClient {
     );
     if (!debugTraces || trace == null) return _sendRequest(request);
     late final http.StreamedResponse response;
-    await runInNewSpan<Map<String, Object?>, String>('httpRequest', (_) async {
+    await runInNewSpan<String>('httpRequest', (_) async {
       response = await _sendRequest(request);
       return '[Streaming Response]';
     }, input: _traceInput(request, body, trace));
@@ -433,7 +433,7 @@ class GenerativeLanguageBaseClient {
     }
 
     if (!debugTraces || trace == null) return call();
-    return runInNewSpan<Map<String, Object?>, Map<String, dynamic>>(
+    return runInNewSpan<Map<String, dynamic>>(
       'httpRequest',
       (_) => call(),
       input: _traceInput(request, body, trace),
