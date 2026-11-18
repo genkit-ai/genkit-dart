@@ -106,6 +106,34 @@ void main() {
       );
     });
 
+    test('keeps the error event and an error body in details', () async {
+      const event =
+          '{"event_type":"error","error":'
+          '{"code":"rate_limit_exceeded","message":"slow down"}}';
+      await expectLater(
+        parseInteractionSse(_lines('data: $event\n\n')).toList(),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => jsonDecode(e.details!),
+            'details',
+            jsonDecode(event),
+          ),
+        ),
+      );
+      const body =
+          '{"error":{"code":"service_unavailable","message":"overloaded"}}';
+      await expectLater(
+        parseInteractionSse(_lines('[$body]')).toList(),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => jsonDecode(e.details!),
+            'details',
+            jsonDecode(body),
+          ),
+        ),
+      );
+    });
+
     test('throws on a plain JSON error body wrapped in a list', () {
       expect(
         parseInteractionSse(

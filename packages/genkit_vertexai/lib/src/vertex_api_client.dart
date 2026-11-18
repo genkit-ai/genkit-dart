@@ -18,7 +18,6 @@ import 'package:genkit_vertex_auth/genkit_vertex_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:meta/meta.dart';
 
-import 'auth.dart';
 import 'embedders.dart';
 import 'known_models.dart';
 
@@ -58,9 +57,18 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   String? projectId;
   String? location;
 
+  /// The API version in request paths: `v1` or `v1beta1` (the default).
+  final String? apiVersion;
+
+  /// Whether each model API call gets an `httpRequest` trace span (JS
+  /// `experimental_debugTraces`).
+  final bool experimentalDebugTraces;
+
   /// HTTP transport for credential and API calls. It is never closed by the
-  /// plugin; the caller owns its lifecycle. Because close() is suppressed,
-  /// cancellation cannot abort an in-flight request on an injected client.
+  /// plugin; the caller owns its lifecycle. Cancellation aborts its
+  /// in-flight requests when it passes each request on as is (as `http`'s
+  /// own clients do); a client that copies requests (e.g. googleapis_auth's)
+  /// drops the abort, and cancellation then lands once the request returns.
   http.Client? authClient;
 
   /// Whether interactions are stored when a request doesn't set `store`;
@@ -72,6 +80,8 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   VertexAiPluginImpl({
     this.projectId,
     this.location,
+    this.apiVersion,
+    this.experimentalDebugTraces = false,
     this.authClient,
     this.store,
   });
@@ -140,6 +150,10 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   @override
   bool get supportsVertexOptions => true;
 
+  /// The host comes from the location (JS vertexAI has no baseUrl option).
+  @override
+  bool get supportsBaseUrl => false;
+
   /// Adds what to check to the platform's 400 "Model '...' is not supported
   /// by the Interactions API.": every name not in the catalog is sent there,
   /// so it's what a typo, a model not available in the location, or a model
@@ -202,18 +216,23 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   /// The plugin location, `global` when not set.
   String get _resolvedLocation => location ?? 'global';
 
-  /// Applies the request's `location` (overrides the plugin location) and
-  /// `payGo` (consumption headers, JS vertexai defineModel).
+  /// Applies the request's `location` (overrides the plugin location),
+  /// `apiVersion` (overrides the plugin's) and `payGo` (consumption headers,
+  /// JS vertexai defineModel).
   @override
   Future<GenerativeLanguageBaseClient> getApiClientForRequest(
     Map<String, dynamic>? config,
   ) {
     final options = config == null ? null : GeminiOptions.$schema.parse(config);
     final requestLocation = options?.location;
+    final requestApiVersion = options?.apiVersion;
     return _apiClient(
       location: requestLocation == null || requestLocation.isEmpty
           ? null
           : requestLocation,
+      apiVersion: requestApiVersion == null || requestApiVersion.isEmpty
+          ? null
+          : requestApiVersion,
       headers: payGoHeaders(options?.payGo),
     );
   }
@@ -252,17 +271,27 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
   Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]) =>
       _apiClient();
 
+  /// The API version for requests: [requestApiVersion] if set, else the
+  /// plugin's, else `v1beta1`.
+  String _resolvedApiVersion([String? requestApiVersion]) {
+    final version = requestApiVersion ?? apiVersion;
+    return version == null || version.isEmpty ? 'v1beta1' : version;
+  }
+
   Future<GenerativeLanguageBaseClient> _apiClient({
     String? location,
+    String? apiVersion,
     Map<String, String> headers = const {},
   }) async {
     final validFormat = RegExp(r'^[a-z0-9-]+$');
     final resolvedProjectId = _getResolvedProjectId;
     final resolvedLocation = location ?? _resolvedLocation;
+    final resolvedApiVersion = _resolvedApiVersion(apiVersion);
 
     if (!validFormat.hasMatch(resolvedLocation) ||
-        !validFormat.hasMatch(resolvedProjectId)) {
-      throw ArgumentError('Invalid projectId or location format.');
+        !validFormat.hasMatch(resolvedProjectId) ||
+        !validFormat.hasMatch(resolvedApiVersion)) {
+      throw ArgumentError('Invalid projectId, location or apiVersion format.');
     }
     final safeLocation = Uri.encodeComponent(resolvedLocation);
     final safeProjectId = Uri.encodeComponent(resolvedProjectId);
@@ -270,28 +299,19 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
     final caller = authClient;
     final injected = caller == null ? null : NonClosingClient(caller);
 
-    final tokenProvider = createAdcAccessTokenProvider(baseClient: injected);
-
-    final baseUrl = vertexBaseUrl(safeLocation);
-    final parent = 'v1beta1/projects/$safeProjectId/locations/$safeLocation/';
-    final apiUrlPrefix = '${parent}publishers/google/';
-
-    final customClient = CustomClient(
-      defaultHeaders: {
-        'X-Goog-Api-Client': googleApiClientHeaderValue(),
-        ...headers,
-      },
-      inner: injected,
-    );
-    final client = VertexAuthClient(tokenProvider, inner: customClient);
+    final parent =
+        '$resolvedApiVersion/projects/$safeProjectId/locations/$safeLocation/';
 
     return GenerativeLanguageBaseClient(
-      baseUrl: baseUrl,
-      client: client,
-      apiUrlPrefix: apiUrlPrefix,
+      baseUrl: vertexBaseUrl(safeLocation),
+      client: injected ?? http.Client(),
+      apiUrlPrefix: '${parent}publishers/google/',
       // Under the project and location, not under the publisher models
       // (JS vertexai getInteractionsResourcePath).
       interactionsPath: '${parent}interactions',
+      accessToken: createAdcAccessTokenProvider(baseClient: injected),
+      headers: headers,
+      debugTraces: experimentalDebugTraces,
     );
   }
 
@@ -304,6 +324,7 @@ class VertexAiPluginImpl extends CommonGoogleGenPlugin {
       try {
         res = await service.listPublisherModels(
           projectId: _getResolvedProjectId,
+          apiVersion: _resolvedApiVersion(),
         );
       } finally {
         service.client.close();

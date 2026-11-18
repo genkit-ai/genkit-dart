@@ -151,6 +151,11 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   /// (see [warnDroppedVertexOptions]).
   bool get supportsVertexOptions => false;
 
+  /// Whether this plugin takes a request's `baseUrl` option (googleAI). When
+  /// false (vertexAI: the host comes from the location), it is dropped with
+  /// a warning (see [warnDroppedVertexOptions]).
+  bool get supportsBaseUrl => true;
+
   /// Whether this plugin's generateContent TTS models take `audioFormat`
   /// (as `generationConfig.responseFormat`) and join streamed audio chunks
   /// into one part in the final response (vertexAI, as in JS). When false,
@@ -330,10 +335,8 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
 
         final service = await getApiClientForRequest(req.config);
 
-        // Aborts the in-flight request on a plugin-owned client; an injected
-        // client's close() is a no-op, so cancellation there only lands at
-        // the next throwIfCancelled checkpoint.
-        final disposeCancel = ctx.cancel?.onCancel(service.client.close);
+        // Cancelling aborts the request in flight (see abortOn).
+        final disposeAbort = service.abortOn(ctx.cancel);
 
         try {
           ctx.cancel?.throwIfCancelled();
@@ -444,7 +447,7 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
-          disposeCancel?.call();
+          disposeAbort();
           service.client.close();
         }
       },
@@ -464,32 +467,12 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
     return null;
   }
 
+  /// Turns any error from a request into a [GenkitException]. API errors
+  /// already are one (with their status, see the API client); an aborted
+  /// request is a cancellation; anything else is INTERNAL.
   GenkitException handleException(Object e, StackTrace stack) {
     if (e is GenkitException) return e;
-
-    int? httpStatus;
-    String? message;
-
-    try {
-      if ((e as dynamic).status != null) {
-        httpStatus = (e as dynamic).status as int?;
-      } else if ((e as dynamic).code != null) {
-        httpStatus = (e as dynamic).code as int?;
-      }
-      if ((e as dynamic).message != null) {
-        message = (e as dynamic).message as String?;
-      }
-    } catch (_) {}
-
-    if (httpStatus != null) {
-      return GenkitException(
-        message ?? 'Google AI API Error: $httpStatus',
-        status: StatusCode.fromHttpStatus(httpStatus),
-        cause: e,
-        stackTrace: stack,
-      );
-    }
-
+    if (e is http.RequestAbortedException) return CancelledException(reason: e);
     return GenkitException(
       'Google AI Error: $e',
       status: StatusCode.internal,
@@ -499,18 +482,23 @@ abstract class CommonGoogleGenPlugin extends GenkitPlugin {
   }
 }
 
-/// Warns (once per model and field) about the vertexAI-only options in
-/// [config] when [plugin] doesn't use them (see
-/// [CommonGoogleGenPlugin.supportsVertexOptions]). The caller leaves them
+/// Warns (once per model and field) about the options in [config] that only
+/// the other plugin uses: the vertexAI-only options on googleAI (see
+/// [CommonGoogleGenPlugin.supportsVertexOptions]) and `baseUrl` on vertexAI
+/// (see [CommonGoogleGenPlugin.supportsBaseUrl]). The caller leaves them
 /// out of the request.
 void warnDroppedVertexOptions(
   CommonGoogleGenPlugin plugin,
   String modelName,
   Map<String, dynamic>? config,
 ) {
-  if (plugin.supportsVertexOptions || config == null) return;
+  if (config == null) return;
   // The fields are the same on every Gemini option type (see model.dart).
   final options = GeminiVideoOptions.$schema.parse(config);
+  if (!plugin.supportsBaseUrl && options.baseUrl != null) {
+    warnDroppedConfigField(modelName, 'baseUrl');
+  }
+  if (plugin.supportsVertexOptions) return;
   for (final (field, value) in [
     ('location', options.location),
     ('labels', options.labels),
@@ -1158,21 +1146,18 @@ GenerationUsage? extractUsage(gcl.UsageMetadata? metadata) {
 
 const _apiKeyEnvVars = ['GOOGLE_API_KEY', 'GEMINI_API_KEY'];
 
-http.Client httpClientFromApiKey(String? apiKey) {
-  apiKey ??= _apiKeyEnvVars.map(getConfigVar).nonNulls.firstOrNull;
-  var headers = {
-    'X-Goog-Api-Client':
-        'genkit-dart/$genkitVersion gl-dart/${getPlatformLanguageVersion()}',
-    'x-goog-api-key': ?apiKey,
-  };
-  if (apiKey == null) {
+/// The Gemini API key to send: [apiKey], else the `GOOGLE_API_KEY` or
+/// `GEMINI_API_KEY` environment variable. Throws when there is none, before
+/// any request is made.
+String resolveApiKey(String? apiKey) {
+  final key = apiKey ?? _apiKeyEnvVars.map(getConfigVar).nonNulls.firstOrNull;
+  if (key == null) {
     throw GenkitException(
       'apiKey must be set to an API key',
       status: StatusCode.invalidArgument,
     );
   }
-  final baseClient = CustomClient(defaultHeaders: headers);
-  return baseClient;
+  return key;
 }
 
 /// Delegates to a caller-owned client but ignores `close()`, so a plugin's
@@ -1189,23 +1174,4 @@ class NonClosingClient extends http.BaseClient {
 
   @override
   void close() {}
-}
-
-class CustomClient extends http.BaseClient {
-  final http.Client _inner;
-  final Map<String, String> defaultHeaders;
-
-  CustomClient({required this.defaultHeaders, http.Client? inner})
-    : _inner = inner ?? http.Client();
-
-  @override
-  Future<http.StreamedResponse> send(http.BaseRequest request) {
-    request.headers.addAll(defaultHeaders);
-    return _inner.send(request);
-  }
-
-  @override
-  void close() {
-    _inner.close();
-  }
 }

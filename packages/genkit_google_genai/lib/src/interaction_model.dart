@@ -65,10 +65,8 @@ Future<ModelResponse> generateWithInteractions(
   final request = buildInteractionRequest(plugin, modelName, req, options);
 
   final service = await plugin.getApiClientForRequest(req.config);
-  // Aborts the in-flight request on a plugin-owned client; an injected
-  // client's close() is a no-op, so cancellation there only lands at the
-  // next throwIfCancelled checkpoint.
-  final disposeCancel = ctx.cancel?.onCancel(service.client.close);
+  // Cancelling aborts the request in flight (see abortOn).
+  final disposeAbort = service.abortOn(ctx.cancel);
   try {
     ctx.cancel?.throwIfCancelled();
     if (!ctx.streamingRequested) {
@@ -108,7 +106,7 @@ Future<ModelResponse> generateWithInteractions(
   } catch (e, stack) {
     throw plugin.handleException(e, stack);
   } finally {
-    disposeCancel?.call();
+    disposeAbort();
     service.client.close();
   }
 }

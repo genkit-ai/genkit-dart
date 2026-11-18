@@ -26,9 +26,21 @@ part 'model.g.dart';
 @Schema()
 abstract class $GeminiOptions {
   String? get apiKey;
-  // TODO: Add apiVersion, baseUrl
-  // String? get apiVersion;
-  // String? get baseUrl;
+
+  @StringField(
+    description:
+        'googleAI only. Overrides the plugin-configured or default base URL '
+        '(https://generativelanguage.googleapis.com), if specified.',
+  )
+  String? get baseUrl;
+
+  @StringField(
+    description:
+        'Overrides the plugin-configured or default API version, if '
+        'specified (googleAI: default v1beta; vertexAI: v1 or v1beta1, '
+        'default v1beta1).',
+  )
+  String? get apiVersion;
 
   List<$GeminiSafetySettings>? get safetySettings;
 
@@ -199,9 +211,21 @@ abstract class $GeminiFileSearch {
 @Schema()
 abstract class $GeminiTtsOptions {
   String? get apiKey;
-  // TODO: Add apiVersion, baseUrl
-  // String? get apiVersion;
-  // String? get baseUrl;
+
+  @StringField(
+    description:
+        'googleAI only. Overrides the plugin-configured or default base URL '
+        '(https://generativelanguage.googleapis.com), if specified.',
+  )
+  String? get baseUrl;
+
+  @StringField(
+    description:
+        'Overrides the plugin-configured or default API version, if '
+        'specified (googleAI: default v1beta; vertexAI: v1 or v1beta1, '
+        'default v1beta1).',
+  )
+  String? get apiVersion;
 
   List<$GeminiSafetySettings>? get safetySettings;
 
@@ -307,9 +331,21 @@ abstract class $GeminiTtsOptions {
 @Schema()
 abstract class $GeminiImageOptions {
   String? get apiKey;
-  // TODO: Add apiVersion, baseUrl
-  // String? get apiVersion;
-  // String? get baseUrl;
+
+  @StringField(
+    description:
+        'googleAI only. Overrides the plugin-configured or default base URL '
+        '(https://generativelanguage.googleapis.com), if specified.',
+  )
+  String? get baseUrl;
+
+  @StringField(
+    description:
+        'Overrides the plugin-configured or default API version, if '
+        'specified (googleAI: default v1beta; vertexAI: v1 or v1beta1, '
+        'default v1beta1).',
+  )
+  String? get apiVersion;
 
   List<$GeminiSafetySettings>? get safetySettings;
 
@@ -417,9 +453,21 @@ abstract class $GeminiImageOptions {
 @Schema()
 abstract class $GeminiVideoOptions {
   String? get apiKey;
-  // TODO: Add apiVersion, baseUrl
-  // String? get apiVersion;
-  // String? get baseUrl;
+
+  @StringField(
+    description:
+        'googleAI only. Overrides the plugin-configured or default base URL '
+        '(https://generativelanguage.googleapis.com), if specified.',
+  )
+  String? get baseUrl;
+
+  @StringField(
+    description:
+        'Overrides the plugin-configured or default API version, if '
+        'specified (googleAI: default v1beta; vertexAI: v1 or v1beta1, '
+        'default v1beta1).',
+  )
+  String? get apiVersion;
 
   List<$GeminiSafetySettings>? get safetySettings;
 
@@ -725,6 +773,21 @@ abstract class $LyriaOptions {
   )
   String? get apiKey;
 
+  @StringField(
+    description:
+        'googleAI only. Overrides the plugin-configured or default base URL '
+        '(https://generativelanguage.googleapis.com), if specified.',
+  )
+  String? get baseUrl;
+
+  @StringField(
+    description:
+        'Overrides the plugin-configured or default API version, if '
+        'specified (googleAI: default v1beta; vertexAI: v1 or v1beta1, '
+        'default v1beta1).',
+  )
+  String? get apiVersion;
+
   @Field(
     description:
         'The modalities to be used in response: TEXT, IMAGE, AUDIO. When not '
@@ -755,6 +818,20 @@ abstract class $AntigravityOptions {
     description: 'Overrides the plugin-configured API key, if specified.',
   )
   String? get apiKey;
+
+  @StringField(
+    description:
+        'Overrides the plugin-configured or default base URL '
+        '(https://generativelanguage.googleapis.com), if specified.',
+  )
+  String? get baseUrl;
+
+  @StringField(
+    description:
+        'Overrides the plugin-configured or default API version (default '
+        'v1beta), if specified.',
+  )
+  String? get apiVersion;
 
   @StringField(
     description:

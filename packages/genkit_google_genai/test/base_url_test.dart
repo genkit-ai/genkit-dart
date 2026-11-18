@@ -15,6 +15,8 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/src/api_client.dart'
+    show interactionsApiRevision;
 import 'package:genkit_google_genai/src/google_api_client.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -27,39 +29,50 @@ const _generateContentModel = 'gemini-3.5-flash';
 const _interactionsModel = 'gemini-flash-latest';
 
 /// Sends one generate request for [model] through a plugin built with
-/// [baseUrl] and returns the URL it went to and its JSON body. With [stream],
-/// the request is streamed.
-Future<({Uri url, Map<String, dynamic> body})> _send({
+/// [baseUrl], [apiVersion] and [customHeaders], with the request [config],
+/// and returns the URL it went to, its headers and its JSON body. With
+/// [stream], the request is streamed.
+Future<({Uri url, Map<String, String> headers, Map<String, dynamic> body})>
+_send({
   String model = _generateContentModel,
   String? baseUrl,
+  String? apiVersion,
+  Map<String, String>? customHeaders,
+  Map<String, dynamic>? config,
   bool stream = false,
 }) async {
   final requests = <http.Request>[];
   final plugin = GoogleGenAiPluginImpl(
     apiKey: 'test-key',
     baseUrl: baseUrl,
+    apiVersion: apiVersion,
+    customHeaders: customHeaders,
     httpClient: MockClient((request) async {
       requests.add(request);
       if (request.url.path.endsWith('/interactions')) {
         return _interactionResponse(request);
       }
-      return http.Response(
-        jsonEncode({
-          'candidates': [
-            {
-              'content': {
-                'role': 'model',
-                'parts': [
-                  {'text': 'ok'},
-                ],
-              },
-              'finishReason': 'STOP',
+      final response = jsonEncode({
+        'candidates': [
+          {
+            'content': {
+              'role': 'model',
+              'parts': [
+                {'text': 'ok'},
+              ],
             },
-          ],
-        }),
-        200,
-        headers: {'content-type': 'application/json'},
-      );
+            'finishReason': 'STOP',
+          },
+        ],
+      });
+      // A streamed generateContent response is SSE.
+      return request.url.path.endsWith(':streamGenerateContent')
+          ? http.Response('data: $response\n\n', 200)
+          : http.Response(
+              response,
+              200,
+              headers: {'content-type': 'application/json'},
+            );
     }),
   );
   final action = plugin.resolve(.model, model) as Model;
@@ -71,12 +84,14 @@ Future<({Uri url, Map<String, dynamic> body})> _send({
           content: [TextPart(text: 'hi')],
         ),
       ],
+      config: config,
     ),
     onChunk: stream ? (_) {} : null,
   );
   final request = requests.single;
   return (
     url: request.url,
+    headers: request.headers,
     body: (jsonDecode(request.body) as Map).cast<String, dynamic>(),
   );
 }
@@ -167,6 +182,95 @@ void main() {
       );
       expect('${sent.url}', 'https://proxy.test/genai/v1beta/interactions');
       expect(sent.body['stream'], true);
+    });
+  });
+
+  group(
+    'apiVersion and per-request overrides (JS calculateRequestOptions)',
+    () {
+      test('the plugin apiVersion replaces v1beta on both APIs', () async {
+        for (final (model, path) in [
+          (
+            _generateContentModel,
+            'models/$_generateContentModel:generateContent',
+          ),
+          (_interactionsModel, 'interactions'),
+        ]) {
+          final sent = await _send(model: model, apiVersion: 'v1alpha');
+          expect(
+            '${sent.url}',
+            'https://generativelanguage.googleapis.com/v1alpha/$path',
+          );
+        }
+      });
+
+      test(
+        "a request's baseUrl and apiVersion win over the plugin's",
+        () async {
+          for (final (model, path) in [
+            (
+              _generateContentModel,
+              'models/$_generateContentModel:generateContent',
+            ),
+            (_interactionsModel, 'interactions'),
+          ]) {
+            final sent = await _send(
+              model: model,
+              baseUrl: 'https://plugin.test',
+              apiVersion: 'v1alpha',
+              config: {'baseUrl': 'https://request.test/x', 'apiVersion': 'v1'},
+            );
+            expect('${sent.url}', 'https://request.test/x/v1/$path');
+          }
+        },
+      );
+
+      test('the client settings are not sent in the request body', () async {
+        for (final model in [_generateContentModel, _interactionsModel]) {
+          final sent = await _send(
+            model: model,
+            config: {'baseUrl': 'https://request.test', 'apiVersion': 'v1'},
+          );
+          final body = jsonEncode(sent.body);
+          for (final key in [
+            'baseUrl',
+            'base_url',
+            'apiVersion',
+            'api_version',
+          ]) {
+            expect(body, isNot(contains(key)), reason: '$model: $key');
+          }
+        }
+      });
+    },
+  );
+
+  group('customHeaders (plugin option)', () {
+    test('are sent on both APIs, streamed or not', () async {
+      for (final model in [_generateContentModel, _interactionsModel]) {
+        for (final stream in [false, true]) {
+          final sent = await _send(
+            model: model,
+            stream: stream,
+            customHeaders: {'X-Custom': 'a'},
+          );
+          expect(sent.headers['X-Custom'], 'a', reason: '$model $stream');
+        }
+      }
+    });
+
+    test("can't replace the plugin's headers, in any letter case", () async {
+      final sent = await _send(
+        model: _interactionsModel,
+        customHeaders: {
+          'api-revision': '2025-01-01',
+          'X-GOOG-API-CLIENT': 'other',
+          'X-Custom': 'a',
+        },
+      );
+      expect(sent.headers['Api-Revision'], interactionsApiRevision);
+      expect(sent.headers['X-Goog-Api-Client'], startsWith('genkit-dart/'));
+      expect(sent.headers['X-Custom'], 'a');
     });
   });
 }

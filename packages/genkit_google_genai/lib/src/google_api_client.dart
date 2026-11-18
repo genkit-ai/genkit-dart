@@ -33,6 +33,17 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   /// Defaults to `https://generativelanguage.googleapis.com/`.
   final String? baseUrl;
 
+  /// The API version in request paths (default `v1beta`).
+  final String? apiVersion;
+
+  /// Headers added to every request (JS `customHeaders`). They can't
+  /// replace `x-goog-api-key`, `x-goog-api-client` or `Api-Revision`.
+  final Map<String, String>? customHeaders;
+
+  /// Whether each model API call gets an `httpRequest` trace span (JS
+  /// `experimental_debugTraces`).
+  final bool experimentalDebugTraces;
+
   /// Test-only HTTP transport. When set it replaces the API-key client for
   /// every request (any per-request `apiKey` option is ignored) and is never
   /// closed by the plugin; the caller owns its lifecycle.
@@ -48,6 +59,9 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   GoogleGenAiPluginImpl({
     this.apiKey,
     this.baseUrl,
+    this.apiVersion,
+    this.customHeaders,
+    this.experimentalDebugTraces = false,
     this.httpClient,
     this.store,
   });
@@ -95,16 +109,52 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   bool get interactionSafetyBlockNoneAsOff => true;
 
   @override
-  Future<GenerativeLanguageBaseClient> getApiClient([
-    String? requestApiKey,
-  ]) async {
+  Future<GenerativeLanguageBaseClient> getApiClient([String? requestApiKey]) =>
+      _apiClient(apiKey: requestApiKey);
+
+  /// Applies the request's `apiKey`, `baseUrl` and `apiVersion` (each wins
+  /// over the plugin's when set, as in JS calculateRequestOptions). Without
+  /// a `baseUrl` or `apiVersion` it's [getApiClient], so a subclass that
+  /// overrides that keeps working.
+  @override
+  Future<GenerativeLanguageBaseClient> getApiClientForRequest(
+    Map<String, dynamic>? config,
+  ) {
+    final options = config == null ? null : GeminiOptions.$schema.parse(config);
+    final baseUrl = _nonEmpty(options?.baseUrl);
+    final apiVersion = _nonEmpty(options?.apiVersion);
+    if (baseUrl == null && apiVersion == null) {
+      return getApiClient(options?.apiKey);
+    }
+    return _apiClient(
+      apiKey: options?.apiKey,
+      baseUrl: baseUrl,
+      apiVersion: apiVersion,
+    );
+  }
+
+  Future<GenerativeLanguageBaseClient> _apiClient({
+    String? apiKey,
+    String? baseUrl,
+    String? apiVersion,
+  }) async {
     final injected = httpClient;
-    final url = baseUrl ?? 'https://generativelanguage.googleapis.com/';
+    final url =
+        _nonEmpty(baseUrl) ??
+        _nonEmpty(this.baseUrl) ??
+        'https://generativelanguage.googleapis.com/';
+    final version =
+        _nonEmpty(apiVersion) ?? _nonEmpty(this.apiVersion) ?? 'v1beta';
     return GenerativeLanguageBaseClient(
       baseUrl: url.endsWith('/') ? url : '$url/',
-      client: injected != null
-          ? NonClosingClient(injected)
-          : httpClientFromApiKey(requestApiKey ?? apiKey),
+      apiUrlPrefix: '$version/',
+      // An injected (test) transport is used without an API key.
+      client: injected != null ? NonClosingClient(injected) : http.Client(),
+      apiKey: injected != null
+          ? null
+          : resolveApiKey(_nonEmpty(apiKey) ?? this.apiKey),
+      headers: customHeaders ?? const {},
+      debugTraces: experimentalDebugTraces,
     );
   }
 
@@ -277,6 +327,7 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
           return EmbedResponse(embeddings: []);
         }
         final service = await getApiClient();
+        final disposeAbort = service.abortOn(ctx.cancel);
         try {
           final options = req.options != null
               ? GoogleGenAiEmbedderOptions.fromJson(req.options!)
@@ -292,9 +343,14 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
         } catch (e, stack) {
           throw handleException(e, stack);
         } finally {
+          disposeAbort();
           service.client.close();
         }
       },
     );
   }
 }
+
+/// [value], or null when it's null or empty (an empty option is not set).
+String? _nonEmpty(String? value) =>
+    value == null || value.isEmpty ? null : value;

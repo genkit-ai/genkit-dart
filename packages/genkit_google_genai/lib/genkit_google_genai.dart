@@ -37,6 +37,19 @@ class GoogleGenAiPluginHandle {
   /// Interactions API), still authenticated with [apiKey] in the
   /// `x-goog-api-key` header.
   ///
+  /// [apiVersion] replaces the API version in request paths (default
+  /// `v1beta`). A request's own `baseUrl` and `apiVersion` options win over
+  /// these.
+  ///
+  /// [customHeaders] are added to every request. They can't replace the
+  /// headers the plugin sets itself (`x-goog-api-key`, `x-goog-api-client`,
+  /// `Api-Revision`).
+  ///
+  /// [experimentalDebugTraces] runs each model API call in an `httpRequest`
+  /// trace span with the endpoint, the request, the headers (the API key
+  /// hidden) and the response (`[Streaming Response]` for streamed calls).
+  /// Experimental: the option and the span's shape may change.
+  ///
   /// [store] is used by requests that don't set `store` themselves. On
   /// models called through the Interactions API it stores interactions on
   /// the server (not set = not stored); a stored interaction is continued by
@@ -44,10 +57,20 @@ class GoogleGenAiPluginHandle {
   /// generateContent models it sets whether the server logs requests for the
   /// API key's project; not set, it isn't sent and the project's logging
   /// setting applies.
-  GenkitPlugin call({String? apiKey, String? baseUrl, bool? store}) {
+  GenkitPlugin call({
+    String? apiKey,
+    String? baseUrl,
+    String? apiVersion,
+    Map<String, String>? customHeaders,
+    bool experimentalDebugTraces = false,
+    bool? store,
+  }) {
     return GoogleGenAiPluginImpl(
       apiKey: apiKey,
       baseUrl: baseUrl,
+      apiVersion: apiVersion,
+      customHeaders: customHeaders,
+      experimentalDebugTraces: experimentalDebugTraces,
       store: store,
     );
   }

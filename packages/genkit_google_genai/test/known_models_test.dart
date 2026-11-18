@@ -119,6 +119,11 @@ void main() {
       // (Interactions), add wire tests, then add it here.
       const known = {
         'apiKey',
+        // Client settings, read when the API client is built
+        // (getApiClientForRequest); baseUrl is googleAI only (vertexAI drops
+        // it with a warning).
+        'baseUrl',
+        'apiVersion',
         'safetySettings',
         'codeExecution',
         'functionCallingConfig',

@@ -36,11 +36,11 @@ library;
 // The API client vertexAI builds with its own host, auth and paths.
 export 'src/api_client.dart' show GenerativeLanguageBaseClient;
 // The shared plugin base class (request/response mapping, routing hooks),
-// the HTTP helpers and the shared embedder and model-info helpers.
+// the wrapper for an injected HTTP client and the shared embedder and
+// model-info helpers.
 export 'src/common_plugin.dart'
     show
         CommonGoogleGenPlugin,
-        CustomClient,
         NonClosingClient,
         commonModelInfo,
         embedWithEmbedContent,
