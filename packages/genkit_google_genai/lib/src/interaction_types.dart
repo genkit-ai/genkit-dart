@@ -126,12 +126,24 @@ extension type InteractionAllowedTools.fromJson(Map<String, Object?> json) {
   List<String>? get tools => _list(json['tools']);
 }
 
-extension type InteractionToolChoiceConfig.fromJson(Map<String, Object?> json) {
-  InteractionToolChoiceConfig({InteractionAllowedTools? allowedTools})
-    : this.fromJson({'allowed_tools': ?allowedTools});
+/// `generation_config.tool_choice`: either a plain mode string (`auto`,
+/// `any`, `none`, `validated`) or `{"allowed_tools": {...}}`.
+///
+/// The server only accepts `allowed_tools` with mode `any` or `validated`;
+/// `auto` and `none` must be sent as plain strings.
+extension type InteractionToolChoice._(Object json) {
+  InteractionToolChoice.mode(String mode) : this._(mode);
 
-  InteractionAllowedTools? get allowedTools =>
-      _wrap(json['allowed_tools'], InteractionAllowedTools.fromJson);
+  InteractionToolChoice.allowedTools(InteractionAllowedTools allowedTools)
+    : this._({'allowed_tools': allowedTools});
+
+  /// The plain mode, or null when this is an `allowed_tools` config.
+  String? get mode => json is String ? json as String : null;
+
+  /// The `allowed_tools` config, or null when this is a plain mode.
+  InteractionAllowedTools? get allowedTools => json is Map
+      ? _wrap((json as Map)['allowed_tools'], InteractionAllowedTools.fromJson)
+      : null;
 }
 
 /// A tool that can be used by the model to connect to remote MCP servers.
@@ -1055,7 +1067,7 @@ extension type ModelGenerationConfig.fromJson(Map<String, Object?> json) {
     double? topP,
     int? seed,
     List<String>? stopSequences,
-    Object? toolChoice,
+    InteractionToolChoice? toolChoice,
     String? thinkingLevel,
     String? thinkingSummaries,
     int? maxOutputTokens,
@@ -1088,10 +1100,13 @@ extension type ModelGenerationConfig.fromJson(Map<String, Object?> json) {
   /// A list of character sequences that will stop output interaction.
   List<String>? get stopSequences => _list(json['stop_sequences']);
 
-  /// The tool choice for the interaction: a string (`auto`, `any`, `none`,
-  /// `validated`) or an [InteractionToolChoiceConfig] map.
-  Object? get toolChoice => json['tool_choice'];
-  set toolChoice(Object? value) => _set(json, 'tool_choice', value);
+  /// The tool choice for the interaction.
+  InteractionToolChoice? get toolChoice => switch (json['tool_choice']) {
+    final Object value => InteractionToolChoice._(value),
+    null => null,
+  };
+  set toolChoice(InteractionToolChoice? value) =>
+      _set(json, 'tool_choice', value);
 
   /// The level of thought tokens that the model should generate:
   /// `minimal`, `low`, `medium` or `high`.

@@ -1429,9 +1429,31 @@ void main() {
           },
         },
       );
-      expect(toInteractionToolChoice(null, 'required')!.json, {
-        'allowed_tools': {'mode': 'any'},
-      });
+      expect(
+        toInteractionToolChoice(null, toolChoice: 'required')!.json,
+        'any',
+      );
+      expect(toInteractionToolChoice(null, toolChoice: 'none')!.json, 'none');
+      expect(toInteractionToolChoice(null, toolChoice: 'auto')!.json, 'auto');
+      expect(toInteractionToolChoice(null), isNull);
+      expect(
+        toInteractionToolChoice(
+          GeminiFunctionCallingConfig(mode: 'NONE'),
+        )!.json,
+        'none',
+      );
+      final dropped = <String>[];
+      expect(
+        toInteractionToolChoice(
+          GeminiFunctionCallingConfig(
+            mode: 'AUTO',
+            allowedFunctionNames: ['getWeather'],
+          ),
+          drop: dropped.add,
+        )!.json,
+        'auto',
+      );
+      expect(dropped, ['functionCallingConfig.allowedFunctionNames']);
       expect(
         toInteractionToolChoice(
           GeminiFunctionCallingConfig(mode: 'MODE_UNSPECIFIED'),

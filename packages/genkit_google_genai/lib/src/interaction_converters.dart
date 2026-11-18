@@ -306,31 +306,36 @@ selectInteractionInput(
 /// Converts `functionCallingConfig` (or, without it, the request's
 /// `toolChoice`) to the Interactions `generation_config.tool_choice`.
 /// Returns null when neither sets anything.
-InteractionToolChoiceConfig? toInteractionToolChoice(
-  GeminiFunctionCallingConfig? functionCallingConfig, [
+///
+/// The server only accepts `allowed_tools` with mode `any` or `validated`
+/// (`{"allowed_tools": {"mode": "none"}}` is a 400), so every other mode is
+/// sent as a plain string. `allowedFunctionNames` without `ANY` or
+/// `VALIDATED` can't be expressed and is dropped via [drop].
+InteractionToolChoice? toInteractionToolChoice(
+  GeminiFunctionCallingConfig? functionCallingConfig, {
   String? toolChoice,
-]) {
+  void Function(String field)? drop,
+}) {
   if (functionCallingConfig != null) {
     final mode = functionCallingConfig.mode?.toLowerCase();
     final validMode = !_isEmpty(mode) && mode != 'mode_unspecified'
         ? mode
         : null;
     final names = functionCallingConfig.allowedFunctionNames;
-    if (validMode == null && (names == null || names.isEmpty)) {
-      return null;
+    final hasNames = names != null && names.isNotEmpty;
+    if (hasNames && (validMode == 'any' || validMode == 'validated')) {
+      return InteractionToolChoice.allowedTools(
+        InteractionAllowedTools(mode: validMode, tools: names),
+      );
     }
-    return InteractionToolChoiceConfig(
-      allowedTools: InteractionAllowedTools(mode: validMode, tools: names),
-    );
+    if (hasNames) drop?.call('functionCallingConfig.allowedFunctionNames');
+    return validMode == null ? null : InteractionToolChoice.mode(validMode);
   }
-  if (!_isEmpty(toolChoice)) {
-    return InteractionToolChoiceConfig(
-      allowedTools: InteractionAllowedTools(
-        mode: toolChoice == 'required' ? 'any' : toolChoice,
-      ),
-    );
-  }
-  return null;
+  return switch (toolChoice) {
+    'required' => InteractionToolChoice.mode('any'),
+    null || '' => null,
+    final String choice => InteractionToolChoice.mode(choice),
+  };
 }
 
 /// Converts a `googleSearch` option (`true`, or a map) to an Interactions
@@ -2488,6 +2493,8 @@ class InteractionStreamAssembler {
 const _droppedConfigFieldHints = {
   'thinkingConfig.thinkingBudget':
       " Use thinkingConfig.thinkingLevel ('LOW' | 'MEDIUM' | 'HIGH') instead.",
+  'functionCallingConfig.allowedFunctionNames':
+      " It only applies with mode 'ANY' or 'VALIDATED'.",
 };
 
 /// `model:field` pairs that have already been warned about.
