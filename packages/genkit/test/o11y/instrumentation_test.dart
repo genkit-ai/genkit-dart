@@ -259,6 +259,27 @@ void main() {
       expect(end.status.code, GenkitStatusCode.ok);
     });
 
+    test(
+      'lets a caller keep genkit:name when the span has a custom name',
+      () async {
+        final sink = RecordingSpanSink();
+        final instrumentation = DirectHttpInstrumentation(sink);
+
+        await instrumentation.runInNewSpan<void>(
+          const SpanMetadata(
+            name: 'summarize',
+            actionType: 'util',
+            attributes: {'genkit:name': 'generate'},
+          ),
+          ([_]) async {},
+        );
+
+        final span = sink.byName('summarize');
+        expect(span.attributes['genkit:name'], 'generate');
+        expect(span.attributes['genkit:type'], 'util');
+      },
+    );
+
     test('records error status when the operation throws', () async {
       final sink = RecordingSpanSink();
       final instrumentation = DirectHttpInstrumentation(sink);
