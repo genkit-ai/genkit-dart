@@ -95,7 +95,7 @@ void main() {
       'runs fn with a no-op span when no instrumentation configured',
       () async {
         SpanContext? seen;
-        final result = await runInNewSpan<void, String>('op', (span) async {
+        final result = await runInNewSpan<String>('op', (span) async {
           seen = span;
           return 'ok';
         });
@@ -114,7 +114,7 @@ void main() {
       configureInstrumentation(_FakeInstrumentation('a', log));
       configureInstrumentation(_FakeInstrumentation('b', log));
 
-      await runInNewSpan<void, String>('op', (_) async {
+      await runInNewSpan<String>('op', (_) async {
         log.add('body');
         return 'x';
       });
@@ -131,7 +131,7 @@ void main() {
         configureInstrumentation(a);
         configureInstrumentation(b);
 
-        await runInNewSpan<void, void>('op', (_) async {
+        await runInNewSpan<void>('op', (_) async {
           setCustomMetadataAttributes({'hello': 'world'});
         });
 
@@ -156,7 +156,7 @@ void main() {
 
         late String traceId;
         late String spanId;
-        await runInNewSpan<void, void>('op', (span) async {
+        await runInNewSpan<void>('op', (span) async {
           traceId = span.traceId;
           spanId = span.spanId;
         });
@@ -172,7 +172,7 @@ void main() {
       configureInstrumentation(_FakeInstrumentation('b', log));
 
       await expectLater(
-        runInNewSpan<void, void>('op', (_) async {
+        runInNewSpan<void>('op', (_) async {
           throw StateError('boom');
         }),
         throwsA(isA<StateError>()),
@@ -429,7 +429,7 @@ void main() {
         enableDevInstrumentationForServer('http://127.0.0.1:4033');
 
         expect(isInstrumentedBy<GenkitBuiltinInstrumentation>(), isTrue);
-        await runInNewSpan<void, void>('op', (_) async {});
+        await runInNewSpan<void>('op', (_) async {});
         // Exactly one provider (the pre-registered one) wrapped the run.
         expect(log, ['enter:pre', 'exit:pre']);
       },
@@ -450,7 +450,7 @@ void main() {
 
       // Mutating the provider list while a span runs must not corrupt the
       // in-flight middleware chain (snapshotted at entry) nor throw.
-      final result = await runInNewSpan<void, String>('op', (_) async {
+      final result = await runInNewSpan<String>('op', (_) async {
         resetInstrumentation();
         configureInstrumentation(_FakeInstrumentation('b', log));
         return 'ok';

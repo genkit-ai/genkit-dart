@@ -47,11 +47,7 @@ base class GenkitAI {
 
   /// Runs an AI operation within a new trace span.
   Future<Output> run<Output>(String name, Future<Output> Function() fn) {
-    return runInNewSpan(
-      name,
-      (_) => fn(),
-      actionType: ActionType.flowStep.value,
-    );
+    return runInNewSpan(name, (_) => fn(), actionType: ActionType.flowStep);
   }
 
   /// Generates a response using the specified model and context.

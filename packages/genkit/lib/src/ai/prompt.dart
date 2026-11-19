@@ -446,7 +446,7 @@ final class Prompt<Input, Output> {
         );
       },
       input: input,
-      actionType: 'promptTemplate',
+      actionType: ActionType.promptTemplate,
     );
   }
 
@@ -674,7 +674,7 @@ final class Prompt<Input, Output> {
         );
       },
       input: input,
-      actionType: 'dotprompt',
+      actionType: ActionType.dotprompt,
     );
   }
 
