@@ -341,10 +341,11 @@ CreateInteractionRequest _withGenerationConfig(
 
   final toolChoice = toInteractionToolChoice(
     options.functionCallingConfig,
-    req.toolChoice?.value,
+    toolChoice: req.toolChoice?.value,
+    drop: drop,
   );
   if (toolChoice != null) {
-    generationConfig.toolChoice = toolChoice.json;
+    generationConfig.toolChoice = toolChoice;
   }
 
   // The request's `store` wins when set (a request's false turns off a

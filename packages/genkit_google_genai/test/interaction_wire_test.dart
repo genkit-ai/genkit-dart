@@ -319,8 +319,102 @@ void _requestTests() {
           'file_search_store_names': ['fileSearchStores/abc'],
         },
       ]);
-      expect((body['generation_config'] as Map)['tool_choice'], {
-        'allowed_tools': {'mode': 'any'},
+      expect((body['generation_config'] as Map)['tool_choice'], 'any');
+    });
+
+    group('tool choice', () {
+      final weatherTool = ToolDefinition(
+        name: 'getWeather',
+        description: 'Get the weather',
+      );
+
+      Future<Object?> toolChoiceFor({
+        ToolChoice? toolChoice,
+        Map<String, dynamic>? config,
+      }) async {
+        final plugin = InteractionsWirePlugin();
+        await _run(
+          plugin,
+          tools: [weatherTool],
+          toolChoice: toolChoice,
+          config: config,
+        );
+        return (plugin.lastBody['generation_config'] as Map?)?['tool_choice'];
+      }
+
+      // The server rejects {"allowed_tools": {"mode": "none" | "auto"}}
+      // with a 400, so these must be plain strings.
+      for (final (choice, expected) in [
+        (ToolChoice.auto, 'auto'),
+        (ToolChoice.none, 'none'),
+        (ToolChoice.required, 'any'),
+      ]) {
+        test('toolChoice ${choice.value} is sent as "$expected"', () async {
+          expect(await toolChoiceFor(toolChoice: choice), expected);
+        });
+      }
+
+      for (final mode in ['AUTO', 'NONE', 'ANY', 'VALIDATED']) {
+        test('functionCallingConfig mode $mode is a plain string', () async {
+          expect(
+            await toolChoiceFor(
+              config: {
+                'functionCallingConfig': {'mode': mode},
+              },
+            ),
+            mode.toLowerCase(),
+          );
+        });
+      }
+
+      test('allowedFunctionNames with ANY uses allowed_tools', () async {
+        expect(
+          await toolChoiceFor(
+            config: {
+              'functionCallingConfig': {
+                'mode': 'ANY',
+                'allowedFunctionNames': ['getWeather'],
+              },
+            },
+          ),
+          {
+            'allowed_tools': {
+              'mode': 'any',
+              'tools': ['getWeather'],
+            },
+          },
+        );
+      });
+
+      test('allowedFunctionNames without ANY or VALIDATED is dropped with '
+          'a warning', () async {
+        final warnings = _captureWarnings();
+        expect(
+          await toolChoiceFor(
+            config: {
+              'functionCallingConfig': {
+                'mode': 'AUTO',
+                'allowedFunctionNames': ['getWeather'],
+              },
+            },
+          ),
+          'auto',
+        );
+        expect(
+          await toolChoiceFor(
+            config: {
+              'functionCallingConfig': {
+                'allowedFunctionNames': ['getWeather'],
+              },
+            },
+          ),
+          isNull,
+        );
+        expect(warnings, [
+          'functionCallingConfig.allowedFunctionNames is not supported by '
+              "'gemini-3.8-flash' and was ignored. It only applies with mode "
+              "'ANY' or 'VALIDATED'.",
+        ]);
       });
     });
 

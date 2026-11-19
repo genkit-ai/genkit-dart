@@ -1429,9 +1429,44 @@ void main() {
           },
         },
       );
-      expect(toInteractionToolChoice(null, 'required')!.json, {
-        'allowed_tools': {'mode': 'any'},
-      });
+      expect(
+        toInteractionToolChoice(null, toolChoice: 'required')!.json,
+        'any',
+      );
+      expect(toInteractionToolChoice(null, toolChoice: 'none')!.json, 'none');
+      expect(toInteractionToolChoice(null, toolChoice: 'auto')!.json, 'auto');
+      expect(toInteractionToolChoice(null), isNull);
+      expect(
+        toInteractionToolChoice(
+          GeminiFunctionCallingConfig(mode: 'NONE'),
+        )!.json,
+        'none',
+      );
+      final dropped = <String>[];
+      expect(
+        toInteractionToolChoice(
+          GeminiFunctionCallingConfig(
+            mode: 'AUTO',
+            allowedFunctionNames: ['getWeather'],
+          ),
+          drop: dropped.add,
+        )!.json,
+        'auto',
+      );
+      expect(dropped, ['functionCallingConfig.allowedFunctionNames']);
+
+      final plain = toInteractionToolChoice(null, toolChoice: 'none')!;
+      expect(plain.mode, 'none');
+      expect(plain.allowedTools, isNull);
+      final restricted = toInteractionToolChoice(
+        GeminiFunctionCallingConfig(
+          mode: 'VALIDATED',
+          allowedFunctionNames: ['getWeather'],
+        ),
+      )!;
+      expect(restricted.mode, isNull);
+      expect(restricted.allowedTools?.mode, 'validated');
+      expect(restricted.allowedTools?.tools, ['getWeather']);
       expect(
         toInteractionToolChoice(
           GeminiFunctionCallingConfig(mode: 'MODE_UNSPECIFIED'),
