@@ -1,8 +1,4 @@
-## 1.0.3-rc.2
-
- - updated internal dependencies.
-
-## 1.0.3-rc.1
+## 1.0.3
 
 ### Fixes
 

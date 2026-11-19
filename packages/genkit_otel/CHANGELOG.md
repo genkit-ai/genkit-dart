@@ -1,4 +1,4 @@
-## 0.2.3-rc.1
+## 0.2.3
 
  - updated internal dependencies.
 

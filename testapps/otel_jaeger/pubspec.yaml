@@ -8,9 +8,9 @@ environment:
 
 dependencies:
   dartastic_opentelemetry: ^0.11.0
-  genkit: ^1.0.3-rc.1
-  genkit_google_genai: ^1.2.0-rc.2
-  genkit_otel: ^0.2.3-rc.1
+  genkit: ^1.0.3
+  genkit_google_genai: ^1.2.0
+  genkit_otel: ^0.2.3
 
 dev_dependencies:
   test: ^1.29.0

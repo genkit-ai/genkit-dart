@@ -1,4 +1,4 @@
-## 1.0.3-rc.1
+## 1.0.3
 
  - updated internal dependencies.
 
