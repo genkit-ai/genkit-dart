@@ -12,4 +12,4 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-const genkitVersion = '1.0.2';
+const genkitVersion = '1.0.3-rc.1';

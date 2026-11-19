@@ -1,3 +1,10 @@
+## 1.0.3-rc.1
+
+### Fixes
+
+ - bump dotprompt constraint to ^2.0.1 (#760)
+
+
 ## 1.0.2
 
 ### Fixes

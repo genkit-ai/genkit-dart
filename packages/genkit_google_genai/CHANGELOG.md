@@ -1,3 +1,10 @@
+## 1.2.0-rc.2
+
+### Fixes
+
+ - send tool_choice none and auto as plain strings on the Interactions API (#758)
+
+
 ## 1.2.0-rc.1
 
 ### Features
