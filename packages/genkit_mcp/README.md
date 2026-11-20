@@ -293,15 +293,15 @@ Actions can be namespaced to avoid conflicts (behavior depends on whether you us
 ## Tool Responses
 
 MCP tools return a `content` array and can also return `structuredContent`. The
-plugin processes results in this order:
+plugin maps each result to a tool response `output` and `parts`, the same way as
+the Genkit JS MCP plugin's multipart mode:
 
-1. If the result contains `isError: true`, the processed value is returned as `{'error': '<text>'}`.
-2. If `structuredContent` is present, its JSON value is returned directly, including an explicit `null`.
-3. If **all** `content` parts are text, they are concatenated into a single string.
-   - If the concatenated text *looks like JSON* (starts with `{` or `[` after left-trimming), the client tries `jsonDecode(...)` and returns the decoded object/list on success.
-   - Otherwise the concatenated text is returned as a `String`.
-4. If `content` has exactly one **non-text** part, that part map is returned (e.g. an image/audio block).
-5. If `content` has multiple or mixed parts, the raw MCP result map is returned.
+1. If the result contains `isError: true`, the output is `{'error': '<text>'}`.
+2. `image` and `audio` content, and embedded resources with a `blob`, become `MediaPart`s in `parts`, with `data:<mimeType>;base64,<data>` URLs (`application/octet-stream` if the block has no `mimeType`). Models that support multipart tool responses receive these as media. `resource_link` content becomes a `ResourcePart`.
+3. The output is `structuredContent` if present, including an explicit `null`. Otherwise it is the concatenated text content, with embedded text resources appended:
+   - If the text *looks like JSON* (starts with `{` or `[` after left-trimming), the client tries `jsonDecode(...)` and returns the decoded object/list on success.
+   - Otherwise the text is returned as a `String`.
+   - If there is no text, the output is `null`.
 
 Set `rawToolResponses: true` in client options to skip this processing and receive raw MCP responses.
 

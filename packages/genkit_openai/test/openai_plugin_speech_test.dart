@@ -126,7 +126,7 @@ void main() {
   });
 
   group('speech wire-level request assembly', () {
-    test('sends only model, input and voice by default', () async {
+    test('includes audio stream format by default', () async {
       final captured = <Map<String, dynamic>>[];
       final ai = speechGenkit(captured);
 
@@ -137,15 +137,15 @@ void main() {
         'model': 'tts-1',
         'input': 'Hello',
         'voice': 'alloy',
+        'stream_format': 'audio',
       });
 
       await ai.shutdown();
     });
 
     test('voice and instructions reach the wire', () async {
-      // The SDK's SpeechRequest caps voice at six legacy values and has no
-      // instructions field at all; this asserts the toJson override that
-      // works around both.
+      // SDK v11 supports open voice names and instructions; assert both
+      // survive request serialization.
       final captured = <Map<String, dynamic>>[];
       final ai = speechGenkit(captured);
 

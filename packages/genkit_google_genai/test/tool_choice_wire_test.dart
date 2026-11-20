@@ -24,7 +24,8 @@ Future<Map<String, dynamic>> _bodyFor({
 }) async {
   final captured = <Map<String, dynamic>>[];
   final plugin = WirePlugin(captured);
-  final action = plugin.resolve(.model, 'gemini-flash-latest') as Model;
+  // A model pinned to generateContent (this tests its toolConfig).
+  final action = plugin.resolve(.model, 'gemini-3.1-flash-lite') as Model;
   await action(
     ModelRequest(
       messages: [

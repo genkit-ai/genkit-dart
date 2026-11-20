@@ -16,16 +16,14 @@
 ///
 /// The whole server-side integration is the `a2ui()` model middleware; register
 /// `A2uiPlugin` in `Genkit(plugins: [...])`, then add `a2ui()` to an agent's (or
-/// a one-shot `generate`'s) `use` list. Pair it with `basicCatalog` (or your own
-/// catalog) and render on the client with the `genui` package plus the helpers
-/// in `package:genkit_a2ui/client.dart`.
+/// a one-shot `generate`'s) `use` list. Pair it with `basicCatalog` (v1.0, the
+/// default), `basicCatalogV09` (select with `catalog: 'basic-v0.9'`), or your
+/// own catalog.
 ///
-/// The library is named so that dartdoc treats it as the canonical home for the
-/// symbols shared with `package:genkit_a2ui/client.dart`. Without a name that
-/// matches the package, dartdoc cannot break the tie between the two entry
-/// points and emits "ambiguous reexport" warnings for the shared parts/types.
-// ignore: unnecessary_library_name
-library genkit_a2ui;
+/// Clients do not depend on this package. A2UI travels as spec-shaped data
+/// parts, so a client needs only `package:genkit` and a renderer such as
+/// `a2ui_flutter`; see the README for copy-paste helpers.
+library;
 
 export 'src/a2ui_middleware.dart'
     show A2uiMiddleware, A2uiOptions, A2uiPlugin, a2ui;
@@ -33,12 +31,16 @@ export 'src/catalog.dart'
     show
         A2uiCatalog,
         A2uiCatalogComponent,
+        A2uiCatalogFunction,
+        A2uiDynamicType,
+        A2uiParam,
         a2uiCatalogValueType,
         basicCatalog,
+        basicCatalogV09,
+        basicCatalogV09LookupId,
         basicIconNames,
         defaultCatalogId,
-        renderCatalogInstructions,
-        surfaceIdPlaceholder;
+        renderCatalogInstructions;
 export 'src/loader.dart' show loadCatalog, resolveCatalog;
 export 'src/parser.dart'
     show
@@ -51,9 +53,8 @@ export 'src/parser.dart'
 export 'src/part.dart' show a2uiEnvelopesFromParts, a2uiPart, isA2uiPart;
 export 'src/types.dart'
     show
-        A2uiClientAction,
-        A2uiComponent,
         A2uiEnvelope,
+        a2uiExpressMetadataKey,
         a2uiMimeType,
-        a2uiVersion,
-        basicCatalogId;
+        basicCatalogId,
+        basicCatalogV09Id;

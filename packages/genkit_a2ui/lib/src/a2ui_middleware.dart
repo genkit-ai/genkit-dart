@@ -18,29 +18,37 @@
 /// agent's (or a one-shot `generate`'s) `use` list and the agent gains the
 /// ability to render A2UI surfaces. The middleware:
 ///
-/// 1. Injects the catalog's capabilities into the system prompt so the model
-///    knows what UI it may render.
+/// 1. Injects the catalog's capabilities and the A2UI Express contract into
+///    the system prompt so the model knows what UI it may render.
 /// 2. Intercepts the model's output (both the streamed chunks and the final
-///    message), extracts any `a2ui` fenced blocks, validates them against the
-///    catalog, and rewrites them into the canonical a2ui data part.
+///    message), compiles each `<a2ui>` Express block against the catalog, and
+///    rewrites it into the canonical a2ui data part.
+/// 3. Turns inbound a2ui parts (replayed history, user actions) back into text
+///    the model can read.
 ///
 /// Implemented via the `model` hook, so it wraps each raw model call in the
 /// agent's tool loop.
 library;
 
+import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:genkit/plugin.dart';
+import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'catalog.dart';
+import 'catalog_types.dart' show canonicalizeA2uiVersion;
+import 'express.dart';
 import 'loader.dart';
 import 'parser.dart';
 import 'part.dart';
+import 'repair.dart';
 import 'types.dart';
 
 part 'a2ui_middleware.g.dart';
+
+final _logger = Logger('genkit_a2ui.middleware');
 
 /// Configuration for the [a2ui] middleware.
 @Schema()
@@ -55,18 +63,29 @@ abstract class $A2uiOptions {
   /// if you supply your own instructions).
   String? get instructions;
 
-  /// Validate emitted envelopes against the catalog. `'warn'` (default) logs a
-  /// warning and drops the offending block/envelope, keeping the rest of the
-  /// turn alive; `'strict'` throws on malformed JSON or unknown components
-  /// (best during development); `'off'` passes them through unchecked.
+  /// What to do with a block that fails to compile or validate. `'warn'`
+  /// (default) logs a warning and drops the block, keeping the rest of the turn
+  /// alive; `'strict'` throws (best during development); `'off'` skips the
+  /// renderer-side checks (dangling references, missing `root`) and drops a
+  /// block that does not compile without logging a warning.
   String? get validate;
 
-  /// Surface id policy. Provide a fixed id to reuse for every surface. Defaults
-  /// to a fresh UUID per surface.
-  String? get surfaceId;
-
-  /// Protocol version stamped on emitted envelopes. Defaults to `'v0.9'`.
+  /// Expected A2UI protocol version (`'1.0'` or `'v0.9'`).
+  ///
+  /// Optional: the catalog itself decides which version a turn emits (see
+  /// `A2uiCatalog.protocolVersion`). Passing this asserts at call time that
+  /// the resolved catalog targets that version.
   String? get version;
+
+  /// Whether to ask the model to fix a block that failed to compile. Defaults
+  /// to `true`.
+  ///
+  /// On a failure the middleware sends one small follow-up call containing the
+  /// error, the Express contract, and the failed block, then compiles the
+  /// reply. This costs an extra model call on the failure path only, and never
+  /// runs for errors a rewrite cannot fix. Set `false` to drop bad blocks
+  /// outright.
+  bool? get repair;
 }
 
 /// The Genkit plugin that registers the [a2ui] middleware. Add it to
@@ -92,8 +111,8 @@ GenerateMiddlewareRef<A2uiOptions> a2ui({
   String? catalog,
   String? instructions,
   String? validate,
-  String? surfaceId,
   String? version,
+  bool? repair,
 }) {
   return middlewareRef(
     name: 'a2ui',
@@ -101,8 +120,8 @@ GenerateMiddlewareRef<A2uiOptions> a2ui({
       catalog: catalog,
       instructions: instructions,
       validate: validate,
-      surfaceId: surfaceId,
       version: version,
+      repair: repair,
     ),
   );
 }
@@ -138,43 +157,32 @@ String _parseInstructions(String? value) {
   }
 }
 
-/// Resolves the `version` option, defaulting to [a2uiVersion]. Throws on any
-/// value outside [supportedA2uiVersions] so an unsupported protocol version
-/// fails fast rather than silently stamping envelopes the renderer can't read.
-String _parseVersion(String? value) {
-  if (value == null) return a2uiVersion;
-  if (!supportedA2uiVersions.contains(value)) {
+/// Checks the `version` option against [supportedA2uiVersions] so an
+/// unsupported protocol version fails fast rather than emitting envelopes the
+/// renderer can't read.
+String? _checkVersion(String? value) {
+  if (value == null) return null;
+  final canonical = canonicalizeA2uiVersion(value);
+  if (canonical == null) {
     throw ArgumentError(
       'a2ui(): unsupported version "$value" '
       '(supported: ${supportedA2uiVersions.join(', ')}).',
     );
   }
-  return value;
-}
-
-final _rng = Random();
-
-/// Generates a random v4 UUID string.
-String _uuidV4() {
-  final bytes = List<int>.generate(16, (_) => _rng.nextInt(256));
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-  final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
-  return '${hex.substring(0, 8)}-${hex.substring(8, 12)}-'
-      '${hex.substring(12, 16)}-${hex.substring(16, 20)}-${hex.substring(20)}';
+  return canonical;
 }
 
 /// The A2UI model middleware.
 ///
-/// Injects catalog capabilities into the prompt and rewrites emitted `a2ui`
+/// Injects catalog capabilities into the prompt and rewrites emitted `<a2ui>`
 /// blocks (streamed and final) into a2ui data parts.
 class A2uiMiddleware extends GenerateMiddleware {
   final Registry _registry;
   final String _catalogId;
   final String _instructions;
+  final String? _expectedVersion;
   final A2uiValidateMode _validate;
-  final String _version;
-  final String? _fixedSurfaceId;
+  final bool _repair;
 
   // Memoizes the rendered catalog instructions. `renderCatalogInstructions`
   // (including the 58-name icon list) is a pure function of the catalog, but the
@@ -188,10 +196,8 @@ class A2uiMiddleware extends GenerateMiddleware {
     : _catalogId = config?.catalog ?? defaultCatalogId,
       _instructions = _parseInstructions(config?.instructions),
       _validate = _parseValidateMode(config?.validate),
-      _version = _parseVersion(config?.version),
-      _fixedSurfaceId = config?.surfaceId;
-
-  String _nextSurfaceId() => _fixedSurfaceId ?? _uuidV4();
+      _repair = config?.repair ?? true,
+      _expectedVersion = _checkVersion(config?.version);
 
   /// Renders (and caches) the catalog instructions for [catalog].
   String _renderInstructions(A2uiCatalog catalog) {
@@ -215,15 +221,33 @@ class A2uiMiddleware extends GenerateMiddleware {
     // Resolve the catalog by id from the registry (falls back to the bundled
     // basic catalog for the default id).
     final catalog = resolveCatalog(_registry, _catalogId);
+    final engine = ExpressEngine.of(catalog);
+    if (_expectedVersion != null) {
+      final actual = engine.version.jsonValue;
+      if (actual != _expectedVersion) {
+        throw StateError(
+          'a2ui(): catalog "$_catalogId" targets A2UI $actual, expected '
+          '$_expectedVersion.',
+        );
+      }
+    }
 
-    // Share surface ids between the streamed parse and the final-message parse
-    // of this single turn, so the same surface gets the same id in both.
-    final surfaceIds = _ReplayableSurfaceIds(_nextSurfaceId);
+    _warnOnPreSpecClient(request);
+
+    // Every A2UI message the client already holds. Blocks are checked against
+    // the surfaces it leaves live, so one may update or replace them (see
+    // A2uiStreamParser).
+    // Only model messages: a user message carries actions, not surfaces, and
+    // a surface in one would not be the agent's.
+    final history = [
+      for (final m in request.messages)
+        if (m.role == Role.model) ...a2uiEnvelopesFromParts(m.content),
+    ];
 
     // 0) Sanitize any inbound a2ui data parts (e.g. a surface action sent back
     //    as the next turn, or replayed history) into model-readable text, so
     //    the underlying model's converter never sees the a2ui mime type.
-    final sanitized = _sanitizeInboundA2ui(request);
+    final sanitized = _sanitizeInboundA2ui(request, engine.compatibleVersions);
 
     // 1) Inject catalog instructions into the system prompt.
     final newRequest = _instructions == 'none'
@@ -234,23 +258,42 @@ class A2uiMiddleware extends GenerateMiddleware {
     //    deltas + whole a2ui parts as blocks complete.
     var wrappedCtx = ctx;
     A2uiStreamParser? streamParser;
+    // Sources of the blocks already sent on the stream, so the parts the final
+    // message adds (a repaired block, or one that depended on it) can be sent
+    // after it.
+    final streamed = <String>[];
+    // Whether the model streamed at all. If it did not (a provider or cache
+    // that answers in one piece), the client reads the final message and gets
+    // no catch-up chunk either.
+    var sawChunks = false;
     if (ctx.streamingRequested) {
-      streamParser = A2uiStreamParser(
+      streamParser = A2uiStreamParser.internal(
         catalog: catalog,
-        validate: _validate,
-        version: _version,
-        surfaceId: surfaceIds.next,
+        // Never throw from here: this runs inside the provider's chunk
+        // callback, where a throw fails (and retries) the whole model call.
+        // A bad block is just left off the stream; the final message, after
+        // any repair, applies the configured mode.
+        validate: _validate == A2uiValidateMode.off
+            ? A2uiValidateMode.off
+            : A2uiValidateMode.warn,
+        // The final parse sees these blocks again and reports them.
+        quiet: true,
+        history: history,
       );
       wrappedCtx = ctx.copyWith(
         sendChunk: (chunk) {
+          sawChunks = true;
           final transformed = _transformChunk(chunk, streamParser!);
-          if (transformed != null) ctx.sendChunk(transformed);
+          if (transformed != null) {
+            streamed.addAll(_sourcesOf(transformed.content));
+            ctx.sendChunk(transformed);
+          }
         },
       );
     }
 
     // 3) Run downstream model, then flush the stream parser so the last withheld
-    //    prose tail (the parser holds back up to a partial opening fence) and any
+    //    prose tail (the parser holds back up to a partial opening tag) and any
     //    unterminated trailing block still reach the streaming consumer. Without
     //    this, clients that render purely from stream deltas would show truncated
     //    prose / miss a final block (the aggregated message recovers it, but the
@@ -259,15 +302,309 @@ class A2uiMiddleware extends GenerateMiddleware {
     if (streamParser != null) {
       final tail = _partsFromSegments(streamParser.flush().segments);
       if (tail.isNotEmpty) {
+        streamed.addAll(_sourcesOf(tail));
         ctx.sendChunk(ModelResponseChunk(role: Role.model, content: tail));
       }
     }
 
-    // 4) Transform the final message. The final parse replays the same surface
-    //    ids the stream minted.
-    surfaceIds.reset();
-    return _transformResponse(response, catalog, surfaceIds.replayNext);
+    // 4) Transform the final message. Surface ids are the model's own, so the
+    //    final parse produces the same envelopes the stream did.
+    final message = response.message;
+    if (message == null) return response;
+    // What the repair calls cost, reported with the turn's own usage.
+    GenerationUsage? repairUsage;
+    // A turn that did not finish normally (blocked, failed, ...) is not
+    // repaired, just as Genkit skips output parsing for it.
+    final repairs = _repair && !_isAbnormal(response.finishReason)
+        ? await _repairFailedBlocks(
+            message,
+            catalog,
+            history,
+            ctx.cancel,
+            // Repair reuses the model this hook already wraps, by calling
+            // `next` with a one-shot request. That needs no extra
+            // configuration and skips a2ui and anything before it in the
+            // chain, which would re-inject the instructions and re-parse the
+            // reply; middleware after it (retry, say) still applies.
+            // Streaming is suppressed: a repair is an internal detail.
+            //
+            // The config is forwarded because it can carry what the call
+            // needs to succeed at all (a per-request API key, for one). The
+            // tradeoff: an output-shaping option (a JSON response type, a
+            // forced function call) can defeat a plain-text repair, which then
+            // fails, is logged, and leaves the block dropped as before.
+            // Provider-side tools enabled in `config` stay on for the same
+            // reason.
+            (prompt, cancel) async {
+              final reply = await next(
+                ModelRequest(
+                  messages: [
+                    Message(
+                      role: Role.user,
+                      content: [TextPart(text: prompt)],
+                    ),
+                  ],
+                  config: request.config,
+                ),
+                ctx.copyWith(
+                  streamingRequested: false,
+                  sendChunk: (_) {},
+                  cancel: cancel,
+                ),
+              );
+              repairUsage = _sumUsage(repairUsage, reply.usage);
+              // A reply cut off by the token limit may still compile, as a
+              // fragment; don't take it.
+              if (reply.finishReason == FinishReason.length) return null;
+              return reply.message?.content
+                      .where((p) => p.isText)
+                      .map((p) => p.text ?? '')
+                      .join() ??
+                  '';
+            },
+          )
+        : const <String, String>{};
+    final result = _transformResponse(
+      response,
+      message,
+      catalog,
+      history,
+      repairs,
+      extraUsage: repairUsage,
+      hadModelTurns: request.messages.any((m) => m.role == Role.model),
+    );
+
+    // 5) A block that failed on the stream and was repaired afterwards exists
+    //    only in the final message. Send it (and any block that failed only
+    //    because it depended on it) as one last chunk, so clients that render
+    //    from the stream get the same surfaces the session history records.
+    if (streamParser != null && sawChunks) {
+      final catchUp = _catchUp(result.message?.content ?? [], streamed);
+      if (catchUp.isNotEmpty) {
+        ctx.sendChunk(ModelResponseChunk(role: Role.model, content: catchUp));
+      }
+    }
+    return result;
   }
+
+  /// Finds the blocks in [message] that fail to compile and asks the model to
+  /// fix each one, returning original source to repaired source for the ones
+  /// that now compile.
+  ///
+  /// Repair runs on the final message rather than during streaming because
+  /// the streaming callback cannot await a model call; the caller sends the
+  /// repaired surface as the last chunk. One attempt per distinct block; a
+  /// repair that still fails is dropped, so it is never worse than no repair.
+  ///
+  /// Bounded, since it runs after the prose has streamed and a slow repair
+  /// holds open a turn that looks finished: at most [_maxRepairCalls] calls
+  /// within [_repairBudget]. [cancel] (the turn's token) still aborts the turn;
+  /// running out of budget only ends the repairs.
+  Future<Map<String, String>> _repairFailedBlocks(
+    Message message,
+    A2uiCatalog catalog,
+    List<A2uiEnvelope> history,
+    CancellationToken? cancel,
+    Future<String?> Function(String prompt, CancellationToken cancel) ask,
+  ) async {
+    // Parses the whole message with [repairs] applied, without throwing, and
+    // returns the blocks that still fail. Each block is checked against the
+    // history plus every block before it, repaired or not, so a repaired block
+    // may update a surface an earlier block of the same response created.
+    List<FailedBlock> probe(Map<String, String> repairs) {
+      final parser = A2uiStreamParser.internal(
+        catalog: catalog,
+        validate: _validate == A2uiValidateMode.off
+            ? A2uiValidateMode.off
+            : A2uiValidateMode.warn,
+        history: history,
+        repairs: repairs,
+        // The final parse reports what stays broken.
+        quiet: true,
+      );
+      // Fed exactly like the final parse (a non-text part ends a run of
+      // text), so the failed blocks are keyed by the sources it will see.
+      for (final part in message.content) {
+        final text = part.text;
+        if (part.isText && text != null && text.isNotEmpty) {
+          parser.push(text);
+        } else {
+          parser.flush();
+        }
+      }
+      parser.flush();
+      return parser.failedBlocks;
+    }
+
+    var repairs = <String, String>{};
+    // Repaired sources are keyed by block text, so one attempt covers every
+    // copy of a block repeated in the same response. One block at a time, in
+    // order: a block that failed only because an earlier one did passes once
+    // that one is repaired, and costs no call of its own.
+    final attempted = <String>{};
+    final foreignSurfaces = _foreignSurfaces(
+      history,
+      ExpressEngine.of(catalog).compatibleVersions,
+    );
+    final budget = CancellationController();
+    final unlink = cancel?.link(budget);
+    final timer = Timer(_repairBudget, () => budget.cancel('repair budget'));
+    var calls = 0;
+    // The failures under [repairs]; reused rather than re-parsed, since after
+    // a candidate is accepted its probe already is the new state.
+    var failing = probe(repairs);
+    try {
+      while (true) {
+        final block = failing
+            .where((b) => !attempted.contains(b.source))
+            .firstOrNull;
+        if (block == null) break;
+        attempted.add(block.source);
+        if (!block.isModelFixable) {
+          _logger.info(
+            'skipping repair, not fixable by rewriting: ${block.error}',
+          );
+          continue;
+        }
+        // Every block starts with surface(...); without one this is most
+        // likely the tag mentioned in prose, not a block worth a model call.
+        if (!_surfaceLineRe.hasMatch(block.source)) {
+          _logger.fine('skipping repair of a block with no surface(...)');
+          continue;
+        }
+        // A rootless block targeting a surface that only an incompatible
+        // protocol version created in history is an attempted partial update
+        // across versions. Repair sees only the failed delta, not the original
+        // surface, so letting it invent a `root` would replace the card with a
+        // fragment.
+        if (!_rootLineRe.hasMatch(block.source) &&
+            block.error.contains(_surfaceNotFound) &&
+            _surfaceTargets(block.source).any(foreignSurfaces.contains)) {
+          _logger.info(
+            'skipping repair of a partial update to an earlier-protocol '
+            'surface: ${block.error}',
+          );
+          continue;
+        }
+        cancel?.throwIfCancelled();
+        if (calls == _maxRepairCalls || budget.isCancelled) {
+          _logger.warning(
+            'A2UI repair limit reached ($_maxRepairCalls calls or '
+            '${_repairBudget.inSeconds}s); dropping the remaining broken '
+            'blocks.',
+          );
+          break;
+        }
+        calls++;
+        _noteFirstRepair();
+        // A block without `root` for a surface the client holds is an update,
+        // and its repair must stay one rather than replace the surface. The
+        // mirror reports "Surface not found" exactly when the surface is not
+        // live: then the block is a new surface that forgot its `root`, and a
+        // repair may add one.
+        final partial =
+            !_rootLineRe.hasMatch(block.source) &&
+            !block.error.contains(_surfaceNotFound);
+        final repaired = await _askForRepair(
+          block,
+          catalog,
+          ask,
+          budget.token,
+          cancel,
+          partial: partial,
+        );
+        if (repaired == null) continue;
+        if (partial && _rootLineRe.hasMatch(repaired)) {
+          _logger.warning(
+            'repair turned a partial update into a full render, discarding '
+            'it: ${block.error}',
+          );
+          continue;
+        }
+        // Only accept a repair that holds up in place, under the configured
+        // mode, and does not break a later block that worked before.
+        final candidate = {...repairs, block.source: repaired};
+        final after = probe(candidate);
+        if (after.where((b) => b.source == block.source).firstOrNull
+            case final still?) {
+          _logger.warning('repair failed for "${block.error}": ${still.error}');
+          continue;
+        }
+        final before = {for (final b in failing) b.source};
+        if (after.any((b) => !before.contains(b.source))) {
+          _logger.warning(
+            'repair broke a later block, discarding it: ${block.error}',
+          );
+          continue;
+        }
+        repairs = candidate;
+        failing = after;
+        _logger.info('repaired an A2UI block after: ${block.error}');
+      }
+    } finally {
+      timer.cancel();
+      unlink?.call();
+    }
+    return repairs;
+  }
+
+  /// Asks for one repair; returns the repaired source, or null.
+  Future<String?> _askForRepair(
+    FailedBlock block,
+    A2uiCatalog catalog,
+    Future<String?> Function(String prompt, CancellationToken cancel) ask,
+    CancellationToken budget,
+    CancellationToken? cancel, {
+    required bool partial,
+  }) async {
+    try {
+      // Raced against the budget too: not every model plugin honours its
+      // cancellation token, and the budget must bound the wait either way.
+      final reply = await Future.any([
+        ask(
+          buildRepairPrompt(
+            source: block.source,
+            error: block.error,
+            catalog: catalog,
+            partial: partial,
+          ),
+          budget,
+        ),
+        budget.whenCancelled.then<String?>(
+          (_) => throw TimeoutException('A2UI repair budget'),
+        ),
+      ]);
+      final repaired = reply == null ? null : extractRepairedBlock(reply);
+      if (repaired == null) {
+        _logger.warning('repair returned nothing for: ${block.error}');
+        return null;
+      }
+      if (!_keepsSurface(block.source, repaired)) {
+        _logger.warning(
+          'repair changed which surfaces the block targets, discarding it: '
+          '${block.error}',
+        );
+        return null;
+      }
+      return repaired;
+    } catch (e) {
+      // The caller's cancellation aborts the turn; only the repair's own
+      // budget running out, or a failing call, is swallowed here.
+      if (cancel?.isCancelled ?? false) rethrow;
+      if (budget.isCancelled) {
+        _logger.warning('A2UI repair ran out of time: ${block.error}');
+      } else {
+        _logger.warning('repair failed for "${block.error}": $e');
+      }
+      return null;
+    }
+  }
+
+  /// At most this many repair calls per model call.
+  static const _maxRepairCalls = 3;
+
+  /// The time all repairs of one model call may take together.
+  static const _repairBudget = Duration(seconds: 30);
 
   /// Appends A2UI instructions to (or creates) the system message.
   ModelRequest _injectInstructions(ModelRequest req, A2uiCatalog catalog) {
@@ -329,20 +666,22 @@ class A2uiMiddleware extends GenerateMiddleware {
     );
   }
 
-  /// Transforms the final response message: prose text + a2ui parts.
+  /// Transforms the final response message: prose text + a2ui parts, with
+  /// [repairs] substituted for the blocks that failed.
   ModelResponse _transformResponse(
     ModelResponse response,
+    Message message,
     A2uiCatalog catalog,
-    String Function() surfaceId,
-  ) {
-    final message = response.message;
-    if (message == null) return response;
-
-    final parser = A2uiStreamParser(
+    List<A2uiEnvelope> history,
+    Map<String, String> repairs, {
+    GenerationUsage? extraUsage,
+    bool hadModelTurns = false,
+  }) {
+    final parser = A2uiStreamParser.internal(
       catalog: catalog,
       validate: _validate,
-      version: _version,
-      surfaceId: surfaceId,
+      history: history,
+      repairs: repairs,
     );
     final newContent = <Part>[];
 
@@ -356,11 +695,11 @@ class A2uiMiddleware extends GenerateMiddleware {
     for (final part in message.content) {
       final text = part.text;
       if (part.isText && text != null && text.isNotEmpty) {
-        // Push WITHOUT flushing between consecutive text parts so an a2ui block
+        // Push WITHOUT flushing between consecutive text parts so an <a2ui> block
         // that spans several adjacent text parts is stitched back together. The
         // model's final message is not guaranteed to coalesce adjacent text:
         // the Gemini plugin, for instance, aggregates a turn into many separate
-        // text parts (fence, JSON body split many ways, close fence, then a
+        // text parts (open tag, block body split many ways, close tag, then a
         // trailing empty-text part carrying the thought signature), so a
         // per-part flush would reset the parser mid-block and leak the whole
         // surface back out as raw prose. This mirrors the streaming path, which
@@ -378,6 +717,14 @@ class A2uiMiddleware extends GenerateMiddleware {
       }
     }
     flushHeld();
+    if (!newContent.any(isA2uiPart)) _warnOnPreExpressOutput(message);
+    // Only after earlier model turns: on the first turn a block without
+    // `root` is a new surface missing its root, not a sign of lost history.
+    if (hadModelTurns &&
+        history.isEmpty &&
+        parser.failedBlocks.any((b) => b.error.contains(_surfaceNotFound))) {
+      _warnOnMissingHistory();
+    }
 
     return ModelResponse(
       message: Message(
@@ -388,7 +735,7 @@ class A2uiMiddleware extends GenerateMiddleware {
       finishReason: response.finishReason,
       finishMessage: response.finishMessage,
       latencyMs: response.latencyMs,
-      usage: response.usage,
+      usage: _sumUsage(response.usage, extraUsage),
       custom: response.custom,
       raw: response.raw,
       request: response.request,
@@ -397,7 +744,10 @@ class A2uiMiddleware extends GenerateMiddleware {
   }
 
   /// Converts inbound a2ui data parts in the request into model-readable text.
-  ModelRequest _sanitizeInboundA2ui(ModelRequest req) {
+  ModelRequest _sanitizeInboundA2ui(
+    ModelRequest req,
+    Set<String> compatibleVersions,
+  ) {
     var changed = false;
     final messages = req.messages.map((message) {
       var msgChanged = false;
@@ -405,7 +755,11 @@ class A2uiMiddleware extends GenerateMiddleware {
       for (final part in message.content) {
         if (isA2uiPart(part)) {
           msgChanged = true;
-          final text = _summarizeA2uiPart(a2uiEnvelopesFromParts([part]));
+          final text = _summarizeA2uiPart(
+            part,
+            message.role,
+            compatibleVersions,
+          );
           if (text.isNotEmpty) content.add(TextPart(text: text));
         } else {
           content.add(part);
@@ -435,6 +789,166 @@ class A2uiMiddleware extends GenerateMiddleware {
   }
 }
 
+/// [a] and [b] summed field by field, or whichever is set.
+GenerationUsage? _sumUsage(GenerationUsage? a, GenerationUsage? b) {
+  if (a == null || b == null) return a ?? b;
+  final x = a.toJson(), y = b.toJson();
+  return GenerationUsage.fromJson({
+    for (final key in {...x.keys, ...y.keys})
+      key: switch ((x[key], y[key])) {
+        (final num p, final num q) => p + q,
+        (final v, final w) => v ?? w,
+      },
+  });
+}
+
+final _surfaceLineRe = RegExp(r'^\s*surface\(', multiLine: true);
+
+/// How a2ui_agent's renderer state reports an update to a surface that is not
+/// live.
+const _surfaceNotFound = 'Surface not found';
+final _rootLineRe = RegExp(r'^\s*root\s*=', multiLine: true);
+final _surfaceTargetRe = RegExp(
+  r'''^\s*(surface|deleteSurface)\(\s*["']([^"']*)["']''',
+  multiLine: true,
+);
+
+/// The `surface(...)` target ids in [source].
+Iterable<String> _surfaceTargets(String source) sync* {
+  for (final m in _surfaceTargetRe.allMatches(source)) {
+    if (m.group(1) == 'surface') yield m.group(2)!;
+  }
+}
+
+/// Surface ids that [history] left live only under a protocol version outside
+/// [compatibleVersions].
+Set<String> _foreignSurfaces(
+  List<A2uiEnvelope> history,
+  Set<String> compatibleVersions,
+) {
+  final foreign = <String>{};
+  final compatible = <String>{};
+  for (final e in history) {
+    final isForeign =
+        e['version'] != null && !compatibleVersions.contains(e['version']);
+    switch (e) {
+      case {'createSurface': {'surfaceId': final String id}}:
+        if (isForeign) {
+          if (!compatible.contains(id)) foreign.add(id);
+        } else {
+          foreign.remove(id);
+          compatible.add(id);
+        }
+      case {'deleteSurface': {'surfaceId': final String id}}:
+        foreign.remove(id);
+        if (!isForeign) compatible.remove(id);
+    }
+  }
+  return foreign;
+}
+
+/// Whether [repaired] targets exactly the surfaces [original] does (its
+/// `surface(...)` and `deleteSurface(...)` lines): the repair prompt asks to
+/// keep them, and a repair that renamed a surface or reached for another one
+/// would act on surfaces the conversation never chose.
+bool _keepsSurface(String original, String repaired) {
+  Set<String> targets(String source) => {
+    for (final m in _surfaceTargetRe.allMatches(source))
+      '${m.group(1)}:${m.group(2)}',
+  };
+  final a = targets(original), b = targets(repaired);
+  return a.length == b.length && a.containsAll(b);
+}
+
+bool _isAbnormal(FinishReason? reason) => const {
+  'blocked',
+  'aborted',
+  'failed',
+  'interrupted',
+  'other',
+}.contains(reason?.value);
+
+var _warnedMissingHistory = false;
+
+/// Warns once per process when the model updated a surface but the request
+/// carried no a2ui parts at all: most likely an app that manages history
+/// itself and drops them, which makes every update fail.
+void _warnOnMissingHistory() {
+  if (_warnedMissingHistory) return;
+  _warnedMissingHistory = true;
+  _logger.warning(
+    'A2UI: the model updated a surface, but the request history has no a2ui '
+    'parts to check it against. If you manage conversation history yourself, '
+    'send the model messages back with their a2ui parts (and metadata) intact.',
+  );
+}
+
+var _notedFirstRepair = false;
+
+/// Logs, once per process, why an extra model call happened.
+void _noteFirstRepair() {
+  if (_notedFirstRepair) return;
+  _notedFirstRepair = true;
+  _logger.info(
+    'A2UI: asking the model to repair a block that failed to compile (an '
+    'extra model call). Turn this off with a2ui(repair: false).',
+  );
+}
+
+/// The Express sources of the a2ui parts in [parts], in order.
+Iterable<String> _sourcesOf(List<Part> parts) sync* {
+  for (final p in parts.where(isA2uiPart)) {
+    if (p.metadata?[a2uiExpressMetadataKey] case final String src) yield src;
+  }
+}
+
+/// What a stream client still needs once the final message is known: the
+/// a2ui parts the stream did not carry (a repaired block, or one that failed
+/// only because an earlier one did), matched to [streamed] by source, one for
+/// one.
+///
+/// A late part may belong before parts that already streamed for the same
+/// surface; applied after them, it would undo them. So from the first late
+/// part on, every part touching a surface a late part touches is sent again,
+/// in final order. That is safe to repeat: each `createSurface` comes with its
+/// `deleteSurface`, and updates are idempotent.
+List<Part> _catchUp(List<Part> parts, List<String> streamed) {
+  final pending = <String, int>{};
+  for (final s in streamed) {
+    pending[s] = (pending[s] ?? 0) + 1;
+  }
+  final a2ui = parts.where(isA2uiPart).toList();
+  final late = <int>{};
+  for (final (i, p) in a2ui.indexed) {
+    if (p.metadata?[a2uiExpressMetadataKey] case final String src
+        when (pending[src] ?? 0) > 0) {
+      pending[src] = pending[src]! - 1;
+    } else {
+      late.add(i);
+    }
+  }
+  if (late.isEmpty) return const [];
+  // Grows as parts are re-sent, so a re-sent part that also touches another
+  // surface pulls in that surface's later parts too.
+  final affected = {for (final i in late) ..._surfacesOf(a2ui[i])};
+  final out = <Part>[];
+  for (final (i, p) in a2ui.indexed.skip(late.first)) {
+    final surfaces = _surfacesOf(p);
+    if (late.contains(i) || surfaces.any(affected.contains)) {
+      out.add(p);
+      affected.addAll(surfaces);
+    }
+  }
+  return out;
+}
+
+/// The surface ids an a2ui part's messages target.
+Set<String> _surfacesOf(Part part) => {
+  for (final e in a2uiEnvelopesFromParts([part]))
+    for (final body in e.values)
+      if (body case {'surfaceId': final String id}) id,
+};
+
 /// Turns ordered parse segments into parts, preserving the exact source order
 /// (so prose after a block stays after it).
 List<Part> _partsFromSegments(List<ParseSegment> segments) {
@@ -443,100 +957,172 @@ List<Part> _partsFromSegments(List<ParseSegment> segments) {
     switch (seg) {
       case ProseSegment(:final prose):
         if (prose.isNotEmpty) out.add(TextPart(text: prose));
-      case EnvelopeSegment(:final envelopes):
-        out.add(a2uiPart(envelopes));
+      case EnvelopeSegment(:final envelopes, :final source):
+        out.add(a2uiPart(envelopes, source: source));
     }
   }
   return out;
 }
 
-/// Converts a list of a2ui envelopes from an inbound message part back into
-/// model-readable text - the inverse of the outbound block-to-part transform.
-///
-/// The two envelope kinds are handled differently on purpose:
-///
-/// - Assistant-authored surface envelopes (`createSurface`, `updateComponents`,
-///   `updateDataModel`, `deleteSurface`) are reconstructed as the canonical
-///   `a2ui` fenced block the model originally emitted. Replaying a prior turn's
-///   surface as history therefore shows the model its own UI output in the exact
-///   format it is asked to produce, reinforcing correct behavior. (Summarizing
-///   it to a sentinel like `[rendered UI surface]` instead taught the model to
-///   emit that literal string in place of a real block.)
-/// - Client-synthesized `action` envelopes never had a block form, so they
-///   become a short text summary the model can reason about.
-///
-/// Consecutive surface envelopes are grouped into a single block (one surface is
-/// usually several envelopes: create + update(s)). Unknown envelope shapes are
-/// dropped; the caller keeps the message non-empty when everything drops.
-String _summarizeA2uiPart(List<A2uiEnvelope> envelopes) {
-  final out = <String>[];
-  final pendingSurface = <A2uiEnvelope>[];
+var _warnedPreSpecClient = false;
+var _warnedPreExpressOutput = false;
 
-  void flushSurface() {
-    if (pendingSurface.isEmpty) return;
-    // Keep the real surface ids verbatim. The model may not reuse them for a
-    // NEW surface: the parser forces a fresh id onto every `createSurface`
-    // block (see `_finalizeBlock`), so a copied id can't overwrite a prior
-    // surface. Keeping the real ids lets the model correlate a replayed action
-    // (`[UI action ... on surface <id>]`) with the surface it targeted - which
-    // matters when several surfaces are on screen at once.
-    //
-    // Encode compactly (not pretty-printed): fewer tokens, and it collapses the
-    // payload to a single line so the block is exactly three lines (open fence,
-    // JSON, close fence). Because JSON escapes any newline inside a string as
-    // `\n`, an A2UI `Text` value containing a fenced code sample can't put a
-    // literal ``` at the start of a line, so it can never prematurely close this
-    // block (the parser's close fence is line-anchored). The block text can
-    // still contain ``` characters mid-line; a fully robust emitter would use a
-    // variable-length fence, but that also requires the parser's fixed
-    // three-backtick open fence to become count-aware, so it is deferred.
-    out.add('```a2ui\n${jsonEncode(pendingSurface)}\n```');
-    pendingSurface.clear();
+/// Warns once per process when the latest user message carries an a2ui part
+/// with only the pre-0.5 `envelopes` key: that client cannot read this
+/// version's `messages` parts, so its surfaces would silently stop rendering.
+void _warnOnPreSpecClient(ModelRequest request) {
+  if (_warnedPreSpecClient) return;
+  final last = request.messages.where((m) => m.role == Role.user).lastOrNull;
+  for (final part in last?.content ?? const <Part>[]) {
+    final data = part.data;
+    if (part.metadata?['mimeType'] == a2uiMimeType &&
+        data != null &&
+        data.containsKey('envelopes') &&
+        !data.containsKey('messages')) {
+      _warnedPreSpecClient = true;
+      _logger.warning(
+        'A2UI: a client sent an a2ui part with the pre-0.5 `envelopes` key. '
+        'It cannot render the `messages` parts this version sends; update it '
+        'to the client helpers in the genkit_a2ui README.',
+      );
+      return;
+    }
+  }
+}
+
+/// Warns once per process when the model wrote the pre-0.5 JSON format, which
+/// passes through as plain text, typically because custom instructions
+/// (`instructions: 'none'`) or examples still describe it.
+void _warnOnPreExpressOutput(Message message) {
+  if (_warnedPreExpressOutput) return;
+  final text = message.content.map((p) => p.text ?? '').join();
+  if (!text.contains('```a2ui')) return;
+  _warnedPreExpressOutput = true;
+  _logger.warning(
+    'A2UI: the model wrote a ```a2ui fenced block, which genkit_a2ui 0.5 no '
+    'longer reads. It expects A2UI Express between <a2ui> tags; see '
+    'renderCatalogInstructions.',
+  );
+}
+
+/// An id from a client-supplied message, as prompt text: plain ids read as
+/// is, anything else is JSON-encoded so it cannot reshape the line. Null for
+/// a missing or empty id.
+String? _idText(Object? id) => switch (id) {
+  final String s when s.isEmpty => null,
+  final String s when RegExp(r'^[\w.:-]+$').hasMatch(s) => s,
+  final String s => jsonEncode(s),
+  _ => null,
+};
+
+/// Converts an inbound a2ui part back into model-readable text, the inverse of
+/// the outbound block-to-part transform.
+///
+/// - A part the model authored carries its Express source in the metadata
+///   ([a2uiExpressMetadataKey]) and is replayed verbatim as an `<a2ui>` block,
+///   so the model sees exactly what it wrote, in the format it is asked to
+///   produce. The source is never rewritten (surface ids are the model's own),
+///   so it still describes what the client rendered.
+/// - A user `action` becomes a short line the model can reason about.
+/// - A surface part with no source (written before parts carried it, or by a
+///   client that dropped the metadata) is summarized as a plain sentence. Not
+///   as replayed JSON, which would teach the model a second output format, and
+///   not as a tag-like marker, which models tend to copy into their output.
+///
+/// Unknown message shapes are dropped; the caller keeps the message non-empty
+/// when everything drops.
+String _summarizeA2uiPart(
+  Part part,
+  Role role,
+  Set<String> compatibleVersions,
+) {
+  final envelopes = a2uiEnvelopesFromParts([part]).toList();
+  final isForeign =
+      envelopes.isNotEmpty &&
+      envelopes.every(
+        (e) =>
+            e['version'] != null && !compatibleVersions.contains(e['version']),
+      );
+  // Only the model's own parts of a compatible protocol version are replayed as
+  // blocks it wrote; parts from another protocol version fall through to a
+  // summary so the model neither copies obsolete syntax nor assumes the mirror
+  // holds the surface for a partial update.
+  if (role == Role.model && !isForeign) {
+    if (part.metadata?[a2uiExpressMetadataKey] case final String source) {
+      return '<a2ui>\n$source\n</a2ui>';
+    }
+  }
+
+  final out = <String>[];
+  final rendered = <String>{};
+  final removed = <String>{};
+  void flushSurfaces() {
+    if (rendered.isNotEmpty) {
+      out.add(
+        isForeign
+            ? '(UI surface ${rendered.join(', ')} was rendered here under an '
+                  'earlier protocol version; render it again in full with a '
+                  'root to change it.)'
+            : '(UI surface ${rendered.join(', ')} was rendered here.)',
+      );
+    }
+    if (removed.isNotEmpty) {
+      out.add('(UI surface ${removed.join(', ')} was removed here.)');
+    }
+    rendered.clear();
+    removed.clear();
   }
 
   for (final env in envelopes) {
     final action = env['action'];
     if (action is Map) {
-      // Emit any buffered surface block before the action, preserving order.
-      flushSurface();
-      final name = action['name'];
-      final surfaceId = action['surfaceId'];
+      flushSurfaces();
+      // Client-supplied values are JSON-encoded, so a name holding `]` or a
+      // newline cannot reshape the line. A plain name reads as before.
+      final name = switch (action['name']) {
+        final String n => jsonEncode(n),
+        _ => '(unnamed)',
+      };
+      final surfaceId = _idText(action['surfaceId']) ?? '(unknown)';
+      // Which component fired it tells apart two buttons with one action name.
+      final from = switch (_idText(action['sourceComponentId'])) {
+        final id? => ' from $id',
+        null => '',
+      };
       final context = action['context'];
       final ctx = (context is Map && context.isNotEmpty)
           ? ' context=${jsonEncode(context)}'
           : '';
-      out.add('[UI action "$name" on surface $surfaceId$ctx]');
-    } else if (env['createSurface'] != null ||
-        env['updateComponents'] != null ||
-        env['updateDataModel'] != null ||
-        env['deleteSurface'] != null) {
-      pendingSurface.add(env);
+      final userMessage = switch (action['userMessage']) {
+        final String m when m.isNotEmpty => ' message=${jsonEncode(m)}',
+        _ => '',
+      };
+      out.add('[UI action $name$from on surface $surfaceId$ctx$userMessage]');
+      continue;
+    }
+    // Patterns rather than casts: this runs on stored history, so a malformed
+    // body (`{'createSurface': 'oops'}`) must be skipped, not throw on every
+    // later turn of the session.
+    for (final kind in const [
+      'createSurface',
+      'updateComponents',
+      'updateDataModel',
+    ]) {
+      if (env[kind] case {'surfaceId': final Object? raw}) {
+        if (_idText(raw) case final id?) {
+          // Every render starts with a delete, which this undoes.
+          removed.remove(id);
+          rendered.add(id);
+        }
+      }
+    }
+    if (env['deleteSurface'] case {'surfaceId': final Object? raw}) {
+      if (_idText(raw) case final id?) {
+        rendered.remove(id);
+        removed.add(id);
+      }
     }
   }
-  flushSurface();
+  flushSurfaces();
   return out.join('\n');
-}
-
-/// Wraps a surface-id factory so a single model turn's streamed parse and its
-/// final-message parse mint the *same* surface ids.
-
-class _ReplayableSurfaceIds {
-  final String Function() _base;
-  final List<String> _generated = [];
-  int _cursor = 0;
-
-  _ReplayableSurfaceIds(this._base);
-
-  String next() {
-    final id = _base();
-    _generated.add(id);
-    return id;
-  }
-
-  String replayNext() =>
-      _cursor < _generated.length ? _generated[_cursor++] : next();
-
-  void reset() {
-    _cursor = 0;
-  }
 }

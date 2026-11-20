@@ -104,7 +104,8 @@ void main() {
       'surfaces finishMessage on a content-less blocked candidate',
       () async {
         final plugin = WirePlugin([], response: _blockedResponse('SAFETY'));
-        final model = plugin.resolve(.model, 'gemini-flash-latest') as Model;
+        // A model pinned to generateContent (this tests its candidates).
+        final model = plugin.resolve(.model, 'gemini-3.1-flash-lite') as Model;
         final response = await model(
           ModelRequest(
             messages: [
@@ -130,7 +131,7 @@ void main() {
       );
       addTearDown(ai.shutdown);
       final response = await ai.generate(
-        model: modelRef('googleai/gemini-flash-latest'),
+        model: modelRef('googleai/gemini-3.1-flash-lite'),
         prompt: 'give me json',
         outputSchema: .string(),
       );

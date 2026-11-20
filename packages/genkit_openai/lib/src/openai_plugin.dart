@@ -79,6 +79,10 @@ class OpenAIPlugin extends GenkitPlugin {
   /// a different API and deliberately does not match.
   final bool _ownHost;
 
+  /// Capability metadata the last successful discovery read from the host's
+  /// `GET /models` entries, by model id. See [OpenAIProvider.infoFromListing].
+  final _listedInfo = <String, ModelInfo>{};
+
   /// Extra HTTP headers sent with every request.
   final Map<String, String>? headers;
 
@@ -138,6 +142,8 @@ class OpenAIPlugin extends GenkitPlugin {
     if (baseUrl == null) return true;
     final dialled = Uri.tryParse(baseUrl)?.host;
     if (dialled == null || dialled.isEmpty) return false;
+    final ownHosts = provider.ownHosts;
+    if (ownHosts != null) return ownHosts.contains(dialled);
     final own = provider.defaultBaseUrl == null
         ? _openAIHost
         : Uri.tryParse(provider.defaultBaseUrl!)?.host;
@@ -166,30 +172,35 @@ class OpenAIPlugin extends GenkitPlugin {
       ),
   ];
 
-  /// Fetch available model IDs from OpenAI API
-  Future<List<String>> _fetchAvailableModels(
-    _ResolvedClientConfig resolvedConfig,
-  ) async {
+  /// Fetches the host's `GET /models` listing.
+  ///
+  /// Each entry's raw JSON is kept alongside its id when the provider reads
+  /// more of the listing than the id - see [OpenAIProvider.chatFromListing].
+  /// The SDK's `Model` keeps only OpenAI's fields, so the raw body is read off
+  /// the wire on its way to the SDK.
+  Future<List<({String id, Map<String, dynamic>? listing})>>
+  _fetchAvailableModels(_ResolvedClientConfig resolvedConfig) async {
+    final capture = provider.chatFromListing == null
+        ? null
+        : _ListingCapture(httpClient ?? http.Client());
     final client = sdk.OpenAIClient.withApiKey(
       resolvedConfig.apiKey,
       baseUrl: resolvedConfig.baseUrl,
       defaultHeaders: resolvedConfig.headers,
-      httpClient: httpClient,
+      httpClient: capture ?? httpClient,
     );
 
     try {
       final response = await client.models.list();
-      final modelIds = <String>[];
-
-      // Collect all model IDs
-      for (final model in response.data) {
-        modelIds.add(model.id);
-      }
-
-      return modelIds;
+      final listings = capture?.listings ?? const {};
+      return [
+        for (final model in response.data)
+          (id: model.id, listing: listings[model.id]),
+      ];
     } finally {
       if (httpClient == null) {
         client.close();
+        capture?.close();
       }
     }
   }
@@ -252,11 +263,20 @@ class OpenAIPlugin extends GenkitPlugin {
   /// so it would 404 on every request. A spelling that names a path - `/v1`,
   /// DeepSeek's `/beta` - is sent exactly as written, as is any host we do
   /// not recognise: the caller may well mean that path.
+  ///
+  /// The host itself is kept, so a provider with several own hosts - Mistral's
+  /// regional ones - is dialled on the one the caller named. OpenAI has no
+  /// default of its own here, so a path-less `https://api.openai.com` goes
+  /// out as null and gets the SDK's default, which carries `/v1`.
   String? get _wireBaseUrl {
     final url = baseUrl;
     if (!_ownHost || url == null) return url;
-    final path = Uri.tryParse(url)?.path ?? '';
-    return path.isEmpty || path == '/' ? provider.defaultBaseUrl : url;
+    final parsed = Uri.tryParse(url);
+    final path = parsed?.path ?? '';
+    if (parsed == null || (path.isNotEmpty && path != '/')) return url;
+    final defaultUrl = provider.defaultBaseUrl;
+    if (defaultUrl == null) return null;
+    return parsed.replace(path: Uri.parse(defaultUrl).path).toString();
   }
 
   /// Lists the plugin's models and embedders, enriching the curated catalogs
@@ -273,6 +293,7 @@ class OpenAIPlugin extends GenkitPlugin {
     final discoveredEmbedders = <String>{};
     final discoveredSpeech = <String>{};
     final discoveredTranscription = <String>{};
+    final listedInfo = <String, ModelInfo>{};
 
     // Key resolution is inside the try on purpose: an apiKeyProvider that
     // throws must degrade like any other discovery failure, not take the
@@ -281,7 +302,27 @@ class OpenAIPlugin extends GenkitPlugin {
       // A keyless request is a guaranteed 401, so don't spend it.
       final config = await _resolveClientConfigOrNull();
       if (config != null) {
-        for (final modelId in await _fetchAvailableModels(config)) {
+        for (final (id: modelId, :listing) in await _fetchAvailableModels(
+          config,
+        )) {
+          // The host's own word on what an entry is wins over every name
+          // rule below: Mistral lists `voxtral-mini-tts-latest`, which reads
+          // like a speech model, as a model chat completions cannot serve.
+          final servesChat = listing == null
+              ? null
+              : provider.chatFromListing?.call(listing);
+          if (servesChat == true) {
+            discovered.add(modelId);
+            final info = provider.infoFromListing?.call(modelId, listing!);
+            if (info != null) listedInfo[modelId] = info;
+            continue;
+          }
+          if (servesChat == false) {
+            if (getModelType(modelId) == 'embedding') {
+              discoveredEmbedders.add(modelId);
+            }
+            continue;
+          }
           if (speech.isSpeechModel(modelId)) {
             discoveredSpeech.add(modelId);
             continue;
@@ -308,6 +349,9 @@ class OpenAIPlugin extends GenkitPlugin {
           discovered.add(modelId);
         }
       }
+      _listedInfo
+        ..clear()
+        ..addAll(listedInfo);
     } catch (e, stackTrace) {
       _logger.warning(
         'Failed to list models from $_pluginName; '
@@ -394,7 +438,7 @@ class OpenAIPlugin extends GenkitPlugin {
       for (final id in ids)
         modelMetadata(
           '$_pluginName/$id',
-          info: infoOverrides[id] ?? _infoFor(id),
+          info: infoOverrides[id] ?? _listedInfo[id] ?? _infoFor(id),
           customOptions: chat.chatModelOptionsSchema(),
         ),
       for (final id in speechIds) _speechModelMetadata(id, infoOverrides[id]),
@@ -444,9 +488,15 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Embedder metadata for [embedderName] on this plugin instance, split the
   /// same way [_infoFor] splits a model's.
-  Map<String, dynamic> _embedderInfoFor(String embedderName) => _ownHost
-      ? embedderInfoFor(embedderName)
-      : compatEmbedderInfo(embedderName);
+  Map<String, dynamic> _embedderInfoFor(String embedderName) {
+    final providerInfo = provider.embedderInfoFor;
+    if (providerInfo != null) {
+      return providerInfo(embedderName, compat: !_ownHost);
+    }
+    return _ownHost
+        ? embedderInfoFor(embedderName)
+        : compatEmbedderInfo(embedderName);
+  }
 
   @override
   Action? resolve(ActionType actionType, String name) {
@@ -572,11 +622,19 @@ class OpenAIPlugin extends GenkitPlugin {
         final inputs = embed.embeddingInputs(req.input);
 
         final resolvedConfig = await _resolveClientConfig();
+        final rewrite = provider.rewriteEmbeddingBody;
+        final transport = rewrite == null
+            ? httpClient
+            : ChatBodyClient(
+                httpClient ?? http.Client(),
+                rewriteRequest: rewrite,
+                endpoint: '/embeddings',
+              );
         final client = sdk.OpenAIClient.withApiKey(
           resolvedConfig.apiKey,
           baseUrl: resolvedConfig.baseUrl,
           defaultHeaders: resolvedConfig.headers,
-          httpClient: httpClient,
+          httpClient: transport,
         );
 
         try {
@@ -606,6 +664,7 @@ class OpenAIPlugin extends GenkitPlugin {
         } finally {
           if (httpClient == null) {
             client.close();
+            transport?.close();
           }
         }
       },
@@ -613,7 +672,7 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   Model _createModel(String modelName, ModelInfo? info) {
-    final modelInfo = info ?? _infoFor(modelName);
+    final modelInfo = info ?? _listedInfo[modelName] ?? _infoFor(modelName);
 
     return Model(
       name: '$_pluginName/$modelName',
@@ -634,6 +693,11 @@ class OpenAIPlugin extends GenkitPlugin {
         final verbosity = chat.toVerbosity(options.verbosity);
         if (_ownHost) {
           _requireReasoningModel(wireModel, options.reasoningEffort);
+        }
+        // A dialect rule, not a catalog one, so it holds on any host - as the
+        // body rewrite does.
+        if (!provider.acceptsFileParts) {
+          _refuseFileParts(modelRequest.messages);
         }
 
         final resolvedConfig = await _resolveClientConfig();
@@ -657,6 +721,7 @@ class OpenAIPlugin extends GenkitPlugin {
             // context, and the rest of the time the field is ignored.
             replayReasoning:
                 provider.replaysReasoning && tools != null && tools.isNotEmpty,
+            replayReasoningSource: provider.reasoningSource,
           );
 
           // A host that cannot be handed a schema needs the prompt to carry
@@ -742,9 +807,14 @@ class OpenAIPlugin extends GenkitPlugin {
   /// when the caller supplied none, since the SDK will no longer build one of
   /// its own.
   http.Client? _chatTransport() {
-    final rewrite = provider.rewriteChatBody;
-    if (rewrite == null) return httpClient;
-    return ChatBodyClient(httpClient ?? http.Client(), rewrite);
+    final rewriteRequest = provider.rewriteChatBody;
+    final rewriteReply = provider.rewriteChatReply;
+    if (rewriteRequest == null && rewriteReply == null) return httpClient;
+    return ChatBodyClient(
+      httpClient ?? http.Client(),
+      rewriteRequest: rewriteRequest,
+      rewriteReply: rewriteReply,
+    );
   }
 
   /// Maps a failure from the OpenAI SDK onto a [GenkitException], preserving
@@ -775,7 +845,8 @@ class OpenAIPlugin extends GenkitPlugin {
   }
 
   /// Rejects a `reasoningEffort` aimed at a curated model that does not
-  /// accept it.
+  /// accept it, or at a level the model does not take where the provider
+  /// lists them (see [OpenAIProvider.reasoningEffortsFor]).
   ///
   /// OpenAI's 400 names the parameter but not the model. Uncurated and
   /// caller-declared models are left to the API.
@@ -785,17 +856,62 @@ class OpenAIPlugin extends GenkitPlugin {
     // can: `models:` is how a name is corrected or extended, so a declared
     // model is left to the API to judge, as an uncurated one is.
     if (customModels.any((m) => m.name == modelName)) return;
-    if (provider.reasonsFor(modelName) != false) return;
+    final reasons = provider.reasonsFor(modelName);
+    if (reasons == false) {
+      throw GenkitException(
+        // The name that will be on the wire, not the curated alias it
+        // resolved through: a `version` of `gpt-4o-2024-11-20` is what the
+        // caller set and what the host will answer for. Says only that the
+        // effort is not settable, not that the model does not reason:
+        // o1-mini and o1-preview do reason, they simply predate the parameter.
+        '$modelName does not accept reasoningEffort.',
+        status: StatusCode.invalidArgument,
+      );
+    }
+    final levels = provider.reasoningEffortsFor?.call(modelName);
+    if (reasons == true &&
+        levels != null &&
+        !levels.contains(reasoningEffort)) {
+      throw GenkitException(
+        '$modelName accepts a reasoningEffort of ${levels.join(', ')}, not '
+        '"$reasoningEffort".',
+        status: StatusCode.invalidArgument,
+      );
+    }
+  }
 
-    throw GenkitException(
-      // The name that will be on the wire, not the curated alias it resolved
-      // through: a `version` of `gpt-4o-2024-11-20` is what the caller set
-      // and what the host will answer for. Says only that the effort is not
-      // settable, not that the model does not reason: o1-mini and o1-preview
-      // do reason, they simply predate the parameter.
-      '$modelName does not accept reasoningEffort.',
-      status: StatusCode.invalidArgument,
-    );
+  /// Rejects non-image media for a host that takes no OpenAI `file` part,
+  /// rather than sending a request it will reject as a whole.
+  ///
+  /// Inline data is refused because it would go out as a `file` part. A URL
+  /// whose declared type is not an image is refused too: it would go out as
+  /// `image_url`, and the host would fail it as an image it cannot read.
+  ///
+  /// Only user turns are checked: they are the only ones whose media is sent.
+  void _refuseFileParts(List<Message> messages) {
+    for (final message in messages) {
+      if (message.role != Role.user) continue;
+      for (final part in message.content) {
+        final media = part.media;
+        if (media == null) continue;
+        final mimeType = GenkitConverter.mimeTypeOf(media);
+        if (GenkitConverter.sendsAsFilePart(part)) {
+          throw GenkitException(
+            '$_pluginName does not accept inline $mimeType media. Only images '
+            'can be sent inline.',
+            status: StatusCode.invalidArgument,
+          );
+        }
+        if (!media.url.startsWith('data:') &&
+            !mimeType.toLowerCase().startsWith('image/')) {
+          throw GenkitException(
+            '$_pluginName does not accept $mimeType media by URL. Only images '
+            'can be sent.',
+            status: StatusCode.invalidArgument,
+          );
+        }
+      }
+    }
   }
 
   /// Handle streaming response
@@ -818,18 +934,14 @@ class OpenAIPlugin extends GenkitPlugin {
         // arrives rather than held back until the final message - watching a
         // reasoning model think is most of why its stream is worth reading.
         final delta = chunk.choices?.firstOrNull?.delta;
-        final reasoningDelta = GenkitConverter.reasoningTextOf(
-          delta?.reasoningContent,
-          delta?.reasoning,
-          delta?.reasoningDetails,
+        final reasoning = GenkitConverter.reasoningParts(
+          reasoningContent: delta?.reasoningContent,
+          reasoning: delta?.reasoning,
+          reasoningDetails: delta?.reasoningDetails,
+          reasoningSource: provider.reasoningSource,
         );
-        if (reasoningDelta != null) {
-          ctx.sendChunk(
-            ModelResponseChunk(
-              index: 0,
-              content: [ReasoningPart(reasoning: reasoningDelta)],
-            ),
-          );
+        if (reasoning.isNotEmpty) {
+          ctx.sendChunk(ModelResponseChunk(index: 0, content: reasoning));
         }
 
         final textDelta = chunk.textDelta;
@@ -850,10 +962,14 @@ class OpenAIPlugin extends GenkitPlugin {
 
     final response = accumulator.toChatCompletion();
     final choice = response.choices.first;
-    final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
+    final message = GenkitConverter.fromOpenAIAssistantMessage(
+      choice.message,
+      reasoningSource: provider.reasoningSource,
+      streamed: true,
+    );
 
     return ModelResponse(
-      finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
+      finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.value),
       message: message,
       usage: GenkitConverter.mapUsage(response.usage),
       raw: response.toJson(),
@@ -872,10 +988,13 @@ class OpenAIPlugin extends GenkitPlugin {
     }
 
     final choice = response.choices.first;
-    final message = GenkitConverter.fromOpenAIAssistantMessage(choice.message);
+    final message = GenkitConverter.fromOpenAIAssistantMessage(
+      choice.message,
+      reasoningSource: provider.reasoningSource,
+    );
 
     return ModelResponse(
-      finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.name),
+      finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.value),
       message: message,
       usage: GenkitConverter.mapUsage(response.usage),
       raw: response.toJson(),
@@ -912,10 +1031,12 @@ class OpenAIPlugin extends GenkitPlugin {
               options.responseFormat ?? speech.defaultSpeechResponseFormat;
           final resolvedModel = options.version ?? modelName;
 
-          final body = _SpeechRequestBody(
+          final body = sdk.SpeechRequest(
             model: resolvedModel,
             input: input,
-            voiceName: options.voice ?? speech.defaultSpeechVoice,
+            voice: sdk.AudioVoice.named(
+              options.voice ?? speech.defaultSpeechVoice,
+            ),
             instructions: options.instructions,
             responseFormat: options.responseFormat == null
                 ? null
@@ -1298,37 +1419,6 @@ final class _ResolvedClientConfig {
   });
 }
 
-/// Request body for `/audio/speech`.
-///
-/// The SDK's [sdk.SpeechRequest] caps `voice` at six legacy values and has no
-/// `instructions` field, which is the whole point of `gpt-4o-mini-tts`.
-/// The SDK's speech resource only ever calls `toJson()` on the request, so
-/// overriding it here buys full API fidelity while keeping every call on the
-/// SDK's transport (auth, retries, error mapping).
-final class _SpeechRequestBody extends sdk.SpeechRequest {
-  _SpeechRequestBody({
-    required super.model,
-    required super.input,
-    required this.voiceName,
-    this.instructions,
-    super.responseFormat,
-    super.speed,
-  }) : super(voice: sdk.SpeechVoice.alloy); // Placeholder; replaced in toJson.
-
-  /// Free-form voice name, unconstrained by [sdk.SpeechVoice].
-  final String voiceName;
-
-  /// Tone and delivery guidance for `gpt-4o-mini-tts`.
-  final String? instructions;
-
-  @override
-  Map<String, dynamic> toJson() => {
-    ...super.toJson(),
-    'voice': voiceName,
-    if (instructions != null) 'instructions': instructions,
-  };
-}
-
 /// Maps the portable Genkit tool choice onto OpenAI's `tool_choice`. The
 /// values line up one to one; unknown values are left unset rather than
 /// guessed at.
@@ -1339,3 +1429,51 @@ sdk.ToolChoice? _toOpenAIToolChoice(ToolChoice? choice) =>
       'none' => const sdk.ToolChoiceNone(),
       _ => null,
     };
+
+/// Keeps the raw entries of a `GET /models` reply as it passes through to the
+/// SDK, keyed by id.
+class _ListingCapture extends http.BaseClient {
+  _ListingCapture(this._inner);
+
+  final http.Client _inner;
+
+  /// The entries of the last listing read, by id.
+  final listings = <String, Map<String, dynamic>>{};
+
+  @override
+  Future<http.StreamedResponse> send(http.BaseRequest request) async {
+    final response = await _inner.send(request);
+    if (request.method != 'GET' ||
+        !request.url.path.endsWith('/models') ||
+        response.statusCode < 200 ||
+        response.statusCode >= 300) {
+      return response;
+    }
+    final bytes = await response.stream.toBytes();
+    try {
+      final decoded = jsonDecode(utf8.decode(bytes));
+      final data = decoded is Map ? decoded['data'] : null;
+      if (data is List) {
+        for (final entry in data.whereType<Map>()) {
+          final id = entry['id'];
+          if (id is String) listings[id] = entry.cast<String, dynamic>();
+        }
+      }
+    } on FormatException {
+      // The SDK reports a body it cannot read; that is not ours to do.
+    }
+    return http.StreamedResponse(
+      Stream.value(bytes),
+      response.statusCode,
+      contentLength: bytes.length,
+      request: response.request,
+      headers: response.headers,
+      isRedirect: response.isRedirect,
+      persistentConnection: response.persistentConnection,
+      reasonPhrase: response.reasonPhrase,
+    );
+  }
+
+  @override
+  void close() => _inner.close();
+}

@@ -19,9 +19,11 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      # Pinned off 3.50: Flutter 3.50 deprecates package:flutter/material.dart in favor of package:material_ui/material_ui.dart.
       - name: Setup Flutter
         uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
+          flutter-version: '3.47.9'
           channel: 'stable'
 
       - name: Install Melos
@@ -45,6 +47,10 @@ jobs:
         working-directory: packages/genkit_firebase_ai
         run: flutter analyze
 
+      # This package is outside the melos workspace, so it's passed by path.
+      - name: Check genkit_firebase_ai dartdoc
+        run: dart run tools/check_dartdoc.dart packages/genkit_firebase_ai
+
       # Lives here, not in dart_ci, because genkit_firebase_ai needs Flutter
       # to resolve.
       - name: Check for conflicting package exports
@@ -65,6 +71,16 @@ jobs:
       - name: "testapps/flutter_genai: Analyzer"
         working-directory: testapps/flutter_genai
         run: flutter analyze
+
+      # The reference copy of the genkit_a2ui README's client helpers.
+      - name: "testapps/a2ui/client: Analyzer"
+        working-directory: testapps/a2ui/client
+        run: flutter analyze
+
+      # Renders canned A2UI messages; needs neither the server nor an API key.
+      - name: "testapps/a2ui/client: Tests"
+        working-directory: testapps/a2ui/client
+        run: flutter test
 
       - name: Verify clean git tree
         run: |

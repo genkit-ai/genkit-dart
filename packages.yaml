@@ -17,3 +17,4 @@ floors:
   genkit_mcp: 1.0.0
   genkit_shelf: 1.0.0
   genkit_middleware: 1.0.0
+  genkit_firebase_ai: 1.0.0

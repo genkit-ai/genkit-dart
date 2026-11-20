@@ -91,7 +91,7 @@ void main() {
           {'type': 'text', 'text': 'legacy fallback'},
         ],
         'structuredContent': ['native', 42],
-      }),
+      }).output,
       ['native', 42],
     );
   });
@@ -103,7 +103,7 @@ void main() {
           {'type': 'text', 'text': 'null'},
         ],
         'structuredContent': null,
-      }),
+      }).output,
       isNull,
     );
   });

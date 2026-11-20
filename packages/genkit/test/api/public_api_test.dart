@@ -27,8 +27,6 @@
 @Timeout(Duration(minutes: 3))
 library;
 
-import 'dart:io';
-
 import 'package:api_summary/api_summary.dart';
 import 'package:test/test.dart';
 
@@ -54,7 +52,7 @@ void main() {
   late final Map<String, ApiLibrary> librariesByName;
 
   setUpAll(() async {
-    summary = await apiSummary(Directory.current.path);
+    summary = await apiSummary('.');
     librariesByName = {
       for (final lib in summary.libraries)
         if (lib.isPublicEntryPoint)

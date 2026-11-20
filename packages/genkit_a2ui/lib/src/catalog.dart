@@ -12,16 +12,37 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-/// A2UI catalog description used by the `a2ui()` middleware.
+/// The bundled A2UI "Basic Catalog" used by the `a2ui()` middleware.
 ///
 /// A catalog pins the set of components a surface may render. The middleware
 /// uses it for two things: (1) telling the model what it may render (prompt
 /// injection), and (2) validating emitted envelopes only reference known
 /// components. The renderer on the client registers a matching catalog under the
 /// same [A2uiCatalog.id].
+///
+/// The catalog *types* live in `catalog_types.dart` and match the wire format
+/// of the spec's `catalog.json`. This library only defines the bundled basic
+/// catalog and the prompt rendering built on top of it.
 library;
 
+import 'dart:convert';
+
+import 'package:a2ui_core/a2ui_core.dart' as core;
+
+import 'basic_functions.dart';
+import 'catalog_types.dart';
+import 'express.dart';
 import 'types.dart';
+
+// The catalog types live in `catalog_types.dart` (they mirror the spec's
+// `catalog.json`), but this library stays their canonical import site.
+export 'catalog_types.dart'
+    show
+        A2uiCatalog,
+        A2uiCatalogComponent,
+        A2uiCatalogFunction,
+        A2uiDynamicType,
+        A2uiParam;
 
 /// The registry value type under which A2UI catalogs are stored, so the
 /// `a2ui()` middleware can look them up by id. Register with
@@ -29,91 +50,15 @@ import 'types.dart';
 const String a2uiCatalogValueType = 'a2ui-catalog';
 
 /// The default catalog id used by the `a2ui()` middleware when none is given.
-/// Resolves to the bundled [basicCatalog].
+/// Resolves to the bundled [basicCatalog] (A2UI v1.0).
 const String defaultCatalogId = 'basic';
 
-/// The literal placeholder the model is told to use for surface ids.
-const String surfaceIdPlaceholder = 'SURFACE_ID';
+/// The lookup id that selects [basicCatalogV09] (A2UI v0.9) in `a2ui()`.
+const String basicCatalogV09LookupId = 'basic-v0.9';
 
-/// A component the model may use, plus a short description of its props.
-class A2uiCatalogComponent {
-  /// The component type name, e.g. `Text`.
-  final String name;
-
-  /// One-line description of what the component renders.
-  final String description;
-
-  /// A short, model-facing description of the component's props. Kept as plain
-  /// text (rather than a JSON Schema) to keep the injected prompt compact.
-  final String props;
-
-  /// Creates an [A2uiCatalogComponent].
-  const A2uiCatalogComponent({
-    required this.name,
-    required this.description,
-    required this.props,
-  });
-
-  /// Builds an [A2uiCatalogComponent] from its raw JSON shape.
-  factory A2uiCatalogComponent.fromJson(Map<String, dynamic> json) {
-    return A2uiCatalogComponent(
-      name: (json['name'] as String?) ?? '',
-      description: (json['description'] as String?) ?? '',
-      props: (json['props'] as String?) ?? '',
-    );
-  }
-
-  /// Serializes this component to its raw JSON shape.
-  Map<String, dynamic> toJson() => {
-    'name': name,
-    'description': description,
-    'props': props,
-  };
-}
-
-/// A parsed catalog: an id plus the components it exposes.
-class A2uiCatalog {
-  /// Globally-unique catalog id (also used as `catalogId` on `createSurface`).
-  final String id;
-
-  /// The components available in this catalog.
-  final List<A2uiCatalogComponent> components;
-
-  /// Creates an [A2uiCatalog].
-  const A2uiCatalog({required this.id, required this.components});
-
-  /// Builds an [A2uiCatalog] from its raw JSON shape.
-  factory A2uiCatalog.fromJson(Map<String, dynamic> json) {
-    final rawComponents = json['components'];
-    final components = <A2uiCatalogComponent>[];
-    if (rawComponents is List) {
-      for (final c in rawComponents) {
-        // Skip non-map entries defensively rather than throwing on a bad cast.
-        if (c is Map) {
-          components.add(
-            A2uiCatalogComponent.fromJson(c.cast<String, dynamic>()),
-          );
-        }
-      }
-    }
-    return A2uiCatalog(
-      id: (json['id'] as String?) ?? '',
-      components: components,
-    );
-  }
-
-  /// Serializes this catalog to its raw JSON shape.
-  Map<String, dynamic> toJson() => {
-    'id': id,
-    'components': components.map((c) => c.toJson()).toList(),
-  };
-}
-
-/// The set of icon names the basic catalog's `Icon` component supports. Names
-/// outside this list render as literal text (the renderer degrades gracefully),
-/// so the prompt lists them to steer the model toward valid names. Note the
-/// middleware validates component *types* against the catalog but does not
-/// validate individual `Icon` name values.
+/// The icon names the bundled basic catalog's `Icon` component accepts. It is
+/// an enum in the catalog, so the prompt lists the names and a block using any
+/// other name fails to compile (and goes to repair, if enabled).
 const List<String> basicIconNames = [
   'accountCircle',
   'add',
@@ -176,95 +121,319 @@ const List<String> basicIconNames = [
   'warning',
 ];
 
-/// The A2UI "Basic Catalog" (v0.9), mirroring the components published by the
-/// A2UI basic catalog. Use this to render standard UI without defining your own
+/// The A2UI "Basic Catalog" (v1.0), derived from `a2ui_core`'s copy of the
+/// published catalog. Use this to render standard UI without defining your own
 /// design system.
-final A2uiCatalog basicCatalog = A2uiCatalog(
-  id: basicCatalogId,
+///
+/// Includes all 18 components of the v1.0 basic catalog (adding `AudioPlayer`,
+/// `Video`, `Tabs`, `Modal`, `ChoicePicker`, and `DateTimeInput` to the 12 in
+/// [basicCatalogV09]). It is narrowed slightly to steer the model toward what
+/// renders well: components do not take the shared `weight` property, and
+/// `Icon.name` accepts only [basicIconNames] (not a data binding or an SVG
+/// path). Load the published `catalog.json` with `loadCatalog(file:)` for the
+/// full schema.
+final A2uiCatalog basicCatalog = _deriveV1BasicCatalog();
+
+A2uiCatalog _deriveV1BasicCatalog() {
+  final doc =
+      jsonDecode(jsonEncode(core.BasicCatalog.v1_0().toJson()))
+          as Map<String, dynamic>;
+  final components = doc['components'] as Map<String, dynamic>;
+  for (final schema in components.values.whereType<Map<String, dynamic>>()) {
+    for (final part in [schema, ...?(schema['allOf'] as List?)]) {
+      if (part case {'properties': final Map props}) props.remove('weight');
+    }
+  }
+  (doc[r'$defs'] as Map?)?.remove('Weight');
+  final icon = components['Icon'] as Map<String, dynamic>;
+  icon['description'] =
+      'Displays a named material icon. `name` MUST be one of the exact '
+      'names listed - do NOT invent names (e.g. there is no "cloud", '
+      '"air", or "thermostat"). If none fits, omit the Icon.';
+  (icon['properties'] as Map)['name'] = {
+    'type': 'string',
+    'description': 'The name of the icon to display.',
+    'enum': basicIconNames,
+  };
+  return A2uiCatalog.fromJson(doc);
+}
+
+bool _isV1(A2uiCatalog catalog) =>
+    ExpressEngine.of(catalog).version.isAtLeast(core.A2uiProtocolVersion.v1_0);
+
+/// The A2UI v0.9 "Basic Catalog", kept for clients that still render v0.9.
+/// Select it with `a2ui(catalog: basicCatalogV09LookupId)` (`'basic-v0.9'`), or
+/// extend it with `basicCatalogV09.extend(...)`.
+final A2uiCatalog basicCatalogV09 = A2uiCatalog(
+  id: basicCatalogV09Id,
+  protocolVersion: 'v0.9',
+  functions: basicFunctions,
   components: [
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Text',
       description:
           'Displays a run of text. For headings/titles set the `variant` prop '
           '(h1..h5) rather than embedding Markdown; the text itself may use '
           'inline Markdown.',
-      props:
-          'text: string (required); variant?: one of h1|h2|h3|h4|h5|caption|body.',
+      params: [
+        const A2uiParam.dynamicValue(
+          'text',
+          required: true,
+          description: 'The text content to display.',
+        ),
+        const A2uiParam.string(
+          'variant',
+          description: 'A hint for the base text style.',
+          enumValues: ['h1', 'h2', 'h3', 'h4', 'h5', 'caption', 'body'],
+        ),
+      ],
     ),
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Image',
       description: 'Displays an image from a URL.',
-      props:
-          'url: string (required); description?: string; fit?: contain|cover|fill|none|scaleDown; variant?: icon|avatar|smallFeature|mediumFeature|largeFeature|header.',
+      params: [
+        const A2uiParam.dynamicValue(
+          'url',
+          required: true,
+          description: 'The URL of the image to display.',
+        ),
+        const A2uiParam.dynamicValue(
+          'description',
+          description: 'Accessibility text for the image.',
+        ),
+        const A2uiParam.string(
+          'fit',
+          description: 'How the image is resized to fit its container.',
+          enumValues: ['contain', 'cover', 'fill', 'none', 'scaleDown'],
+        ),
+        const A2uiParam.string(
+          'variant',
+          description: 'A hint for the image size and style.',
+          enumValues: [
+            'icon',
+            'avatar',
+            'smallFeature',
+            'mediumFeature',
+            'largeFeature',
+            'header',
+          ],
+        ),
+      ],
     ),
-    A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Icon',
       description:
-          'Displays a named material icon. `name` MUST be one of the exact names '
-          'listed below - do NOT invent names (e.g. there is no "cloud", "air", '
-          'or "thermostat"). If none fits, omit the Icon rather than guessing.',
-      props: 'name: one of ${basicIconNames.join(', ')} (required, exact).',
+          'Displays a named material icon. `name` MUST be one of the exact '
+          'names listed - do NOT invent names (e.g. there is no "cloud", '
+          '"air", or "thermostat"). If none fits, omit the Icon.',
+      params: [
+        A2uiParam.string(
+          'name',
+          required: true,
+          description: 'The name of the icon to display.',
+          enumValues: basicIconNames,
+        ),
+      ],
     ),
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Row',
       description: 'Lays out children horizontally.',
-      props:
-          'children: string[] of component ids (required); justify?: start|center|end|spaceAround|spaceBetween|spaceEvenly|stretch; align?: start|center|end|stretch.',
+      params: [
+        const A2uiParam.children(
+          'children',
+          required: true,
+          description: 'The ids of the child components.',
+        ),
+        const A2uiParam.string(
+          'justify',
+          description: 'Arrangement of children along the main axis.',
+          enumValues: [
+            'start',
+            'center',
+            'end',
+            'spaceAround',
+            'spaceBetween',
+            'spaceEvenly',
+            'stretch',
+          ],
+        ),
+        A2uiParam.string(
+          'align',
+          description: 'Alignment of children along the cross axis.',
+          enumValues: ['start', 'center', 'end', 'stretch'],
+        ),
+      ],
     ),
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Column',
       description: 'Lays out children vertically.',
-      props:
-          'children: string[] of component ids (required); justify?: start|center|end|spaceBetween|spaceAround|spaceEvenly|stretch; align?: start|center|end|stretch.',
+      params: [
+        A2uiParam.children(
+          'children',
+          required: true,
+          description: 'The ids of the child components.',
+        ),
+        A2uiParam.string(
+          'justify',
+          description: 'Arrangement of children along the main axis.',
+          enumValues: [
+            'start',
+            'center',
+            'end',
+            'spaceBetween',
+            'spaceAround',
+            'spaceEvenly',
+            'stretch',
+          ],
+        ),
+        A2uiParam.string(
+          'align',
+          description: 'Alignment of children along the cross axis.',
+          enumValues: ['start', 'center', 'end', 'stretch'],
+        ),
+      ],
     ),
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'List',
-      description: 'A list of children.',
-      props:
-          'children: string[] of component ids (required); direction?: vertical|horizontal; listStyle?: ordered|unordered|none.',
+      description:
+          'A list of children. Use `_template(path, itemVar)` for `children` '
+          'to generate items from a data-model list.',
+      params: [
+        A2uiParam.children(
+          'children',
+          required: true,
+          description:
+              'A fixed list of child ids, or a _template(...) binding.',
+        ),
+        A2uiParam.string(
+          'direction',
+          description: 'The direction items are laid out in.',
+          enumValues: ['vertical', 'horizontal'],
+        ),
+        A2uiParam.string(
+          'align',
+          description: 'Alignment of children along the cross axis.',
+          enumValues: ['start', 'center', 'end', 'stretch'],
+        ),
+      ],
     ),
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Card',
       description: 'A visually-contained card wrapping a single child.',
-      props:
-          'child: string id of a single child component (required; wrap multiple in a Column/Row).',
+      params: [
+        A2uiParam.child(
+          'child',
+          required: true,
+          description:
+              'The id of the single child. Wrap multiple elements in a '
+              'Column or Row and pass that container id here.',
+        ),
+      ],
     ),
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Divider',
       description: 'A horizontal or vertical separator line.',
-      props: 'axis?: horizontal|vertical.',
+      params: [
+        A2uiParam.string(
+          'axis',
+          description: 'The orientation of the divider.',
+          enumValues: ['horizontal', 'vertical'],
+        ),
+      ],
     ),
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Button',
       description: 'A clickable button that fires an action back to the agent.',
-      props:
-          'child: string id of a child (usually a Text) (required); variant?: default|primary|borderless; action: { event: { name: string, context?: object } } (required - the event name is sent back to the agent when clicked).',
+      params: [
+        A2uiParam.child(
+          'child',
+          required: true,
+          description: 'The id of the child, usually a Text component.',
+        ),
+        A2uiParam.string(
+          'variant',
+          description: 'A hint for the button style.',
+          enumValues: ['default', 'primary', 'borderless'],
+        ),
+        A2uiParam.action(
+          'action',
+          required: true,
+          description:
+              'The action to fire, e.g. Event("refresh"). The event name is '
+              'sent back to the agent when the button is pressed.',
+        ),
+      ],
+      checkable: true,
     ),
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'TextField',
       description: 'A single- or multi-line text input.',
-      props:
-          'label: string (required); value?: string or { path } binding; variant?: shortText|longText|number|obscured.',
+      params: [
+        A2uiParam.dynamicValue(
+          'label',
+          required: true,
+          description: 'The text label for the input field.',
+        ),
+        A2uiParam.dynamicValue(
+          'value',
+          description: 'The value of the text field.',
+        ),
+        A2uiParam.string(
+          'variant',
+          description: 'The type of input field to display.',
+          enumValues: ['shortText', 'longText', 'number', 'obscured'],
+        ),
+      ],
+      checkable: true,
     ),
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'CheckBox',
       description: 'A labeled checkbox.',
-      props:
-          'label: string (required); value: boolean or { path } binding (required).',
+      params: [
+        A2uiParam.dynamicValue(
+          'label',
+          required: true,
+          description: 'The text to display next to the checkbox.',
+        ),
+        A2uiParam.dynamicValue(
+          'value',
+          required: true,
+          description: 'The current state of the checkbox.',
+          type: .boolean,
+        ),
+      ],
+      checkable: true,
     ),
-    const A2uiCatalogComponent(
+    A2uiCatalogComponent.simple(
       name: 'Slider',
       description: 'A numeric slider.',
-      props:
-          'max: number (required); value: number or { path } binding (required); label?: string; min?: number; step?: number.',
+      params: [
+        A2uiParam.dynamicValue(
+          'label',
+          description: 'The label for the slider.',
+        ),
+        A2uiParam.number('min', description: 'The minimum value.'),
+        A2uiParam.number(
+          'max',
+          required: true,
+          description: 'The maximum value.',
+        ),
+        A2uiParam.dynamicValue(
+          'value',
+          required: true,
+          description: 'The current value.',
+          type: .number,
+        ),
+      ],
+      checkable: true,
     ),
   ],
 );
 
 /// Builds the "make it look good" styling tips, scoped to the components the
 /// catalog actually provides so a custom catalog is never told to emit
-/// components it lacks (which would then fail `validate: 'strict'`).
-String _renderStyleTips(Set<String> has) {
+/// components it lacks (which would then fail validation).
+String _renderStyleTips(Set<String> has, {bool v1 = false}) {
   final tips = <String>[];
   final containers = ['Card', 'Column', 'Row'].where(has.contains).toList();
   if (containers.isNotEmpty) {
@@ -275,9 +444,13 @@ String _renderStyleTips(Set<String> has) {
   }
   if (has.contains('Text')) {
     tips.add(
-      '- Give titles a heading `variant` (e.g. h2/h3) and secondary text the '
-      '`caption` variant instead of embedding "#"/"##" heading markers in '
-      'the text.',
+      v1
+          ? '- Write a title as a Text holding one Markdown heading line (e.g. '
+                '"## Weather in Tokyo") and give secondary text the caption '
+                'variant.'
+          : '- Give titles a heading variant (e.g. h2/h3) and secondary text '
+                'the caption variant instead of embedding "#"/"##" heading '
+                'markers in the text.',
     );
   }
   final accents = ['Icon', 'Divider', 'Image'].where(has.contains).toList();
@@ -288,122 +461,140 @@ String _renderStyleTips(Set<String> has) {
     );
   }
   if (has.contains('Button')) {
-    tips.add('- Give primary buttons `variant: "primary"`.');
+    tips.add('- Give primary buttons the "primary" variant.');
   }
   return tips.isNotEmpty
-      ? '\n\nMake it look good, not bland:\n${tips.join('\n')}'
+      ? '\n\n## Style\n\nMake it look good, not bland:\n${tips.join('\n')}'
       : '';
 }
 
-/// Builds a worked example. Uses a rich Card/Column/Text layout when the catalog
-/// supports it (the common case, e.g. the basic catalog); otherwise falls back
-/// to a minimal example built only from components the catalog provides, so the
-/// example never references unknown components.
+/// Builds a worked example. Uses a weather card when the catalog has the
+/// components for it (the common case, e.g. the basic catalog); otherwise
+/// falls back to a minimal example built only from components the catalog
+/// provides, so the example never references unknown components.
 String _renderExample(A2uiCatalog catalog, Set<String> has) {
-  if (has.contains('Card') && has.contains('Column') && has.contains('Text')) {
+  if (has.containsAll(['Card', 'Column', 'Text', 'Button'])) {
+    final title = _isV1(catalog)
+        ? 'Text("## Weather in Tokyo")'
+        : 'Text("Weather in Tokyo", "h3")';
+    // The Button shows the label as its own component: `child` is a component
+    // id slot, the easiest thing to get wrong.
     return '''
 
 
-Example (a small weather card):
-```a2ui
-[
-  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${catalog.id}" } },
-  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-    { "id": "root", "component": "Card", "child": "body" },
-    { "id": "body", "component": "Column", "children": ["title", "temp"] },
-    { "id": "title", "component": "Text", "text": "Weather in Tokyo", "variant": "h3" },
-    { "id": "temp", "component": "Text", "text": { "path": "/temp" } }
-  ] } },
-  { "updateDataModel": { "surfaceId": "SURFACE_ID", "path": "/temp", "value": "18\u00b0C" } }
-]
-```''';
+## Example
+
+A weather card:
+<a2ui>
+surface("tokyo-weather")
+\$/temp = "18°C"
+root = Card(body)
+body = Column([title, temp, refresh])
+title = $title
+temp = Text(\$/temp)
+refresh = Button(Text("Refresh"), "primary", Event("refresh", {city: "Tokyo"}))
+</a2ui>''';
   }
-  // Minimal fallback: root uses whatever the catalog's first component is.
-  final rootComponent = catalog.components.isNotEmpty
-      ? catalog.components.first.name
-      : 'Text';
+  // `Name()` only compiles for a component with no required properties; with
+  // none such, no example beats one that teaches a compile error.
+  final rootComponent = catalog.components.values
+      .where((c) => !_hasRequiredProps(c))
+      .firstOrNull
+      ?.name;
+  if (rootComponent == null) return '';
   return '''
 
 
-Example (a minimal surface):
-```a2ui
-[
-  { "createSurface": { "surfaceId": "SURFACE_ID", "catalogId": "${catalog.id}" } },
-  { "updateComponents": { "surfaceId": "SURFACE_ID", "components": [
-    { "id": "root", "component": "$rootComponent" }
-  ] } }
-]
-```''';
+## Example
+
+A minimal surface:
+<a2ui>
+surface("example")
+root = $rootComponent()
+</a2ui>''';
 }
 
-/// Renders a catalog into model-facing instructions describing the A2UI protocol
-/// and the available components. Injected into the system prompt by the
-/// middleware when `instructions != 'none'`.
-String renderCatalogInstructions(A2uiCatalog catalog) {
-  final componentDocs = catalog.components
-      .map((c) => '- ${c.name}: ${c.description} Props: ${c.props}')
-      .join('\n');
+/// Whether [c] requires a property besides its `component` discriminator.
+bool _hasRequiredProps(A2uiCatalogComponent c) =>
+    [c.schema, ...?(c.schema['allOf'] as List?)].any(
+      (part) =>
+          part is Map &&
+          (part['required'] as List? ?? const []).any((r) => r != 'component'),
+    );
 
-  final has = catalog.components.map((c) => c.name).toSet();
-  final styleSection = _renderStyleTips(has);
-  final exampleSection = _renderExample(catalog, has);
+/// Renders a catalog into model-facing instructions: when and how to render
+/// UI, then the A2UI Express contract and the catalog's signatures (from
+/// `a2ui_agent`). Injected into the system prompt by the middleware when
+/// `instructions != 'none'`.
+String renderCatalogInstructions(A2uiCatalog catalog) {
+  final has = catalog.components.keys.toSet();
 
   // Forms guidance only applies if the catalog has input components.
   final inputs = [
     'TextField',
     'CheckBox',
     'Slider',
+    'ChoicePicker',
+    'DateTimeInput',
   ].where(has.contains).toList();
-  final inputList = inputs.join(', ');
   final formsSection = inputs.isNotEmpty
       ? '''
 
-- Forms: input components ($inputList) do NOT send their values automatically.
-  To capture what the user entered you MUST do BOTH of these:
-  1. Bind each input's `value` to a data-model path, e.g.
-     `{ "component": "TextField", "label": "Email", "value": { "path": "/email" } }`.
-     Typing updates the data model at that path.
-  2. On the submit `Button`, echo those same paths in
-     `action.event.context` so their current values are sent back to you, e.g.
-     `"context": { "email": { "path": "/email" }, "name": { "path": "/name" } }`.
-  Without the `{ path }` bindings and the button `context`, the action arrives
-  with an empty `context` and the entered values are lost.'''
+
+## Forms
+
+Input components (${inputs.join(', ')}) do NOT send their values
+automatically. To capture what the user entered you MUST do BOTH:
+1. Bind each input's value to a data-model path, e.g.
+   `email = TextField("Email", \$/email)`. Typing updates the data model.
+2. On the submit Button, echo those same paths in the Event context, e.g.
+   `Event("submit", {email: \$/email})`.
+Without both, the action arrives with an empty context and the entered values
+are lost.'''
       : '';
 
   return '''# Rendering UI with A2UI
 
-You can render rich, interactive UI (not just text) by emitting an A2UI surface.
-When a result is better *shown* than *told* (weather, lists, forms, comparisons,
-confirmations, anything visual or interactive), render a UI surface.
+You can render rich, interactive UI (not just text) by emitting an A2UI
+surface. Render one when the answer is data the user will look at or act on:
+structured results from tools (multiple fields or records), comparisons,
+choices to pick from, forms, dashboards, or anything interactive. You may still
+write normal prose before or after it.
 
-To render UI, output a single fenced code block tagged `a2ui` containing a JSON
-array of A2UI envelope messages. You may still write normal prose before it.
+Unless the system instructions ask for a surface, do NOT render a surface when
+the answer reads fine as a few sentences: greetings, small talk, opinions,
+advice, explanations, or simple facts. Answer those in prose. A surface that
+only holds paragraphs of text is worse than the text.
 
-Rules:
-- The UI is an ADJACENCY LIST: a flat array of components. Build the tree using
-  string `id` references, NOT nested objects. Exactly one component MUST have
-  `id: "root"`.
-- Every component has a `component` (type name) and an `id`. Container
-  components reference their children by id via a `children` array; single-child
-  wrappers reference one `child` id.
-- Values can be literals, or a data-model binding `{ "path": "/somePath" }`.
-- Use `createSurface` first (with `catalogId`), then `updateComponents` to add
-  the component list, then optionally `updateDataModel` to set data. You may
-  combine them in one array, in order.
-- Interactive components fire an `action` with an event `name`; that name is
-  sent back to you when the user interacts, so choose meaningful names.$formsSection
-- When a user interacts with a surface (e.g. presses a button) and you respond
-  with updated UI, RE-RENDER THE WHOLE SURFACE: start again with
-  `createSurface` followed by `updateComponents`. Do not emit a bare
-  `updateDataModel`/`updateComponents` expecting a previous surface to still
-  exist.$styleSection
+## Surfaces
 
-The catalogId to use is:
-"${catalog.id}"
+- Start every <a2ui> block with surface("<id>"). For a new surface, choose a
+  new, short, descriptive id (e.g. "tokyo-weather").
+- To change a surface you already rendered (e.g. after the user presses one of
+  its buttons), reuse its id. Either render it again in full, with a `root`,
+  which replaces it, or, for a small change, leave out `root` and write only
+  what changed: data paths (`\$/temp = "21°C"`) and components redefined
+  under their existing variable names. A redefined component replaces the old
+  one entirely, so restate all of its arguments. Every variable a component
+  uses must be assigned in the same block, so redefining a parent means
+  redefining its children too. Everything the block does not mention stays as
+  it was. (The rule that a tree needs a `root` is for new surfaces and full
+  re-renders.)
+- Give containers their own variables (as `body` in the example), so a later
+  update can redefine them.
+- User actions arrive as lines like
+  `[UI action "refresh" from refresh on surface tokyo-weather context={"city":"Tokyo"}]`.$formsSection${_renderStyleTips(has, v1: _isV1(catalog))}${_renderExample(catalog, has)}
 
-Available components:
-$componentDocs$exampleSection
+${ExpressEngine.of(catalog).promptSnippet}${_renderCatalogGuidance(catalog)}
 
-Do not explain the JSON; just render the block. Use "SURFACE_ID" literally as a
-placeholder for the surface id - the system replaces it with a real id.''';
+Do not explain the Express code; just emit the block.''';
 }
+
+/// The catalog's own `instructions`. `a2ui_agent` includes them only for v1.0
+/// catalogs, so for v0.9 they are added here.
+String _renderCatalogGuidance(A2uiCatalog catalog) =>
+    switch (catalog.instructions?.trim()) {
+      final String text when text.isNotEmpty && !_isV1(catalog) =>
+        '\n\n## Catalog instructions\n\n$text',
+      _ => '',
+    };

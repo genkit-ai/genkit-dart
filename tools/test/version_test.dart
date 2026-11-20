@@ -190,6 +190,42 @@ void main() {
     });
   });
 
+  group('propagation', () {
+    test('bump packages with a regular dependency on a bumped one', () async {
+      final (bumps, _) = await plan(
+        [
+          pkg('genkit', '1.0.2'),
+          pkg('genkit_shelf', '1.0.2', deps: ['genkit']),
+        ],
+        commits: {
+          'genkit': ['feat(genkit): new thing'],
+        },
+        rcTag: 'rc',
+      );
+      expect(bumps, {'genkit': '1.1.0-rc.1', 'genkit_shelf': '1.0.3-rc.1'});
+    });
+
+    test('not bump packages that only dev-depend on a bumped one', () async {
+      final (bumps, _) = await plan(
+        [
+          pkg('genkit', '1.0.2'),
+          pkg('genkit_google_genai', '1.1.0', deps: ['genkit']),
+          pkg(
+            'genkit_shelf',
+            '1.0.2',
+            deps: ['genkit'],
+            devDeps: ['genkit_google_genai'],
+          ),
+        ],
+        commits: {
+          'genkit_google_genai': ['feat(genkit_google_genai): new models'],
+        },
+        rcTag: 'rc',
+      );
+      expect(bumps, {'genkit_google_genai': '1.2.0-rc.1'});
+    });
+  });
+
   group('major guard', () {
     final commits = {
       'genkit': ['refactor(genkit)!: drop X', 'fix(genkit): y'],

@@ -22,7 +22,9 @@ void main(List<String> args) async {
     plugins: [
       vertexAI(
         projectId: Platform.environment['GCLOUD_PROJECT'],
-        location: Platform.environment['GCLOUD_LOCATION'] ?? 'us-central1',
+        // `global` serves the most models; any other location works too if
+        // the model is available there.
+        location: Platform.environment['GCLOUD_LOCATION'] ?? 'global',
       ),
     ],
   );
@@ -34,10 +36,55 @@ void main(List<String> args) async {
     outputSchema: .string(),
     fn: (input, context) async {
       final response = await ai.generate(
-        model: vertexAI.gemini('gemini-flash-latest'),
+        model: vertexAI.gemini('gemini-3.8-flash'),
         prompt: input,
       );
       return response.text;
+    },
+  );
+
+  // --- Image Generation Flow (Nano Banana) ---
+  ai.defineFlow(
+    name: 'imageGenerator',
+    inputSchema: .string(
+      defaultValue:
+          'A cozy reading nook with a window seat on a rainy afternoon.',
+    ),
+    outputSchema: Media.$schema,
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: vertexAI.geminiImage('gemini-nano-banana-2.1'),
+        prompt: prompt,
+        config: GeminiImageOptions(
+          imageConfig: GeminiImageConfig(aspectRatio: '9:16', imageSize: '1K'),
+        ),
+      );
+      if (response.media == null) {
+        throw Exception('No image generated');
+      }
+      return response.media!;
+    },
+  );
+
+  // --- Music Generation Flow (Lyria) ---
+  ai.defineFlow(
+    name: 'musicClip',
+    inputSchema: .string(
+      defaultValue: 'A cheerful acoustic folk song with guitar and harmonica.',
+    ),
+    outputSchema: .map(.string(), .dynamicSchema()),
+    fn: (prompt, _) async {
+      final response = await ai.generate(
+        model: vertexAI.lyria('lyria-3-clip-preview'),
+        prompt: prompt,
+        // Lyria is only served on `global`, whatever the plugin's location.
+        config: LyriaOptions(location: 'global'),
+      );
+      if (response.media == null) {
+        throw Exception('No music generated');
+      }
+      // The music, plus the lyrics or a caption as text.
+      return {'lyrics': response.text, 'audio': response.media!.toJson()};
     },
   );
 
@@ -48,7 +95,7 @@ void main(List<String> args) async {
     outputSchema: .list(.doubleSchema()),
     fn: (input, _) async {
       final embeddings = await ai.embed(
-        embedder: vertexAI.textEmbedding('text-embedding-004'),
+        embedder: vertexAI.textEmbedding('gemini-embedding-001'),
         documents: [
           DocumentData(content: [TextPart(text: input)]),
         ],

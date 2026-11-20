@@ -1,0 +1,38 @@
+name: a2ui_client
+description: >-
+  A2UI sample Flutter client: renders an A2UI-enabled Genkit agent's surfaces
+  with a2ui_flutter. Deliberately does not depend on genkit_a2ui; the server
+  lives in ../server.
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  a2ui_core: ^0.7.0
+  a2ui_flutter: ^0.3.0
+  # `Schema`, for the custom `Gauge` component's schema (lib/gauge.dart).
+  # a2ui_core depends on the same package.
+  json_schema_builder: ^0.1.7
+  url_launcher: ^6.3.0
+
+  genkit:
+    path: ../../../packages/genkit
+
+dependency_overrides:
+  genkit:
+    path: ../../../packages/genkit
+  schemantic:
+    path: ../../../packages/schemantic
+
+dev_dependencies:
+  flutter_lints: ^5.0.0
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true

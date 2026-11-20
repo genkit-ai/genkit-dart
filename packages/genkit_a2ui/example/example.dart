@@ -16,14 +16,13 @@
 //
 // The whole server integration is the `a2ui()` middleware: register
 // `A2uiPlugin()` on the Genkit instance, then add `a2ui()` to a `generate`
-// call's (or an agent's) `use` list. The middleware injects the catalog's
-// capabilities into the system prompt and rewrites the model's `a2ui` fenced
-// blocks into canonical a2ui `data` parts.
+// call's (or an agent's) `use` list. The middleware teaches the model the
+// catalog and A2UI Express, then compiles the model's `<a2ui>` blocks into
+// canonical a2ui `data` parts.
 //
 // This example prints the A2UI envelopes the model emits. In a real app you
-// would forward these to a client (see `client.dart` and the full Flutter
-// sample under `testapps/a2ui`) and render them with a renderer such as
-// `genui`.
+// would forward these to a client and render them with a renderer such as
+// `a2ui_flutter` (see the README and the full Flutter sample under `testapps/a2ui`).
 //
 // Run with:
 //   GEMINI_API_KEY=your-key dart run example/example.dart
@@ -48,9 +47,7 @@ Future<void> main() async {
   final stream = ai.generateStream(
     model: googleAI.gemini('gemini-flash-latest'),
     prompt: 'Show me the weather in Tokyo as a small card.',
-    system:
-        'Render an A2UI surface whenever a result is clearer shown than told. '
-        'Keep any prose brief.',
+    system: 'Keep any prose brief when you render a surface.',
     use: [a2ui()], // <- the entire A2UI integration (default 'basic' catalog).
   );
 

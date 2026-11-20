@@ -159,6 +159,19 @@ void main() {
       expect(media.contentType, 'audio/mp3');
       expect(media.url, 'data:audio/mp3;base64,SGVsbG8=');
     });
+
+    test('converts a functionCall without args to an empty input', () {
+      // Gemini omits `args` when it calls a tool that takes no arguments.
+      final part = gcl.Part.fromJson({
+        'functionCall': {'name': 'noArgTool'},
+      });
+      final genkitPart = fromGeminiPart(part);
+      expect(genkitPart, isA<ToolRequestPart>());
+      final toolRequest = (genkitPart as ToolRequestPart).toolRequest;
+      expect(toolRequest.name, 'noArgTool');
+      expect(toolRequest.input, isNotNull);
+      expect(toolRequest.input, isEmpty);
+    });
   });
 
   group('thought handling', () {
@@ -238,6 +251,34 @@ void main() {
       expect(genkitPart, isA<ToolRequestPart>());
       expect(genkitPart.metadata?['thoughtSignature'], signatureBase64);
     });
+
+    test('fromGeminiPart keeps a part with only a thoughtSignature', () {
+      final genkitPart = fromGeminiPart(
+        gcl.Part(thoughtSignature: signatureBase64),
+      );
+      expect(genkitPart, isA<TextPart>());
+      expect((genkitPart as TextPart).text, isEmpty);
+      expect(genkitPart.metadata?['thoughtSignature'], signatureBase64);
+
+      // The signature goes back to the model on the next turn.
+      expect(toGeminiPart(genkitPart).thoughtSignature, signatureBase64);
+    });
+
+    test(
+      'fromGeminiPart keeps a thought part with only a thoughtSignature',
+      () {
+        final genkitPart = fromGeminiPart(
+          gcl.Part(thought: true, thoughtSignature: signatureBase64),
+        );
+        expect(genkitPart, isA<ReasoningPart>());
+        expect((genkitPart as ReasoningPart).reasoning, isEmpty);
+        expect(genkitPart.metadata?['thoughtSignature'], signatureBase64);
+      },
+    );
+
+    test('fromGeminiPart still rejects an empty part', () {
+      expect(() => fromGeminiPart(gcl.Part()), throwsUnimplementedError);
+    });
   });
 
   group('toGeminiContent', () {
@@ -311,8 +352,24 @@ void main() {
         toolUsePromptTokenCount: 5,
       );
       final derived = extractUsage(usage);
-      expect(derived!.custom!['toolUsePromptTokenCount'], 5);
-      expect(derived.custom!.containsKey('promptTokensDetails'), isFalse);
+      // toolUseTokens: same key as on the Interactions API (as in JS);
+      // toolUsePromptTokenCount: the 1.0 key, kept for existing code.
+      expect(derived!.custom, {
+        'toolUseTokens': 5,
+        'toolUsePromptTokenCount': 5,
+      });
+    });
+
+    test('a zero count keeps only the 1.0 key, as 1.0 sent it', () {
+      final derived = extractUsage(
+        gcl.UsageMetadata(promptTokenCount: 1, toolUsePromptTokenCount: 0),
+      );
+      expect(derived!.custom, {'toolUsePromptTokenCount': 0});
+    });
+
+    test('custom is empty without tool use tokens', () {
+      final derived = extractUsage(gcl.UsageMetadata(promptTokenCount: 1));
+      expect(derived!.custom, isEmpty);
     });
   });
 }

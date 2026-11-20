@@ -22,6 +22,25 @@ void main() {
   setUpAll(setUpFirebaseApp);
 
   group('generate on the wire', () {
+    test('sends sampling options in generationConfig', () async {
+      final client = WireClient();
+
+      await wireModel(client)(
+        userRequest(
+          'hello',
+          config: {'temperature': 0.1, 'maxOutputTokens': 5},
+        ),
+      );
+
+      expect(
+        client.requests.single.body['generationConfig'],
+        allOf(
+          containsPair('temperature', 0.1),
+          containsPair('maxOutputTokens', 5),
+        ),
+      );
+    });
+
     test('generate sends contents on the wire and parses the canned '
         'response', () async {
       final client = WireClient(response: textResponse('hi there'));
@@ -33,7 +52,7 @@ void main() {
       expect(request.isStreaming, isFalse);
       expect(
         request.url.path,
-        endsWith('/models/gemini-2.5-flash:generateContent'),
+        endsWith('/models/gemini-flash-latest:generateContent'),
       );
       expect(request.headers['x-goog-api-key'], Firebase.app().options.apiKey);
       expect(request.body['contents'], [
@@ -65,6 +84,41 @@ void main() {
       expect(chunks.map((c) => c.text), ['Hello, ', 'world']);
       expect(response.message?.text, 'Hello, world');
       expect(response.finishReason, FinishReason.stop);
+    });
+
+    test('omits responseMimeType when it is not set', () async {
+      final client = WireClient();
+
+      await wireModel(client)(userRequest('hello'));
+
+      final generationConfig =
+          client.requests.single.body['generationConfig'] as Map? ?? {};
+      expect(generationConfig, isNot(contains('responseMimeType')));
+    });
+
+    test('omits responseMimeType when it is empty', () async {
+      final client = WireClient();
+
+      await wireModel(client)(
+        userRequest('hello', config: {'responseMimeType': ''}),
+      );
+
+      final generationConfig =
+          client.requests.single.body['generationConfig'] as Map? ?? {};
+      expect(generationConfig, isNot(contains('responseMimeType')));
+    });
+
+    test('sends the configured responseMimeType', () async {
+      final client = WireClient();
+
+      await wireModel(client)(
+        userRequest('hello', config: {'responseMimeType': 'text/x.enum'}),
+      );
+
+      expect(
+        client.requests.single.body['generationConfig'],
+        containsPair('responseMimeType', 'text/x.enum'),
+      );
     });
   });
 }

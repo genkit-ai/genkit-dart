@@ -37,6 +37,7 @@ class FakeClientTransport implements McpClientTransport {
   bool hangRepeatedDiscovery = false;
   bool requireUrlElicitation = false;
   bool acknowledgeSubscriptions = true;
+  bool rejectSubscriptions = false;
   final bool closeInboundOnClose;
   int latestListTtlMs = 0;
   bool failSends = false;
@@ -121,6 +122,10 @@ class FakeClientTransport implements McpClientTransport {
       final notifications = (params['notifications'] as Map)
           .cast<String, dynamic>();
       subscriptionFilters.add(Map<String, dynamic>.from(notifications));
+      if (rejectSubscriptions) {
+        _respondError(message['id'], -32601, 'Method not found');
+        return;
+      }
       if (!acknowledgeSubscriptions) return;
       final subscriptionId = message['id'];
       _inboundController.add({
@@ -766,6 +771,129 @@ void main() {
     expect(content['text'], '{"answer":42}');
   });
 
+  group('tool results', () {
+    Future<ToolResponseResult<dynamic>> callToolReturning(
+      Map<String, dynamic> callToolResult,
+    ) async {
+      final transport = FakeClientTransport();
+      transport.tools = [
+        {
+          'name': 'screenshot',
+          'description': 'takes a screenshot',
+          'inputSchema': {'type': 'object'},
+        },
+      ];
+      transport.callToolResult = callToolResult;
+      final client = GenkitMcpClient(
+        McpClientOptions(
+          name: 'media-client',
+          mcpServer: McpServerConfig(transport: transport),
+        ),
+      );
+      addTearDown(client.close);
+      await client.ready();
+      final tools = await client.getActiveTools(Genkit());
+      return await tools.first.call({}) as ToolResponseResult<dynamic>;
+    }
+
+    String? urlOf(Part part) => part.media?.url;
+
+    test('return image content as media parts', () async {
+      final result = await callToolReturning({
+        'content': [
+          {'type': 'image', 'data': 'AAAA', 'mimeType': 'image/png'},
+        ],
+      });
+
+      expect(result.output, isNull);
+      expect(result.parts!.map(urlOf), ['data:image/png;base64,AAAA']);
+    });
+
+    test('put text in the output and media and links in parts', () async {
+      final result = await callToolReturning({
+        'content': [
+          {'type': 'text', 'text': 'Captured.'},
+          {'type': 'audio', 'data': 'BBBB', 'mimeType': 'audio/wav'},
+          {
+            'type': 'resource',
+            'resource': {'uri': 'file:///notes.txt', 'text': 'Notes'},
+          },
+          {
+            'type': 'resource',
+            'resource': {
+              'uri': 'file:///shot.jpg',
+              'blob': 'CCCC',
+              'mimeType': 'image/jpeg',
+            },
+          },
+          {'type': 'resource_link', 'uri': 'file:///log.txt', 'name': 'log'},
+        ],
+      });
+
+      expect(
+        result.output,
+        'Captured.\n\nResource (file:///notes.txt):\nNotes',
+      );
+      expect(result.parts!.map(urlOf), [
+        'data:audio/wav;base64,BBBB',
+        'data:image/jpeg;base64,CCCC',
+        null,
+      ]);
+      expect(result.parts!.last.resource, {'uri': 'file:///log.txt'});
+    });
+
+    test('default media without a mimeType to octet-stream', () async {
+      final result = await callToolReturning({
+        'content': [
+          {
+            'type': 'resource',
+            'resource': {'uri': 'file:///blob.bin', 'blob': 'DDDD'},
+          },
+        ],
+      });
+
+      final media = result.parts!.single.media!;
+      expect(media.url, 'data:application/octet-stream;base64,DDDD');
+      expect(media.contentType, 'application/octet-stream');
+    });
+
+    test('decode JSON text output', () async {
+      final result = await callToolReturning({
+        'content': [
+          {'type': 'text', 'text': '{"width":2}'},
+        ],
+      });
+
+      expect(result.output, {'width': 2});
+      expect(result.parts, isNull);
+    });
+
+    test('keep structured content as the output alongside media', () async {
+      final result = await callToolReturning({
+        'content': [
+          {'type': 'image', 'data': 'AAAA', 'mimeType': 'image/png'},
+        ],
+        'structuredContent': {'width': 2},
+      });
+
+      expect(result.output, {'width': 2});
+      expect(result.parts!.map(urlOf), ['data:image/png;base64,AAAA']);
+    });
+
+    test('return errors as an error output', () async {
+      final result = await callToolReturning({
+        'content': [
+          {'type': 'text', 'text': 'boom'},
+          {'type': 'image', 'data': 'AAAA', 'mimeType': 'image/png'},
+        ],
+        'isError': true,
+      });
+
+      expect(result.output, {'error': 'boom'});
+      expect(result.parts, isNull);
+    });
+  });
+
   test('client handles sampling and elicitation requests', () async {
     final transport = FakeClientTransport();
     final client = GenkitMcpClient(
@@ -913,6 +1041,64 @@ void main() {
         'resourceSubscriptions': ['file:///project/b.json'],
       },
     ]);
+    await client.close();
+  });
+
+  test(
+    'client connects when the server rejects list change subscriptions',
+    () async {
+      final transport = FakeClientTransport(supportsDiscovery: true)
+        ..rejectSubscriptions = true
+        ..capabilities = {
+          'tools': {'listChanged': true},
+        }
+        ..tools = [
+          {
+            'name': 'myTool',
+            'inputSchema': {'type': 'object'},
+          },
+        ];
+      final client = GenkitMcpClient(
+        McpClientOptions(
+          name: 'test-client',
+          mcpServer: McpServerConfig(transport: transport),
+        ),
+      );
+
+      await client.ready();
+
+      expect(client.protocolVersion, '2026-07-28');
+      expect(transport.subscriptionFilters, [
+        {'toolsListChanged': true},
+      ]);
+      expect(
+        (await client.getActiveTools(Genkit())).single.name,
+        'fake-server/myTool',
+      );
+      await client.close();
+    },
+  );
+
+  test('a rejected resource subscription does not leak an error', () async {
+    final transport = FakeClientTransport(supportsDiscovery: true)
+      ..rejectSubscriptions = true
+      ..capabilities = {
+        'resources': {'subscribe': true},
+      };
+    final client = GenkitMcpClient(
+      McpClientOptions(
+        name: 'test-client',
+        mcpServer: McpServerConfig(transport: transport),
+      ),
+    );
+    await client.ready();
+
+    await expectLater(
+      client.subscribeResource(uri: 'file:///project/config.json'),
+      throwsA(isA<Object>()),
+    );
+    // Lets a stray error on the subscription's done future surface.
+    await Future<void>.delayed(Duration.zero);
     await client.close();
   });
 

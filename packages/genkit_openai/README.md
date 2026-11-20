@@ -5,9 +5,10 @@ drives OpenAI's own models and any host that implements the same API — Groq,
 Together AI, OpenRouter and friends — by pointing it at a different
 [`baseUrl`](#openai-compatible-apis).
 
-[DeepSeek](#deepseek) and [xAI](#xai) get first-class handles of their own,
-`deepSeek()` and `xAI()`, which carry the key, catalog and request differences
-each host needs rather than leaving them to you.
+[DeepSeek](#deepseek), [xAI](#xai) and [Mistral](#mistral) get first-class
+handles of their own, `deepSeek()`, `xAI()` and `mistral()`, which carry the
+key, catalog and request differences each host needs rather than leaving them
+to you.
 
 > **Building with a coding agent? Install the Genkit Dart skill first.**
 >
@@ -228,7 +229,7 @@ final response = await ai.generate(
 
 To describe a model that serves a known one under another name, start from the
 curated entry with `modelInfoFor` (or `xaiModelInfoFor` /
-`deepSeekModelInfoFor`):
+`deepSeekModelInfoFor` / `mistralModelInfoFor`):
 
 ```dart
 CustomModelDefinition(
@@ -526,6 +527,86 @@ to the API.
 
 The image and video models (`grok-imagine-*`) are not listed: this plugin
 serves chat generation.
+
+## Mistral
+
+Mistral speaks the same API, with a stricter request schema: a field it does
+not define is rejected with a 422 validation error rather than ignored.
+
+```dart
+final ai = Genkit(plugins: [mistral()]);
+
+final response = await ai.generate(
+  model: mistral.model('mistral-small-latest'),
+  prompt: 'Hello!',
+);
+```
+
+The key comes from `MISTRAL_API_KEY`. The plugin curates the `-latest`
+aliases of Mistral Large (Large 4), Mistral Small and Ministral 14B, 8B and 3B
+(image input, tools, JSON schema) and Codestral (text only), plus the
+`mistral-embed` (1024 dimensions) and `codestral-embed` (1536 dimensions)
+embedders. `mistral-medium-latest` points at Medium 3.5, which Mistral has
+deprecated; it is curated as `legacy` until it retires. Any other name resolves
+too, described as text-only chat with neither tools nor JSON output claimed,
+since Mistral lists those per model.
+
+`baseUrl` can name any of Mistral's hosts: `api.mistral.ai`,
+`api.eu.mistral.ai`, `api.us.mistral.ai` and `codestral.mistral.ai` all get the
+catalog and checks above. Any other host is treated as a gateway.
+
+These differ on the wire, and the plugin handles each:
+
+- The token limit goes out as `max_tokens`. Mistral has no
+  `max_completion_tokens`.
+- `seed` goes out as `random_seed`.
+- `user` and `verbosity` are dropped. Mistral has neither field.
+- `stream_options` is dropped from streaming requests. The plugin asks every
+  other host for usage that way, and Mistral reports usage on the last chunk
+  without being asked.
+- The embedder `dimensions` option goes out as `output_dimension`, and the
+  embedder `user` option is dropped.
+- A reply cut off at the model's context length (`model_length`) finishes with
+  `FinishReason.length`.
+
+Tools, `toolChoice`, JSON schema structured output and image input go out
+unchanged. Other media is refused before the request goes out: inline data
+such as a PDF data URI, because the plugin would send it as OpenAI's `file`
+part and Mistral's `file` part takes only the id of an uploaded file; and a URL
+whose `contentType` is not an image, because it would go out as `image_url`.
+
+Discovery lists what Mistral's `/v1/models` says serves chat completions
+(`capabilities.completion_chat`), plus the embedders. The OCR, moderation,
+transcription and text-to-speech models are left out; this plugin calls none
+of their endpoints. A listed model the catalog does not know takes tool calling
+and image input from the entry's `function_calling` and `vision` capabilities,
+with text output only.
+
+Those capabilities are read during discovery, so they apply only once
+`list()` has run (as the Dev UI does). `resolve()` is synchronous and builds a
+model's metadata up front, so a model the catalog does not know that is used
+directly, without discovery, reports tool calling and image input as
+unsupported. Nothing fails on that: the plugin does not enforce `supports`, and
+the request goes out regardless.
+
+A model that thinks - Large 4 always, Small 4 and Medium 3.5 when given a
+`reasoningEffort` of `high` - answers with `thinking` chunks ahead of its
+text. Each chunk comes back as its own `ReasoningPart`, streamed as it arrives,
+with `reasoningSource: 'mistral'` in its metadata and Mistral's signature, when
+it sends one, under `thoughtSignature`. In the final message of a stream, the
+fragments are joined back into one part per thinking chunk: a fragment that
+carries a signature ends its chunk, so each part keeps its own signature. On
+later turns those parts go back to
+Mistral as `thinking` chunks ahead of the assistant's text, as Mistral asks, so
+a tool loop keeps its reasoning. Reasoning from other models in the history
+is not sent.
+
+`reasoningEffort` goes out for Large, Small and Medium, and for any name the
+catalog does not know. On Mistral's own hosts it is checked before the request
+goes out: Large takes `low`, `medium` and `high`; Small and Medium take `none`
+and `high`; Ministral and Codestral take none. A model declared through
+`models:` with a `CustomModelDefinition` skips that check, so the effort is
+sent and the API decides.
 
 ## Reasoning
 

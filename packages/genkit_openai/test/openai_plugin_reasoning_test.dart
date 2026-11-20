@@ -417,6 +417,41 @@ void main() {
       // the provider can open.
       expect(reasoningOf(response), 'weighed both options');
     });
+
+    test('a signed gateway entry is read as plain text, as before', () async {
+      // Signatures are only kept, and signature-only entries only turned into
+      // parts, for a provider that replays its reasoning (Mistral). Anything
+      // else reads reasoning_details exactly as it always has.
+      final response = await genkitWith(
+        reasoningClient(
+          [],
+          reasoningDetails: [
+            {'type': 'reasoning.text', 'text': 'weighed it', 'signature': 's1'},
+            {'type': 'reasoning.text', 'text': '', 'signature': 's2'},
+          ],
+        ),
+        baseUrl: 'https://openrouter.ai/api/v1',
+      ).generate(model: openAI.model('openrouter/some-reasoner'), prompt: 'hi');
+
+      final reasoning = response.message!.content.where((p) => p.isReasoning);
+      expect(reasoning.single.reasoning, 'weighed it');
+      expect(reasoning.single.metadata, isNull);
+    });
+
+    test('a signature-only gateway entry produces no part', () async {
+      final response = await genkitWith(
+        reasoningClient(
+          [],
+          reasoningDetails: [
+            {'type': 'reasoning.text', 'text': '', 'signature': 's1'},
+          ],
+        ),
+        baseUrl: 'https://openrouter.ai/api/v1',
+      ).generate(model: openAI.model('openrouter/some-reasoner'), prompt: 'hi');
+
+      expect(response.message!.content.any((p) => p.isReasoning), isFalse);
+      expect(response.text, 'the answer');
+    });
   });
 
   group('reasoning while streaming', () {
@@ -514,6 +549,45 @@ void main() {
 
       expect(chunks.first.first.isReasoning, isTrue);
       expect(chunks.first.first.reasoning, 'thinking aloud');
+    });
+
+    test('a signature-only gateway delta streams nothing', () async {
+      Map<String, dynamic> frame(Map<String, dynamic> delta, [String? end]) => {
+        'id': 'c',
+        'object': 'chat.completion.chunk',
+        'created': 0,
+        'model': 'openrouter/some-reasoner',
+        'choices': [
+          {'index': 0, 'delta': delta, 'finish_reason': end},
+        ],
+      };
+      final frames = [
+        jsonEncode(
+          frame({
+            'reasoning_details': [
+              {'type': 'reasoning.text', 'text': '', 'signature': 's1'},
+            ],
+          }),
+        ),
+        jsonEncode(frame({'content': 'the answer'}, 'stop')),
+      ];
+
+      final chunks = <List<Part>>[];
+      final stream =
+          genkitWith(
+            reasoningClient([], sseFrames: frames),
+            baseUrl: 'https://openrouter.ai/api/v1',
+          ).generateStream(
+            model: openAI.model('openrouter/some-reasoner'),
+            prompt: 'hi',
+          );
+      await for (final chunk in stream) {
+        chunks.add(chunk.content);
+      }
+      final response = await stream.onResult;
+
+      expect(chunks.expand((c) => c).any((p) => p.isReasoning), isFalse);
+      expect(response.message!.content.any((p) => p.isReasoning), isFalse);
     });
   });
 }

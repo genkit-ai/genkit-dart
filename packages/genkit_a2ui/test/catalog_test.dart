@@ -19,53 +19,107 @@ void main() {
   group('basicCatalog', () {
     test('has a stable id and uniquely-named components', () {
       expect(basicCatalog.id, isNotEmpty);
-      final names = basicCatalog.components.map((c) => c.name).toList();
-      expect(names.toSet().length, names.length);
+      // Keying by name makes duplicates impossible; assert the map is populated
+      // and that each entry agrees with its key.
+      expect(basicCatalog.components, isNotEmpty);
+      basicCatalog.components.forEach((key, component) {
+        expect(component.name, key);
+      });
     });
   });
 
   group('renderCatalogInstructions', () {
     final text = renderCatalogInstructions(basicCatalog);
 
-    test('includes the catalog id', () {
-      expect(text, contains(basicCatalog.id));
-    });
-
-    test('lists every catalog component name', () {
-      for (final c in basicCatalog.components) {
+    test('includes the Express contract and every component signature', () {
+      expect(text, contains('A2UI Express'));
+      for (final name in basicCatalog.components.keys) {
         expect(
           text,
-          contains('- ${c.name}:'),
-          reason: 'expected instructions to document component ${c.name}',
+          contains('$name('),
+          reason: 'expected instructions to document component $name',
         );
       }
     });
 
-    test('tells the model to use the SURFACE_ID placeholder', () {
-      expect(text, contains('SURFACE_ID'));
+    test('tells the model to name surfaces and reuse ids to replace', () {
+      expect(text, contains('surface("<id>")'));
+      expect(text, contains('reuse its id'));
+    });
+
+    test('keeps conversation in prose unless the app asks otherwise', () {
+      expect(
+        text,
+        contains('Unless the system instructions ask for a surface'),
+      );
+      expect(text, contains('do NOT render a surface'));
+    });
+
+    test('explains partial updates', () {
+      expect(text, contains('leave out `root`'));
+      expect(text, contains('replaces the old\n  one entirely'));
+    });
+
+    test('marks component-id slots', () {
+      expect(text, contains('Card(child (component ID))'));
     });
 
     test('lists the basic icon allow-list', () {
       expect(text, contains(basicIconNames.first));
     });
+
+    test('uses Markdown headings for v1.0 and h1..h5 for v0.9', () {
+      expect(text, contains('Text("## Weather in Tokyo")'));
+      expect(text, isNot(contains('"h3"')));
+      expect(
+        text,
+        contains(
+          'Input components (TextField, CheckBox, Slider, ChoicePicker, '
+          'DateTimeInput)',
+        ),
+      );
+      final v09 = renderCatalogInstructions(basicCatalogV09);
+      expect(v09, contains('Text("Weather in Tokyo", "h3")'));
+      expect(v09, isNot(contains('"## Weather in Tokyo"')));
+    });
+
+    test('includes the v1.0 catalog instructions once, not twice', () {
+      final marker = basicCatalog.instructions!.trim().split('\n').first;
+      expect(marker.allMatches(text), hasLength(1));
+    });
+
+    test('its worked example compiles against the catalog', () {
+      final example = RegExp(
+        r'## Example[\s\S]*?<a2ui>\n([\s\S]*?)\n</a2ui>',
+      ).firstMatch(text)!.group(1)!;
+      final parser = A2uiStreamParser(catalog: basicCatalog);
+      final batches = [
+        ...parser.push('<a2ui>\n$example\n</a2ui>').envelopeBatches,
+        ...parser.flush().envelopeBatches,
+      ];
+      expect(batches, hasLength(1));
+    });
   });
 
   group('renderCatalogInstructions with a custom catalog', () {
-    // A catalog with none of the components the styling guidance / example
-    // hardcode (Card, Column, Text, Button, inputs, ...).
-    final custom = const A2uiCatalog(
+    // A catalog with none of the components the styling guidance and the
+    // weather example hardcode (Card, Column, Text, Button, inputs, ...).
+    final custom = A2uiCatalog(
       id: 'my-catalog',
       components: [
-        A2uiCatalogComponent(
+        A2uiCatalogComponent.simple(
           name: 'Widget',
           description: 'A widget.',
-          props: 'label: string.',
+          params: [const A2uiParam.dynamicValue('label')],
         ),
       ],
     );
     final text = renderCatalogInstructions(custom);
 
     test('never references components the catalog does not provide', () {
+      // Only the parts this package writes; the Express contract from
+      // a2ui_agent uses generic placeholder names.
+      final ours = text.substring(0, text.indexOf('# A2UI Express'));
       for (final name in [
         'Card',
         'Column',
@@ -80,7 +134,7 @@ void main() {
         'Slider',
       ]) {
         expect(
-          text,
+          ours,
           isNot(matches(RegExp('\\b$name\\b'))),
           reason: 'custom-catalog instructions must not mention $name',
         );
@@ -88,25 +142,125 @@ void main() {
     });
 
     test('builds the example from a component the catalog provides', () {
-      expect(text, contains('"component": "Widget"'));
+      expect(text, contains('root = Widget()'));
     });
 
-    test('still documents the custom component and catalog id', () {
-      expect(text, contains('- Widget: A widget.'));
-      expect(text, contains('my-catalog'));
+    test('documents the custom component', () {
+      expect(text, contains('Widget(label?)'));
+      expect(text, contains('A widget.'));
     });
   });
 
-  group('renderCatalogInstructions with an empty catalog', () {
-    test(
-      'renders without throwing and without a components-driven example',
-      () {
-        final empty = const A2uiCatalog(id: 'empty', components: []);
-        final text = renderCatalogInstructions(empty);
-        expect(text, contains('Rendering UI with A2UI'));
-        // Falls back to a default root component name.
-        expect(text, contains('"component": "Text"'));
-      },
+  group('renderCatalogInstructions fallback example', () {
+    /// The `<a2ui>` example block in [text], compiled strictly.
+    List<ParseSegment> compileExample(A2uiCatalog catalog, String text) {
+      final example = RegExp(
+        r'A minimal surface:\n(<a2ui>[\s\S]*?</a2ui>)',
+      ).firstMatch(text)!.group(1)!;
+      final parser = A2uiStreamParser(catalog: catalog);
+      return [...parser.push(example).segments, ...parser.flush().segments];
+    }
+
+    test('compiles', () {
+      final catalog = A2uiCatalog(
+        id: 'c',
+        components: [
+          A2uiCatalogComponent.simple(
+            name: 'Widget',
+            params: [const A2uiParam.dynamicValue('label')],
+          ),
+        ],
+      );
+      final segments = compileExample(
+        catalog,
+        renderCatalogInstructions(catalog),
+      );
+      expect(segments.whereType<EnvelopeSegment>(), hasLength(1));
+    });
+
+    test('skips components with required properties', () {
+      final catalog = A2uiCatalog(
+        id: 'c',
+        components: [
+          A2uiCatalogComponent.simple(
+            name: 'Gauge',
+            params: [
+              const A2uiParam.dynamicValue(
+                'value',
+                required: true,
+                type: .number,
+              ),
+            ],
+          ),
+          A2uiCatalogComponent.simple(name: 'Spacer', params: []),
+        ],
+      );
+      final text = renderCatalogInstructions(catalog);
+      expect(text, contains('root = Spacer()'));
+      expect(compileExample(catalog, text), isNotEmpty);
+    });
+
+    test('is left out when no component can be written bare', () {
+      final catalog = A2uiCatalog(
+        id: 'c',
+        components: [
+          A2uiCatalogComponent.simple(
+            name: 'Gauge',
+            params: [
+              const A2uiParam.dynamicValue(
+                'value',
+                required: true,
+                type: .number,
+              ),
+            ],
+          ),
+        ],
+      );
+      expect(renderCatalogInstructions(catalog), isNot(contains('## Example')));
+    });
+
+    test('an empty catalog renders without an example', () {
+      final text = renderCatalogInstructions(
+        A2uiCatalog(id: 'empty', components: []),
+      );
+      expect(text, contains('Rendering UI with A2UI'));
+      expect(text, isNot(contains('## Example')));
+    });
+  });
+
+  test('renderCatalogInstructions includes the catalog instructions', () {
+    final text = renderCatalogInstructions(
+      basicCatalog.extend(
+        id: 'https://example.com/c.json',
+        instructions: 'ALWAYS-USE-BLUE-CARDS',
+      ),
     );
+    expect(text, contains('ALWAYS-USE-BLUE-CARDS'));
+  });
+
+  test('extend and withId decompile inherited JSON examples to Express instead '
+      'of leaking raw JSON envelopes', () {
+    final extended = basicCatalog.extend(
+      id: 'https://example.com/weather.json',
+      components: [
+        A2uiCatalogComponent.simple(
+          name: 'Gauge',
+          params: [
+            const A2uiParam.dynamicValue(
+              'value',
+              required: true,
+              type: .number,
+            ),
+          ],
+        ),
+      ],
+    );
+    final renamed = basicCatalog.withId('https://example.com/renamed.json');
+    for (final c in [basicCatalog, extended, renamed]) {
+      final rendered = renderCatalogInstructions(c);
+      expect(rendered, isNot(contains('```json')));
+      expect(rendered, contains('?required("Deal value is required.")'));
+      expect(rendered, contains('_template(\$/breeds, breedTemplate)'));
+    }
   });
 }

@@ -26,7 +26,8 @@ import 'package:http/testing.dart';
 /// response whose text is the JSON scalar `"ok"`, so it also parses as
 /// JSON-format output.
 class WirePlugin extends GoogleGenAiPluginImpl {
-  WirePlugin(this.captured, {this.response}) : super(apiKey: 'test-key');
+  WirePlugin(this.captured, {this.response, super.store})
+    : super(apiKey: 'test-key');
 
   /// Request bodies seen so far, oldest first.
   final List<Map<String, dynamic>> captured;
@@ -60,6 +61,78 @@ class WirePlugin extends GoogleGenAiPluginImpl {
                 },
           ),
           200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+  }
+}
+
+/// A plugin whose Interactions calls are captured rather than sent.
+///
+/// Every request is appended to [requests] and answered with [response]
+/// (the interaction JSON) or, for streamed requests, with [sseEvents] (each
+/// sent as one `data:` frame). Without either, a completed interaction with
+/// the text `"ok"` is returned (it also parses as JSON output).
+class InteractionsWirePlugin extends GoogleGenAiPluginImpl {
+  InteractionsWirePlugin({
+    List<http.Request>? requests,
+    this.response,
+    this.sseEvents,
+    this.status = 200,
+    super.store,
+  }) : requests = requests ?? [],
+       super(apiKey: 'test-key');
+
+  /// Requests seen so far, oldest first.
+  final List<http.Request> requests;
+
+  /// Interaction JSON returned for non-streamed requests.
+  final Map<String, dynamic>? response;
+
+  /// SSE events returned for streamed requests.
+  final List<Map<String, dynamic>>? sseEvents;
+
+  /// HTTP status of every response.
+  final int status;
+
+  /// The JSON body of the last request.
+  Map<String, dynamic> get lastBody =>
+      (jsonDecode(requests.last.body) as Map).cast<String, dynamic>();
+
+  static const defaultInteraction = {
+    'status': 'completed',
+    'steps': [
+      {
+        'type': 'model_output',
+        'content': [
+          {'type': 'text', 'text': '"ok"'},
+        ],
+      },
+    ],
+    'usage': {'total_input_tokens': 3, 'total_output_tokens': 1},
+  };
+
+  @override
+  Future<GenerativeLanguageBaseClient> getApiClient([
+    String? requestApiKey,
+  ]) async {
+    return GenerativeLanguageBaseClient(
+      baseUrl: 'https://example.test/',
+      client: MockClient((request) async {
+        requests.add(request);
+        final body = (jsonDecode(request.body) as Map).cast<String, dynamic>();
+        if (body['stream'] == true) {
+          final events = sseEvents ?? const [];
+          return http.Response(
+            events.map((e) => 'data: ${jsonEncode(e)}\n\n').join(),
+            status,
+            headers: {'content-type': 'text/event-stream'},
+          );
+        }
+        return http.Response(
+          jsonEncode(response ?? defaultInteraction),
+          status,
           headers: {'content-type': 'application/json'},
         );
       }),

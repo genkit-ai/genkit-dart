@@ -1,3 +1,30 @@
+## 0.6.0
+
+### Breaking Changes
+
+ - switch default protocol to A2UI 1.0 (#742)
+
+### Other Changes
+
+ - move sample client and docs from genui to a2ui_flutter (#741)
+ - bump a2ui_agent to ^0.3.0 and a2ui_core to ^0.7.0 (#740)
+
+
+## 0.5.0
+
+### Breaking Changes
+
+ - switch the model output format to A2UI Express (#472)
+ - align the catalog with the A2UI spec's catalog.json (#468)
+ - drop client helpers and align the a2ui part with the spec (#710)
+
+### Features
+
+ - tell the model not to render surfaces for conversation (#715)
+ - check blocks against the surfaces the client holds, so a block can update one (#714)
+ - repair a block that failed to compile (#474)
+
+
 ## 0.4.1
 
  - updated internal dependencies.

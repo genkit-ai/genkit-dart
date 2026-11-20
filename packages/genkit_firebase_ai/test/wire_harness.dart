@@ -152,7 +152,7 @@ Future<void> setUpFirebaseApp() async {
 /// The plugin's [Model] for [modelName], with all HTTP sent to [client].
 Model wireModel(
   WireClient client, {
-  String modelName = 'gemini-2.5-flash',
+  String modelName = 'gemini-flash-latest',
   FirebaseAiProvider provider = const FirebaseAiProvider.googleAI(),
 }) {
   final plugin = firebaseAI(httpClient: client, provider: provider);

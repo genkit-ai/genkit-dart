@@ -17,7 +17,7 @@ import 'dart:convert';
 import 'package:firebase_ai/firebase_ai.dart' as m;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:genkit/genkit.dart';
-import 'package:genkit_firebase_ai/genkit_firebase_ai.dart';
+import 'package:genkit_firebase_ai/src/converters.dart';
 
 void main() {
   group('toGeminiPart', () {
@@ -55,6 +55,22 @@ void main() {
       final fileData = geminiPart as m.FileData;
       expect(fileData.mimeType, 'image/png');
       expect(fileData.fileUri, 'https://example.com/image.png');
+    });
+  });
+
+  group('fromGeminiPart', () {
+    test('keeps thought out of a fallback custom payload', () {
+      final part = fromGeminiPart(
+        m.FunctionResponse('f', {'a': 1}, isThought: true),
+      );
+
+      expect(part.custom, {
+        'functionResponse': {
+          'name': 'f',
+          'response': {'a': 1},
+        },
+      });
+      expect(part.metadata, {'isThought': true});
     });
   });
 }

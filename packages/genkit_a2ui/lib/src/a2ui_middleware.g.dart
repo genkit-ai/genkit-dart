@@ -32,15 +32,15 @@ base class A2uiOptions {
     String? catalog,
     String? instructions,
     String? validate,
-    String? surfaceId,
     String? version,
+    bool? repair,
   }) {
     _json = {
       'catalog': ?catalog,
       'instructions': ?instructions,
       'validate': ?validate,
-      'surfaceId': ?surfaceId,
       'version': ?version,
+      'repair': ?repair,
     };
   }
 
@@ -85,18 +85,20 @@ base class A2uiOptions {
     }
   }
 
-  /// Validate emitted envelopes against the catalog. `'warn'` (default) logs a
-  /// warning and drops the offending block/envelope, keeping the rest of the
-  /// turn alive; `'strict'` throws on malformed JSON or unknown components
-  /// (best during development); `'off'` passes them through unchecked.
+  /// What to do with a block that fails to compile or validate. `'warn'`
+  /// (default) logs a warning and drops the block, keeping the rest of the turn
+  /// alive; `'strict'` throws (best during development); `'off'` skips the
+  /// renderer-side checks (dangling references, missing `root`) and drops a
+  /// block that does not compile without logging a warning.
   String? get validate {
     return _json['validate'] as String?;
   }
 
-  /// Validate emitted envelopes against the catalog. `'warn'` (default) logs a
-  /// warning and drops the offending block/envelope, keeping the rest of the
-  /// turn alive; `'strict'` throws on malformed JSON or unknown components
-  /// (best during development); `'off'` passes them through unchecked.
+  /// What to do with a block that fails to compile or validate. `'warn'`
+  /// (default) logs a warning and drops the block, keeping the rest of the turn
+  /// alive; `'strict'` throws (best during development); `'off'` skips the
+  /// renderer-side checks (dangling references, missing `root`) and drops a
+  /// block that does not compile without logging a warning.
   set validate(String? value) {
     if (value == null) {
       _json.remove('validate');
@@ -105,33 +107,53 @@ base class A2uiOptions {
     }
   }
 
-  /// Surface id policy. Provide a fixed id to reuse for every surface. Defaults
-  /// to a fresh UUID per surface.
-  String? get surfaceId {
-    return _json['surfaceId'] as String?;
-  }
-
-  /// Surface id policy. Provide a fixed id to reuse for every surface. Defaults
-  /// to a fresh UUID per surface.
-  set surfaceId(String? value) {
-    if (value == null) {
-      _json.remove('surfaceId');
-    } else {
-      _json['surfaceId'] = value;
-    }
-  }
-
-  /// Protocol version stamped on emitted envelopes. Defaults to `'v0.9'`.
+  /// Expected A2UI protocol version (`'1.0'` or `'v0.9'`).
+  ///
+  /// Optional: the catalog itself decides which version a turn emits (see
+  /// `A2uiCatalog.protocolVersion`). Passing this asserts at call time that
+  /// the resolved catalog targets that version.
   String? get version {
     return _json['version'] as String?;
   }
 
-  /// Protocol version stamped on emitted envelopes. Defaults to `'v0.9'`.
+  /// Expected A2UI protocol version (`'1.0'` or `'v0.9'`).
+  ///
+  /// Optional: the catalog itself decides which version a turn emits (see
+  /// `A2uiCatalog.protocolVersion`). Passing this asserts at call time that
+  /// the resolved catalog targets that version.
   set version(String? value) {
     if (value == null) {
       _json.remove('version');
     } else {
       _json['version'] = value;
+    }
+  }
+
+  /// Whether to ask the model to fix a block that failed to compile. Defaults
+  /// to `true`.
+  ///
+  /// On a failure the middleware sends one small follow-up call containing the
+  /// error, the Express contract, and the failed block, then compiles the
+  /// reply. This costs an extra model call on the failure path only, and never
+  /// runs for errors a rewrite cannot fix. Set `false` to drop bad blocks
+  /// outright.
+  bool? get repair {
+    return _json['repair'] as bool?;
+  }
+
+  /// Whether to ask the model to fix a block that failed to compile. Defaults
+  /// to `true`.
+  ///
+  /// On a failure the middleware sends one small follow-up call containing the
+  /// error, the Express contract, and the failed block, then compiles the
+  /// reply. This costs an extra model call on the failure path only, and never
+  /// runs for errors a rewrite cannot fix. Set `false` to drop bad blocks
+  /// outright.
+  set repair(bool? value) {
+    if (value == null) {
+      _json.remove('repair');
+    } else {
+      _json['repair'] = value;
     }
   }
 
@@ -163,8 +185,8 @@ base class _A2uiOptionsTypeFactory extends SchemanticType<A2uiOptions> {
         'catalog': <String, Object?>{'type': 'string'},
         'instructions': <String, Object?>{'type': 'string'},
         'validate': <String, Object?>{'type': 'string'},
-        'surfaceId': <String, Object?>{'type': 'string'},
         'version': <String, Object?>{'type': 'string'},
+        'repair': <String, Object?>{'type': 'boolean'},
       },
     },
     dependencies: [],

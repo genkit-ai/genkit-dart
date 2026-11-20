@@ -1,3 +1,21 @@
+## 1.0.3
+
+### Fixes
+
+ - bump dotprompt constraint to ^2.0.1 (#760)
+
+
+## 1.0.2
+
+### Fixes
+
+ - resolve namespaced tools on interruptRestart (#658)
+
+### Other Changes
+
+ - pass relative path to apiSummary (#635)
+
+
 ## 1.0.1
 
 ### Fixes

@@ -593,7 +593,21 @@ class GenkitMcpClient {
           : null,
     );
     if (filter.toJson().isEmpty) return;
-    final subscription = await _openSubscription(filter);
+    final _ClientSubscription subscription;
+    try {
+      subscription = await _openSubscription(filter);
+    } catch (e) {
+      // List change notifications are optional, so a server that advertises
+      // `listChanged` but can't handle `subscriptions/listen` stays usable.
+      if (e is! mcp.McpError || e.code != mcp.ErrorCode.methodNotFound.value) {
+        rethrow;
+      }
+      mcpLogger.warning(
+        '[MCP Client] Server rejected ${mcp.Method.subscriptionsListen}; '
+        'list change notifications are disabled: ${e.message}',
+      );
+      return;
+    }
     _listChangeSubscription = subscription;
     _watchListChangeSubscription(subscription, filter);
     _logMissingListChangeAcknowledgments(
@@ -611,6 +625,10 @@ class GenkitMcpClient {
     final subscription = _client!.listenSubscriptions(
       mcp.SubscriptionsListenRequest(notifications: filter),
     );
+    // If opening fails, the caller gets the error from `acknowledged`, and the
+    // same error on `done` must not be unhandled. This registers before any
+    // await so `done` can't fail first. Later listeners still see its result.
+    subscription.done.ignore();
     _openingSubscriptions.add(subscription);
     final notifications = subscription.notifications.listen(
       (notification) {
@@ -1082,9 +1100,8 @@ class GenkitMcpClient {
           arguments: input,
           meta: extractMcpMeta(ctx.context),
         );
-        // Behavior unchanged; only wrapped in .response() for the new signature.
         if (options.rawToolResponses) return .response(result);
-        return .response(processToolResult(result));
+        return processToolResult(result);
       },
     );
   }

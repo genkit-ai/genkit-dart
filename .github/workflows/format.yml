@@ -24,8 +24,10 @@ jobs:
 
       # Using Flutter here because we need to run `flutter pub upgrade` in some packages.
       # This is a bit annoying, but it's the easiest way to handle the mixed nature of the workspace.
+      # Pinned off 3.50 (Dart 3.14): build_web_compilers and jaspr_builder ^0.23.0 fail version solving in testapps/agents/web.
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
+          flutter-version: '3.47.9'
           channel: 'stable'
           cache: true
 

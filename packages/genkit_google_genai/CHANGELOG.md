@@ -1,3 +1,30 @@
+## 1.2.0
+
+### Features
+
+ - new models, Lyria, embedders and vertexAI options (#662)
+ - call newer Gemini models through the Interactions API (#661)
+ - new Gemini API models and options (Omni, Lyria, Antigravity, ...) (#660)
+ - call newer Gemini models through Interactions (#659)
+
+### Fixes
+
+ - send tool_choice none and auto as plain strings on the Interactions API (#758)
+
+
+## 1.1.0
+
+### Features
+
+ - support a custom baseUrl (#704)
+
+### Fixes
+
+ - leave out parametersJsonSchema for a tool that accepts any input (#694)
+ - keep response parts that only carry a thoughtSignature (#683)
+ - treat a missing functionCall.args as empty input (#693)
+
+
 ## 1.0.1
 
  - updated internal dependencies.

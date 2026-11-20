@@ -15,7 +15,11 @@
 import 'dart:convert';
 
 import 'package:genkit/genkit.dart';
+import 'package:genkit_google_genai/common.dart'
+    show resetDroppedConfigFieldWarnings;
+import 'package:genkit_vertexai/src/known_models.dart';
 import 'package:genkit_vertexai/src/vertex_api_client.dart';
+import 'package:logging/logging.dart';
 import 'package:test/test.dart';
 
 import 'test_http_client.dart';
@@ -50,76 +54,184 @@ void main() {
           modelMetadata['customOptions'] as Map<String, dynamic>;
       expect(customOptions['properties'], contains('outputDimensionality'));
       expect(customOptions['properties'], contains('taskType'));
+      // Curated info (JS vertexai embedder.ts).
+      expect(modelMetadata['dimensions'], 768);
+      expect(modelMetadata['supports'], {
+        'input': ['text'],
+      });
     });
 
-    test('uses predict for a single Gemini embedding input', () async {
-      final mockClient = MockHttpClient();
-      final plugin = VertexAiPluginImpl(
+    test('the curated list matches JS, and curated embedders stay listed '
+        'once', () async {
+      expect(vertexAiKnownEmbedders.keys, [
+        'text-embedding-005',
+        'text-multilingual-embedding-002',
+        'multimodalembedding@001',
+        'gemini-embedding-001',
+        'gemini-embedding-2',
+        'text-embedding-004',
+      ]);
+      expect(vertexAiKnownEmbedders['gemini-embedding-2'], {
+        'label': 'Gemini Embedding 2',
+        'dimensions': 3072,
+        'supports': {
+          'input': ['text', 'image', 'video'],
+        },
+      });
+      expect(
+        vertexAiKnownEmbedders['multimodalembedding@001']?['dimensions'],
+        1408,
+      );
+
+      // Discovery returns text-embedding-005 and multimodalembedding (see
+      // MockHttpClient): every curated one is listed exactly once.
+      final names = (await VertexAiPluginImpl(
         projectId: 'my-project',
         location: 'us-central1',
-        authClient: mockClient,
-      );
-
-      final embedder = _resolveEmbedder(plugin, 'gemini-embedding-2-preview');
-      final req = EmbedRequest(
-        input: [
-          DocumentData(content: [TextPart(text: 'hello')]),
-        ],
-      );
-
-      final response = await embedder.run(req);
-
-      expect(mockClient.lastUrl, isNotNull);
-      expect(
-        mockClient.lastUrl.toString(),
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-2-preview:predict',
-      );
-      final requestBody =
-          jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
-      final instances = requestBody['instances'] as List;
-      expect(instances, hasLength(1));
-      expect(response.result.embeddings, hasLength(1));
-      expect(response.result.embeddings.first.embedding, [0.4, 0.5, 0.6]);
+        authClient: MockHttpClient(),
+      ).list()).map((a) => a.name).toList();
+      for (final id in vertexAiKnownEmbedders.keys) {
+        expect(
+          names.where((n) => n == 'vertexai/$id'),
+          hasLength(1),
+          reason: id,
+        );
+      }
+      expect(names, contains('vertexai/multimodalembedding'));
     });
 
-    test('uses predict for multiple Gemini embedding inputs', () async {
-      final mockClient = MockHttpClient();
-      final plugin = VertexAiPluginImpl(
-        projectId: 'my-project',
-        location: 'us-central1',
-        authClient: mockClient,
-      );
-
-      final embedder = _resolveEmbedder(plugin, 'gemini-embedding-2-preview');
-      final req = EmbedRequest(
-        input: [
-          DocumentData(content: [TextPart(text: 'hello')]),
-          DocumentData(content: [TextPart(text: 'world')]),
-        ],
-      );
-
-      final response = await embedder.run(req);
-
-      expect(mockClient.lastUrl, isNotNull);
-      expect(
-        mockClient.lastUrl.toString(),
-        'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-2-preview:predict',
-      );
-      // Vertex AI has no `:batchEmbedContents`; multi-input embedding goes
-      // through a single `:predict` call with multiple instances.
-      expect(
-        mockClient.requestUrls.where(
-          (url) => url.path.endsWith(':batchEmbedContents'),
+    test('a resolved curated embedder carries its info', () {
+      final embedder = _resolveEmbedder(
+        VertexAiPluginImpl(
+          projectId: 'my-project',
+          location: 'us-central1',
+          authClient: MockHttpClient(),
         ),
-        isEmpty,
+        'gemini-embedding-2',
       );
-      final requestBody =
-          jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
-      final instances = requestBody['instances'] as List;
-      expect(instances, hasLength(2));
-      expect(response.result.embeddings, hasLength(2));
-      expect(response.result.embeddings[0].embedding, [0.4, 0.5, 0.6]);
-      expect(response.result.embeddings[1].embedding, [1.4, 1.5, 1.6]);
+      expect(
+        embedder.metadata['model'],
+        vertexAiKnownEmbedders['gemini-embedding-2'],
+      );
+    });
+
+    test('uses embedContent for gemini-embedding-2, one request per '
+        'document with its text and media parts (as JS)', () async {
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      final embedder = _resolveEmbedder(plugin, 'gemini-embedding-2');
+      final response = await embedder.run(
+        EmbedRequest(
+          input: [
+            DocumentData(content: [TextPart(text: 'hello')]),
+            DocumentData(
+              content: [
+                TextPart(text: 'a cat'),
+                MediaPart(
+                  media: Media(
+                    url: 'data:image/png;base64,iVBORw0KGgo=',
+                    contentType: 'image/png',
+                  ),
+                ),
+              ],
+            ),
+          ],
+          options: {'outputDimensionality': 128},
+        ),
+      );
+
+      expect(
+        mockClient.requestUrls
+            .where((url) => url.host.contains('aiplatform'))
+            .map((url) => url.toString()),
+        everyElement(
+          'https://us-central1-aiplatform.googleapis.com/v1beta1/projects/my-project/locations/us-central1/publishers/google/models/gemini-embedding-2:embedContent',
+        ),
+      );
+      // The other requests are the ADC token requests.
+      final bodies = [
+        for (final (i, url) in mockClient.requestUrls.indexed)
+          if (url.path.endsWith(':embedContent'))
+            jsonDecode(mockClient.requestBodies[i]) as Map<String, dynamic>,
+      ];
+      expect(bodies, hasLength(2));
+      expect(bodies.first, {
+        'content': {
+          'role': 'user',
+          'parts': [
+            {'text': 'hello'},
+          ],
+        },
+        'outputDimensionality': 128,
+      });
+      final mediaParts = (bodies.last['content'] as Map)['parts'] as List;
+      expect(mediaParts, hasLength(2));
+      expect((mediaParts.last as Map)['inlineData'], {
+        'mimeType': 'image/png',
+        'data': 'iVBORw0KGgo=',
+      });
+      // One embedding per document, in order.
+      expect(response.result.embeddings.map((e) => e.embedding), [
+        [1.1, 1.2],
+        [2.1, 2.2],
+      ]);
+    });
+
+    test('embedContent drops taskType and title with a warning', () async {
+      resetDroppedConfigFieldWarnings();
+      final warnings = <String>[];
+      final subscription = Logger.root.onRecord
+          .where((r) => r.level == Level.WARNING)
+          .listen((r) => warnings.add(r.message));
+      addTearDown(subscription.cancel);
+      final mockClient = MockHttpClient();
+      final plugin = VertexAiPluginImpl(
+        projectId: 'my-project',
+        location: 'us-central1',
+        authClient: mockClient,
+      );
+
+      await _resolveEmbedder(plugin, 'gemini-embedding-2').run(
+        EmbedRequest(
+          input: [
+            DocumentData(content: [TextPart(text: 'hello')]),
+          ],
+          options: {'taskType': 'RETRIEVAL_DOCUMENT', 'title': 'doc'},
+        ),
+      );
+
+      final body = jsonDecode(mockClient.lastBody!) as Map<String, dynamic>;
+      expect(body, isNot(contains('taskType')));
+      expect(body, isNot(contains('title')));
+      expect(warnings, [
+        "taskType is not supported by 'gemini-embedding-2' and was ignored.",
+        "title is not supported by 'gemini-embedding-2' and was ignored.",
+      ]);
+    });
+
+    test('newer and unlisted gemini-embedding-* names use embedContent; '
+        'gemini-embedding-001 and the others use predict', () {
+      for (final name in [
+        'gemini-embedding-2',
+        'gemini-embedding-2-preview',
+        'gemini-embedding-3',
+      ]) {
+        expect(vertexUsesEmbedContent(name), isTrue, reason: name);
+      }
+      for (final name in [
+        'gemini-embedding-001',
+        'text-embedding-005',
+        'text-embedding-004',
+        'text-multilingual-embedding-002',
+        'multimodalembedding@001',
+      ]) {
+        expect(vertexUsesEmbedContent(name), isFalse, reason: name);
+      }
     });
 
     test(

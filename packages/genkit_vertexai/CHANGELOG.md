@@ -1,3 +1,17 @@
+## 1.1.0
+
+### Features
+
+ - new models, Lyria, embedders and vertexAI options (#662)
+ - call newer Gemini models through the Interactions API (#661)
+ - new Gemini API models and options (Omni, Lyria, Antigravity, ...) (#660)
+ - call newer Gemini models through Interactions (#659)
+
+
+## 1.0.2
+
+ - updated internal dependencies.
+
 ## 1.0.1
 
  - updated internal dependencies.
