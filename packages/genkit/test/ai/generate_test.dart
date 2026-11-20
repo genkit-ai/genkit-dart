@@ -14,6 +14,7 @@
 
 import 'package:genkit/genkit.dart';
 import 'package:genkit/src/ai/tool_resolution.dart';
+import 'package:logging/logging.dart';
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
 
@@ -620,6 +621,78 @@ void main() {
       );
 
       expect(response.text, 'The weather is sunny explicit');
+    });
+
+    group('unresolved tool references', () {
+      late List<List<String>> seenTools;
+
+      setUp(() {
+        seenTools = [];
+        genkit.defineModel(
+          name: 'echoTools',
+          fn: (request, context) async {
+            seenTools.add([...?request.tools?.map((t) => t.name)]);
+            return ModelResponse(
+              finishReason: .stop,
+              message: Message(
+                role: .model,
+                content: [TextPart(text: 'ok')],
+              ),
+            );
+          },
+        );
+        genkit.defineDynamicActionProvider(
+          name: 'empty-dap',
+          listActionsFn: () => [],
+          getActionFn: (actionType, id) async => null,
+        );
+      });
+
+      test('fails generate with NOT_FOUND for an unknown tool name', () async {
+        final response = await genkit.generate(
+          model: modelRef('echoTools'),
+          prompt: 'hi',
+          toolNames: ['noSuchTool'],
+        );
+
+        expect(response.finishReason, FinishReason.failed);
+        expect(response.error?.status, StatusCode.notFound.wireName);
+        expect(response.error?.message, contains('noSuchTool'));
+        expect(seenTools, isEmpty, reason: 'the model must not be called');
+      });
+
+      test('fails generate when a DAP tool name resolves to nothing', () async {
+        final response = await genkit.generate(
+          model: modelRef('echoTools'),
+          prompt: 'hi',
+          toolNames: ['empty-dap:tool/missing'],
+        );
+
+        expect(response.finishReason, FinishReason.failed);
+        expect(response.error?.status, StatusCode.notFound.wireName);
+        expect(seenTools, isEmpty);
+      });
+
+      test(
+        'warns, but still generates, when a DAP wildcard matches nothing',
+        () async {
+          final warnings = <String>[];
+          final sub = Logger.root.onRecord
+              .where((r) => r.level >= Level.WARNING)
+              .listen((r) => warnings.add(r.message));
+          addTearDown(sub.cancel);
+
+          final response = await genkit.generate(
+            model: modelRef('echoTools'),
+            prompt: 'hi',
+            toolNames: ['empty-dap:*'],
+          );
+
+          expect(response.finishReason, FinishReason.stop);
+          expect(seenTools, [<String>[]]);
+          expect(warnings, [contains('empty-dap:*')]);
+        },
+      );
     });
 
     test(

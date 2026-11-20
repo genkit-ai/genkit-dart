@@ -1339,4 +1339,73 @@ void main() {
       expect(seen, isNull);
     });
   });
+
+  group('defineAgent tool resolution', () {
+    late Genkit ai;
+    late List<List<String>> seenTools;
+
+    setUp(() {
+      ai = Genkit(promptDir: null);
+      seenTools = [];
+      ai.defineModel(
+        name: 'echoTools',
+        fn: (request, context) async {
+          seenTools.add([...?request.tools?.map((t) => t.name)]);
+          return ModelResponse(
+            finishReason: .stop,
+            message: Message(
+              role: .model,
+              content: [TextPart(text: 'ok')],
+            ),
+          );
+        },
+      );
+    });
+
+    tearDown(() => ai.shutdown());
+
+    test('surfaces an unknown tool name as a NOT_FOUND AgentError', () async {
+      final agent = ai.defineAgent(
+        name: 'unknownTool',
+        model: modelRef('echoTools'),
+        toolNames: ['noSuchTool'],
+      );
+
+      final error = await agent
+          .chat()
+          .send(text: 'hi')
+          .then<AgentError?>(
+            (_) => null,
+            onError: (Object e) => e as AgentError,
+          );
+
+      expect(error, isNotNull);
+      expect(error!.status, StatusCode.notFound.wireName);
+      expect(error.message, contains('noSuchTool'));
+      expect(seenTools, isEmpty);
+    });
+
+    test('sends a Tool object passed to defineAgent to the model', () async {
+      // Not registered with defineTool: the agent must still resolve it, as
+      // calling the underlying prompt does.
+      final tool = Tool(
+        name: 'unregisteredTool',
+        description: 'A tool that only the agent knows about.',
+        inputSchema: .dynamicSchema(),
+        outputSchema: .dynamicSchema(),
+        fn: (input, context) async => .response('done'),
+      );
+      final agent = ai.defineAgent(
+        name: 'objectTool',
+        model: modelRef('echoTools'),
+        tools: [tool],
+      );
+
+      await agent.chat().send(text: 'hi');
+
+      expect(seenTools, [
+        ['unregisteredTool'],
+      ]);
+    });
+  });
 }

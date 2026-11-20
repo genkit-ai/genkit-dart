@@ -931,6 +931,7 @@ package:genkit/genkit.dart:
     toString (method: String Function())
   Prompt (class<Input, Output> extends Object, final):
     ref (getter: PromptRef)
+    tools (getter: List<Tool<dynamic, dynamic>>, internal)
     call (method: Future<GenerateResult<Output>> Function<CustomOptions>(Input?, {CancellationToken? cancel, CustomOptions? config, Map<String, dynamic>? context, int? maxTurns, List<Message>? messages, ModelRef<CustomOptions>? model, GenerateActionOutputConfig? output, bool? returnToolRequests, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddlewareRef<dynamic>>? use}))
     render (method: Future<GenerateActionOptions> Function<CustomOptions>(Input?, {CustomOptions? config, int? maxTurns, List<Message>? messages, ModelRef<CustomOptions>? model, GenerateActionOutputConfig? output, bool? returnToolRequests, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddlewareRef<dynamic>>? use}))
     stream (method: ActionStream<GenerateResponseChunk<Output>, GenerateResult<Output>> Function<CustomOptions>(Input?, {CancellationToken? cancel, CustomOptions? config, Map<String, dynamic>? context, int? maxTurns, List<Message>? messages, ModelRef<CustomOptions>? model, GenerateActionOutputConfig? output, bool? returnToolRequests, ToolChoice? toolChoice, List<String>? toolNames, List<Tool<dynamic, dynamic>>? tools, List<GenerateMiddlewareRef<dynamic>>? use}))

@@ -344,6 +344,12 @@ final class Prompt<Input, Output> {
       _templates = source._templates,
       ref = source.ref;
 
+  /// The [Tool] objects this prompt was defined with. [render] carries only
+  /// their names, so a caller that runs the rendered request itself (such as
+  /// the agent runtime) registers these first, as calling the prompt does.
+  @internal
+  List<Tool> get tools => _config.tools ?? const [];
+
   /// Renders the prompt template with the given input, producing
   /// [GenerateActionOptions] suitable for the `generate` action.
   ///

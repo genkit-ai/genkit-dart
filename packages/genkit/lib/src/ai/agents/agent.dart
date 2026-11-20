@@ -1817,6 +1817,9 @@ Agent<State> definePromptAgent<State>(
 }) {
   // The agent only ever renders the prompt, so the output type is irrelevant.
   Prompt<dynamic, dynamic>? cachedPrompt;
+  // Resolves the prompt's own Tool objects, which render() names but does not
+  // register; the same child registry calling the prompt would use.
+  Registry? promptRegistry;
 
   Future<AgentResult> fn(SessionRunner sess, AgentFnOptions options) async {
     final sendChunk = options.sendChunk;
@@ -1834,14 +1837,21 @@ Agent<State> definePromptAgent<State>(
             status: StatusCode.notFound,
           );
         }
-        cachedPrompt = action.prompt;
-        if (cachedPrompt == null) {
+        final prompt = action.prompt;
+        if (prompt == null) {
           throw GenkitException(
             "Prompt '$promptName' was not defined with definePrompt or a "
             '.prompt file.',
             status: StatusCode.notFound,
           );
         }
+        var runRegistry = registry;
+        if (prompt.tools.isNotEmpty) {
+          runRegistry = Registry.childOf(registry);
+          prompt.tools.forEach(runRegistry.register);
+        }
+        cachedPrompt = prompt;
+        promptRegistry = runRegistry;
       }
 
       // Tag every history message so we can identify them after render.
@@ -1894,7 +1904,7 @@ Agent<State> definePromptAgent<State>(
       });
 
       final res = await runGenerateAction(
-        registry,
+        promptRegistry!,
         genOpts,
         ActionFnArg(
           streamingRequested: true,
