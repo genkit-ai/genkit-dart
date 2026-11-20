@@ -15,6 +15,7 @@
 import 'package:genkit/genkit.dart';
 import 'package:schemantic/schemantic.dart';
 
+import 'known_models.dart' show OpenAIModelStage;
 import 'utils.dart';
 
 part 'speech.g.dart';
@@ -72,6 +73,12 @@ const Map<String, String> speechResponseFormatMediaTypes = {
 
 /// Speech models registered eagerly, even when absent from `GET /models`.
 const List<String> knownSpeechModels = ['tts-1', 'tts-1-hd', 'gpt-4o-mini-tts'];
+
+const Set<String> _deprecatedSpeechModels = {
+  'tts-1',
+  'tts-1-hd',
+  'gpt-4o-mini-tts',
+};
 
 /// Default audio container when the caller does not pick one.
 const String defaultSpeechResponseFormat = 'mp3';
@@ -137,9 +144,15 @@ void validateSpeechOptions(OpenAISpeechOptions options) {
 ///
 /// Speech models take text in and hand back a single audio [MediaPart], so
 /// they advertise `output: ['media']` and opt out of everything conversational.
-ModelInfo speechModelInfo(String modelId) {
+///
+/// [compat] is true for any host but OpenAI's own, where OpenAI's lifecycle
+/// stage describes something the backend is not.
+ModelInfo speechModelInfo(String modelId, {bool compat = false}) {
   return ModelInfo(
     label: modelId,
+    stage: !compat && _deprecatedSpeechModels.contains(modelId)
+        ? OpenAIModelStage.deprecated.wireName
+        : null,
     supports: {
       'media': false,
       'output': ['media'],

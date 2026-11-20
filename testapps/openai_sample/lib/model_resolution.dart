@@ -19,13 +19,13 @@ import 'package:genkit_openai/genkit_openai.dart';
 
 /// Defines a flow that resolves a named OpenAI model from the Genkit registry.
 ///
-/// Accepts a model name (e.g. `gpt-4o-mini`) and returns a formatted string
+/// Accepts a model name (e.g. `gpt-6-luna`) and returns a formatted string
 /// with the resolved action's name, type, and metadata. Useful for verifying
 /// which models are available and inspecting their registered properties.
 Flow<String, String, void, void> defineModelResolutionFlow(Genkit ai) {
   return ai.defineFlow(
     name: 'modelResolution',
-    inputSchema: .string(defaultValue: 'gpt-4o-mini'),
+    inputSchema: .string(defaultValue: 'gpt-6-luna'),
     outputSchema: .string(),
     fn: (modelName, _) async {
       final action = await ai.registry.lookupAction(

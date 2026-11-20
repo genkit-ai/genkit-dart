@@ -26,7 +26,7 @@ void main() async {
 
   final gpt = ai.defineRemoteModel(
     name: 'remote-gpt',
-    url: 'http://localhost:8080/gpt-4o',
+    url: 'http://localhost:8080/gpt-6-luna',
     headers: (context) => {'Authorization': 'Bearer $secret'},
   );
 

@@ -279,14 +279,15 @@ void main() {
       }
     });
 
-    test('every listed model is one OpenAI still serves', () {
-      for (final id in knownChatModels) {
-        expect(
-          knownOpenAIModelFor(id)!.stage,
-          isNot(OpenAIModelStage.deprecated),
-          reason: '$id is retired; listing it offers a name that 404s',
-        );
-      }
+    test('every curated model is listed, deprecated ones included', () {
+      // A deprecated model is still served until its shutdown date, when it
+      // leaves the catalog altogether.
+      expect(
+        knownChatModels,
+        unorderedEquals(KnownOpenAIModel.values.map((m) => m.id)),
+      );
+      expect(knownChatModels, contains('gpt-5'));
+      expect(KnownOpenAIModel.gpt5.stage, OpenAIModelStage.deprecated);
     });
 
     test('the catalog lists aliases, not dated snapshots', () {
@@ -300,15 +301,13 @@ void main() {
     });
 
     test('the ChatGPT-tuned snapshots take no tools', () {
-      // These were absent while capabilities came from name matching, which
-      // could not describe a chat model that takes no tools. The catalog can.
-      // Only the live one is listed; chatgpt-4o-latest went with the 4o line.
+      // The curated ones have shut down and left the catalog; the `chatgpt-`
+      // prefix still withholds tools from any that follow.
       for (final id in ['gpt-5-chat-latest', 'chatgpt-4o-latest']) {
-        expect(modelInfoFor(id).supports?['tools'], isFalse, reason: id);
-        expect(modelInfoFor(id).supports?['media'], isTrue, reason: id);
+        expect(knownOpenAIModelFor(id), isNull, reason: id);
       }
-      expect(knownChatModels, contains('gpt-5-chat-latest'));
-      expect(knownChatModels, isNot(contains('chatgpt-4o-latest')));
+      expect(modelInfoFor('chatgpt-5.6-latest').supports?['tools'], isFalse);
+      expect(modelInfoFor('chatgpt-5.6-latest').supports?['media'], isTrue);
     });
 
     test('the current multimodal families advertise media input', () {
@@ -324,14 +323,15 @@ void main() {
         'gpt-5.4',
         'gpt-5.5',
         'gpt-5.6-sol',
+        'gpt-6-luna',
         'gpt-4o',
       ]) {
         expect(modelInfoFor(id).supports?['media'], isTrue, reason: id);
       }
 
-      // ...and the text-only ones are still text-only, so the assertion above
+      // ...and the non-chat ones claim no media input, so the assertion above
       // cannot be satisfied by making everything multimodal.
-      for (final id in ['gpt-4', 'gpt-3.5-turbo', 'o3-mini']) {
+      for (final id in ['text-embedding-3-small', 'tts-1']) {
         expect(modelInfoFor(id).supports?['media'], isFalse, reason: id);
       }
     });

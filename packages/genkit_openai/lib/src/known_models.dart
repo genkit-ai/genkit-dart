@@ -23,18 +23,11 @@ import 'utils.dart';
 
 // Capability presets shared by the catalog entries below.
 //
-// Structured outputs (`response_format: json_schema` with `strict`) arrived
-// with the gpt-4o-mini and gpt-4o-2024-08-06 snapshots, so models predating
-// them advertise no constrained generation. That is the only difference
-// between the `*Supports` presets and their `*LegacySupports` counterparts.
-//
-// Descriptive, not load-bearing: core does not act on `supports`, so this
-// changes what the Dev UI and `listActions` report, not what the generate
+// Descriptive, not load-bearing: core does not act on `supports`, so these
+// change what the Dev UI and `listActions` report, not what the generate
 // path does. The plugin sends `response_format` off the request's own output
-// config either way, so a legacy snapshot is still sent `json_schema` for a
-// schema request; the `simulateConstrainedGeneration` middleware is the way
-// to put the schema in the prompt for those (see #462 for the models that
-// reject `response_format` entirely).
+// config either way; the `simulateConstrainedGeneration` middleware is the
+// way to put the schema in the prompt for a model that rejects it (see #462).
 //
 // `dynamicModelInfo`'s fallback claims `constrained: true` for any
 // unrecognised chat-shaped name, on the assumption it's an OpenAI snapshot
@@ -58,39 +51,6 @@ const multimodalSupports = <String, dynamic>{
   'constrained': true,
 };
 
-/// [multimodalSupports] for models that predate structured outputs.
-const multimodalLegacySupports = <String, dynamic>{
-  ..._chatCore,
-  'tools': true,
-  'toolChoice': true,
-  'media': true,
-  'output': ['text', 'json'],
-};
-
-/// [textOnlyLegacySupports] for models that predate `response_format`
-/// altogether, so they cannot even be asked for a JSON object.
-///
-/// The `gpt-4` and `gpt-4-32k` aliases resolve to their `-0613` snapshots,
-/// which 400 on `response_format`; JSON mode arrived with the `-1106`
-/// generation. The Go catalog advertises `json` for these, JS does not — JS is
-/// right.
-const textOnlyNoJsonSupports = <String, dynamic>{
-  ..._chatCore,
-  'tools': true,
-  'toolChoice': true,
-  'media': false,
-  'output': ['text'],
-};
-
-/// [multimodalLegacySupports] without image input.
-const textOnlyLegacySupports = <String, dynamic>{
-  ..._chatCore,
-  'tools': true,
-  'toolChoice': true,
-  'media': false,
-  'output': ['text', 'json'],
-};
-
 /// [multimodalSupports] for reasoning models, which take a `developer`
 /// message rather than a `system` one.
 const reasoningSupports = <String, dynamic>{
@@ -103,34 +63,35 @@ const reasoningSupports = <String, dynamic>{
   'constrained': true,
 };
 
-/// [reasoningSupports] without image input.
-const reasoningTextOnlySupports = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': false,
-  'tools': true,
-  'toolChoice': true,
-  'media': false,
-  'output': ['text', 'json'],
-  'constrained': true,
-};
-
-/// The first reasoning preview models: no function calling, no image input,
-/// and no system message.
-const reasoningPreviewSupports = <String, dynamic>{
-  'multiturn': true,
-  'systemRole': false,
-  'tools': false,
-  'media': false,
-  'output': ['text'],
-};
-
-/// Chat and vision but no function calling — the ChatGPT-tuned snapshots and
-/// the `gpt-4-vision` previews.
+/// Chat and vision but no function calling: the ChatGPT-tuned snapshots,
+/// which [dynamicModelInfo] recognises by their `chatgpt-` prefix.
 const multimodalNoToolsSupports = <String, dynamic>{
   ..._chatCore,
   'tools': false,
   'media': true,
   'output': ['text'],
+};
+
+/// [multimodalSupports] without function calling, for models that serve Chat
+/// Completions but take tools only on the Responses API.
+///
+/// Unlike [multimodalNoToolsSupports], these keep structured outputs.
+const multimodalNoChatToolsSupports = <String, dynamic>{
+  ..._chatCore,
+  'tools': false,
+  'media': true,
+  'output': ['text', 'json'],
+  'constrained': true,
+};
+
+/// Web search models: no function calling, no image input, and no
+/// `reasoning_effort`, but structured outputs.
+const searchSupports = <String, dynamic>{
+  ..._chatCore,
+  'tools': false,
+  'media': false,
+  'output': ['text', 'json'],
+  'constrained': true,
 };
 
 /// Capabilities advertised for a discovered model that is not a chat model.
@@ -149,18 +110,18 @@ const nonChatSupports = <String, dynamic>{
 
 /// Lifecycle stage of a curated model, in Genkit's `ModelInfo.stage`
 /// vocabulary.
+///
+/// Every stage is still served, so every curated model is listed: a model the
+/// provider has shut down is removed from its catalog rather than staged.
 enum OpenAIModelStage {
   /// Generally available, with no announced shutdown.
   stable,
 
-  /// Still served, but superseded and with a shutdown date announced.
+  /// Still served, but superseded and no longer recommended for new work.
   legacy,
 
-  /// No longer served by OpenAI. Curated so the name still resolves with
-  /// honest capabilities — for a proxy that keeps serving it, or a stored
-  /// request that names it — but never registered as an action against the
-  /// OpenAI endpoint, which would put a model that answers `model_not_found`
-  /// in every model picker.
+  /// Deprecated by the provider: still served, with a shutdown date
+  /// announced. The entry is removed in a plugin release after that date.
   deprecated;
 
   /// The `stage` string carried in [ModelInfo].
@@ -174,12 +135,12 @@ enum OpenAIModelStage {
 /// This is not the set of usable models: any name still resolves, taking
 /// [dynamicModelInfo] when it is absent here.
 ///
-/// The catalog is the union of the JS and Go `compat_oai` catalogs, which have
-/// diverged. Two kinds of model are deliberately absent. The "pro" tiers
-/// (`gpt-5-pro`, `gpt-5.2-pro`, `gpt-5.4-pro`, `gpt-5.5-pro`, `o1-pro`,
-/// `o3-pro`) are served only by the Responses API, and this plugin speaks Chat
-/// Completions. Audio, image, realtime, transcription, embedding, and
-/// moderation models are not chat models.
+/// Models OpenAI has shut down are absent, and resolve by name with
+/// [dynamicModelInfo] on any host. Two other kinds of model are deliberately
+/// absent. The "pro" tiers are served only by the Responses API, and this
+/// plugin speaks Chat Completions; [openAIChatCompletionsServes] keeps
+/// discovery from listing them either. Audio, image, realtime, transcription,
+/// embedding, and moderation models are not chat models.
 ///
 /// Per-model behaviour beyond capabilities belongs on this enum as another
 /// field rather than in a name-matching branch at the call site — that is what
@@ -190,8 +151,39 @@ enum OpenAIModelStage {
 /// Catalog: https://developers.openai.com/api/docs/models
 /// Retirements: https://developers.openai.com/api/docs/deprecations
 enum KnownOpenAIModel {
-  // GPT-5.6, the current frontier family. No dated snapshots yet; the bare
-  // `gpt-5.6` alias routes to sol and resolves dynamically.
+  // GPT-6. Chat Completions serves all five, but takes tools only on sol,
+  // luna and 6.1-terra, and only with `reasoning_effort: none`; astra and
+  // 6.1-sol take none. No dated snapshots yet.
+  gpt61Sol(
+    'gpt-6.1-sol',
+    'OpenAI GPT-6.1 Sol',
+    multimodalNoChatToolsSupports,
+    reasons: true,
+  ),
+  gpt61Terra(
+    'gpt-6.1-terra',
+    'OpenAI GPT-6.1 Terra',
+    multimodalSupports,
+    reasons: true,
+  ),
+  gpt6Astra(
+    'gpt-6-astra',
+    'OpenAI GPT-6 Astra',
+    multimodalNoChatToolsSupports,
+    reasons: true,
+  ),
+  gpt6Sol('gpt-6-sol', 'OpenAI GPT-6 Sol', multimodalSupports, reasons: true),
+  gpt6Luna(
+    'gpt-6-luna',
+    'OpenAI GPT-6 Luna',
+    multimodalSupports,
+    reasons: true,
+  ),
+
+  // GPT-5.6. Like gpt-6-sol and gpt-6-luna, these take tools on Chat
+  // Completions only with `reasoning_effort: none`, which is not their
+  // default. No dated snapshots yet; the bare `gpt-5.6` alias routes to sol
+  // and resolves dynamically.
   gpt56Sol(
     'gpt-5.6-sol',
     'OpenAI GPT-5.6 Sol',
@@ -211,6 +203,8 @@ enum KnownOpenAIModel {
     reasons: true,
   ),
 
+  // GPT-5.5 and GPT-5.4 also take tools on Chat Completions only with
+  // `reasoning_effort: none`, which is their default.
   gpt55(
     'gpt-5.5',
     'OpenAI GPT-5.5',
@@ -232,11 +226,13 @@ enum KnownOpenAIModel {
     snapshots: ['gpt-5.4-mini-2026-03-17'],
     reasons: true,
   ),
+  // Shuts down 2027-04-01, replaced by gpt-6-luna.
   gpt54Nano(
     'gpt-5.4-nano',
     'OpenAI GPT-5.4-nano',
     multimodalSupports,
     snapshots: ['gpt-5.4-nano-2026-03-17'],
+    stage: OpenAIModelStage.deprecated,
     reasons: true,
   ),
   gpt52(
@@ -246,20 +242,24 @@ enum KnownOpenAIModel {
     snapshots: ['gpt-5.2-2025-12-11'],
     reasons: true,
   ),
+  // Shuts down 2027-04-01, replaced by gpt-6-sol.
   gpt51(
     'gpt-5.1',
     'OpenAI GPT-5.1',
     multimodalSupports,
     snapshots: ['gpt-5.1-2025-11-13'],
+    stage: OpenAIModelStage.deprecated,
     reasons: true,
   ),
 
-  // GPT-5. The dated snapshots shut down 2026-12-11; the aliases stay.
+  // GPT-5. The aliases and their dated snapshots shut down 2026-12-11,
+  // replaced by gpt-6.1-sol, gpt-6.1-terra and gpt-6-luna respectively.
   gpt5(
     'gpt-5',
     'OpenAI GPT-5',
     multimodalSupports,
     snapshots: ['gpt-5-2025-08-07'],
+    stage: OpenAIModelStage.deprecated,
     reasons: true,
   ),
   gpt5Mini(
@@ -267,6 +267,7 @@ enum KnownOpenAIModel {
     'OpenAI GPT-5-mini',
     multimodalSupports,
     snapshots: ['gpt-5-mini-2025-08-07'],
+    stage: OpenAIModelStage.deprecated,
     reasons: true,
   ),
   gpt5Nano(
@@ -274,181 +275,57 @@ enum KnownOpenAIModel {
     'OpenAI GPT-5-nano',
     multimodalSupports,
     snapshots: ['gpt-5-nano-2025-08-07'],
+    stage: OpenAIModelStage.deprecated,
     reasons: true,
   ),
-  // The ChatGPT-tuned GPT-5 snapshot: no function calling.
-  gpt5ChatLatest(
-    'gpt-5-chat-latest',
-    'OpenAI GPT-5 Chat',
-    multimodalNoToolsSupports,
+
+  gpt5SearchApi(
+    'gpt-5-search-api',
+    'OpenAI GPT-5 Search API',
+    searchSupports,
+    snapshots: ['gpt-5-search-api-2025-10-14'],
   ),
 
+  // GPT-4.1 and GPT-4o shut down 2027-01-14, replaced by gpt-6-luna. The
+  // first GPT-4o snapshot, gpt-4o-2024-05-13, went 2026-10-23.
   gpt41(
     'gpt-4.1',
     'OpenAI GPT-4.1',
     multimodalSupports,
     snapshots: ['gpt-4.1-2025-04-14'],
+    stage: OpenAIModelStage.deprecated,
   ),
   gpt41Mini(
     'gpt-4.1-mini',
     'OpenAI GPT-4.1-mini',
     multimodalSupports,
     snapshots: ['gpt-4.1-mini-2025-04-14'],
-  ),
-  // Shuts down 2026-10-23, replaced by gpt-5.6-luna.
-  gpt41Nano(
-    'gpt-4.1-nano',
-    'OpenAI GPT-4.1-nano',
-    multimodalSupports,
-    snapshots: ['gpt-4.1-nano-2025-04-14'],
-    stage: OpenAIModelStage.legacy,
-  ),
-
-  // GPT-4.5, retired from the API. Curated because the JS catalog still
-  // carries it and a proxy may keep serving the name; deprecated so the
-  // plugin never registers it against OpenAI itself.
-  gpt45(
-    'gpt-4.5',
-    'OpenAI GPT-4.5',
-    multimodalSupports,
-    snapshots: ['gpt-4.5-preview'],
     stage: OpenAIModelStage.deprecated,
   ),
-
   gpt4o(
     'gpt-4o',
     'OpenAI GPT-4o',
     multimodalSupports,
-    // gpt-4o-2024-05-13 shuts down 2026-10-23.
-    snapshots: ['gpt-4o-2024-11-20', 'gpt-4o-2024-08-06', 'gpt-4o-2024-05-13'],
+    snapshots: ['gpt-4o-2024-11-20', 'gpt-4o-2024-08-06'],
+    stage: OpenAIModelStage.deprecated,
   ),
   gpt4oMini(
     'gpt-4o-mini',
     'OpenAI GPT-4o-mini',
     multimodalSupports,
     snapshots: ['gpt-4o-mini-2024-07-18'],
-  ),
-  // The ChatGPT-tuned GPT-4o snapshot: no function calling. Retired along
-  // with the rest of the 4o line.
-  chatgpt4oLatest(
-    'chatgpt-4o-latest',
-    'OpenAI ChatGPT-4o',
-    multimodalNoToolsSupports,
     stage: OpenAIModelStage.deprecated,
   ),
 
-  // Reasoning models. o1, o3-mini, and o4-mini shut down 2026-10-23;
-  // o3-2025-04-16 shuts down 2026-12-11.
+  // The last o-series model. o3 and its snapshot shut down 2026-12-11,
+  // replaced by gpt-6.1-sol.
   o3(
     'o3',
     'OpenAI o3',
     reasoningSupports,
     snapshots: ['o3-2025-04-16'],
+    stage: OpenAIModelStage.deprecated,
     reasons: true,
-  ),
-  o4Mini(
-    'o4-mini',
-    'OpenAI o4-mini',
-    reasoningSupports,
-    snapshots: ['o4-mini-2025-04-16'],
-    stage: OpenAIModelStage.legacy,
-    reasons: true,
-  ),
-  o3Mini(
-    'o3-mini',
-    'OpenAI o3-mini',
-    reasoningTextOnlySupports,
-    snapshots: ['o3-mini-2025-01-31'],
-    stage: OpenAIModelStage.legacy,
-    reasons: true,
-  ),
-  o1(
-    'o1',
-    'OpenAI o1',
-    reasoningSupports,
-    snapshots: ['o1-2024-12-17'],
-    stage: OpenAIModelStage.legacy,
-    reasons: true,
-  ),
-  // o1-mini and o1-preview never had function calling on the chat API, and
-  // predate `reasoning_effort` - they reason, but the level is not settable.
-  // Both are retired; curated so the names still resolve honestly.
-  o1Mini(
-    'o1-mini',
-    'OpenAI o1-mini',
-    reasoningPreviewSupports,
-    snapshots: ['o1-mini-2024-09-12'],
-    stage: OpenAIModelStage.deprecated,
-  ),
-  o1Preview(
-    'o1-preview',
-    'OpenAI o1-preview',
-    reasoningPreviewSupports,
-    snapshots: ['o1-preview-2024-09-12'],
-    stage: OpenAIModelStage.deprecated,
-  ),
-
-  // Legacy models, all shutting down 2026-10-23 except gpt-3.5-turbo-1106,
-  // which goes 2026-09-28.
-  gpt4Turbo(
-    'gpt-4-turbo',
-    'OpenAI GPT-4-turbo',
-    multimodalLegacySupports,
-    snapshots: ['gpt-4-turbo-2024-04-09', 'gpt-4-turbo-preview'],
-    stage: OpenAIModelStage.legacy,
-  ),
-  // The GPT-4 previews are gone; the catalog keeps them so the names still
-  // resolve, but they are never registered.
-  gpt40125Preview(
-    'gpt-4-0125-preview',
-    'OpenAI GPT-4 0125 Preview',
-    multimodalLegacySupports,
-    stage: OpenAIModelStage.deprecated,
-  ),
-  gpt41106Preview(
-    'gpt-4-1106-preview',
-    'OpenAI GPT-4 1106 Preview',
-    multimodalLegacySupports,
-    stage: OpenAIModelStage.deprecated,
-  ),
-  // `gpt-4-vision` alone was never a deployed id — the JS catalog carries it,
-  // the API only ever served these two — so the preview is the alias.
-  gpt4VisionPreview(
-    'gpt-4-vision-preview',
-    'OpenAI GPT-4 Vision Preview',
-    multimodalNoToolsSupports,
-    snapshots: ['gpt-4-1106-vision-preview', 'gpt-4-vision'],
-    stage: OpenAIModelStage.deprecated,
-  ),
-  // The undated `-0314` and `-16k` snapshots predate the `-YYYY-MM-DD`
-  // convention, so openAIModelAlias cannot reach them: they resolve only by
-  // being listed here.
-  gpt4(
-    'gpt-4',
-    'OpenAI GPT-4',
-    textOnlyNoJsonSupports,
-    snapshots: ['gpt-4-0613', 'gpt-4-0314'],
-    stage: OpenAIModelStage.legacy,
-  ),
-  gpt432k(
-    'gpt-4-32k',
-    'OpenAI GPT-4 32k',
-    textOnlyNoJsonSupports,
-    snapshots: ['gpt-4-32k-0613', 'gpt-4-32k-0314'],
-    stage: OpenAIModelStage.deprecated,
-  ),
-  gpt35Turbo(
-    'gpt-3.5-turbo',
-    'OpenAI GPT-3.5-turbo',
-    textOnlyLegacySupports,
-    snapshots: [
-      'gpt-3.5-turbo-0125',
-      'gpt-3.5-turbo-1106',
-      'gpt-3.5-turbo-0613',
-      'gpt-3.5-turbo-16k',
-      'gpt-3.5-turbo-16k-0613',
-    ],
-    stage: OpenAIModelStage.legacy,
   );
 
   const KnownOpenAIModel(
@@ -472,8 +349,7 @@ enum KnownOpenAIModel {
   /// Dated snapshots that resolve to this model, excluding [id] itself.
   final List<String> snapshots;
 
-  /// Lifecycle stage, which decides whether the plugin registers this model
-  /// as an action as well as how it describes it.
+  /// Lifecycle stage, carried into `ModelInfo.stage`. Every stage is listed.
   final OpenAIModelStage stage;
 
   /// Whether the model thinks before answering, and so accepts
@@ -533,11 +409,11 @@ final Map<String, ModelInfo> knownOpenAIModels = Map.unmodifiable({
 /// deliberate — it keeps just-released models usable without a plugin release.
 ///
 /// Every id here carries curated capability metadata; see [knownOpenAIModels].
-/// [OpenAIModelStage.deprecated] entries are excluded: OpenAI no longer serves
-/// them, so listing them would offer a model picker names that 404.
+/// [OpenAIModelStage.deprecated] entries are listed too: OpenAI serves them
+/// until their shutdown date, and they leave the catalog in a plugin release
+/// after it.
 final List<String> knownChatModels = List.unmodifiable([
-  for (final model in KnownOpenAIModel.values)
-    if (model.stage != OpenAIModelStage.deprecated) model.id,
+  for (final model in KnownOpenAIModel.values) model.id,
 ]);
 
 /// Every curated name — the alias and its dated snapshots — mapped to the
@@ -572,9 +448,11 @@ String openAIModelAlias(String modelName) =>
 ///
 /// Tried in order: the name as given, its Azure-to-OpenAI spelling, and then
 /// each of those with a dated snapshot suffix stripped. Matching is
-/// case-insensitive; the OpenAI catalog is lower-case.
+/// case-insensitive; the OpenAI catalog is lower-case. A snapshot OpenAI has
+/// shut down is not curated, even when its alias is.
 KnownOpenAIModel? knownOpenAIModelFor(String modelName) {
   final id = modelName.toLowerCase();
+  if (_shutDownSnapshots.contains(id)) return null;
   for (final candidate in {
     id,
     openAIModelSpelling(id),
@@ -586,6 +464,9 @@ KnownOpenAIModel? knownOpenAIModelFor(String modelName) {
   }
   return null;
 }
+
+/// Dated snapshots OpenAI has shut down while their alias is still served.
+const _shutDownSnapshots = {'gpt-4o-2024-05-13'};
 
 /// Capability metadata for a model with no curated entry.
 ///
@@ -614,8 +495,38 @@ ModelInfo dynamicModelInfo(String modelName) {
   return ModelInfo(supports: Map.unmodifiable(supports));
 }
 
+/// Models OpenAI's `GET /models` lists but Chat Completions does not serve,
+/// beyond the `-pro` tiers [openAIChatCompletionsServes] catches by name.
+///
+/// Codex models need no entry: [getModelType] classifies them as code, so
+/// discovery has dropped them before this is asked.
+const _responsesOnlyModels = {
+  'gpt-5.6-cyber',
+  'gpt-6-rosalind',
+  'gpt-oss-120b',
+  'gpt-oss-20b',
+  'gpt-rosalind-research',
+};
+
+/// Whether Chat Completions serves [modelName], for filtering what OpenAI's
+/// `GET /models` lists.
+///
+/// The "pro" tiers, the `gpt-daybreak-` family and a handful of
+/// special-purpose models are listed by the API but served only by the
+/// Responses API, which this plugin does not speak; listing them would offer
+/// a model picker names whose every call fails. A `-pro` suffix is OpenAI's
+/// naming commitment for the tier, so it is matched by name, dated snapshots
+/// included.
+bool openAIChatCompletionsServes(String modelName) {
+  final alias = openAIModelAlias(modelName.toLowerCase());
+  return !alias.endsWith('-pro') &&
+      !alias.startsWith('gpt-daybreak-') &&
+      !_responsesOnlyModels.contains(alias);
+}
+
 /// Capability metadata for any OpenAI model name: the curated entry when there
-/// is one, [dynamicModelInfo] otherwise.
+/// is one, otherwise [dynamicModelInfo], or [reasoningSupports] for an o-series
+/// name.
 ///
 /// Useful as a starting point for a model the plugin does not know by name:
 ///
@@ -626,7 +537,25 @@ ModelInfo dynamicModelInfo(String modelName) {
 /// The result follows the curated list, so it can change between releases as
 /// models are added or retired.
 ModelInfo modelInfoFor(String model) =>
-    knownOpenAIModelFor(model)?.info ?? dynamicModelInfo(model);
+    knownOpenAIModelFor(model)?.info ?? _uncuratedOpenAIInfo(model);
+
+final _oSeriesInfo = ModelInfo(supports: Map.unmodifiable(reasoningSupports));
+
+/// [dynamicModelInfo] for a name OpenAI itself serves, which can be read the
+/// way OpenAI names its models.
+///
+/// An o-series name takes [reasoningSupports]: every o-series model OpenAI has
+/// shipped takes a `developer` message rather than a `system` one, so a newer
+/// one is described the same way. Kept out of [dynamicModelInfo] because that
+/// also describes names on other hosts, where `o`-and-a-digit is no naming
+/// commitment of OpenAI's.
+ModelInfo _uncuratedOpenAIInfo(String model) {
+  final id = model.toLowerCase();
+  if (getModelType(id) == 'chat' && oSeriesPattern.hasMatch(id)) {
+    return _oSeriesInfo;
+  }
+  return dynamicModelInfo(model);
+}
 
 /// The curated entries with OpenAI's deployment details stripped off.
 final _compatInfo = <KnownOpenAIModel, ModelInfo>{
@@ -639,10 +568,11 @@ final _compatInfo = <KnownOpenAIModel, ModelInfo>{
 /// not OpenAI itself.
 ///
 /// The capabilities carry over. A gateway or proxy that serves a name from
-/// OpenAI's catalog is nearly always serving that model — Azure, Cloudflare AI
-/// Gateway, LiteLLM and OpenRouter all route to OpenAI — so `gpt-3.5-turbo`
-/// behind one is still text-only, and describing it as multimodal would invite
-/// image parts the backend rejects.
+/// OpenAI's catalog is nearly always serving that model - Azure, Cloudflare AI
+/// Gateway, LiteLLM and OpenRouter all route to OpenAI - so `gpt-5-search-api`
+/// behind one still takes no image input, and describing it as multimodal
+/// would invite image parts the backend rejects. A model OpenAI has shut down
+/// is no longer curated, so it takes [dynamicModelInfo] like any other name.
 ///
 /// OpenAI's *deployment* does not carry over: the label names OpenAI's
 /// offering, the lifecycle stage tracks OpenAI's retirement schedule, and the
@@ -651,7 +581,8 @@ final _compatInfo = <KnownOpenAIModel, ModelInfo>{
 /// those. A `CustomModelDefinition` with explicit `info` overrides all of it.
 ModelInfo compatModelInfo(String modelName) {
   final curated = knownOpenAIModelFor(modelName);
-  return curated != null ? _compatInfo[curated]! : dynamicModelInfo(modelName);
+  if (curated != null) return _compatInfo[curated]!;
+  return dynamicModelInfo(modelName);
 }
 
 /// Whether [model] supports tools / function calling.

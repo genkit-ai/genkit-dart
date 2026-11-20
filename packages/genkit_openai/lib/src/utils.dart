@@ -12,8 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-final RegExp _oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
+/// Matches an OpenAI o-series model name: `o1`, `o3-mini`, `o5`.
+final RegExp oSeriesPattern = RegExp(r'^o\d+(?:-|$)');
 final RegExp _gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
+
+/// Legacy completion-era ids, their fine-tunes (`curie:ft-...`), and the
+/// similarity and search models built on them.
+final RegExp _legacyCompletionPattern = RegExp(
+  r'(?:^|-)(?:babbage|curie|davinci|cushman)(?:[-:]|$)'
+  r'|^(?:(?:text|code)-)?ada(?:-\d{3}$|:|$)'
+  r'|^(?:text|code)-(?:similarity|search)-',
+);
 
 /// Determines the type of model based on its ID.
 ///
@@ -24,13 +33,14 @@ final RegExp _gptPattern = RegExp(r'^gpt-\d+(\.\d+)?o?(?:-|$)');
 /// Returns one of the following model types:
 /// - 'chat': Chat completion models (gpt-4, gpt-4o, o1, etc.)
 /// - 'embedding': Text embedding models (any id containing 'embed')
-/// - 'audio': Audio processing models (TTS, transcription, realtime)
+/// - 'audio': Audio processing models (TTS, transcription, audio chat)
+/// - 'realtime': Realtime and live session models
 /// - 'image': Image generation models (DALL-E, gpt-image)
 /// - 'video': Video generation models (Sora)
 /// - 'moderation': Content moderation models
-/// - 'completion': Legacy text completion models (instruct, davinci, babbage)
+/// - 'completion': Legacy completion-era models (instruct, ada, babbage,
+///   curie, davinci, cushman, and their similarity and search variants)
 /// - 'code': Code generation models (codex)
-/// - 'search': Search-specific models (search, deep-research)
 /// - 'research': Research-specific models (research, deep-research)
 /// - 'unknown': Unknown or unrecognized model type
 String getModelType(String modelId) {
@@ -73,10 +83,15 @@ String getModelType(String modelId) {
     return 'code';
   }
 
-  // Audio models (TTS, transcription, realtime, speech-to-text).
+  // Ahead of audio, so `gpt-realtime-whisper` and `gpt-live-transcribe` stay
+  // off the transcription path.
+  if (id.contains('realtime') || id.startsWith('gpt-live')) {
+    return 'realtime';
+  }
+
+  // Audio models (TTS, transcription, audio chat, speech-to-text).
   if (id.contains('tts') ||
       id.contains('audio') ||
-      id.contains('realtime') ||
       id.contains('transcribe') ||
       id.contains('whisper')) {
     return 'audio';
@@ -85,7 +100,8 @@ String getModelType(String modelId) {
   // Legacy completion models (not chat).
   if (id.contains('instruct') ||
       id.contains('davinci') ||
-      id.contains('babbage')) {
+      id.contains('babbage') ||
+      _legacyCompletionPattern.hasMatch(id)) {
     return 'completion';
   }
 
@@ -94,18 +110,13 @@ String getModelType(String modelId) {
     return 'research';
   }
 
-  // Search-specific models.
-  if (id.contains('search')) {
-    return 'search';
-  }
-
   // GPT-N pattern: matches gpt-3, gpt-4, gpt-5, gpt-6, etc.
   if (_gptPattern.hasMatch(id)) {
     return 'chat';
   }
 
   // O-series reasoning models: o1, o2, o3, o4, o5, etc.
-  if (_oSeriesPattern.hasMatch(id)) {
+  if (oSeriesPattern.hasMatch(id)) {
     return 'chat';
   }
 

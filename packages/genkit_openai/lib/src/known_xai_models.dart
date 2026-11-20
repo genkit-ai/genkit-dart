@@ -111,8 +111,7 @@ final Map<String, ModelInfo> knownXaiModels = Map.unmodifiable({
 
 /// xAI chat models the plugin lists without network access.
 final List<String> knownXaiChatModels = List.unmodifiable([
-  for (final model in KnownXaiModel.values)
-    if (model.stage != OpenAIModelStage.deprecated) model.id,
+  for (final model in KnownXaiModel.values) model.id,
 ]);
 
 final _knownXaiModelsByName = <String, KnownXaiModel>{

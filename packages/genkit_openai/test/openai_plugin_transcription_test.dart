@@ -208,10 +208,11 @@ void main() {
     });
 
     test('leaves other audio models alone', () {
-      // All of these are also getModelType() == 'audio'.
       expect(isTranscriptionModel('tts-1'), isFalse);
       expect(isTranscriptionModel('gpt-4o-mini-tts'), isFalse);
       expect(isTranscriptionModel('gpt-4o-realtime-preview'), isFalse);
+      expect(isTranscriptionModel('gpt-realtime-whisper'), isFalse);
+      expect(isTranscriptionModel('gpt-live-transcribe'), isFalse);
       expect(isTranscriptionModel('gpt-4o-audio-preview'), isFalse);
       expect(isTranscriptionModel('gpt-4o'), isFalse);
     });

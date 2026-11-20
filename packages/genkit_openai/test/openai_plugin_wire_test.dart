@@ -32,7 +32,7 @@ MockClient wireClient(List<Map<String, dynamic>> capturedBodies) {
           'object': 'list',
           'data': [
             {
-              'id': 'gpt-4o',
+              'id': 'gpt-5.4-mini',
               'object': 'model',
               'created': 0,
               'owned_by': 'openai',
@@ -52,7 +52,7 @@ MockClient wireClient(List<Map<String, dynamic>> capturedBodies) {
           'id': 'chatcmpl-test',
           'object': 'chat.completion',
           'created': 0,
-          'model': 'o4-mini',
+          'model': 'gpt-5.6-sol',
           'choices': [
             {
               'index': 0,
@@ -71,7 +71,7 @@ MockClient wireClient(List<Map<String, dynamic>> capturedBodies) {
 
 void main() {
   group('wire-level request assembly', () {
-    test('tools reach the wire for o-series models', () async {
+    test('tools reach the wire for reasoning models', () async {
       final captured = <Map<String, dynamic>>[];
       final ai = Genkit(
         plugins: [openAI(apiKey: 'test-key', httpClient: wireClient(captured))],
@@ -83,7 +83,7 @@ void main() {
       );
 
       await ai.generate(
-        model: openAI.model('o4-mini'),
+        model: openAI.model('gpt-5.6-sol'),
         prompt: 'What is the weather in Boston?',
         toolNames: ['getWeather'],
       );
@@ -95,7 +95,7 @@ void main() {
         isTrue,
         reason:
             'request body must carry the tools array; the plugin silently '
-            'dropping tools for o-series models is bug #357',
+            'dropping tools for reasoning models is bug #357',
       );
       final tools = (body['tools'] as List).cast<Map<String, dynamic>>();
       final function = (tools.single['function'] as Map)
@@ -108,10 +108,11 @@ void main() {
     test(
       'tools reach the wire even when model metadata says tools unsupported',
       () async {
-        // chatgpt-4o-latest advertises tools: false via the heuristics.
-        // The request builder must not gate on that metadata: passing tools
-        // through unconditionally is what keeps misdeclared models loud
-        // instead of silently degraded (bug #357's second layer).
+        // gpt-6-astra advertises tools: false, as Chat Completions takes
+        // its tools only on the Responses API. The request builder must not
+        // gate on that metadata: passing tools through unconditionally is
+        // what keeps misdeclared models loud instead of silently degraded
+        // (bug #357's second layer).
         final captured = <Map<String, dynamic>>[];
         final ai = Genkit(
           plugins: [
@@ -124,10 +125,10 @@ void main() {
           fn: (input, ctx) async => .response({'temperature': 72}),
         );
 
-        expect(supportsTools('chatgpt-4o-latest'), isFalse);
+        expect(supportsTools('gpt-6-astra'), isFalse);
 
         await ai.generate(
-          model: openAI.model('chatgpt-4o-latest'),
+          model: openAI.model('gpt-6-astra'),
           prompt: 'What is the weather in Boston?',
           toolNames: ['getWeather'],
         );
@@ -146,7 +147,10 @@ void main() {
         plugins: [openAI(apiKey: 'test-key', httpClient: wireClient(captured))],
       );
 
-      await ai.generate(model: openAI.model('o4-mini'), prompt: 'Say hello.');
+      await ai.generate(
+        model: openAI.model('gpt-5.6-sol'),
+        prompt: 'Say hello.',
+      );
 
       expect(captured.first.containsKey('tools'), isFalse);
 
@@ -165,7 +169,7 @@ void main() {
       );
 
       await ai.generate(
-        model: openAI.model('gpt-4o'),
+        model: openAI.model('gpt-5.4-mini'),
         prompt: 'What is the weather in Boston?',
         toolNames: ['getWeather'],
       );

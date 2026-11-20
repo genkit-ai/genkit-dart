@@ -435,10 +435,10 @@ class OpenAIPlugin extends GenkitPlugin {
 
   /// Capability metadata for [modelName] on this plugin instance.
   ///
-  /// A compat backend keeps the curated capabilities — a proxy serving
-  /// `gpt-3.5-turbo` is serving that model, and calling it multimodal would
-  /// invite image parts it rejects — but not OpenAI's deployment details. See
-  /// `compatModelInfo` in `known_models.dart`.
+  /// A compat backend keeps the curated capabilities: a proxy serving
+  /// `gpt-5-search-api` is serving that model, and calling it multimodal would
+  /// invite image parts it rejects. It does not keep OpenAI's deployment
+  /// details. See `compatModelInfo` in `known_models.dart`.
   ModelInfo _infoFor(String modelName) =>
       provider.infoFor(modelName, compat: !_ownHost);
 
@@ -527,7 +527,7 @@ class OpenAIPlugin extends GenkitPlugin {
   ]) {
     return modelMetadata(
       '$_pluginName/$modelId',
-      info: info ?? speech.speechModelInfo(modelId),
+      info: info ?? speech.speechModelInfo(modelId, compat: !_ownHost),
       customOptions: speech.speechModelOptionsSchema(),
     );
   }
@@ -536,7 +536,9 @@ class OpenAIPlugin extends GenkitPlugin {
   _transcriptionModelMetadata(String modelId, [ModelInfo? info]) {
     return modelMetadata(
       '$_pluginName/$modelId',
-      info: info ?? transcription.transcriptionModelInfo(modelId),
+      info:
+          info ??
+          transcription.transcriptionModelInfo(modelId, compat: !_ownHost),
       customOptions: transcription.transcriptionModelOptionsSchema(),
     );
   }
@@ -790,9 +792,7 @@ class OpenAIPlugin extends GenkitPlugin {
     throw GenkitException(
       // The name that will be on the wire, not the curated alias it resolved
       // through: a `version` of `gpt-4o-2024-11-20` is what the caller set
-      // and what the host will answer for. Says only that the effort is not
-      // settable, not that the model does not reason: o1-mini and o1-preview
-      // do reason, they simply predate the parameter.
+      // and what the host will answer for.
       '$modelName does not accept reasoningEffort.',
       status: StatusCode.invalidArgument,
     );
@@ -888,7 +888,8 @@ class OpenAIPlugin extends GenkitPlugin {
   /// [MediaPart] holding a base64 data URL. Streaming is not supported by the
   /// `/audio/speech` endpoint, so streaming requests are ignored.
   Model _createSpeechModel(String modelName, ModelInfo? info) {
-    final modelInfo = info ?? speech.speechModelInfo(modelName);
+    final modelInfo =
+        info ?? speech.speechModelInfo(modelName, compat: !_ownHost);
 
     return Model(
       name: '$_pluginName/$modelName',
@@ -1024,7 +1025,9 @@ class OpenAIPlugin extends GenkitPlugin {
   /// and its `create()` always JSON-decodes the response, which breaks the
   /// `text`, `srt` and `vtt` formats.
   Model _createTranscriptionModel(String modelName, ModelInfo? info) {
-    final modelInfo = info ?? transcription.transcriptionModelInfo(modelName);
+    final modelInfo =
+        info ??
+        transcription.transcriptionModelInfo(modelName, compat: !_ownHost);
 
     return Model(
       name: '$_pluginName/$modelName',
