@@ -33,10 +33,17 @@ abstract final class GenkitConverter {
   /// whenever it is set, so leaving it on would put a field on the wire that
   /// OpenAI never asked for.
   ///
+  /// [replayReasoningSource] re-sends each model turn's reasoning parts marked
+  /// with that `reasoningSource` as `reasoning_details` entries, one per part,
+  /// each with its own signature. That is not a field any host reads: it
+  /// carries the reasoning to the provider's body rewrite, which puts it where
+  /// its host wants it (Mistral: `thinking` chunks in `content`). Reasoning
+  /// with another mark, or none, came from some other model and is dropped.
   static List<sdk.ChatMessage> toOpenAIMessages(
     List<Message> messages,
     String? visualDetailLevel, {
     bool replayReasoning = false,
+    String? replayReasoningSource,
   }) {
     final result = <sdk.ChatMessage>[];
     for (final message in messages) {
@@ -86,6 +93,7 @@ abstract final class GenkitConverter {
             message,
             visualDetailLevel,
             replayReasoning: replayReasoning,
+            replayReasoningSource: replayReasoningSource,
           ),
         );
       }
@@ -99,6 +107,7 @@ abstract final class GenkitConverter {
     Message msg,
     String? visualDetailLevel, {
     bool replayReasoning = false,
+    String? replayReasoningSource,
   }) {
     if (msg.role == Role.system) {
       return sdk.ChatMessage.system(msg.text);
@@ -113,10 +122,14 @@ abstract final class GenkitConverter {
       final toolCalls = _extractToolCalls(msg.content);
       // Built directly rather than through ChatMessage.assistant(), which
       // cannot carry reasoning_content.
+      final sourced = replayReasoningSource == null
+          ? const <sdk.ReasoningDetail>[]
+          : _sourcedReasoningDetails(msg, replayReasoningSource);
       return sdk.AssistantMessage(
         content: msg.text,
         toolCalls: toolCalls.isNotEmpty ? toolCalls : null,
         reasoningContent: replayReasoning ? _reasoningTextOf(msg) : null,
+        reasoningDetails: sourced.isEmpty ? null : sourced,
       );
     }
     if (msg.role == Role.tool) {
@@ -137,18 +150,24 @@ abstract final class GenkitConverter {
     }
     if (part.isMedia) {
       final media = part.media!;
-      // The MIME type may include parameters (e.g. "application/pdf;
-      // charset=utf-8"). Strip them so matching and extension derivation work
-      // against the base type.
-      final mimeType = (media.contentType ?? 'image/png')
-          .split(';')
-          .first
-          .trim();
+      final mimeType = mimeTypeOf(media);
       final isImage = mimeType.toLowerCase().startsWith('image/');
 
       if (media.url.startsWith('data:')) {
         // Parse data URI: data:<mediaType>;base64,<data>
         final commaIdx = media.url.indexOf(',');
+        if (!_isBase64DataUrl(media.url)) {
+          // Both the image and the file part are rebuilt as
+          // `data:<type>;base64,<data>`, so a percent-encoded payload such as
+          // `data:text/plain,hello` would go out claiming to be base64 when
+          // it is not.
+          throw GenkitException(
+            'Only base64 data URLs can be sent inline; got a $mimeType data '
+            'URL without ";base64". Encode the data as base64 '
+            '("data:$mimeType;base64,...").',
+            status: StatusCode.invalidArgument,
+          );
+        }
         final base64Data = media.url.substring(commaIdx + 1);
         if (isImage) {
           return sdk.ContentPart.imageBase64(
@@ -174,6 +193,49 @@ abstract final class GenkitConverter {
       );
     }
     throw UnimplementedError('Unsupported part type: $part');
+  }
+
+  /// Whether [toOpenAIContentPart] sends [part] as an OpenAI `file` content
+  /// part: inline data that is not an image, such as a PDF.
+  static bool sendsAsFilePart(Part part) {
+    final media = part.media;
+    if (media == null || !media.url.startsWith('data:')) return false;
+    return !mimeTypeOf(media).toLowerCase().startsWith('image/');
+  }
+
+  /// The MIME type of [media] without parameters.
+  ///
+  /// [Media.contentType] when set, else the type a `data:` URL declares in its
+  /// header, else `image/png`. A PDF data URL with no `contentType` is still a
+  /// PDF, and sending it as an image would only have the host reject it.
+  ///
+  /// The MIME type may include parameters (e.g. "application/pdf;
+  /// charset=utf-8"). They are stripped so matching and extension derivation
+  /// work against the base type.
+  static String mimeTypeOf(Media media) {
+    final declared = media.contentType ?? _dataUrlMimeType(media.url);
+    final base = (declared ?? '').split(';').first.trim();
+    return base.isEmpty ? 'image/png' : base;
+  }
+
+  /// Whether [url] is a well-formed `data:` URL whose header says `base64`.
+  static bool _isBase64DataUrl(String url) {
+    final comma = url.indexOf(',');
+    if (comma < 0) return false;
+    return url
+        .substring('data:'.length, comma)
+        .split(';')
+        .skip(1)
+        .any((param) => param.trim().toLowerCase() == 'base64');
+  }
+
+  /// The MIME type in a `data:` URL's header, or null when it names none.
+  static String? _dataUrlMimeType(String url) {
+    if (!url.startsWith('data:')) return null;
+    final comma = url.indexOf(',');
+    if (comma < 0) return null;
+    final type = url.substring('data:'.length, comma).split(';').first.trim();
+    return type.isEmpty ? null : type;
   }
 
   /// Derives a synthetic filename for an OpenAI `file` content part.
@@ -312,18 +374,25 @@ abstract final class GenkitConverter {
   /// This is used for converting response messages from the OpenAI API.
   /// For responses, we always get an [sdk.AssistantMessage] with
   /// optional text content, refusal, and/or tool calls.
-  static Message fromOpenAIAssistantMessage(sdk.AssistantMessage msg) {
-    final parts = <Part>[];
-
+  ///
+  /// With a [reasoningSource] the reasoning is read as that provider's: see
+  /// [reasoningParts]. [streamed] says [msg] was assembled from a stream, whose
+  /// reasoning fragments are joined back into one part per thinking chunk.
+  static Message fromOpenAIAssistantMessage(
+    sdk.AssistantMessage msg, {
+    String? reasoningSource,
+    bool streamed = false,
+  }) {
     // Reasoning comes before the answer it produced, so it leads the content.
-    final reasoning = reasoningTextOf(
-      msg.reasoningContent,
-      msg.reasoning,
-      msg.reasoningDetails,
-    );
-    if (reasoning != null) {
-      parts.add(ReasoningPart(reasoning: reasoning));
-    }
+    final parts = <Part>[
+      ...reasoningParts(
+        reasoningContent: msg.reasoningContent,
+        reasoning: msg.reasoning,
+        reasoningDetails: msg.reasoningDetails,
+        reasoningSource: reasoningSource,
+        merge: streamed,
+      ),
+    ];
 
     // Handle refusal
     if (msg.refusal != null && msg.refusal!.isNotEmpty) {
@@ -397,6 +466,104 @@ abstract final class GenkitConverter {
     }
     return null;
   }
+
+  /// The reasoning parts for a reply or a stream delta.
+  ///
+  /// Without a [reasoningSource], the reasoning text read by
+  /// [reasoningTextOf] as a single part, or none when there is no text.
+  ///
+  /// With one, the host is a provider whose reasoning has to go back to it on
+  /// later turns: Mistral, whose thinking chunks the reply rewrite turns into
+  /// `reasoning.text` entries. Each entry becomes its own part, so a signature
+  /// stays with the text it signs, and an entry that carries only a signature
+  /// is kept, since the signature is what has to round-trip. Every part is
+  /// marked with [reasoningSourceKey] so only this provider's reasoning is
+  /// replayed to it. [merge] is for a stream, which splits one thinking chunk
+  /// across many deltas and sends its signature, if any, on the last of them:
+  /// adjacent entries are joined, and an entry carrying a signature closes
+  /// the part, so the next entry starts a new one. Each part then pairs a
+  /// chunk's text with that chunk's own signature, as in a buffered reply,
+  /// the same way the JS and Python plugins rebuild a streamed reply.
+  static List<ReasoningPart> reasoningParts({
+    String? reasoningContent,
+    String? reasoning,
+    List<sdk.ReasoningDetail>? reasoningDetails,
+    String? reasoningSource,
+    bool merge = false,
+  }) {
+    if (reasoningSource == null) {
+      final text = reasoningTextOf(
+        reasoningContent,
+        reasoning,
+        reasoningDetails,
+      );
+      return [if (text != null) ReasoningPart(reasoning: text)];
+    }
+
+    final entries = [
+      for (final detail in reasoningDetails ?? const <sdk.ReasoningDetail>[])
+        if (!detail.isEncrypted)
+          (text: detail.text ?? detail.summary ?? '', sig: detail.signature),
+    ].where((e) => e.text.isNotEmpty || e.sig != null).toList();
+    if (entries.isEmpty) return const [];
+
+    ReasoningPart part(String text, String? signature) => ReasoningPart(
+      reasoning: text,
+      metadata: {
+        reasoningSourceKey: reasoningSource,
+        thoughtSignatureKey: ?signature,
+      },
+    );
+    if (!merge) return [for (final e in entries) part(e.text, e.sig)];
+
+    final parts = <ReasoningPart>[];
+    final text = StringBuffer();
+    var open = false;
+    for (final e in entries) {
+      text.write(e.text);
+      open = true;
+      if (e.sig != null) {
+        parts.add(part(text.toString(), e.sig));
+        text.clear();
+        open = false;
+      }
+    }
+    if (open) parts.add(part(text.toString(), null));
+    return parts;
+  }
+
+  /// [msg]'s reasoning parts marked as [source]'s, as `reasoning_details`
+  /// entries for [toOpenAIMessage] to carry to the body rewrite.
+  static List<sdk.ReasoningDetail> _sourcedReasoningDetails(
+    Message msg,
+    String source,
+  ) => [
+    for (final part in msg.content)
+      if (part.isReasoning && part.metadata?[reasoningSourceKey] == source)
+        if (_replayable(part)) _detailOf(part),
+  ];
+
+  static bool _replayable(Part part) =>
+      (part.reasoning ?? '').isNotEmpty ||
+      part.metadata?[thoughtSignatureKey] is String;
+
+  static sdk.ReasoningDetail _detailOf(Part part) {
+    final signature = part.metadata?[thoughtSignatureKey];
+    return sdk.ReasoningDetail(
+      type: 'reasoning.text',
+      text: part.reasoning ?? '',
+      signature: signature is String ? signature : null,
+    );
+  }
+
+  /// Metadata key for a reasoning part's signature, shared across the Genkit
+  /// plugins and SDKs.
+  static const thoughtSignatureKey = 'thoughtSignature';
+
+  /// Metadata key naming the provider a reasoning part was read from, shared
+  /// with the JS and Python plugins. It survives a JSON round trip of the
+  /// history, where the response that carried the part does not.
+  static const reasoningSourceKey = 'reasoningSource';
 
   /// The readable text in a `reasoning_details` list.
   ///

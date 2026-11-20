@@ -291,6 +291,41 @@ void main() {
     });
   });
 
+  group('OpenAI\'s own host', () {
+    // OpenAI publishes `/v1` only. A path-less spelling of its own host has to
+    // fall through to the SDK's default rather than be dialled as written,
+    // which would put `/chat/completions` at the root and 404.
+    for (final baseUrl in [
+      'https://api.openai.com',
+      'https://api.openai.com/',
+    ]) {
+      test('$baseUrl still reaches /v1', () async {
+        final paths = <String>[];
+        final ai = Genkit(
+          plugins: [
+            openAI(
+              apiKey: 'k',
+              baseUrl: baseUrl,
+              httpClient: MockClient((request) async {
+                paths.add(request.url.path);
+                return http.Response(
+                  jsonEncode(chatCompletion()),
+                  200,
+                  headers: {'content-type': 'application/json'},
+                );
+              }),
+            ),
+          ],
+        );
+        addTearDown(ai.shutdown);
+
+        await ai.generate(model: openAI.model('gpt-4o'), prompt: 'hi');
+
+        expect(paths, ['/v1/chat/completions']);
+      });
+    }
+  });
+
   group('authentication against a compat host', () {
     test('the configured key is sent as a bearer token', () async {
       final server = await startServer(expectedApiKey: 'groq-key');

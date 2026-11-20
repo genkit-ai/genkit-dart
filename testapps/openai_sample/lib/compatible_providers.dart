@@ -86,9 +86,9 @@ ModelInfo _chatModel(String label) => ModelInfo(
 
 /// The providers the README advertises that have no handle of their own.
 ///
-/// DeepSeek and xAI are absent on purpose: both have first-class handles now
-/// — `deepSeek()` and `xAI()` — which know their base URL, key and catalog.
-/// See `deepseek.dart` and `xai.dart`.
+/// DeepSeek, xAI and Mistral are absent on purpose: each has a first-class
+/// handle now — `deepSeek()`, `xAI()` and `mistral()` — which knows its base
+/// URL, key and catalog. See `deepseek.dart`, `xai.dart` and `mistral.dart`.
 final List<CompatBackend> compatBackends = [
   CompatBackend(
     name: 'groq',

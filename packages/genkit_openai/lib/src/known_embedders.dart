@@ -114,12 +114,20 @@ enum KnownOpenAIEmbedder {
 /// `dimensions` and `supports.input` are JS `EmbedderInfo`'s keys; `stage` is
 /// not one of them and mirrors JS `ModelInfo.stage` instead.
 Map<String, dynamic> _info({String? label, int? dimensions, String? stage}) =>
-    Map.unmodifiable(<String, dynamic>{
-      'label': ?label,
-      'dimensions': ?dimensions,
-      'stage': ?stage,
-      'supports': Map<String, dynamic>.unmodifiable(_textInput),
-    });
+    curatedEmbedderInfo(label: label, dimensions: dimensions, stage: stage);
+
+/// Embedder metadata in the shape the OpenAI catalog uses, for a provider
+/// that curates embedders of its own.
+Map<String, dynamic> curatedEmbedderInfo({
+  String? label,
+  int? dimensions,
+  String? stage,
+}) => Map.unmodifiable(<String, dynamic>{
+  'label': ?label,
+  'dimensions': ?dimensions,
+  'stage': ?stage,
+  'supports': Map<String, dynamic>.unmodifiable(_textInput),
+});
 
 final _curatedInfo = <KnownOpenAIEmbedder, Map<String, dynamic>>{
   for (final embedder in KnownOpenAIEmbedder.values)

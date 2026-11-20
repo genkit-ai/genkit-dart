@@ -248,6 +248,33 @@ void main() {
         },
       });
     });
+
+    test('refuses a data URL that is not base64', () {
+      // It would otherwise go out as `data:text/plain;base64,hello`.
+      for (final url in ['data:text/plain,hello', 'data:image/png,abc']) {
+        final part = MediaPart(media: Media(url: url));
+
+        expect(
+          () => GenkitConverter.toOpenAIContentPart(part, null),
+          throwsA(
+            isA<GenkitException>()
+                .having((e) => e.status, 'status', StatusCode.invalidArgument)
+                .having((e) => e.message, 'message', contains('base64')),
+          ),
+          reason: url,
+        );
+      }
+    });
+
+    test('reads base64 wherever it sits among the parameters', () {
+      final part = MediaPart(
+        media: Media(url: 'data:application/pdf;BASE64;name=a.pdf,JVBERi0='),
+      );
+
+      final result = GenkitConverter.toOpenAIContentPart(part, null);
+
+      expect(result.toJson()['type'], 'file');
+    });
   });
 
   group('GenkitConverter.toOpenAITool', () {
