@@ -14,8 +14,9 @@
 
 import 'dart:io';
 
-const licenseHeader = '''
-// Copyright 2025 Google LLC
+final licenseHeader =
+    '''
+// Copyright ${DateTime.now().year} Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
