@@ -268,7 +268,7 @@ final deepSeekProvider = OpenAIProvider(
 ///
 /// The reasoning vocabulary varies per model there - 4.3 takes `none` and
 /// defaults to `low`, 4.6 takes neither - and which pairing works is left to
-/// the API, as it is for every other host.
+/// the API, as it is for most hosts.
 final xaiProvider = OpenAIProvider(
   defaultNamespace: defaultXaiNamespace,
   defaultBaseUrl: 'https://api.x.ai/v1',

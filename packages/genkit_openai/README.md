@@ -582,6 +582,13 @@ of their endpoints. A listed model the catalog does not know takes tool calling
 and image input from the entry's `function_calling` and `vision` capabilities,
 with text output only.
 
+Those capabilities are read during discovery, so they apply only once
+`list()` has run (as the Dev UI does). `resolve()` is synchronous and builds a
+model's metadata up front, so a model the catalog does not know that is used
+directly, without discovery, reports tool calling and image input as
+unsupported. Nothing fails on that: the plugin does not enforce `supports`, and
+the request goes out regardless.
+
 A model that thinks - Large 4 always, Small 4 and Medium 3.5 when given a
 `reasoningEffort` of `high` - answers with `thinking` chunks ahead of its
 text. Each chunk comes back as its own `ReasoningPart`, streamed as it arrives,
