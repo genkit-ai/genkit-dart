@@ -4,8 +4,7 @@ System One decision models for Genkit Dart: models that speak System One, the
 protocol TypeSafe AI introduced with jev and that Liquid AI's d1, Cloudflare's
 Clef, and the gateways serving them also speak. A decision model does not
 generate text. It evaluates a state against typed questions and returns one
-typed answer per question, with calibrated probabilities, in a few hundred
-milliseconds. That makes it a fit for the decisions inside an application:
+typed answer per question, with calibrated probabilities. That makes it a fit for the decisions inside an application:
 routing, classification, scoring, guardrails, and verification.
 
 > Status: in preview. The API may change in any minor release.
@@ -13,7 +12,8 @@ routing, classification, scoring, guardrails, and verification.
 This is the Dart port of Genkit Go's
 [System One plugin](https://genkit.dev/docs/go/integrations/system-one/) and of
 the [Java plugin](https://genkit-ai.github.io/genkit-java/plugins/systemone/):
-the same question types, wire format, servers, and behavior, in Dart's idioms.
+the same question types, wire format, and servers, in Dart's idioms. Where it
+differs from Go, this README says so.
 
 > **Building with a coding agent? Install the Genkit Dart skill first.**
 >
@@ -35,8 +35,7 @@ the wire answer, so a decision is one typed `generate` call and the answer
 lands in typed fields.
 
 The question types belong to the protocol, not to a server, so one decision
-type serves every model that speaks it, and a fallback from one to another
-needs no second type.
+type serves every model that speaks it.
 
 ```dart
 import 'package:genkit/genkit.dart';
@@ -149,6 +148,10 @@ A `Choice` also answers `ranked`, the options from most to least likely, and
 `margin`, the probability gap between the top two, which is how decisive the
 choice is. A `ScoreOf` answers `level`, the nearest whole level, and `label`,
 that level's text from the rubric, with or without a legend on the answer.
+
+`Noul` is a class of its own that extends `NoulOf`, as in Java; Go's
+`NoCriteria` is not exported here, since `NoulOf<NoCriteria>` and `Noul` would
+be two types for one question.
 
 Genkit Go and Java call the rubric answer `Score`. Here it is `ScoreOf`, since
 `package:genkit` already exports an evaluator `Score` and every app imports
@@ -268,16 +271,16 @@ leave that prompt out of the messages.
 
 - One message is sent as its value: the string of a text part, or the JSON of a
   data part. `promptParts: [DataPart(data: {...})]` sends any value as an
-  object state, which the vendors recommend so that a question can name a
-  field.
+  object state, so that a question can name a field.
 - Several messages are sent as a list of `{role, content}` records, roles
   included, so a question can refer to what the user said and what the model
   said.
 - With documents attached, the state is `{messages, context}`, each document as
   its content, read as a message's is, or as `{content, metadata}` when it has
-  metadata. Genkit Dart's `generate` does not pass documents to a model yet, so
-  today this applies to a request that reaches the model with `docs` set, such
-  as one a middleware builds.
+  metadata. This is unreachable through `ai.generate` today: it has no `docs`
+  parameter, and Genkit Dart's generate action drops `docs` when it builds the
+  model request. It applies to a request that reaches the model action with
+  `docs` set.
 
 A prompt template renders text, so a template that renders JSON needs
 `SystemOneOptions(stateJSON: true)` in its config to produce an object state.
@@ -318,6 +321,10 @@ ships.
 | `SystemOne.openRouter()` | `openrouter-decisions/liquid/d1`, `openrouter-decisions/typesafe/jev-1.13`, `openrouter-decisions/~typesafe/jev-latest` | `OPENROUTER_API_KEY` | alpha Decisions API; lists OpenRouter's decision models; cost in `usage.custom['cost']`; text only |
 | `SystemOne.ollama()`     | `ollama-decisions/clef`                 | none                 | `http://localhost:11434` unless `baseUrl` is set; images as raw base64; a request needs text |
 | `SystemOne.workersAI()`  | `cloudflare-decisions/@cf/cloudflare/clef`, `…/clef-flash`, `…/clef-omni`, `cloudflare-decisions/typesafe/jev` | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_ACCOUNT_ID` unless `accountId` is given; Clef models read images, Clef-omni audio and video too; a long state is truncated; no versions to pin |
+
+Each constructor also takes the settings Go lets a caller change on the struct
+it returns (`path`, `modelsPath`, `images`, `audio`, `video`, `route`,
+`unwrap`), each replacing the constructor's default when given.
 
 Keys and accounts are read from the arguments, then from the environment,
 when the plugin is built, which fails when a required one is missing. A
@@ -442,7 +449,9 @@ final wrapped = SystemOne(
 `models` describes the models known ahead, keyed by the server's ID or by the
 full model name; they are listed in the Dev UI with whatever the server's
 listing adds. Genkit's registry keeps the first listing for the life of the
-process, and a listing that fails lists the known models alone. `httpClient` and `headers` are
+process, so a listing that fails (logged as a warning) lists the known models
+alone until the app restarts; Go retries it after a minute. `httpClient` and
+`headers` are
 the escape hatches to the transport, and `SystemOneOptions(extra: {...})`
 merges fields into the request body that the plugin does not model, such as a
 gateway's `session_id` or `trace`; it cannot replace a field the request builds
@@ -451,13 +460,38 @@ itself.
 Requests that fail to connect, time out, are rate limited, or hit a server
 error are retried twice, with `Retry-After` honored. The plugin's own HTTP
 client gives an attempt 30 seconds; an `httpClient` you pass keeps its own
-timeouts. A cancelled request stops at once, on any client.
+timeouts. A cancelled request stops at once, on any client, and resolves
+`generate` as aborted. Redirects are not followed, so the key never goes to
+another host, and a response over 8 MiB is refused rather than cut.
+
 Error statuses map onto Genkit's: 402 is `RESOURCE_EXHAUSTED`, 408, 504, and
-Cloudflare's 524 are `DEADLINE_EXCEEDED`, 501 and 505 are `UNIMPLEMENTED`, other
-5xx are `UNAVAILABLE`, and a client error the canonical mapping does not name,
+Cloudflare's 524 are `DEADLINE_EXCEEDED`, 501 and 505 are `UNIMPLEMENTED`, 500
+is `INTERNAL`, every other 5xx is `UNAVAILABLE`, and a client error the canonical mapping does not name,
 such as 422, is `INVALID_ARGUMENT`. As with every Genkit Dart model, a failed
 request resolves `generate` with `finishReason: failed` and the error on
 `result.error`, rather than throwing.
+
+Genkit Go and JS validate a model's output against its schema in the generate
+loop; Genkit Dart's loop only parses it. So the plugin checks each answer
+before it reaches the decision type: the answer is there, its kind's field is
+present and a number or a string as it should be, a choice is one of the
+question's options (in the enum format too), and a noul is between 0 and 1.
+A failed check fails the call with `INTERNAL`. A score outside the rubric is
+clamped, as Go clamps it. A missing `confidence` reads as 0, as Go decodes it,
+and a probability for a name the option enum lacks is left out of
+`Choice.probabilities` (it stays on `SystemOneInfo.answers`).
+
+A decision type's build function that casts an answer to the wrong type throws
+a `FormatException` naming the decision, and core's `generate` lets a parse
+error of the typed output escape as that exception rather than as a failed
+response.
+
+A plugin with a missing key, account, or base URL, or a base URL that is not
+an http or https URL, fails when it is built, with `FAILED_PRECONDITION`. Go
+panics in `Init` instead.
+
+When the plugin makes its own HTTP client, `close()` closes it; a client you
+pass is yours to close.
 
 Pin a version in production where the server offers one. Confidence thresholds
 tuned against one release do not carry over to the next, nor from one model to

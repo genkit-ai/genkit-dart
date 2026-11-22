@@ -101,7 +101,7 @@ BuiltState buildState(
     if (msg.role == Role.system) continue;
     final collected = b.media.length;
     var value = b.messageValue(msg.content, stateJson: stateJson);
-    if (value == null) {
+    if (identical(value, nothing)) {
       if (b.media.length == collected) continue;
       value = '';
     }
@@ -116,7 +116,7 @@ BuiltState buildState(
   final docs = <Object?>[];
   for (final doc in req.docs ?? const <DocumentData>[]) {
     final value = b.documentValue(doc);
-    if (value != null) docs.add(value);
+    if (!identical(value, nothing)) docs.add(value);
   }
   if (docs.isNotEmpty) {
     return (state: {'messages': records, 'context': docs}, media: b.media);
@@ -129,6 +129,14 @@ BuiltState buildState(
 
 /// Reads the state out of messages and documents, and collects the media it
 /// meets on the way.
+/// What a part, message, or document that contributes nothing to the state
+/// yields, so that a data part whose value is null still sends null.
+const Object nothing = _Nothing();
+
+final class _Nothing {
+  const _Nothing();
+}
+
 final class _StateBuilder {
   _StateBuilder(this.reads);
 
@@ -137,15 +145,15 @@ final class _StateBuilder {
 
   /// A message's contribution to the state: the value of its one part, or
   /// the values of all of them. A message with nothing to contribute yields
-  /// null.
+  /// [nothing]; a data part whose value is null contributes null.
   Object? messageValue(List<Part> content, {required bool stateJson}) {
     final values = <Object?>[];
     for (final part in content) {
       final value = _partValue(part, stateJson: stateJson);
-      if (value != null) values.add(value);
+      if (!identical(value, nothing)) values.add(value);
     }
     return switch (values.length) {
-      0 => null,
+      0 => nothing,
       1 => values.single,
       _ => values,
     };
@@ -158,7 +166,7 @@ final class _StateBuilder {
   /// history is skipped rather than sent as state, and any other kind of part
   /// is refused rather than stringified.
   Object? _partValue(Part part, {required bool stateJson}) {
-    if (_isFormatInstructions(part)) return null;
+    if (_isFormatInstructions(part)) return nothing;
     if (part.isText) {
       final text = part.text!;
       if (!stateJson) return text;
@@ -172,8 +180,9 @@ final class _StateBuilder {
     }
     if (part.isMedia) {
       _collect(part.media!);
-      return null;
+      return nothing;
     }
+    // A data part is sent as its value, null included.
     if (part.isData) return part.data;
     throw _invalidArgument(
       'a ${_partKindName(part)} part cannot be state; the model takes text, '
@@ -215,7 +224,10 @@ final class _StateBuilder {
     final content = messageValue(doc.content, stateJson: false);
     final metadata = doc.metadata;
     if (metadata == null || metadata.isEmpty) return content;
-    return {'content': content, 'metadata': metadata};
+    return {
+      'content': identical(content, nothing) ? null : content,
+      'metadata': metadata,
+    };
   }
 }
 
@@ -235,7 +247,7 @@ final class _StateBuilder {
   switch (scheme) {
     case 'http' || 'https' || 'gs':
       throw _invalidArgument(
-        'the media "$url" is a URL, and the models take inline media only; '
+        'a media part is a URL, and the models take inline media only; '
         'download it first and pass it as a data URL',
       );
     case 'data':

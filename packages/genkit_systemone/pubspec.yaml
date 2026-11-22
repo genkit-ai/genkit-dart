@@ -1,5 +1,5 @@
 name: genkit_systemone
-description: System One decision models for Genkit Dart (TypeSafe's jev, Cloudflare's Clef, Liquid's d1, and any server that speaks the protocol), served behind generate with the output type as the question set.
+description: System One decision models for Genkit Dart (TypeSafe, OpenRouter, Cloudflare Workers AI, Ollama), served behind generate with the output schema as the question set.
 version: 0.0.1
 resolution: workspace
 repository: https://github.com/genkit-ai/genkit-dart

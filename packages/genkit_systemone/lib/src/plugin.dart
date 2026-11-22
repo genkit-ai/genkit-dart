@@ -18,10 +18,10 @@ import 'dart:convert';
 import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
 import 'package:logging/logging.dart';
+import 'package:meta/meta.dart';
 
 import 'options.dart';
 import 'protocol/client.dart';
-import 'protocol/json.dart';
 import 'protocol/model.dart';
 import 'protocol/state.dart';
 
@@ -34,6 +34,7 @@ const _listingTimeout = Duration(seconds: 5);
 /// Whether models read one kind of media.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 enum MediaSupport {
   /// Keeps the setting it overrides: for a model, the plugin's; for the
   /// plugin, refusing the media.
@@ -49,6 +50,7 @@ enum MediaSupport {
 /// Describes one decision model.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 final class ModelSpec {
   const ModelSpec({
     this.label = '',
@@ -72,7 +74,9 @@ final class ModelSpec {
 ///
 /// Gets the model ID and the native body, which it may change, and returns
 /// the path to append to the plugin's path, joined with a slash when it does
-/// not start with one, and the body to send.
+/// not start with one, and the body to send. A state parsed with `stateJSON`
+/// is in the body as an opaque value that is sent as the JSON text it was
+/// given; move it as it is rather than reading it.
 typedef SystemOneRoute =
     ({String path, Object? body}) Function(
       String model,
@@ -139,6 +143,7 @@ final class _Preset {
 /// is missing, such as a key, since every request would fail.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 final class SystemOne extends GenkitPlugin {
   /// A plugin for the server at [baseUrl].
   ///
@@ -211,20 +216,34 @@ final class SystemOne extends GenkitPlugin {
   /// TypeSafe's SDKs read. Pin a version in production: confidence
   /// thresholds tuned against one release do not carry over to the next.
   ///
-  /// [models] adds to the known models, as the other settings do to those of
-  /// [SystemOne.new]. [configVar] reads the environment; tests pass their
-  /// own.
+  /// [models] adds to the known models. Every constructor takes the settings
+  /// of [SystemOne.new] that its server does not fix, each replacing the
+  /// constructor's default when given, as a field set on Go's struct does.
+  /// [configVar] reads the environment; tests pass their own.
   factory SystemOne.typeSafe({
     String? apiKey,
     String? baseUrl,
     Map<String, ModelSpec> models = const {},
     http.Client? httpClient,
     Map<String, String>? headers,
+    String? path,
+    String? modelsPath,
+    MediaSupport? images,
+    MediaSupport? audio,
+    MediaSupport? video,
+    SystemOneRoute? route,
+    SystemOneUnwrap? unwrap,
     String? Function(String name) configVar = getConfigVar,
   }) => SystemOne._(
     provider: 'typesafe',
     baseUrl: baseUrl,
-    modelsPath: '/v1/models',
+    path: path,
+    modelsPath: modelsPath ?? '/v1/models',
+    images: images ?? MediaSupport.unset,
+    audio: audio ?? MediaSupport.unset,
+    video: video ?? MediaSupport.unset,
+    route: route,
+    unwrap: unwrap,
     apiKey: apiKey,
     models: {
       'jev-latest': const ModelSpec(),
@@ -265,12 +284,24 @@ final class SystemOne extends GenkitPlugin {
     Map<String, ModelSpec> models = const {},
     http.Client? httpClient,
     Map<String, String>? headers,
+    String? path,
+    String? modelsPath,
+    MediaSupport? images,
+    MediaSupport? audio,
+    MediaSupport? video,
+    SystemOneRoute? route,
+    SystemOneUnwrap? unwrap,
     String? Function(String name) configVar = getConfigVar,
   }) => SystemOne._(
     provider: 'openrouter-decisions',
     baseUrl: baseUrl,
-    path: '/api/alpha/decisions',
-    modelsPath: '/api/v1/models?output_modalities=decisions',
+    path: path ?? '/api/alpha/decisions',
+    modelsPath: modelsPath ?? '/api/v1/models?output_modalities=decisions',
+    images: images ?? MediaSupport.unset,
+    audio: audio ?? MediaSupport.unset,
+    video: video ?? MediaSupport.unset,
+    route: route,
+    unwrap: unwrap,
     apiKey: apiKey,
     models: {
       'cloudflare/clef': const ModelSpec(),
@@ -307,12 +338,24 @@ final class SystemOne extends GenkitPlugin {
     Map<String, ModelSpec> models = const {},
     http.Client? httpClient,
     Map<String, String>? headers,
+    String? path,
+    String? modelsPath,
+    MediaSupport? images,
+    MediaSupport? audio,
+    MediaSupport? video,
+    SystemOneRoute? route,
+    SystemOneUnwrap? unwrap,
   }) => SystemOne._(
     provider: 'ollama-decisions',
     baseUrl: baseUrl,
     apiKey: null,
-    route: ollamaRoute,
-    images: MediaSupport.supported,
+    path: path,
+    modelsPath: modelsPath ?? '',
+    route: route ?? ollamaRoute,
+    unwrap: unwrap,
+    images: images ?? MediaSupport.supported,
+    audio: audio ?? MediaSupport.unset,
+    video: video ?? MediaSupport.unset,
     models: {'clef': const ModelSpec(), ...models},
     httpClient: httpClient,
     headers: headers,
@@ -343,15 +386,25 @@ final class SystemOne extends GenkitPlugin {
     Map<String, ModelSpec> models = const {},
     http.Client? httpClient,
     Map<String, String>? headers,
+    String? path,
+    String? modelsPath,
+    MediaSupport? images,
+    MediaSupport? audio,
+    MediaSupport? video,
+    SystemOneRoute? route,
+    SystemOneUnwrap? unwrap,
     String? Function(String name) configVar = getConfigVar,
   }) => SystemOne._(
     provider: 'cloudflare-decisions',
     baseUrl: baseUrl,
-    path: '/ai/run',
+    path: path ?? '/ai/run',
+    modelsPath: modelsPath ?? '',
     apiKey: apiToken,
-    route: workersAIRoute,
-    unwrap: unwrapWorkersAI,
-    images: MediaSupport.supported,
+    route: route ?? workersAIRoute,
+    unwrap: unwrap ?? unwrapWorkersAI,
+    images: images ?? MediaSupport.supported,
+    audio: audio ?? MediaSupport.unset,
+    video: video ?? MediaSupport.unset,
     models: {
       '@cf/cloudflare/clef': const ModelSpec(),
       '@cf/cloudflare/clef-flash': const ModelSpec(),
@@ -398,7 +451,7 @@ final class SystemOne extends GenkitPlugin {
       throw GenkitException(
         'systemone: set provider, the plugin\'s name and the prefix of its '
         'models, with no "/"; got "$provider"',
-        status: StatusCode.invalidArgument,
+        status: StatusCode.failedPrecondition,
       );
     }
     String setting(String? given, String env) {
@@ -414,7 +467,7 @@ final class SystemOne extends GenkitPlugin {
       throw GenkitException(
         '$provider: pass an API key or set the ${preset.apiKeyEnv} '
         'environment variable',
-        status: StatusCode.invalidArgument,
+        status: StatusCode.failedPrecondition,
       );
     }
     var base = setting(baseUrl, preset.baseUrlEnv);
@@ -422,7 +475,17 @@ final class SystemOne extends GenkitPlugin {
     if (base.isEmpty) {
       throw GenkitException(
         '$provider: set baseUrl, the root of the server\'s System One API',
-        status: StatusCode.invalidArgument,
+        status: StatusCode.failedPrecondition,
+      );
+    }
+    final parsed = Uri.tryParse(base.replaceAll('{account}', 'account'));
+    if (parsed == null ||
+        !(parsed.isScheme('http') || parsed.isScheme('https')) ||
+        parsed.host.isEmpty) {
+      throw GenkitException(
+        '$provider: baseUrl must be an http or https URL with a host; got '
+        '"$base"',
+        status: StatusCode.failedPrecondition,
       );
     }
     if (preset.accountEnv.isNotEmpty && base.contains('{account}')) {
@@ -431,10 +494,10 @@ final class SystemOne extends GenkitPlugin {
         throw GenkitException(
           '$provider: pass an account ID or set the ${preset.accountEnv} '
           'environment variable',
-          status: StatusCode.invalidArgument,
+          status: StatusCode.failedPrecondition,
         );
       }
-      base = base.replaceAll('{account}', Uri.encodeComponent(account));
+      base = base.replaceAll('{account}', pathEscape(account));
     }
     var requestPath = _rooted(
       path == null || path.isEmpty ? '/v1/systemone' : path,
@@ -446,7 +509,7 @@ final class SystemOne extends GenkitPlugin {
       if (_models.containsKey(id)) {
         throw GenkitException(
           '$provider: models names $id twice, by its ID and by its full name',
-          status: StatusCode.invalidArgument,
+          status: StatusCode.failedPrecondition,
         );
       }
       _models[id] = value;
@@ -507,9 +570,11 @@ final class SystemOne extends GenkitPlugin {
         final models = await _client.listModels(timeout: _listingTimeout);
         ids.addAll(models.map((m) => m.model).where((id) => id.isNotEmpty));
       } catch (e) {
-        _logger.fine(
-          '$_provider: model listing failed, advertising the configured '
-          'models: $e',
+        // Genkit's registry keeps this listing for the life of the process,
+        // so the failure is worth a warning, not a debug line.
+        _logger.warning(
+          '$_provider: model listing failed, so the Dev UI lists the '
+          'configured models only until the app restarts: $e',
         );
       }
     }
@@ -542,8 +607,7 @@ final class SystemOne extends GenkitPlugin {
   }
 
   /// A reference to one of the plugin's models, with a [config], for the
-  /// places that take a reference, such as a generate call's `model` or a
-  /// fallback list.
+  /// places that take a reference, such as a generate call's `model`.
   ///
   /// The ID is the server's or the full model name, as a key of the known
   /// models is: `modelRef('jev-1.13.0')` and `modelRef('typesafe/jev-1.13.0')`
@@ -607,7 +671,25 @@ String _rooted(String path) =>
     }
   }
   body['model'] = segments.last;
-  return (path: '/${Uri(pathSegments: segments).path}', body: body);
+  return (path: '/${segments.map(pathEscape).join('/')}', body: body);
+}
+
+/// Escapes one path segment as Go's `url.PathEscape` does: unreserved
+/// characters and `$&+:=@` stay, everything else is percent-encoded, `/`,
+/// `;`, `,`, and `?` included.
+String pathEscape(String segment) {
+  const kept =
+      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_.~\$&+:=@';
+  final out = StringBuffer();
+  for (final byte in utf8.encode(segment)) {
+    final c = String.fromCharCode(byte);
+    if (byte < 0x80 && kept.contains(c)) {
+      out.write(c);
+    } else {
+      out.write('%${byte.toRadixString(16).toUpperCase().padLeft(2, '0')}');
+    }
+  }
+  return out.toString();
 }
 
 /// Handles both response shapes the Workers AI REST API is documented with:
@@ -656,17 +738,14 @@ String unwrapWorkersAI(String body) {
 }
 
 /// Whether a state carries any text: a nonempty string, a turn or document
-/// with text, or any other value, such as the object of a data part.
+/// with text, or any other value, such as the object of a data part or the
+/// values of a message's several parts. The turns are told apart by their
+/// type, as Go tells `[]map[string]any` from `[]any`.
 bool hasText(Object? state) => switch (state) {
   null => false,
   String() => state.isNotEmpty,
-  RawJson() => true,
-  List() => state.any(
-    (item) => item is Map && item.containsKey('role')
-        ? hasText(item['content'])
-        : hasText(item),
-  ),
-  Map() when state['messages'] is List =>
+  List<Map<String, Object?>>() => state.any((turn) => hasText(turn['content'])),
+  Map() when state['messages'] is List<Map<String, Object?>> =>
     hasText(state['messages']) ||
         (state['context'] is List && (state['context'] as List).any(hasText)),
   Map() => state.isNotEmpty,

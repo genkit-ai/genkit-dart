@@ -19,6 +19,7 @@ library;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:genkit/plugin.dart';
 import 'package:http/http.dart' as http;
@@ -160,14 +161,15 @@ final class ListedModel {
   String get model => (id?.isNotEmpty ?? false) ? id! : (name ?? '');
 }
 
-/// Retry policy, matching the vendor SDK's defaults: two retries after the
-/// first attempt, half a second doubling to five, a quarter of jitter, and
-/// the server's Retry-After honored when it sends one.
+/// Retry policy, as Genkit Go's: two retries after the first attempt, half a
+/// second doubling to five, a quarter of jitter, and the server's Retry-After
+/// honored when it sends one, up to 30 seconds.
 const maxRetries = 2;
 const _retryBase = Duration(milliseconds: 500);
 const _retryCap = Duration(seconds: 5);
 const _retryAfterCap = Duration(seconds: 30);
 const _maxBodyBytes = 8 << 20;
+const _maxRetryAfterSeconds = 3600;
 
 /// Bounds one attempt.
 const requestTimeout = Duration(seconds: 30);
@@ -430,7 +432,10 @@ final class DecideClient {
       );
     }
     final abort = Completer<void>();
-    final req = http.AbortableRequest(method, uri, abortTrigger: abort.future);
+    final req = http.AbortableRequest(method, uri, abortTrigger: abort.future)
+      // A redirect would carry the bearer token to wherever it points, so
+      // none is followed: a 3xx is an error like any other.
+      ..followRedirects = false;
     req.headers.addAll(headers);
     if (apiKey.isNotEmpty) req.headers['Authorization'] = 'Bearer $apiKey';
     req.headers['Accept'] = 'application/json';
@@ -465,7 +470,12 @@ final class DecideClient {
       (status, body, responseHeaders) = await (cancel == null
           ? attempt
           : Future.any([attempt, cancelled.future]));
-    } catch (e) {
+    } on GenkitException {
+      // The response cap or a cancel: neither is worth another attempt.
+      rethrow;
+    } on Exception catch (e) {
+      // Transport failures only: a client error, a timeout, or the platform's
+      // socket and TLS errors. An Error is a bug, and propagates as one.
       throw _AttemptFailed(
         GenkitException(
           '${endpoint.name}: $e',
@@ -491,21 +501,23 @@ final class DecideClient {
     );
   }
 
-  /// Sends [req] and reads at most [_maxBodyBytes] of the response.
+  /// Sends [req] and reads its response, refusing one larger than
+  /// [_maxBodyBytes] rather than cutting it.
   Future<(int, String, Map<String, String>)> _send(http.BaseRequest req) async {
     final resp = await httpClient.send(req);
-    final bytes = <int>[];
+    final bytes = BytesBuilder(copy: false);
     await for (final chunk in resp.stream) {
-      final room = _maxBodyBytes - bytes.length;
-      if (chunk.length >= room) {
-        bytes.addAll(chunk.take(room));
-        break;
+      if (bytes.length + chunk.length > _maxBodyBytes) {
+        throw GenkitException(
+          '${endpoint.name}: response is larger than $_maxBodyBytes bytes',
+          status: StatusCode.internal,
+        );
       }
-      bytes.addAll(chunk);
+      bytes.add(chunk);
     }
     return (
       resp.statusCode,
-      utf8.decode(bytes, allowMalformed: true),
+      utf8.decode(bytes.takeBytes(), allowMalformed: true),
       resp.headers,
     );
   }
@@ -560,7 +572,11 @@ GenkitException httpError(String endpoint, int code, String body) {
   return GenkitException(
     '$endpoint: HTTP $code: $message',
     status: status,
-    details: body.isEmpty ? null : body,
+    details: body.isEmpty
+        ? null
+        : body.length > 200
+        ? '${body.substring(0, 200)}...'
+        : body,
   );
 }
 
@@ -632,7 +648,8 @@ String? _validationErrors(Object? value) {
   final msgs = <String>[];
   for (final record in value) {
     if (record is! Map) return null;
-    final message = record['message'] ?? record['msg'];
+    var message = record['message'];
+    if (message is! String || message.isEmpty) message = record['msg'];
     if (message is! String || message.isEmpty) continue;
     final path = [
       ...(record['path'] is List ? record['path'] as List : const []),
@@ -648,9 +665,12 @@ String? _validationErrors(Object? value) {
 /// for an immediate retry.
 Duration? parseRetryAfter(String? header) {
   if (header == null || header.isEmpty) return null;
-  final seconds = int.tryParse(header.trim());
-  if (seconds != null) {
-    return seconds < 0 ? Duration.zero : Duration(seconds: seconds);
+  final trimmed = header.trim();
+  if (RegExp(r'^\d+$').hasMatch(trimmed)) {
+    // Clamped before it becomes a Duration, so a huge value cannot overflow;
+    // the caller caps the wait at 30 seconds anyway.
+    final seconds = int.tryParse(trimmed) ?? _maxRetryAfterSeconds;
+    return Duration(seconds: min(seconds, _maxRetryAfterSeconds));
   }
   try {
     final wait = parseHttpDate(header).difference(DateTime.now());

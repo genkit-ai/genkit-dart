@@ -107,6 +107,20 @@ void main() {
       );
     });
 
+    test('a data part with a null value sends null', () {
+      // As it arrives from JSON, such as the Dev UI's; core encodes a
+      // DataPart built with null as {}, which carries nothing to send.
+      expect(
+        build([
+          user([
+            text('a'),
+            Part.fromJson({'data': null}),
+          ]),
+        ]).state,
+        ['a', null],
+      );
+    });
+
     test('several messages are role and content records', () {
       expect(
         build([

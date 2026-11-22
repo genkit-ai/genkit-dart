@@ -21,6 +21,7 @@ import 'package:genkit_systemone/src/protocol/questions.dart';
 import 'package:genkit_systemone/src/protocol/state.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:http_parser/http_parser.dart' show formatHttpDate;
 import 'package:test/test.dart';
 
 const _answer =
@@ -264,15 +265,26 @@ void main() {
       });
     }
 
-    test('501 and 505 are not retried', () async {
-      var calls = 0;
-      final (client, _) = clientFor((req) async {
-        calls++;
-        return http.Response('', 501);
+    for (final code in [501, 505]) {
+      test('$code is not retried', () async {
+        var calls = 0;
+        final (client, _) = clientFor((req) async {
+          calls++;
+          return http.Response('', code);
+        });
+        await expectLater(
+          client.decide('m', request()),
+          throwsA(
+            isA<GenkitException>().having(
+              (e) => e.status,
+              'status',
+              StatusCode.unimplemented,
+            ),
+          ),
+        );
+        expect(calls, 1);
       });
-      await expectLater(client.decide('m', request()), throwsA(anything));
-      expect(calls, 1);
-    });
+    }
   });
 
   group('error messages', () {
@@ -400,11 +412,86 @@ void main() {
     });
   });
 
+  test('a redirect is not followed, and not retried', () async {
+    var calls = 0;
+    late http.BaseRequest seen;
+    final (client, _) = clientFor((req) async {
+      calls++;
+      seen = req;
+      return http.Response(
+        '',
+        302,
+        headers: {'location': 'https://elsewhere.test'},
+      );
+    });
+    await expectLater(
+      client.decide('m', request()),
+      throwsA(
+        isA<GenkitException>().having(
+          (e) => e.message,
+          'message',
+          contains('HTTP 302'),
+        ),
+      ),
+    );
+    expect(seen.followRedirects, isFalse);
+    expect(calls, 1);
+  });
+
+  test('a response over 8 MiB is refused, not cut', () async {
+    final (client, _) = clientFor(
+      (req) async => http.Response('x' * ((8 << 20) + 1), 200),
+    );
+    await expectLater(
+      client.decide('m', request()),
+      throwsA(
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.internal)
+            .having(
+              (e) => e.message,
+              'message',
+              'test: response is larger than 8388608 bytes',
+            ),
+      ),
+    );
+  });
+
+  test(
+    'an Error in the client is a bug: not retried, not UNAVAILABLE',
+    () async {
+      var calls = 0;
+      final (client, _) = clientFor((req) async {
+        calls++;
+        throw ArgumentError('broken client');
+      });
+      await expectLater(client.decide('m', request()), throwsArgumentError);
+      expect(calls, 1);
+    },
+  );
+
+  test('an error body is cut to 200 characters in details', () {
+    final error = httpError('test', 400, 'y' * 500);
+    expect(error.details, '${'y' * 200}...');
+  });
+
   test('Retry-After reads seconds and dates', () {
     expect(parseRetryAfter('0'), Duration.zero);
     expect(parseRetryAfter('12'), const Duration(seconds: 12));
     expect(parseRetryAfter('Wed, 21 Oct 2015 07:28:00 GMT'), Duration.zero);
     expect(parseRetryAfter('soon'), isNull);
+    expect(parseRetryAfter('-5'), isNull);
+    expect(
+      parseRetryAfter('99999999999999999999999'),
+      const Duration(hours: 1),
+    );
+    final soon = formatHttpDate(DateTime.now().add(const Duration(seconds: 2)));
+    expect(
+      parseRetryAfter(soon),
+      allOf(
+        greaterThan(Duration.zero),
+        lessThanOrEqualTo(const Duration(seconds: 3)),
+      ),
+    );
     expect(parseRetryAfter(null), isNull);
   });
 }

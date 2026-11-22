@@ -43,18 +43,18 @@ base class SystemOneOptions {
 
   /// Parses each text part of the state as JSON, so a prompt template that
   /// renders a JSON document produces an object state rather than a string
-  /// one. A text that is not JSON is an error. A fallback to another model
-  /// takes that model's config, so set it there too, or send the state as a
-  /// data part, which needs no parsing.
+  /// one. A text that is not JSON is an error. Another model takes its own
+  /// config, so set it there too, or send the state as a data part, which
+  /// needs no parsing.
   bool? get stateJSON {
     return _json['stateJSON'] as bool?;
   }
 
   /// Parses each text part of the state as JSON, so a prompt template that
   /// renders a JSON document produces an object state rather than a string
-  /// one. A text that is not JSON is an error. A fallback to another model
-  /// takes that model's config, so set it there too, or send the state as a
-  /// data part, which needs no parsing.
+  /// one. A text that is not JSON is an error. Another model takes its own
+  /// config, so set it there too, or send the state as a data part, which
+  /// needs no parsing.
   set stateJSON(bool? value) {
     if (value == null) {
       _json.remove('stateJSON');

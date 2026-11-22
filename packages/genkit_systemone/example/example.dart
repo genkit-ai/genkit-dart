@@ -38,8 +38,6 @@
 //
 //   genkit start -- dart run example/example.dart
 
-// genkit exports an evaluator `Score`; System One's rubric answer is
-// `ScoreOf`, so hiding it is only needed when an app names both.
 import 'package:genkit/genkit.dart';
 import 'package:genkit_systemone/genkit_systemone.dart';
 
@@ -131,6 +129,8 @@ final class Triage {
 }
 
 void main() {
+  // The plugin makes its own HTTP client here; decisions.close() closes it
+  // when the app is done with the plugin.
   final decisions = SystemOne.openRouter(); // OPENROUTER_API_KEY
   final ai = Genkit(plugins: [decisions]);
 

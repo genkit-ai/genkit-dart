@@ -14,6 +14,7 @@
 
 import 'dart:math' as math;
 
+import 'package:meta/meta.dart';
 import 'package:schemantic/schemantic.dart';
 
 import 'protocol/questions.dart';
@@ -41,6 +42,7 @@ import 'protocol/questions.dart';
 /// ```
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 mixin Option on Enum {
   /// What the option means.
   String get criteria;
@@ -74,6 +76,7 @@ mixin Option on Enum {
 /// ```
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 mixin Rubric on Enum {
   /// What the level means.
   String get description;
@@ -104,6 +107,7 @@ mixin Rubric on Enum {
 /// ```
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 abstract class YesNo {
   const YesNo();
 
@@ -141,6 +145,7 @@ final class NoCriteria extends YesNo {
 /// options go out sorted by name, as they do in Genkit Go and Java.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 final class Choice<T extends Option> {
   Choice({
     required this.choice,
@@ -179,6 +184,9 @@ final class Choice<T extends Option> {
         T option(Object? name) =>
             byName[name] ??
             (throw FormatException('"$name" is not one of the options'));
+        // A probability for a name the enum does not have is left out: the
+        // map is keyed by the enum, and Go keeps such keys in its map rather
+        // than failing the decision.
         return Choice(
           choice: option(map['choice']),
           probabilities: {
@@ -186,9 +194,9 @@ final class Choice<T extends Option> {
               map['probabilities'] ?? const {},
               'probabilities',
             ).entries)
-              option(e.key): (e.value as num).toDouble(),
+              ?byName[e.key]: _number(e.value, 'probability'),
           },
-          confidence: (map['confidence'] as num?)?.toDouble() ?? 0,
+          confidence: _optionalNumber(map['confidence']),
         );
       },
     );
@@ -238,6 +246,7 @@ final class Choice<T extends Option> {
 /// `genkit` evaluator's, which every app imports.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 final class ScoreOf<L extends Rubric> {
   ScoreOf({
     required this.levels,
@@ -285,21 +294,21 @@ final class ScoreOf<L extends Rubric> {
         final map = _object(json, 'score');
         return ScoreOf(
           levels: rubric,
-          score: (map['score'] as num).toDouble(),
+          score: _number(map['score'], 'score'),
           probabilities: {
             for (final e in _object(
               map['probabilities'] ?? const {},
               'probabilities',
             ).entries)
-              e.key: (e.value as num).toDouble(),
+              e.key: _number(e.value, 'probability'),
           },
-          confidence: (map['confidence'] as num?)?.toDouble() ?? 0,
+          confidence: _optionalNumber(map['confidence']),
           legend: {
             for (final e in _object(
               map['legend'] ?? const {},
               'legend',
             ).entries)
-              e.key: e.value as String,
+              e.key: '${e.value}',
           },
         );
       },
@@ -336,7 +345,8 @@ final class ScoreOf<L extends Rubric> {
 /// instructions; [Noul] is the question with no criteria.
 ///
 /// Preview: this API may change in any minor release.
-class NoulOf<C extends YesNo> {
+@experimental
+final class NoulOf<C extends YesNo> {
   NoulOf(this.probability);
 
   /// The probability that the statement is true, from 0 to 1.
@@ -371,6 +381,7 @@ class NoulOf<C extends YesNo> {
 /// is the usual yes/no question.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 final class Noul extends NoulOf<NoCriteria> {
   Noul(super.probability);
 
@@ -383,7 +394,16 @@ final class Noul extends NoulOf<NoCriteria> {
 }
 
 double _probability(Object? json) =>
-    (_object(json, 'noul')['noul'] as num).toDouble();
+    _number(_object(json, 'noul')['noul'], 'noul');
+
+/// A number the answer must carry, or a [FormatException] naming it.
+double _number(Object? value, String field) => value is num
+    ? value.toDouble()
+    : throw FormatException('the answer\'s $field is not a number: $value');
+
+/// A number the answer may leave out, read as 0 when it does, as Go decodes
+/// a missing field.
+double _optionalNumber(Object? value) => value is num ? value.toDouble() : 0;
 
 Map<String, Object?> _object(Object? json, String what) {
   if (json is! Map) {
@@ -421,14 +441,25 @@ final class _DecisionType<T> extends SchemanticType<T> {
   @override
   T parse(Object? json) {
     final map = _object(json, 'decision');
-    return _parse({
+    final answers = {
       for (final e in _questions.entries)
         e.key: e.value.parse(
           map.containsKey(e.key)
               ? map[e.key]
               : throw FormatException('no answer for question "${e.key}"'),
         ),
-    });
+    };
+    try {
+      return _parse(answers);
+      // The build function casts each answer to its question's type; a cast
+      // that fails means the decision's map and its build disagree.
+      // ignore: avoid_catching_errors
+    } on TypeError catch (e) {
+      throw FormatException(
+        'the decision${_description == null ? '' : ' "$_description"'} '
+        'cannot be built from its answers: $e',
+      );
+    }
   }
 
   @override
@@ -479,6 +510,7 @@ final class _DecisionType<T> extends SchemanticType<T> {
 /// ```
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 SchemanticType<T> decisionSchema<T>(
   Map<String, SchemanticType<Object?>> questions,
   T Function(Map<String, Object?> answers) parse, {
@@ -495,6 +527,7 @@ SchemanticType<T> decisionSchema<T>(
 /// [decisionSchema].
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 sealed class Question {
   const Question();
 
@@ -508,6 +541,7 @@ sealed class Question {
 /// Asks for one of its [options], which go out in the order given.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 final class ChoiceQuestion extends Question {
   const ChoiceQuestion({required this.instructions, required this.options});
 
@@ -527,6 +561,7 @@ final class ChoiceQuestion extends Question {
 /// neither criteria nor guidance is described by its name.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 final class ChoiceOption {
   const ChoiceOption(this.name, {this.criteria = '', this.guidance});
 
@@ -539,6 +574,7 @@ final class ChoiceOption {
 /// with [guidance] keyed by level index as [Rubric.guidance] gives it.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 final class ScoreQuestion extends Question {
   const ScoreQuestion({
     required this.instructions,
@@ -562,6 +598,7 @@ final class ScoreQuestion extends Question {
 /// neither does.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 final class NoulQuestion extends Question {
   const NoulQuestion({
     required this.instructions,
@@ -607,6 +644,7 @@ final class NoulQuestion extends Question {
 /// is schemantic's annotation.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 SchemanticType<Map<String, Answer>> questionsSchema(
   Map<String, Question> questions,
 ) {
@@ -638,6 +676,7 @@ SchemanticType<Map<String, Answer>> questionsSchema(
 /// They mean what the same fields of [Choice], [ScoreOf], and [NoulOf] mean.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 final class Answer {
   const Answer({
     this.type = '',
@@ -652,7 +691,7 @@ final class Answer {
   /// Decodes an answer. A missing type is read from the field every answer of
   /// a kind carries: choice, score, or noul.
   factory Answer.fromJson(Map<String, Object?> json) {
-    var type = json['type'] as String? ?? '';
+    var type = json['type'] is String ? json['type'] as String : '';
     if (type.isEmpty) {
       type = [
         kindChoice,
@@ -662,17 +701,18 @@ final class Answer {
     }
     return Answer(
       type: type,
-      choice: json['choice'] as String? ?? '',
-      score: (json['score'] as num?)?.toDouble() ?? 0,
-      probability: (json['noul'] as num?)?.toDouble() ?? 0,
+      choice: json['choice'] is String ? json['choice'] as String : '',
+      score: _optionalNumber(json['score']),
+      probability: _optionalNumber(json['noul']),
       probabilities: {
-        for (final e in (json['probabilities'] as Map? ?? const {}).entries)
-          e.key as String: (e.value as num).toDouble(),
+        if (json['probabilities'] case final Map p)
+          for (final e in p.entries)
+            '${e.key}': _number(e.value, 'probability'),
       },
-      confidence: (json['confidence'] as num?)?.toDouble() ?? 0,
+      confidence: _optionalNumber(json['confidence']),
       legend: {
-        for (final e in (json['legend'] as Map? ?? const {}).entries)
-          e.key as String: e.value as String,
+        if (json['legend'] case final Map l)
+          for (final e in l.entries) '${e.key}': '${e.value}',
       },
     );
   }

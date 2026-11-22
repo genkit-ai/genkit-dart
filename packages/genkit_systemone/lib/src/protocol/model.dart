@@ -157,6 +157,49 @@ const _answerFields = {
   kindNoul: ['noul'],
 };
 
+/// Checks one wire answer against its compiled question, as Genkit Go and
+/// JS do when their generate loop validates the output against its schema.
+/// Genkit Dart's loop only parses the output, so the check is made here: the
+/// kind's own field is present and of its type, a choice is one of the
+/// question's options, a noul is a probability, and the optional
+/// distribution and confidence are numbers. A score outside the rubric is
+/// clamped below, as Go clamps it, rather than refused.
+void _checkAnswer(String id, WireQuestion q, Map<String, Object?> answer) {
+  Never fail(String what) => throw GenkitException(
+    'systemone: answer for question "$id" $what',
+    status: StatusCode.internal,
+  );
+  bool isNumber(Object? v) => v is num && v.isFinite;
+  switch (q.type) {
+    case kindChoice:
+      final choice = answer['choice'];
+      if (choice is! String) fail('has no choice');
+      final options = q.criteria;
+      if (options is Map && !options.containsKey(choice)) {
+        fail('chose "$choice", which is not one of its options');
+      }
+    case kindScore:
+      if (!isNumber(answer['score'])) fail('has no numeric score');
+    case kindNoul:
+      final noul = answer['noul'];
+      if (!isNumber(noul)) fail('has no numeric noul');
+      if ((noul as num) < 0 || noul > 1) {
+        fail('has noul $noul, which is not a probability');
+      }
+  }
+  if (answer.containsKey('confidence') &&
+      answer['confidence'] != null &&
+      !isNumber(answer['confidence'])) {
+    fail('has a confidence that is not a number');
+  }
+  if (q.type != kindNoul && answer['probabilities'] != null) {
+    final p = answer['probabilities'];
+    if (p is! Map || p.values.any((v) => !isNumber(v))) {
+      fail('has probabilities that are not numbers by option');
+    }
+  }
+}
+
 /// Renders the answers as the message text: for the enum format the chosen
 /// option itself, otherwise a JSON object keyed by question ID whose values
 /// are the answers projected onto the fields the output type declares.
@@ -179,6 +222,7 @@ String answersText(
         status: StatusCode.internal,
       );
     }
+    _checkAnswer(id, q, answer);
     final projected = <String, Object?>{
       for (final field in _answerFields[q.type] ?? const <String>[])
         if (answer.containsKey(field)) field: answer[field],

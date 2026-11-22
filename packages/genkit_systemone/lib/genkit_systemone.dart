@@ -16,7 +16,7 @@
 ///
 /// A decision model does not generate text. It evaluates a state against
 /// typed questions and returns one typed answer per question, with calibrated
-/// probabilities, in a few hundred milliseconds. That makes it a fit for the
+/// probabilities. That makes it a fit for the
 /// decisions inside an application: routing, classification, scoring,
 /// guardrails, and verification.
 ///
@@ -43,7 +43,6 @@ export 'src/questions.dart'
         Choice,
         ChoiceOption,
         ChoiceQuestion,
-        NoCriteria,
         Noul,
         NoulOf,
         NoulQuestion,

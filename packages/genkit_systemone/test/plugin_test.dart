@@ -16,6 +16,7 @@ import 'dart:convert';
 
 import 'package:genkit/genkit.dart' hide Score;
 import 'package:genkit_systemone/genkit_systemone.dart';
+import 'package:genkit_systemone/src/plugin.dart' show hasText, pathEscape;
 import 'package:http/http.dart' as http;
 import 'package:schemantic/schemantic.dart';
 import 'package:test/test.dart';
@@ -464,8 +465,11 @@ void main() {
             promptParts: parts,
             outputSchema: Triage.$schema,
           ),
-          failed(),
+          failed()
+              .withStatus(StatusCode.invalidArgument)
+              .withMessage('systemone: the model reads no image/png media'),
         );
+        expect(server.calls, 0);
         await ai.generate(
           model: plugin.modelRef('@cf/cloudflare/clef'),
           promptParts: parts,
@@ -599,6 +603,59 @@ void main() {
       );
     });
 
+    test('a preset takes the overrides Go allows', () async {
+      final server = FakeServer();
+      final plugin = SystemOne.ollama(
+        baseUrl: 'http://gpu-box:11434',
+        path: '/decide',
+        audio: MediaSupport.supported,
+        httpClient: server.client,
+      );
+      await genkitWith(plugin).generate(
+        model: plugin.modelRef('clef'),
+        promptParts: [
+          TextPart(text: 'Hear this'),
+          MediaPart(media: Media(url: 'data:audio/wav;base64,AAA')),
+        ],
+        outputSchema: Triage.$schema,
+      );
+      final (req, body) = server.last;
+      expect(req.url.toString(), 'http://gpu-box:11434/decide');
+      expect(body['audio'], ['data:audio/wav;base64,AAA']);
+    });
+
+    test('a base URL with no scheme is a configuration error', () {
+      expect(
+        () => SystemOne(provider: 'p', baseUrl: 'decisions.example.com'),
+        throwsA(
+          isA<GenkitException>().having(
+            (e) => e.status,
+            'status',
+            StatusCode.failedPrecondition,
+          ),
+        ),
+      );
+    });
+
+    test('a cancelled call resolves as aborted', () async {
+      final controller = CancellationController();
+      final server = FakeServer(
+        reply: (_) async {
+          controller.cancel('user left');
+          await Future<void>.delayed(const Duration(milliseconds: 200));
+          return http.Response('{}', 200);
+        },
+      );
+      final plugin = typeSafe(server);
+      final result = await genkitWith(plugin).generate(
+        model: plugin.modelRef('jev-1.13.0'),
+        prompt: _ticket,
+        outputSchema: Triage.$schema,
+        cancel: controller.token,
+      );
+      expect(result.finishReason, FinishReason.aborted);
+    });
+
     test('a model named twice is refused', () {
       expect(
         () => SystemOne(
@@ -672,5 +729,35 @@ void main() {
     final plugin = typeSafe(FakeServer());
     expect(plugin.modelRef('jev-1.13.0').name, 'typesafe/jev-1.13.0');
     expect(plugin.modelRef('typesafe/jev-1.13.0').name, 'typesafe/jev-1.13.0');
+  });
+
+  test('path segments are escaped as Go url.PathEscape does', () {
+    expect(pathEscape('@cf'), '@cf');
+    expect(
+      pathEscape(r'a b;c,d?e/f!g$h&i+j:k=l~m'),
+      r'a%20b%3Bc%2Cd%3Fe%2Ff%21g$h&i+j:k=l~m',
+    );
+    expect(pathEscape('é'), '%C3%A9');
+  });
+
+  test('Ollama sees text in turns, parts, and values as Go does', () {
+    expect(hasText(''), isFalse);
+    expect(
+      hasText(<Map<String, Object?>>[
+        {'role': 'user', 'content': ''},
+      ]),
+      isFalse,
+    );
+    expect(
+      hasText(<Map<String, Object?>>[
+        {'role': 'user', 'content': ''},
+        {'role': 'model', 'content': 'hi'},
+      ]),
+      isTrue,
+    );
+    // A message's several values are not turns: any of them is text.
+    expect(hasText(<Object?>['', '']), isTrue);
+    expect(hasText({'ticket': 'x'}), isTrue);
+    expect(hasText(<String, Object?>{}), isFalse);
   });
 }
