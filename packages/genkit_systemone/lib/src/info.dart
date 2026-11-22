@@ -24,12 +24,14 @@ import 'package:genkit/plugin.dart';
 ///
 /// Preview: this API may change in any minor release.
 final class SystemOneInfo {
-  const SystemOneInfo({
+  SystemOneInfo({
     this.model = '',
     this.provider = '',
     this.id = '',
-    this.answers = const {},
-  });
+    Map<String, Map<String, Object?>> answers = const {},
+  }) : answers = Map.unmodifiable({
+         for (final e in answers.entries) e.key: _frozen(e.value),
+       });
 
   /// Reads the info from its JSON, such as a response's `raw`, a flow's
   /// output, or a stored trace.
@@ -49,7 +51,7 @@ final class SystemOneInfo {
   /// generate call's result. It is empty for a response from any other model.
   static SystemOneInfo of(ModelResponse? response) {
     final raw = response?.raw;
-    if (raw == null) return const SystemOneInfo();
+    if (raw == null) return SystemOneInfo();
     return SystemOneInfo.fromJson(raw);
   }
 
@@ -63,7 +65,8 @@ final class SystemOneInfo {
   /// A gateway's generation ID; empty from a model vendor's own API.
   final String id;
 
-  /// The answers as the API sent them, keyed by question ID.
+  /// The answers as the API sent them, keyed by question ID: a deep,
+  /// unmodifiable copy, so it does not alias the response's `raw`.
   final Map<String, Map<String, Object?>> answers;
 
   Map<String, Object?> toJson() => {
@@ -76,3 +79,15 @@ final class SystemOneInfo {
   @override
   String toString() => 'SystemOneInfo${toJson()}';
 }
+
+/// A deep, unmodifiable copy of a JSON value.
+Map<String, Object?> _frozen(Map<String, Object?> map) =>
+    Map.unmodifiable({for (final e in map.entries) e.key: _freeze(e.value)});
+
+Object? _freeze(Object? value) => switch (value) {
+  Map() => Map<String, Object?>.unmodifiable({
+    for (final e in value.entries) '${e.key}': _freeze(e.value),
+  }),
+  List() => List<Object?>.unmodifiable(value.map(_freeze)),
+  _ => value,
+};

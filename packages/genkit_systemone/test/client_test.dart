@@ -191,7 +191,16 @@ void main() {
     final call = client.decide('m', request(), cancel: controller.token);
     await Future<void>.delayed(const Duration(milliseconds: 20));
     controller.cancel('caller gave up');
-    await expectLater(call, throwsA(isA<CancelledException>()));
+    await expectLater(
+      call,
+      throwsA(
+        isA<CancelledException>().having(
+          (e) => e.message,
+          'message',
+          'caller gave up',
+        ),
+      ),
+    );
     expect(watch.elapsed, lessThan(const Duration(seconds: 1)));
   });
 
@@ -232,7 +241,7 @@ void main() {
     expect(delays, [const Duration(seconds: 30)]);
   });
 
-  test('a usage field that is not a number is left out', () async {
+  test('a usage count missing or not a number is null, not 0', () async {
     final (client, _) = clientFor(
       (req) async => http.Response(
         '{"model":"m","answers":{},"usage":{"input_tokens":"312","cost":"x"}}',
@@ -240,8 +249,104 @@ void main() {
       ),
     );
     final resp = await client.decide('m', request());
-    expect(resp.inputTokens, 0);
+    expect(resp.inputTokens, isNull);
+    expect(resp.outputTokens, isNull);
     expect(resp.cost, isNull);
+  });
+
+  group('a response that is not an answer is INTERNAL', () {
+    for (final (what, body, message) in [
+      ('not JSON', 'oops', 'response is not a System One answer'),
+      ('not an object', '[1, 2]', 'not an object'),
+      (
+        'answers not an object of objects',
+        '{"answers": {"u": 1}}',
+        'answers is not an object of answers',
+      ),
+    ]) {
+      test(what, () async {
+        final (client, _) = clientFor((req) async => http.Response(body, 200));
+        await expectLater(
+          client.decide('m', request()),
+          throwsA(
+            isA<GenkitException>()
+                .having((e) => e.status, 'status', StatusCode.internal)
+                .having((e) => e.message, 'message', contains(message)),
+          ),
+        );
+      });
+    }
+  });
+
+  test('a request with no JSON form is INVALID_ARGUMENT', () async {
+    final cyclic = <String, Object?>{};
+    cyclic['self'] = cyclic;
+    for (final extra in <Map<String, Object?>>[
+      {'trace': cyclic},
+      {'trace': Object()},
+    ]) {
+      final (client, _) = clientFor((req) async => http.Response(_answer, 200));
+      await expectLater(
+        client.decide('m', request(extra: extra)),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', StatusCode.invalidArgument)
+              .having((e) => e.message, 'message', contains('not JSON')),
+        ),
+      );
+    }
+  });
+
+  group('a route', () {
+    Future<void> expectRoute(
+      RouteFn route,
+      StatusCode status,
+      Object message,
+    ) async {
+      var calls = 0;
+      final (client, _) = clientFor((req) async {
+        calls++;
+        return http.Response(_answer, 200);
+      }, endpoint: Endpoint(name: 'routed', path: '', route: route));
+      await expectLater(
+        client.decide('m', request()),
+        throwsA(
+          isA<GenkitException>()
+              .having((e) => e.status, 'status', status)
+              .having((e) => e.message, 'message', message),
+        ),
+      );
+      expect(calls, 0);
+    }
+
+    test('that throws a GenkitException is reported as it is', () async {
+      await expectRoute(
+        (_, _) => throw GenkitException('no', status: StatusCode.notFound),
+        StatusCode.notFound,
+        'no',
+      );
+    });
+
+    test('that throws anything else is UNKNOWN under the provider', () async {
+      await expectRoute(
+        (_, _) => throw StateError('bad route'),
+        StatusCode.unknown,
+        allOf(startsWith('routed: '), contains('bad route')),
+      );
+    });
+
+    test('that returns no body is INVALID_ARGUMENT', () async {
+      await expectRoute(
+        (_, _) => (path: '/x', body: null),
+        StatusCode.invalidArgument,
+        'routed: the route returned no body',
+      );
+    });
+  });
+
+  test('a server message is cut at 500 characters', () {
+    final error = httpError('test', 400, jsonEncode({'message': 'z' * 900}));
+    expect(error.message, 'test: HTTP 400: ${'z' * 500}...');
   });
 
   group('status mapping', () {
@@ -427,11 +532,14 @@ void main() {
     await expectLater(
       client.decide('m', request()),
       throwsA(
-        isA<GenkitException>().having(
-          (e) => e.message,
-          'message',
-          contains('HTTP 302'),
-        ),
+        isA<GenkitException>()
+            .having((e) => e.status, 'status', StatusCode.failedPrecondition)
+            .having(
+              (e) => e.message,
+              'message',
+              'test: HTTP 302: the server redirects, and redirects are not '
+                  'followed; set the base URL to the final one',
+            ),
       ),
     );
     expect(seen.followRedirects, isFalse);

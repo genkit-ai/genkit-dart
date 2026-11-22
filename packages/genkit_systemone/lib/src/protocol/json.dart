@@ -39,13 +39,19 @@ final class RawJson {
 }
 
 /// Encodes [value] as JSON, with any [RawJson] in it written as its text.
+///
+/// A value that contains itself throws a [JsonCyclicError], as [jsonEncode]
+/// does, rather than recursing until the stack runs out.
 String encodeJson(Object? value) {
   final out = StringBuffer();
-  _write(out, value);
+  _write(out, value, Set.identity());
   return out.toString();
 }
 
-void _write(StringBuffer out, Object? value) {
+void _write(StringBuffer out, Object? value, Set<Object> open) {
+  if (value is Map || value is Iterable) {
+    if (!open.add(value!)) throw JsonCyclicError(value);
+  }
   switch (value) {
     case RawJson(:final text):
       out.write(text);
@@ -57,7 +63,7 @@ void _write(StringBuffer out, Object? value) {
         first = false;
         out.write(jsonEncode(entry.key.toString()));
         out.write(':');
-        _write(out, entry.value);
+        _write(out, entry.value, open);
       }
       out.write('}');
     case Iterable():
@@ -66,11 +72,12 @@ void _write(StringBuffer out, Object? value) {
       for (final item in value) {
         if (!first) out.write(',');
         first = false;
-        _write(out, item);
+        _write(out, item, open);
       }
       out.write(']');
     default:
       // Scalars, and objects with a toJson, which jsonEncode calls.
       out.write(jsonEncode(value));
   }
+  if (value is Map || value is Iterable) open.remove(value);
 }

@@ -637,23 +637,156 @@ void main() {
       );
     });
 
-    test('a cancelled call resolves as aborted', () async {
-      final controller = CancellationController();
-      final server = FakeServer(
-        reply: (_) async {
-          controller.cancel('user left');
-          await Future<void>.delayed(const Duration(milliseconds: 200));
-          return http.Response('{}', 200);
+    test('a cancelled call returns at once, resolved as aborted', () async {
+      // The server would answer validly, but late: only the cancel can make
+      // the call return early and aborted.
+      final server = FakeServer();
+      final slow = FakeServer(
+        reply: (req) async {
+          await Future<void>.delayed(const Duration(seconds: 2));
+          return server.client.send(req).then(http.Response.fromStream);
         },
       );
-      final plugin = typeSafe(server);
-      final result = await genkitWith(plugin).generate(
+      final plugin = typeSafe(slow);
+      final controller = CancellationController();
+      final watch = Stopwatch()..start();
+      final call = genkitWith(plugin).generate(
         model: plugin.modelRef('jev-1.13.0'),
         prompt: _ticket,
         outputSchema: Triage.$schema,
         cancel: controller.token,
       );
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      controller.cancel('user left');
+      final result = await call;
+      expect(watch.elapsed, lessThan(const Duration(seconds: 1)));
       expect(result.finishReason, FinishReason.aborted);
+      expect(result.output, isNull);
+    });
+
+    test('a config of the wrong type is INVALID_ARGUMENT', () async {
+      final server = FakeServer();
+      final plugin = typeSafe(server);
+      final ai = genkitWith(plugin);
+      for (final config in [
+        {'extra': 'not an object'},
+        {'stateJSON': 'yes'},
+      ]) {
+        final result = await ai.generate(
+          model: modelRef<Map<String, dynamic>>(
+            'typesafe/jev-1.13.0',
+            config: config,
+          ),
+          prompt: _ticket,
+          outputSchema: Triage.$schema,
+        );
+        expect(
+          result,
+          failed()
+              .withStatus(StatusCode.invalidArgument)
+              .withMessage(contains('does not fit SystemOneOptions')),
+        );
+      }
+      expect(server.calls, 0);
+    });
+
+    test('a missing usage leaves the counts null', () async {
+      final server = FakeServer(usage: {});
+      final plugin = typeSafe(server);
+      final result = await genkitWith(plugin).generate(
+        model: plugin.modelRef('jev-1.13.0'),
+        prompt: _ticket,
+        outputSchema: Triage.$schema,
+      );
+      expect(result.usage?.inputTokens, isNull);
+      expect(result.usage?.totalTokens, isNull);
+    });
+
+    group('preset models, as in Go', () {
+      test('an entry with a known ID replaces its whole spec', () async {
+        final server = FakeServer();
+        final plugin = SystemOne.workersAI(
+          accountId: 'a',
+          httpClient: server.client,
+          configVar: env({'CLOUDFLARE_API_TOKEN': 'cf'}),
+          models: {'@cf/cloudflare/clef-omni': ModelSpec(label: 'Omni')},
+        );
+        final result = await genkitWith(plugin).generate(
+          model: plugin.modelRef('@cf/cloudflare/clef-omni'),
+          promptParts: [
+            TextPart(text: 'Hear this'),
+            MediaPart(media: Media(url: 'data:audio/wav;base64,AAA')),
+          ],
+          outputSchema: Triage.$schema,
+        );
+        // The preset's audio support went with the spec it replaced.
+        expect(
+          result,
+          failed().withMessage(contains('reads no audio/wav media')),
+        );
+        final listed = await plugin.list();
+        final omni = listed.firstWhere(
+          (a) => a.name == 'cloudflare-decisions/@cf/cloudflare/clef-omni',
+        );
+        expect((omni.metadata['model'] as Map)['label'], 'Omni');
+      });
+
+      test('a new entry is added beside the preset models', () async {
+        final plugin = SystemOne.typeSafe(
+          httpClient: FakeServer().client,
+          configVar: env({'TYPESAFE_API_KEY': 'k'}),
+          models: {'typesafe/jev-1.14.0': ModelSpec(label: 'jev next')},
+        );
+        final names = (await plugin.list()).map((a) => a.name);
+        expect(
+          names,
+          containsAll([
+            'typesafe/jev-1.13.0',
+            'typesafe/jev-latest',
+            'typesafe/jev-1.14.0',
+          ]),
+        );
+      });
+
+      test('a full name for a preset model is refused', () {
+        expect(
+          () => SystemOne.typeSafe(
+            configVar: env({'TYPESAFE_API_KEY': 'k'}),
+            models: {'typesafe/jev-1.13.0': ModelSpec(label: 'x')},
+          ),
+          throwsA(
+            isA<GenkitException>()
+                .having(
+                  (e) => e.status,
+                  'status',
+                  StatusCode.failedPrecondition,
+                )
+                .having(
+                  (e) => e.message,
+                  'message',
+                  contains(
+                    'already defined by the preset as jev-1.13.0; use the bare ID',
+                  ),
+                ),
+          ),
+        );
+      });
+    });
+
+    test('a preset takes its provider name, and Ollama a key', () async {
+      final server = FakeServer();
+      final plugin = SystemOne.ollama(
+        provider: 'clef-proxy',
+        apiKey: 'proxy-key',
+        httpClient: server.client,
+      );
+      expect(plugin.name, 'clef-proxy');
+      await genkitWith(plugin).generate(
+        model: plugin.modelRef('clef'),
+        prompt: _ticket,
+        outputSchema: Triage.$schema,
+      );
+      expect(server.last.$1.headers['Authorization'], 'Bearer proxy-key');
     });
 
     test('a model named twice is refused', () {

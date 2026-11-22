@@ -130,7 +130,7 @@ BuiltState buildState(
 /// Reads the state out of messages and documents, and collects the media it
 /// meets on the way.
 /// What a part, message, or document that contributes nothing to the state
-/// yields, so that a data part whose value is null still sends null.
+/// yields, told apart from a value.
 const Object nothing = _Nothing();
 
 final class _Nothing {
@@ -145,7 +145,7 @@ final class _StateBuilder {
 
   /// A message's contribution to the state: the value of its one part, or
   /// the values of all of them. A message with nothing to contribute yields
-  /// [nothing]; a data part whose value is null contributes null.
+  /// [nothing].
   Object? messageValue(List<Part> content, {required bool stateJson}) {
     final values = <Object?>[];
     for (final part in content) {
@@ -182,8 +182,9 @@ final class _StateBuilder {
       _collect(part.media!);
       return nothing;
     }
-    // A data part is sent as its value, null included.
-    if (part.isData) return part.data;
+    // A data part is sent as its value; one whose value is null contributes
+    // nothing, as in Go.
+    if (part.isData) return part.data ?? nothing;
     throw _invalidArgument(
       'a ${_partKindName(part)} part cannot be state; the model takes text, '
       'JSON, and media only',

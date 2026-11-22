@@ -63,8 +63,9 @@ final class ModelSpec {
   final String label;
 
   /// Override the plugin's setting for this model. [MediaSupport.unset]
-  /// keeps the plugin's, so an entry that only sets a [label] changes nothing
-  /// else.
+  /// keeps the plugin's. An entry given for a model a constructor already
+  /// describes replaces that model's whole spec, as in Go, so an entry that
+  /// only sets a [label] for Clef-omni also drops its audio and video.
   final MediaSupport images;
   final MediaSupport audio;
   final MediaSupport video;
@@ -147,6 +148,8 @@ final class _Preset {
 final class SystemOne extends GenkitPlugin {
   /// A plugin for the server at [baseUrl].
   ///
+  /// [baseUrl] must be an http or https URL with a host, checked when the
+  /// plugin is built (Go finds out at the first request).
   /// [provider] names the plugin and prefixes its model names, and must
   /// differ from every other plugin's name. [path] is the request path under
   /// [baseUrl]: `/v1/systemone` when null or empty, and `/` for a [baseUrl] that is the
@@ -168,8 +171,9 @@ final class SystemOne extends GenkitPlugin {
   ///
   /// [httpClient] sends the requests, and is the escape hatch to transport
   /// settings, timeouts included; the plugin never closes it. Without one,
-  /// the plugin's own client bounds each attempt to 30 seconds. [headers] are sent on every
-  /// request, before the authorization header.
+  /// the plugin's own client bounds each attempt to 30 seconds. [headers] are
+  /// sent on every request; the key's `Authorization` header replaces one
+  /// given here.
   ///
   /// [route] and [unwrap] serve a server whose wire is not the native one:
   /// [route] builds the request it takes from the native body, and [unwrap]
@@ -216,11 +220,15 @@ final class SystemOne extends GenkitPlugin {
   /// TypeSafe's SDKs read. Pin a version in production: confidence
   /// thresholds tuned against one release do not carry over to the next.
   ///
-  /// [models] adds to the known models. Every constructor takes the settings
-  /// of [SystemOne.new] that its server does not fix, each replacing the
-  /// constructor's default when given, as a field set on Go's struct does.
-  /// [configVar] reads the environment; tests pass their own.
+  /// [models] adds to the known models, and an entry with a known model's
+  /// bare ID replaces that model's spec; a full name for a known model is a
+  /// configuration error, as Go panics on it. Every constructor takes the
+  /// settings of [SystemOne.new] that its server does not fix, [provider]
+  /// included, each replacing the constructor's default when given, as a
+  /// field set on Go's struct does. [configVar] reads the environment; tests
+  /// pass their own.
   factory SystemOne.typeSafe({
+    String? provider,
     String? apiKey,
     String? baseUrl,
     Map<String, ModelSpec> models = const {},
@@ -235,7 +243,7 @@ final class SystemOne extends GenkitPlugin {
     SystemOneUnwrap? unwrap,
     String? Function(String name) configVar = getConfigVar,
   }) => SystemOne._(
-    provider: 'typesafe',
+    provider: provider ?? 'typesafe',
     baseUrl: baseUrl,
     path: path,
     modelsPath: modelsPath ?? '/v1/models',
@@ -245,11 +253,11 @@ final class SystemOne extends GenkitPlugin {
     route: route,
     unwrap: unwrap,
     apiKey: apiKey,
-    models: {
+    presetModels: {
       'jev-latest': const ModelSpec(),
       'jev-1.13.0': const ModelSpec(),
-      ...models,
     },
+    models: models,
     httpClient: httpClient,
     headers: headers,
     preset: const _Preset(
@@ -279,6 +287,7 @@ final class SystemOne extends GenkitPlugin {
   /// model or a provider that drops them and answers without them, so a
   /// request with media is refused before it is sent.
   factory SystemOne.openRouter({
+    String? provider,
     String? apiKey,
     String? baseUrl,
     Map<String, ModelSpec> models = const {},
@@ -293,7 +302,7 @@ final class SystemOne extends GenkitPlugin {
     SystemOneUnwrap? unwrap,
     String? Function(String name) configVar = getConfigVar,
   }) => SystemOne._(
-    provider: 'openrouter-decisions',
+    provider: provider ?? 'openrouter-decisions',
     baseUrl: baseUrl,
     path: path ?? '/api/alpha/decisions',
     modelsPath: modelsPath ?? '/api/v1/models?output_modalities=decisions',
@@ -303,14 +312,14 @@ final class SystemOne extends GenkitPlugin {
     route: route,
     unwrap: unwrap,
     apiKey: apiKey,
-    models: {
+    presetModels: {
       'cloudflare/clef': const ModelSpec(),
       'cloudflare/clef-flash': const ModelSpec(),
       'liquid/d1': const ModelSpec(),
       'typesafe/jev-1.13': const ModelSpec(),
       '~typesafe/jev-latest': const ModelSpec(),
-      ...models,
     },
+    models: models,
     httpClient: httpClient,
     headers: headers,
     preset: const _Preset(
@@ -334,6 +343,8 @@ final class SystemOne extends GenkitPlugin {
   /// plugin converts, and requires text in the state, so a request with no
   /// text, such as one of images alone, is refused before it is sent.
   factory SystemOne.ollama({
+    String? provider,
+    String? apiKey,
     String? baseUrl,
     Map<String, ModelSpec> models = const {},
     http.Client? httpClient,
@@ -346,9 +357,9 @@ final class SystemOne extends GenkitPlugin {
     SystemOneRoute? route,
     SystemOneUnwrap? unwrap,
   }) => SystemOne._(
-    provider: 'ollama-decisions',
+    provider: provider ?? 'ollama-decisions',
     baseUrl: baseUrl,
-    apiKey: null,
+    apiKey: apiKey,
     path: path,
     modelsPath: modelsPath ?? '',
     route: route ?? ollamaRoute,
@@ -356,7 +367,8 @@ final class SystemOne extends GenkitPlugin {
     images: images ?? MediaSupport.supported,
     audio: audio ?? MediaSupport.unset,
     video: video ?? MediaSupport.unset,
-    models: {'clef': const ModelSpec(), ...models},
+    presetModels: {'clef': const ModelSpec()},
+    models: models,
     httpClient: httpClient,
     headers: headers,
     preset: const _Preset(label: 'Ollama', baseUrl: 'http://localhost:11434'),
@@ -380,6 +392,7 @@ final class SystemOne extends GenkitPlugin {
   /// Workers AI names one model per release, with no versions, so a
   /// threshold tuned against a model can move when Cloudflare updates it.
   factory SystemOne.workersAI({
+    String? provider,
     String? accountId,
     String? apiToken,
     String? baseUrl,
@@ -395,7 +408,7 @@ final class SystemOne extends GenkitPlugin {
     SystemOneUnwrap? unwrap,
     String? Function(String name) configVar = getConfigVar,
   }) => SystemOne._(
-    provider: 'cloudflare-decisions',
+    provider: provider ?? 'cloudflare-decisions',
     baseUrl: baseUrl,
     path: path ?? '/ai/run',
     modelsPath: modelsPath ?? '',
@@ -405,7 +418,7 @@ final class SystemOne extends GenkitPlugin {
     images: images ?? MediaSupport.supported,
     audio: audio ?? MediaSupport.unset,
     video: video ?? MediaSupport.unset,
-    models: {
+    presetModels: {
       '@cf/cloudflare/clef': const ModelSpec(),
       '@cf/cloudflare/clef-flash': const ModelSpec(),
       '@cf/cloudflare/clef-omni': const ModelSpec(
@@ -413,8 +426,8 @@ final class SystemOne extends GenkitPlugin {
         video: MediaSupport.supported,
       ),
       'typesafe/jev': const ModelSpec(images: MediaSupport.unsupported),
-      ...models,
     },
+    models: models,
     httpClient: httpClient,
     headers: headers,
     preset: _Preset(
@@ -433,6 +446,7 @@ final class SystemOne extends GenkitPlugin {
     String? path,
     String modelsPath = '',
     required String? apiKey,
+    Map<String, ModelSpec> presetModels = const {},
     required Map<String, ModelSpec> models,
     MediaSupport images = MediaSupport.unset,
     MediaSupport audio = MediaSupport.unset,
@@ -504,11 +518,24 @@ final class SystemOne extends GenkitPlugin {
     );
     if (requestPath == '/') requestPath = '';
 
+    // As in Go: the caller's models are added to the constructor's, and an
+    // entry with a known model's ID replaces that model's whole spec. A full
+    // name for a model the constructor defines is refused, as Go panics on a
+    // model named twice.
+    _models.addAll(presetModels);
+    final named = <String>{};
     for (final MapEntry(:key, :value) in models.entries) {
       final id = _trimProvider(key);
-      if (_models.containsKey(id)) {
+      if (!named.add(id)) {
         throw GenkitException(
           '$provider: models names $id twice, by its ID and by its full name',
+          status: StatusCode.failedPrecondition,
+        );
+      }
+      if (key != id && presetModels.containsKey(id)) {
+        throw GenkitException(
+          '$provider: models names $key, which is already defined by the '
+          'preset as $id; use the bare ID',
           status: StatusCode.failedPrecondition,
         );
       }

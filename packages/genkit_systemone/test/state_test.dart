@@ -107,9 +107,7 @@ void main() {
       );
     });
 
-    test('a data part with a null value sends null', () {
-      // As it arrives from JSON, such as the Dev UI's; core encodes a
-      // DataPart built with null as {}, which carries nothing to send.
+    test('a data part with a null value is dropped, as in Go', () {
       expect(
         build([
           user([
@@ -117,7 +115,25 @@ void main() {
             Part.fromJson({'data': null}),
           ]),
         ]).state,
-        ['a', null],
+        'a',
+      );
+      // A turn with nothing left is skipped.
+      expect(
+        build([
+          user([text('a')]),
+          model([
+            Part.fromJson({'data': null}),
+          ]),
+        ]).state,
+        'a',
+      );
+      expect(
+        () => build([
+          user([
+            Part.fromJson({'data': null}),
+          ]),
+        ]),
+        throwsInvalid(contains('the request carries no state')),
       );
     });
 
@@ -296,13 +312,33 @@ void main() {
       );
     });
 
-    test('a URL is refused rather than fetched', () {
-      expect(
-        () => build([
-          user([media('https://example.com/a.png', 'image/png')]),
-        ], reads: reads),
-        throwsInvalid(contains('take inline media only')),
-      );
+    test('a URL is refused rather than fetched, and never echoed', () {
+      for (final url in [
+        'https://example.com/a.png?token=secret',
+        'HTTPS://example.com/a.png?token=secret',
+        'gs://example.com/a.png',
+      ]) {
+        expect(
+          () => build([
+            user([media(url, 'image/png')]),
+          ], reads: reads),
+          throwsInvalid(
+            allOf(
+              contains('take inline media only'),
+              isNot(contains('example.com')),
+              isNot(contains('secret')),
+            ),
+          ),
+          reason: url,
+        );
+      }
+    });
+
+    test('the scheme and the base64 token are read without case', () {
+      final built = build([
+        user([media('DATA:image/PNG;BASE64,AAA')]),
+      ], reads: reads);
+      expect(built.media.images, ['data:image/png;base64,AAA']);
     });
   });
 }

@@ -271,7 +271,9 @@ leave that prompt out of the messages.
 
 - One message is sent as its value: the string of a text part, or the JSON of a
   data part. `promptParts: [DataPart(data: {...})]` sends any value as an
-  object state, so that a question can name a field.
+  object state, so that a question can name a field. A data part whose value
+  is null contributes nothing, as in Go, and a turn left with nothing is
+  skipped.
 - Several messages are sent as a list of `{role, content}` records, roles
   included, so a question can refer to what the user said and what the model
   said.
@@ -305,9 +307,8 @@ media before the request is sent, kind by kind, unless its `images`, `audio`,
 or `video` is `MediaSupport.supported`. `SystemOne.ollama()` and
 `SystemOne.workersAI()` set `images`, and so does a server of your own that
 takes images. A model's `ModelSpec` overrides the plugin's setting, kind by
-kind, either way: Clef-omni on Workers AI also reads audio and video. Its
-default keeps the plugin's, so an entry that only sets a `label` changes
-nothing else.
+kind, either way: Clef-omni on Workers AI also reads audio and video. A
+`ModelSpec` field left at `MediaSupport.unset` keeps the plugin's setting.
 
 ## Servers
 
@@ -323,8 +324,9 @@ ships.
 | `SystemOne.workersAI()`  | `cloudflare-decisions/@cf/cloudflare/clef`, `…/clef-flash`, `…/clef-omni`, `cloudflare-decisions/typesafe/jev` | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_ACCOUNT_ID` unless `accountId` is given; Clef models read images, Clef-omni audio and video too; a long state is truncated; no versions to pin |
 
 Each constructor also takes the settings Go lets a caller change on the struct
-it returns (`path`, `modelsPath`, `images`, `audio`, `video`, `route`,
-`unwrap`), each replacing the constructor's default when given.
+it returns (`provider`, `path`, `modelsPath`, `images`, `audio`, `video`,
+`route`, `unwrap`), each replacing the constructor's default when given;
+`SystemOne.ollama()` takes an `apiKey` too, for an authenticating proxy.
 
 Keys and accounts are read from the arguments, then from the environment,
 when the plugin is built, which fails when a required one is missing. A
@@ -448,47 +450,78 @@ final wrapped = SystemOne(
 
 `models` describes the models known ahead, keyed by the server's ID or by the
 full model name; they are listed in the Dev UI with whatever the server's
-listing adds. Genkit's registry keeps the first listing for the life of the
-process, so a listing that fails (logged as a warning) lists the known models
-alone until the app restarts; Go retries it after a minute. `httpClient` and
-`headers` are
-the escape hatches to the transport, and `SystemOneOptions(extra: {...})`
-merges fields into the request body that the plugin does not model, such as a
-gateway's `session_id` or `trace`; it cannot replace a field the request builds
-itself.
+listing adds. On a constructor, as in Go, they are added to the constructor's
+models, and an entry with a known model's bare ID replaces that model's whole
+spec, so a `label`-only entry for Clef-omni also drops its audio and video. A
+full name for a model the constructor already defines
+(`typesafe/jev-1.13.0` on `SystemOne.typeSafe()`) is a configuration error.
+Genkit's registry keeps the first listing for the life of the process, so a
+listing that fails (logged as a warning) lists the known models alone until the
+app restarts; Go retries it after a minute.
 
-Requests that fail to connect, time out, are rate limited, or hit a server
-error are retried twice, with `Retry-After` honored. The plugin's own HTTP
-client gives an attempt 30 seconds; an `httpClient` you pass keeps its own
-timeouts. A cancelled request stops at once, on any client, and resolves
-`generate` as aborted. Redirects are not followed, so the key never goes to
-another host, and a response over 8 MiB is refused rather than cut.
+`httpClient` and `headers` are the escape hatches to the transport; the key's
+`Authorization` header replaces one given in `headers`.
+`SystemOneOptions(extra: {...})` merges fields into the request body that the
+plugin does not model, such as a gateway's `session_id` or `trace`; it cannot
+replace a field the request builds itself. A config field of the wrong type is
+`INVALID_ARGUMENT`. The key is the plugin's: there is no per-request key.
+
+Requests that fail to connect, time out, are rate limited (429), or hit a
+server error other than 501 and 505 are retried twice, waiting half a second
+doubling to five with jitter, or for `Retry-After` up to 30 seconds. The
+plugin's own HTTP client gives an attempt 30 seconds; an `httpClient` you pass
+keeps its own timeouts. Any `Exception` the client throws counts as a transport
+failure; an `Error` propagates unretried.
+
+A cancelled call returns at once and resolves `generate` as aborted, on any
+client; the HTTP request itself is aborted only on a client that supports
+`AbortableRequest`.
+
+A 3xx is `FAILED_PRECONDITION` and not retried: no redirect is followed, so
+the key's handling never depends on the transport's redirect rules. That holds
+on native platforms; in a browser, `BrowserClient` follows or refuses a
+redirect by the browser's rules. A response over 8 MiB is refused with
+`INTERNAL` rather than cut.
 
 Error statuses map onto Genkit's: 402 is `RESOURCE_EXHAUSTED`, 408, 504, and
 Cloudflare's 524 are `DEADLINE_EXCEEDED`, 501 and 505 are `UNIMPLEMENTED`, 500
-is `INTERNAL`, every other 5xx is `UNAVAILABLE`, and a client error the canonical mapping does not name,
-such as 422, is `INVALID_ARGUMENT`. As with every Genkit Dart model, a failed
-request resolves `generate` with `finishReason: failed` and the error on
+is `INTERNAL`, every other 5xx is `UNAVAILABLE`, and a client error the
+canonical mapping does not name, such as 422, is `INVALID_ARGUMENT`. The
+server's message is cut at 500 characters. As with every Genkit Dart model, a
+failed request resolves `generate` with `finishReason: failed` and the error on
 `result.error`, rather than throwing.
+
+A `route` that throws a `GenkitException` is reported as it is, anything else
+as `UNKNOWN` under the provider's name, as in Go; a route that returns no body
+is `INVALID_ARGUMENT`. A route sees a state parsed with `stateJSON` as an
+opaque value that is sent as the JSON text it was given.
 
 Genkit Go and JS validate a model's output against its schema in the generate
 loop; Genkit Dart's loop only parses it. So the plugin checks each answer
-before it reaches the decision type: the answer is there, its kind's field is
-present and a number or a string as it should be, a choice is one of the
-question's options (in the enum format too), and a noul is between 0 and 1.
-A failed check fails the call with `INTERNAL`. A score outside the rubric is
-clamped, as Go clamps it. A missing `confidence` reads as 0, as Go decodes it,
-and a probability for a name the option enum lacks is left out of
-`Choice.probabilities` (it stays on `SystemOneInfo.answers`).
+against its question before it reaches the decision type, on the fields the
+answer is projected onto: the answer is there, its kind's field is present and
+of its type, a choice is one of the question's options (in the enum format
+too), and a noul, a confidence, and every probability are finite numbers from 0
+to 1. A field sent as null is malformed. A failed check fails the call with
+`INTERNAL`. A score outside the rubric is clamped, as Go clamps it. A missing
+`confidence` reads as 0, as Go decodes it. A probability for an option or a
+level number the question lacks is left out of `Choice.probabilities` and
+`ScoreOf.probabilities`, where Go keeps it in its map; it stays on
+`SystemOneInfo.answers`, an unmodifiable copy of what the server sent.
 
-A decision type's build function that casts an answer to the wrong type throws
-a `FormatException` naming the decision, and core's `generate` lets a parse
-error of the typed output escape as that exception rather than as a failed
-response.
+When the server reports no usage, `usage.inputTokens`, `outputTokens`, and
+`totalTokens` are null rather than 0. The answer comes back as a text part
+holding the JSON; Go's part carries an `application/json` content type, which
+Genkit Dart's `TextPart` has no field for.
 
-A plugin with a missing key, account, or base URL, or a base URL that is not
-an http or https URL, fails when it is built, with `FAILED_PRECONDITION`. Go
-panics in `Init` instead.
+A decision's build function that casts an answer to the wrong type throws a
+`FormatException`, which names the decision when `decisionSchema` was given a
+description; core's `generate` lets a parse error of the typed output escape
+as that exception rather than as a failed response.
+
+A plugin with a missing key, account, or base URL fails when it is built, with
+`FAILED_PRECONDITION`; Go panics in `Init`. So does a base URL that is not an
+http or https URL with a host, which Go finds out only at the first request.
 
 When the plugin makes its own HTTP client, `close()` closes it; a client you
 pass is yours to close.

@@ -31,7 +31,10 @@
 /// `SystemOne.workersAI` set it up for the known ones.
 ///
 /// Preview: this API may change in any minor release.
+@experimental
 library;
+
+import 'package:meta/meta.dart';
 
 export 'src/info.dart' show SystemOneInfo;
 export 'src/options.dart' show SystemOneOptions;

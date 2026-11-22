@@ -215,4 +215,121 @@ void main() {
       ),
     );
   });
+
+  group('the checked fields', () {
+    for (final (what, answers, message)
+        in <(String, Map<String, Object?>, String)>[
+          (
+            'a choice that is not a string',
+            {
+              ..._valid,
+              'dept': {'choice': 3},
+            },
+            'has no choice',
+          ),
+          (
+            'a confidence that is not a number',
+            {
+              ..._valid,
+              'dept': {'choice': 'billing', 'confidence': 'high'},
+            },
+            'has confidence high',
+          ),
+          (
+            'a confidence above 1',
+            {
+              ..._valid,
+              'anger': {'score': 1, 'confidence': 1.5},
+            },
+            'has confidence 1.5',
+          ),
+          (
+            'a confidence sent as null',
+            {
+              ..._valid,
+              'dept': {'choice': 'billing', 'confidence': null},
+            },
+            'has confidence null',
+          ),
+          (
+            'a probability below 0',
+            {
+              ..._valid,
+              'anger': {
+                'score': 1,
+                'probabilities': {'0': -0.1, '1': 1.1},
+              },
+            },
+            'has probabilities that are not numbers from 0 to 1',
+          ),
+          (
+            'a negative noul',
+            {
+              ..._valid,
+              'urgent': {'noul': -0.01},
+            },
+            'has noul -0.01, which is not a probability',
+          ),
+        ]) {
+      test('$what fails the call', () async {
+        expect(await decide(answers), failsWith(contains(message)));
+      });
+    }
+
+    test('a noul of 0 or 1 is a probability', () async {
+      for (final noul in [0, 1]) {
+        final result = await decide({
+          ..._valid,
+          'urgent': {'noul': noul},
+        });
+        expect(result.finishReason, FinishReason.stop, reason: '$noul');
+      }
+    });
+
+    test('a noul is checked on its own field only', () async {
+      // A noul answer is projected onto noul alone, so what else it carries
+      // is not checked.
+      final result = await decide({
+        ..._valid,
+        'urgent': {'noul': 0.5, 'confidence': 'n/a'},
+      });
+      expect(result.finishReason, FinishReason.stop);
+    });
+
+    test('a score a hair below 0 is clamped to 0', () async {
+      final result = await decide({
+        ..._valid,
+        'anger': {'score': -1e-17},
+      });
+      final answers = result.output! as Map<String, Object?>;
+      expect((answers['anger']! as ScoreOf<Anger>).score, 0);
+    });
+
+    test('a level number the rubric lacks is left out of a score', () async {
+      final result = await decide({
+        ..._valid,
+        'anger': {
+          'score': 1,
+          'probabilities': {'1': 0.9, '7': 0.1},
+        },
+      });
+      final answers = result.output! as Map<String, Object?>;
+      expect((answers['anger']! as ScoreOf<Anger>).probabilities, {'1': 0.9});
+      expect(
+        SystemOneInfo.of(
+          result.modelResponse,
+        ).answers['anger']?['probabilities'],
+        {'1': 0.9, '7': 0.1},
+      );
+    });
+  });
+
+  test('the info does not alias the response it was read from', () async {
+    final result = await decide(_valid);
+    final info = SystemOneInfo.of(result.modelResponse);
+    expect(
+      () => (info.answers['dept']! as Map)['choice'] = 'other',
+      throwsUnsupportedError,
+    );
+  });
 }

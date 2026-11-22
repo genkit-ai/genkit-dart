@@ -87,10 +87,25 @@ Future<ModelResponse> _generate(
       status: StatusCode.invalidArgument,
     );
   }
-  final opts = req.config == null
-      ? SystemOneOptions()
-      : SystemOneOptions.$schema.parse(req.config!);
-  final extra = opts.extra;
+  // The generated options cast lazily, so a field of the wrong type is read
+  // here, where it can be reported as the caller's mistake.
+  final Map<String, dynamic>? extra;
+  final bool stateJson;
+  try {
+    final opts = req.config == null
+        ? SystemOneOptions()
+        : SystemOneOptions.$schema.parse(req.config!);
+    extra = opts.extra;
+    stateJson = opts.stateJSON ?? false;
+    // A cast of the config is a TypeError, an Error by type only.
+    // ignore: avoid_catching_errors
+  } on TypeError {
+    throw GenkitException(
+      'systemone: the config does not fit SystemOneOptions: stateJSON must '
+      'be a bool and extra an object',
+      status: StatusCode.invalidArgument,
+    );
+  }
   for (final field in reservedFields) {
     if (extra?.containsKey(field) ?? false) {
       throw GenkitException(
@@ -103,11 +118,7 @@ Future<ModelResponse> _generate(
   final questions = enumFormat
       ? enumQuestion(output.schema, preamble)
       : compileQuestions(output.schema!, preamble);
-  final (:state, :media) = buildState(
-    req,
-    stateJson: opts.stateJSON ?? false,
-    reads: reads,
-  );
+  final (:state, :media) = buildState(req, stateJson: stateJson, reads: reads);
 
   final resp = await client.decide(
     id,
@@ -135,7 +146,9 @@ Future<ModelResponse> _generate(
     usage: GenerationUsage(
       inputTokens: resp.inputTokens,
       outputTokens: resp.outputTokens,
-      totalTokens: resp.inputTokens + resp.outputTokens,
+      totalTokens: resp.inputTokens == null || resp.outputTokens == null
+          ? null
+          : resp.inputTokens! + resp.outputTokens!,
       custom: resp.cost == null ? null : {'cost': resp.cost},
     ),
     raw: SystemOneInfo(
@@ -159,17 +172,26 @@ const _answerFields = {
 
 /// Checks one wire answer against its compiled question, as Genkit Go and
 /// JS do when their generate loop validates the output against its schema.
-/// Genkit Dart's loop only parses the output, so the check is made here: the
-/// kind's own field is present and of its type, a choice is one of the
-/// question's options, a noul is a probability, and the optional
-/// distribution and confidence are numbers. A score outside the rubric is
-/// clamped below, as Go clamps it, rather than refused.
+/// Genkit Dart's loop only parses the output, so the check is made here, on
+/// the fields the answer is projected onto: the kind's own field is present
+/// and of its type, a choice is one of the question's options, and a noul,
+/// a confidence, and every probability are finite numbers from 0 to 1. A
+/// field sent as null is malformed, not absent. A score outside the rubric
+/// is clamped below, as Go clamps it, rather than refused; the legend is
+/// rebuilt from the rubric, so it is not checked.
 void _checkAnswer(String id, WireQuestion q, Map<String, Object?> answer) {
   Never fail(String what) => throw GenkitException(
     'systemone: answer for question "$id" $what',
     status: StatusCode.internal,
   );
-  bool isNumber(Object? v) => v is num && v.isFinite;
+  bool isProbability(Object? v) => v is num && v.isFinite && v >= 0 && v <= 1;
+  for (final field in _answerFields[q.type] ?? const <String>[]) {
+    if (answer.containsKey(field) &&
+        answer[field] == null &&
+        field != 'legend') {
+      fail('has $field null');
+    }
+  }
   switch (q.type) {
     case kindChoice:
       final choice = answer['choice'];
@@ -179,23 +201,24 @@ void _checkAnswer(String id, WireQuestion q, Map<String, Object?> answer) {
         fail('chose "$choice", which is not one of its options');
       }
     case kindScore:
-      if (!isNumber(answer['score'])) fail('has no numeric score');
+      final score = answer['score'];
+      if (score is! num || !score.isFinite) fail('has no numeric score');
     case kindNoul:
       final noul = answer['noul'];
-      if (!isNumber(noul)) fail('has no numeric noul');
-      if ((noul as num) < 0 || noul > 1) {
+      if (noul is! num) fail('has no numeric noul');
+      if (!isProbability(noul)) {
         fail('has noul $noul, which is not a probability');
       }
+      return;
   }
   if (answer.containsKey('confidence') &&
-      answer['confidence'] != null &&
-      !isNumber(answer['confidence'])) {
-    fail('has a confidence that is not a number');
+      !isProbability(answer['confidence'])) {
+    fail('has confidence ${answer['confidence']}, which is not from 0 to 1');
   }
-  if (q.type != kindNoul && answer['probabilities'] != null) {
+  if (answer.containsKey('probabilities')) {
     final p = answer['probabilities'];
-    if (p is! Map || p.values.any((v) => !isNumber(v))) {
-      fail('has probabilities that are not numbers by option');
+    if (p is! Map || p.values.any((v) => !isProbability(v))) {
+      fail('has probabilities that are not numbers from 0 to 1');
     }
   }
 }

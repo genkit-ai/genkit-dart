@@ -134,8 +134,8 @@ final class DecideResponse {
     this.provider,
     this.id,
     required this.answers,
-    this.inputTokens = 0,
-    this.outputTokens = 0,
+    this.inputTokens,
+    this.outputTokens,
     this.cost,
   });
 
@@ -143,8 +143,10 @@ final class DecideResponse {
   final String? provider;
   final String? id;
   final Map<String, Map<String, Object?>> answers;
-  final int inputTokens;
-  final int outputTokens;
+
+  /// Null when the server reports none, rather than a count of 0.
+  final int? inputTokens;
+  final int? outputTokens;
   final double? cost;
 }
 
@@ -170,6 +172,9 @@ const _retryCap = Duration(seconds: 5);
 const _retryAfterCap = Duration(seconds: 30);
 const _maxBodyBytes = 8 << 20;
 const _maxRetryAfterSeconds = 3600;
+
+/// How much of a server's error message an exception carries.
+const _maxMessage = 500;
 
 /// Bounds one attempt.
 const requestTimeout = Duration(seconds: 30);
@@ -222,7 +227,26 @@ final class DecideClient {
     Object? body = native;
     var suffix = '';
     if (endpoint.route case final route?) {
-      final routed = route(model, native);
+      final ({String path, Object? body}) routed;
+      try {
+        routed = route(model, native);
+      } on GenkitException {
+        rethrow;
+      } catch (e) {
+        // As Go reports a route error with no status: under the endpoint's
+        // name, as UNKNOWN.
+        throw GenkitException(
+          '${endpoint.name}: $e',
+          status: StatusCode.unknown,
+          cause: e,
+        );
+      }
+      if (routed.body == null) {
+        throw GenkitException(
+          '${endpoint.name}: the route returned no body',
+          status: StatusCode.invalidArgument,
+        );
+      }
       suffix = routed.path;
       body = routed.body;
       if (suffix.isNotEmpty && !suffix.startsWith('/')) suffix = '/$suffix';
@@ -234,7 +258,8 @@ final class DecideClient {
       // ignore: avoid_catching_errors
     } on JsonUnsupportedObjectError catch (e) {
       throw GenkitException(
-        '${endpoint.name}: request is not JSON: ${e.unsupportedObject}',
+        '${endpoint.name}: request is not JSON: '
+        '${e is JsonCyclicError ? 'a value contains itself' : 'a ${e.unsupportedObject.runtimeType} has no JSON form'}',
         status: StatusCode.invalidArgument,
       );
     }
@@ -284,8 +309,8 @@ final class DecideClient {
         for (final e in answers.entries)
           e.key.toString(): (e.value as Map).cast<String, Object?>(),
       },
-      inputTokens: _number(usage['input_tokens'])?.toInt() ?? 0,
-      outputTokens: _number(usage['output_tokens'])?.toInt() ?? 0,
+      inputTokens: _number(usage['input_tokens'])?.toInt(),
+      outputTokens: _number(usage['output_tokens'])?.toInt(),
       cost: _number(usage['cost'])?.toDouble(),
     );
   }
@@ -447,10 +472,12 @@ final class DecideClient {
     // ends the wait on any client, so an answer that arrives after the caller
     // gave up is dropped.
     final cancelled = Completer<Never>();
-    final stopListening = cancel?.onCancel(() {
+    final stopListening = cancel?.onCancelWithReason((reason) {
       if (!abort.isCompleted) abort.complete();
       if (!cancelled.isCompleted) {
-        cancelled.completeError(CancelledException(token: cancel));
+        cancelled.completeError(
+          CancelledException(reason: reason, token: cancel),
+        );
       }
     });
     final int status;
@@ -474,8 +501,11 @@ final class DecideClient {
       // The response cap or a cancel: neither is worth another attempt.
       rethrow;
     } on Exception catch (e) {
-      // Transport failures only: a client error, a timeout, or the platform's
-      // socket and TLS errors. An Error is a bug, and propagates as one.
+      // Any Exception the HTTP client throws counts as a transport failure:
+      // package:http reports them as ClientException, its IO client turns
+      // socket errors into one, and a TLS handshake or the attempt timeout
+      // arrives as its own Exception. An Error is a bug, and propagates as
+      // one, unretried.
       throw _AttemptFailed(
         GenkitException(
           '${endpoint.name}: $e',
@@ -489,6 +519,19 @@ final class DecideClient {
     }
     if (status ~/ 100 == 2) {
       return (body: body, retry: false, retryAfter: null);
+    }
+    if (status ~/ 100 == 3) {
+      // No redirect is followed, so the key's handling never depends on the
+      // transport's redirect rules. Native clients honor followRedirects;
+      // a browser follows or refuses by its own rules.
+      throw _AttemptFailed(
+        GenkitException(
+          '${endpoint.name}: HTTP $status: the server redirects, and '
+          'redirects are not followed; set the base URL to the final one',
+          status: StatusCode.failedPrecondition,
+        ),
+        retry: false,
+      );
     }
     final retry =
         status == 408 ||
@@ -569,6 +612,7 @@ GenkitException httpError(String endpoint, int code, String body) {
   }
   var message = errorMessage(body);
   if (message.isEmpty) message = _statusText[code] ?? 'empty response';
+
   return GenkitException(
     '$endpoint: HTTP $code: $message',
     status: status,
@@ -605,7 +649,16 @@ const _statusText = {
 /// records and OpenRouter sends as the bare array of `{path, message}`
 /// records. A body in none of these shapes is quoted as it came, cut at 200
 /// characters, and an empty one gives "".
+///
+/// A message is cut at 500 characters, so a server cannot fill an exception.
 String errorMessage(String body) {
+  final message = _errorMessage(body);
+  return message.length > _maxMessage
+      ? '${message.substring(0, _maxMessage)}...'
+      : message;
+}
+
+String _errorMessage(String body) {
   Object? decoded;
   try {
     decoded = jsonDecode(body);

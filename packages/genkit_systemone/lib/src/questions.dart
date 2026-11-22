@@ -12,6 +12,10 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+/// The question types a decision is declared with, the runtime questions,
+/// and the answers they parse into.
+library;
+
 import 'dart:math' as math;
 
 import 'package:meta/meta.dart';
@@ -150,7 +154,7 @@ final class Choice<T extends Option> {
   Choice({
     required this.choice,
     Map<T, double> probabilities = const {},
-    required this.confidence,
+    this.confidence = 0,
   }) : probabilities = Map.unmodifiable(probabilities);
 
   /// The option with the most of the probability.
@@ -300,7 +304,11 @@ final class ScoreOf<L extends Rubric> {
               map['probabilities'] ?? const {},
               'probabilities',
             ).entries)
-              e.key: _number(e.value, 'probability'),
+              // Keys outside the rubric's level numbers are left out, as a
+              // choice's are; they stay on SystemOneInfo.answers.
+              if (int.tryParse(e.key) case final i?
+                  when i >= 0 && i < rubric.length && '$i' == e.key)
+                e.key: _number(e.value, 'probability'),
           },
           confidence: _optionalNumber(map['confidence']),
           legend: {
@@ -678,15 +686,16 @@ SchemanticType<Map<String, Answer>> questionsSchema(
 /// Preview: this API may change in any minor release.
 @experimental
 final class Answer {
-  const Answer({
+  Answer({
     this.type = '',
     this.choice = '',
     this.score = 0,
     this.probability = 0,
-    this.probabilities = const {},
+    Map<String, double> probabilities = const {},
     this.confidence = 0,
-    this.legend = const {},
-  });
+    Map<String, String> legend = const {},
+  }) : probabilities = Map.unmodifiable(probabilities),
+       legend = Map.unmodifiable(legend);
 
   /// Decodes an answer. A missing type is read from the field every answer of
   /// a kind carries: choice, score, or noul.
