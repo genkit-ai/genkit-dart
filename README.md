@@ -45,6 +45,7 @@ See the [Genkit package documentation](https://pub.dev/packages/genkit) for gett
 | [`genkit_vertexai`](packages/genkit_vertexai) | Vertex AI plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_vertexai.svg)](https://pub.dev/packages/genkit_vertexai) |
 | [`genkit_anthropic`](packages/genkit_anthropic) | Anthropic plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_anthropic.svg)](https://pub.dev/packages/genkit_anthropic) |
 | [`genkit_openai`](packages/genkit_openai) | OpenAI plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_openai.svg)](https://pub.dev/packages/genkit_openai) |
+| [`genkit_systemone`](packages/genkit_systemone) | System One decision models (TypeSafe, OpenRouter, Workers AI, Ollama) for Genkit Dart (preview). | [![Pub](https://img.shields.io/pub/v/genkit_systemone.svg)](https://pub.dev/packages/genkit_systemone) |
 | [`genkit_chrome`](packages/genkit_chrome) | Chrome Prompt API (Gemini Nano) plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_chrome.svg)](https://pub.dev/packages/genkit_chrome) |
 | [`genkit_mcp`](packages/genkit_mcp) | Model Context Protocol (MCP) plugin for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_mcp.svg)](https://pub.dev/packages/genkit_mcp) |
 | [`genkit_middleware`](packages/genkit_middleware) | Common middlewares (filesystem, skills, toolApproval) for Genkit Dart. | [![Pub](https://img.shields.io/pub/v/genkit_middleware.svg)](https://pub.dev/packages/genkit_middleware) |
