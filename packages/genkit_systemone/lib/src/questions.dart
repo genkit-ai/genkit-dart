@@ -160,8 +160,8 @@ final class Choice<T extends Option> {
   /// The option with the most of the probability.
   final T choice;
 
-  /// The model's distribution over the options, which sums to 1. Empty when
-  /// the answer carries none.
+  /// The probability of each option, as the server sent it, for the options
+  /// of [T] only. Empty when the answer carries none.
   final Map<T, double> probabilities;
 
   /// How concentrated the distribution is, from 0 to 1.

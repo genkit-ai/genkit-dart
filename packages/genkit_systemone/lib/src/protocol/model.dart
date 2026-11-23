@@ -170,6 +170,35 @@ const _answerFields = {
   kindNoul: ['noul'],
 };
 
+/// The answer with its probabilities narrowed to the keys the question
+/// declares: a choice's options, a score's level numbers. A key the question
+/// does not have is dropped unchecked, so it never fails a call and never
+/// reaches the answer text, the typed answer, or an `Answer`; it stays on
+/// [SystemOneInfo.answers]. Go keeps such keys in its map.
+Map<String, Object?> _declaredOnly(
+  WireQuestion q,
+  Map<String, Object?> answer,
+) {
+  final probabilities = answer['probabilities'];
+  if (probabilities is! Map) return answer;
+  final Set<String> keys;
+  switch (q.type) {
+    case kindChoice when q.criteria is Map:
+      keys = {for (final k in (q.criteria! as Map).keys) '$k'};
+    case kindScore:
+      keys = {for (var i = 0; i < (q.labels?.length ?? 0); i++) '$i'};
+    default:
+      return answer;
+  }
+  return {
+    ...answer,
+    'probabilities': {
+      for (final e in probabilities.entries)
+        if (keys.contains('${e.key}')) '${e.key}': e.value,
+    },
+  };
+}
+
 /// Checks one wire answer against its compiled question, as Genkit Go and
 /// JS do when their generate loop validates the output against its schema.
 /// Genkit Dart's loop only parses the output, so the check is made here, on
@@ -245,10 +274,11 @@ String answersText(
         status: StatusCode.internal,
       );
     }
-    _checkAnswer(id, q, answer);
+    final declared = _declaredOnly(q, answer);
+    _checkAnswer(id, q, declared);
     final projected = <String, Object?>{
       for (final field in _answerFields[q.type] ?? const <String>[])
-        if (answer.containsKey(field)) field: answer[field],
+        if (declared.containsKey(field)) field: declared[field],
     };
     if (q.labels case final labels?) {
       projected['legend'] = q.legend();

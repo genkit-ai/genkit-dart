@@ -332,4 +332,73 @@ void main() {
       throwsUnsupportedError,
     );
   });
+
+  group('only declared probability keys exist', () {
+    final runtime = questionsSchema({
+      'pick': ChoiceQuestion(
+        instructions: 'Pick one',
+        options: [ChoiceOption('a'), ChoiceOption('b')],
+      ),
+      'rate': ScoreQuestion(instructions: 'Rate it', levels: ['low', 'high']),
+    });
+    for (final extra in <Object?>[1.5, null, 'x']) {
+      test('an undeclared key valued $extra is dropped everywhere', () async {
+        final answers = {
+          'pick': {
+            'choice': 'a',
+            'probabilities': {'a': 0.7, 'b': 0.3, 'c': extra},
+          },
+          'rate': {
+            'score': 0.3,
+            'probabilities': {'0': 0.7, '1': 0.3, '2': extra},
+          },
+        };
+        final result = await decide(answers, schema: runtime);
+        expect(result.finishReason, FinishReason.stop);
+        expect(result.text, isNot(contains('"c"')));
+        expect(result.text, isNot(contains('"2"')));
+        final parsed = result.output! as Map<String, Answer>;
+        expect(parsed['pick']!.probabilities, {'a': 0.7, 'b': 0.3});
+        expect(parsed['rate']!.probabilities, {'0': 0.7, '1': 0.3});
+
+        final typed = await decide({
+          ..._valid,
+          'dept': {
+            'choice': 'billing',
+            'probabilities': {'billing': 0.7, 'other': 0.3, 'c': extra},
+          },
+          'anger': {
+            'score': 1,
+            'probabilities': {'0': 0.7, '1': 0.3, '7': extra},
+          },
+        });
+        expect(typed.finishReason, FinishReason.stop);
+        final out = typed.output! as Map<String, Object?>;
+        expect((out['dept']! as Choice<Dept>).probabilities, {
+          Dept.billing: 0.7,
+          Dept.other: 0.3,
+        });
+        expect((out['anger']! as ScoreOf<Anger>).probabilities, {
+          '0': 0.7,
+          '1': 0.3,
+        });
+      });
+    }
+
+    test('a declared key that is null or not a number fails', () async {
+      for (final bad in <Object?>[null, 'x', 1.5]) {
+        expect(
+          await decide({
+            ..._valid,
+            'dept': {
+              'choice': 'billing',
+              'probabilities': {'billing': bad},
+            },
+          }),
+          failsWith(contains('has probabilities that are not numbers')),
+          reason: '$bad',
+        );
+      }
+    });
+  });
 }

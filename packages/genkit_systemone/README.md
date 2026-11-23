@@ -501,12 +501,16 @@ loop; Genkit Dart's loop only parses it. So the plugin checks each answer
 against its question before it reaches the decision type, on the fields the
 answer is projected onto: the answer is there, its kind's field is present and
 of its type, a choice is one of the question's options (in the enum format
-too), and a noul, a confidence, and every probability are finite numbers from 0
-to 1. A field sent as null is malformed. A failed check fails the call with
-`INTERNAL`. A score outside the rubric is clamped, as Go clamps it. A missing
-`confidence` reads as 0, as Go decodes it. A probability for an option or a
-level number the question lacks is left out of `Choice.probabilities` and
-`ScoreOf.probabilities`, where Go keeps it in its map; it stays on
+too), and a noul, a confidence, and the probability of every declared option or
+level are finite numbers from 0 to 1. A field sent as null is malformed. A
+failed check fails the call with `INTERNAL` (Genkit JS reports the same answer
+as `INVALID_ARGUMENT`, from its schema validator). A score outside the rubric is
+clamped, as Go clamps it. A missing `confidence` reads as 0, as Go decodes it.
+
+Probabilities exist only for what the question declares: a key for an option
+or a level number the question lacks is dropped before the check, unchecked,
+and is absent from the answer text, the typed `Choice` and `ScoreOf`, and the
+runtime `Answer`. Go keeps such keys in its map. They stay on
 `SystemOneInfo.answers`, an unmodifiable copy of what the server sent.
 
 When the server reports no usage, `usage.inputTokens`, `outputTokens`, and
