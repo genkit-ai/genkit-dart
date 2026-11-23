@@ -55,8 +55,8 @@ them even when model discovery is unavailable:
 | Sonnet | `claude-sonnet-5-5`, `claude-sonnet-5`, `claude-sonnet-4-6`, `claude-sonnet-4-5` (deprecated) |
 | Haiku | `claude-haiku-5-5`, `claude-haiku-4-5` |
 
-Deprecated models are listed with `stage: 'deprecated'` until Anthropic
-retires them. Anthropic's
+Deprecated models are listed with `stage: 'deprecated'` until a later
+plugin release removes them from the catalog. Anthropic's
 [model deprecations](https://platform.claude.com/docs/en/about-claude/model-deprecations)
 page has the retirement dates and recommended replacements. Dated snapshot
 ids (such as `claude-haiku-4-5-20251001`) resolve to their curated entry. Any
