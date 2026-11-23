@@ -125,18 +125,20 @@ print(response.text);
 
 ```dart
 final response = await ai.generate(
-  model: anthropic.model('claude-sonnet-5-5'),
+  model: anthropic.model('claude-sonnet-4-6'),
   prompt: 'Solve this 24 game: 2, 3, 10, 10',
   config: AnthropicOptions(
+    // Thinking counts towards maxTokens, which defaults to 4096.
+    maxTokens: 16000,
     // Uses the model's compatible default thinking mode.
     thinking: AnthropicThinkingConfig(),
     outputConfig: AnthropicOutputConfig(effort: 'high'),
   ),
 );
 
-// Thinking blocks are returned in the message parts. On Claude Opus 4.7 and
-// later, Anthropic omits the thinking text by default, so those parts can be
-// empty.
+// Thinking blocks are returned in the message parts. Claude Opus 4.7, Opus
+// 4.8 and every 5.x model omit the thinking text by default, so on those
+// models the parts can be empty.
 print(response.message?.content);
 ```
 

@@ -90,16 +90,17 @@ void main(List<String> args) {
     streamSchema: ModelResponseChunk.$schema,
     fn: (prompt, ctx) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-5-5'),
+        // Claude Sonnet 4.6 returns summarized thinking text by default.
+        model: anthropic.model('claude-sonnet-4-6'),
         prompt: prompt,
         onChunk: (chunk) => ctx.sendChunk(chunk.modelChunk),
         config: AnthropicOptions(
-          // Claude Sonnet 5.5 defaults to adaptive thinking.
+          // Thinking counts towards maxTokens.
+          maxTokens: 16000,
           thinking: AnthropicThinkingConfig(),
         ),
       );
-      // Thinking blocks are in response.message.content; on Claude Opus 4.7
-      // and later their text is omitted by default.
+      // Thinking blocks are in response.message.content.
       return response.message!;
     },
   );
