@@ -291,21 +291,24 @@ List<int> _percentDecode(String s) {
       bytes.add(unit);
       continue;
     }
-    if (i + 2 >= units.length) {
+    final complete = i + 2 < units.length;
+    final high = complete ? _hexDigit(units[i + 1]) : -1;
+    final low = complete ? _hexDigit(units[i + 2]) : -1;
+    if (high < 0 || low < 0) {
       throw _invalidArgument('reading the media: invalid URL escape');
     }
-    final digits = String.fromCharCodes(units.sublist(i + 1, i + 3));
-    // Two hex digits exactly: int.parse alone would take a sign.
-    final hex = RegExp(r'^[0-9a-fA-F]{2}$').hasMatch(digits)
-        ? int.parse(digits, radix: 16)
-        : null;
-    if (hex == null) {
-      throw _invalidArgument('reading the media: invalid URL escape');
-    }
-    bytes.add(hex);
+    bytes.add(high << 4 | low);
     i += 2;
   }
   return bytes;
+}
+
+/// The value of the hex digit [byte], or -1 when it is not one.
+int _hexDigit(int byte) {
+  if (byte >= 0x30 && byte <= 0x39) return byte - 0x30; // 0-9
+  if (byte >= 0x41 && byte <= 0x46) return byte - 0x37; // A-F
+  if (byte >= 0x61 && byte <= 0x66) return byte - 0x57; // a-f
+  return -1;
 }
 
 /// Whether the part is the output instructions the generate loop injects

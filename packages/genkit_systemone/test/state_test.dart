@@ -286,12 +286,50 @@ void main() {
         'data:image/png,%-1',
         'data:image/png,%+F',
         'data:image/png,%g0',
+        'data:image/png,%4g',
+        'data:image/png,a%',
+        'data:image/png,%4',
+        'data:image/png,%G0',
+        'data:image/png,%4G',
+        'data:image/png,%:0',
+        'data:image/png,%@0',
+        'data:image/png,%`0',
+        'data:image/png,%%41',
+        // A character that is not ASCII is not a hex digit.
+        'data:image/png,%é0',
       ]) {
         expect(
           () => build([
             user([media(url)]),
           ], reads: reads),
           throwsInvalid(contains('invalid URL escape')),
+          reason: url,
+        );
+      }
+    });
+
+    test('percent-encoded data is decoded byte by byte, as Go does', () {
+      for (final (url, data) in [
+        ('data:image/png,%aF', 'rw=='),
+        ('data:image/png,%Af', 'rw=='),
+        ('data:image/png,%9F', 'nw=='),
+        // Decoded once: an escaped percent sign stays one.
+        ('data:image/png,%2541', 'JTQx'),
+        // Bytes that are not UTF-8: the payload is bytes, not text.
+        ('data:image/png,%FF%00', '/wA='),
+        // A raw character is its UTF-8 bytes, next to an escape too.
+        ('data:image/png,é%41', 'w6lB'),
+        // A plus stays a plus, as in a path, not a space.
+        ('data:image/png,a+b', 'YSti'),
+        ('data:image/png,', ''),
+        // Base64 data is passed on as it is, escapes included.
+        ('data:image/png;base64,%41', '%41'),
+      ]) {
+        expect(
+          build([
+            user([media(url)]),
+          ], reads: reads).media.images,
+          ['data:image/png;base64,$data'],
           reason: url,
         );
       }
