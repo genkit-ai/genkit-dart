@@ -401,4 +401,25 @@ void main() {
       }
     });
   });
+
+  test("another model's raw with a model field is not System One info", () {
+    final info = SystemOneInfo.of(
+      ModelResponse(
+        finishReason: FinishReason.stop,
+        raw: {'model': 'gpt-4o', 'id': 'chatcmpl-1'},
+      ),
+    );
+    expect(info.model, '');
+    expect(info.id, '');
+  });
+
+  test('the info round-trips through its JSON with its marker', () async {
+    final result = await decide(_valid);
+    final raw = result.modelResponse.raw!;
+    expect(raw['systemOneInfo'], true);
+    final again = SystemOneInfo.of(
+      ModelResponse(finishReason: FinishReason.stop, raw: {...raw}),
+    );
+    expect(again.model, 'jev-1.13.0');
+  });
 }

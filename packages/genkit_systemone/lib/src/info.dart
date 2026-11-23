@@ -48,12 +48,18 @@ final class SystemOneInfo {
   );
 
   /// The info of a decision model's [response], or of the response of a
-  /// generate call's result. It is empty for a response from any other model.
+  /// generate call's result. It is empty for a response from any other
+  /// model: the info is read only from a `raw` that carries this plugin's
+  /// marker, so another model's `raw` with a `model` field is not mistaken
+  /// for it.
   static SystemOneInfo of(ModelResponse? response) {
     final raw = response?.raw;
-    if (raw == null) return SystemOneInfo();
+    if (raw == null || raw[marker] != true) return SystemOneInfo();
     return SystemOneInfo.fromJson(raw);
   }
+
+  /// The key that marks a response's `raw` as this plugin's info.
+  static const marker = 'systemOneInfo';
 
   /// The model version that answered.
   final String model;
@@ -70,6 +76,7 @@ final class SystemOneInfo {
   final Map<String, Map<String, Object?>> answers;
 
   Map<String, Object?> toJson() => {
+    marker: true,
     'model': model,
     if (provider.isNotEmpty) 'provider': provider,
     if (id.isNotEmpty) 'id': id,
