@@ -313,8 +313,11 @@ List<int> _percentDecode(String s) {
 /// asks for none, but a history recorded from another model's turn keeps
 /// them in that turn's messages, and when such a history is the state the
 /// part is plumbing, not something anyone said.
-bool _isFormatInstructions(Part part) =>
-    part.isText && part.textPart?.metadata?['purpose'] == 'output';
+bool _isFormatInstructions(Part part) {
+  // Any kind of part, as Go reads the purpose off a part's metadata.
+  final metadata = part.toJson()['metadata'];
+  return metadata is Map && metadata['purpose'] == 'output';
+}
 
 /// Names a part's kind for an error message.
 String _partKindName(Part part) {

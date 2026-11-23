@@ -97,6 +97,8 @@ Future<ModelResponse> _generate(
         : SystemOneOptions.$schema.parse(req.config!);
     extra = opts.extra;
     stateJson = opts.stateJSON ?? false;
+    // The generated getter casts the map lazily, so its keys are read here.
+    extra?.keys.toList();
     // A cast of the config is a TypeError, an Error by type only.
     // ignore: avoid_catching_errors
   } on TypeError {

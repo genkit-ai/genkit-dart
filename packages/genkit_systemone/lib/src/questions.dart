@@ -253,12 +253,13 @@ final class Choice<T extends Option> {
 @experimental
 final class ScoreOf<L extends Rubric> {
   ScoreOf({
-    required this.levels,
+    required List<L> levels,
     required this.score,
     Map<String, double> probabilities = const {},
     this.confidence = 0,
     Map<String, String> legend = const {},
-  }) : probabilities = Map.unmodifiable(probabilities),
+  }) : levels = List.unmodifiable(levels),
+       probabilities = Map.unmodifiable(probabilities),
        legend = Map.unmodifiable(legend);
 
   /// The rubric, lowest level first.
@@ -382,7 +383,7 @@ final class NoulOf<C extends YesNo> {
   Map<String, Object?> toJson() => {'noul': probability};
 
   @override
-  String toString() => 'Noul{probability: $probability}';
+  String toString() => 'NoulOf{probability: $probability}';
 }
 
 /// A [NoulOf] with no criteria: the question is its description alone, which

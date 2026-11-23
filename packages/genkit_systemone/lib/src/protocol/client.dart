@@ -309,9 +309,9 @@ final class DecideClient {
         for (final e in answers.entries)
           e.key.toString(): (e.value as Map).cast<String, Object?>(),
       },
-      inputTokens: _number(usage['input_tokens'])?.toInt(),
-      outputTokens: _number(usage['output_tokens'])?.toInt(),
-      cost: _number(usage['cost'])?.toDouble(),
+      inputTokens: _count(usage['input_tokens']),
+      outputTokens: _count(usage['output_tokens']),
+      cost: _cost(usage['cost']),
     );
   }
 
@@ -636,9 +636,18 @@ Map<String, String> buildHeaders(Map<String, String> headers, String apiKey) {
   return out;
 }
 
-/// A usage counter, or null when the server sent none or not a number:
-/// usage is reporting, and a gateway's odd field must not cost the answers.
-num? _number(Object? value) => value is num ? value : null;
+/// A cost, kept only when it is a finite number: usage is reporting, and a
+/// gateway's odd field must not cost the answers.
+double? _cost(Object? value) =>
+    value is num && value.isFinite ? value.toDouble() : null;
+
+/// A token count, kept only when it is a finite, non-negative whole number:
+/// JSON 3.0 counts as 3, while 3.5, -1, a number too large for a double, or
+/// a string are left out rather than failing the answer.
+int? _count(Object? value) =>
+    value is num && value.isFinite && value >= 0 && value == value.truncate()
+    ? value.toInt()
+    : null;
 
 /// One attempt that failed, and whether it is worth another.
 final class _AttemptFailed implements Exception {

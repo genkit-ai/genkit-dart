@@ -31,6 +31,10 @@ final _logger = Logger('genkit_systemone');
 /// up when the server is slow.
 const _listingTimeout = Duration(seconds: 5);
 
+/// Most IDs a listing contributes, and the longest ID taken from one.
+const _listingMaxModels = 1000;
+const _listingMaxIdLength = 256;
+
 /// Whether models read one kind of media.
 ///
 /// Preview: this API may change in any minor release.
@@ -493,12 +497,18 @@ final class SystemOne extends GenkitPlugin {
       );
     }
     final parsed = Uri.tryParse(base.replaceAll('{account}', 'account'));
+    // The paths are joined to the base URL as text, so a query or fragment
+    // would swallow them, and a URL with a password would carry it into
+    // transport errors. The URL is not quoted, as it may hold either.
     if (parsed == null ||
         !(parsed.isScheme('http') || parsed.isScheme('https')) ||
-        parsed.host.isEmpty) {
+        parsed.host.isEmpty ||
+        parsed.userInfo.isNotEmpty ||
+        parsed.hasQuery ||
+        parsed.hasFragment) {
       throw GenkitException(
-        '$provider: baseUrl must be an http or https URL with a host; got '
-        '"$base"',
+        '$provider: baseUrl must be an http or https URL with a host, and no '
+        'user info, query, or fragment',
         status: StatusCode.failedPrecondition,
       );
     }
@@ -526,16 +536,16 @@ final class SystemOne extends GenkitPlugin {
     final named = <String>{};
     for (final MapEntry(:key, :value) in models.entries) {
       final id = _trimProvider(key);
-      if (!named.add(id)) {
-        throw GenkitException(
-          '$provider: models names $id twice, by its ID and by its full name',
-          status: StatusCode.failedPrecondition,
-        );
-      }
       if (key != id && presetModels.containsKey(id)) {
         throw GenkitException(
           '$provider: models names $key, which is already defined by the '
           'preset as $id; use the bare ID',
+          status: StatusCode.failedPrecondition,
+        );
+      }
+      if (!named.add(id)) {
+        throw GenkitException(
+          '$provider: models names $id twice, by its ID and by its full name',
           status: StatusCode.failedPrecondition,
         );
       }
@@ -606,7 +616,14 @@ final class SystemOne extends GenkitPlugin {
     if (_client.endpoint.modelsPath.isNotEmpty) {
       try {
         final models = await _client.listModels(timeout: _listingTimeout);
-        ids.addAll(models.map((m) => m.model).where((id) => id.isNotEmpty));
+        // A listing is the server's word, so it contributes a bounded number
+        // of IDs of a bounded length.
+        ids.addAll(
+          models
+              .map((m) => m.model)
+              .where((id) => id.isNotEmpty && id.length <= _listingMaxIdLength)
+              .take(_listingMaxModels),
+        );
       } catch (e) {
         // Genkit's registry keeps this listing for the life of the process,
         // so the failure is worth a warning, not a debug line.
@@ -769,7 +786,12 @@ String unwrapWorkersAI(String body) {
       for (final image in urls.cast<String>())
         image.contains(';base64,')
             ? image.substring(image.indexOf(';base64,') + ';base64,'.length)
-            : image,
+            // The state builder sends every image as a base64 data URL, so
+            // another one is the plugin's bug, not the caller's.
+            : throw GenkitException(
+                'systemone: an image is not a base64 data URL',
+                status: StatusCode.internal,
+              ),
     ];
   }
   return (path: '', body: body);
