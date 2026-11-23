@@ -298,8 +298,9 @@ first and documents after. The servers place them before the state, and the
 text of the same messages stays the state; a message of media alone is a turn
 with empty text. A request may carry media and no text, except to Ollama. Media
 goes out as a base64 data URL, or as raw base64 to Ollama; a part given as a URL
-is refused rather than fetched, so download it first. Any other media type is
-refused.
+is refused rather than fetched, so download it first; the error names no part
+of the URL, which may carry a token (Go quotes it whole). Any other media type
+is refused.
 
 Media is an extension to the protocol, and a server that does not know a field
 can drop it and answer as if nothing had been sent. A plugin therefore refuses
@@ -320,16 +321,21 @@ ships.
 | ------------------------ | --------------------------------------- | -------------------- | --------------------------------------------- |
 | `SystemOne.typeSafe()`   | `typesafe/jev-1.13.0`                   | `TYPESAFE_API_KEY`   | `TYPESAFE_BASE_URL` is read too; lists models; text only |
 | `SystemOne.openRouter()` | `openrouter-decisions/liquid/d1`, `openrouter-decisions/typesafe/jev-1.13`, `openrouter-decisions/~typesafe/jev-latest` | `OPENROUTER_API_KEY` | alpha Decisions API; lists OpenRouter's decision models; cost in `usage.custom['cost']`; text only |
-| `SystemOne.ollama()`     | `ollama-decisions/clef`                 | none                 | `http://localhost:11434` unless `baseUrl` is set; images as raw base64; a request needs text |
+| `SystemOne.ollama()`     | `ollama-decisions/clef`                 | none needed; an `apiKey` is sent as a bearer token | `http://localhost:11434` unless `baseUrl` is set; images as raw base64; a request needs text |
 | `SystemOne.workersAI()`  | `cloudflare-decisions/@cf/cloudflare/clef`, `…/clef-flash`, `…/clef-omni`, `cloudflare-decisions/typesafe/jev` | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_ACCOUNT_ID` unless `accountId` is given; Clef models read images, Clef-omni audio and video too; a long state is truncated; no versions to pin |
 
 Each constructor also takes the settings Go lets a caller change on the struct
-it returns (`provider`, `path`, `modelsPath`, `images`, `audio`, `video`,
-`route`, `unwrap`), each replacing the constructor's default when given;
-`SystemOne.ollama()` takes an `apiKey` too, for an authenticating proxy.
+it returns: `provider`, `baseUrl`, `apiKey`, `path`, `modelsPath`, `models`,
+`images`, `audio`, `video`, `route`, `unwrap`, `httpClient`, and `headers`,
+each replacing the constructor's default when given. `SystemOne.ollama()`
+needs no key, and sends an `apiKey`, if given, as a bearer token, for an
+authenticating proxy. `SystemOne.workersAI()` takes the key Cloudflare calls an
+API token as `apiKey`, as the other constructors do.
 
 Keys and accounts are read from the arguments, then from the environment,
-when the plugin is built, which fails when a required one is missing. A
+when the plugin is built, which fails when a required one is missing. A value
+read from the environment is trimmed, so a key file ending in a newline works;
+Go sends it as it is. An `apiKey` argument is sent as given. A
 gateway serves several vendors' models under one key, so one plugin reaches all
 of them. OpenRouter's is named `openrouter-decisions` because a plugin for its
 chat models may already be `openrouter`, and an app often uses both; Ollama's is
@@ -450,17 +456,26 @@ final wrapped = SystemOne(
 
 `models` describes the models known ahead, keyed by the server's ID or by the
 full model name; they are listed in the Dev UI with whatever the server's
-listing adds. On a constructor, as in Go, they are added to the constructor's
-models, and an entry with a known model's bare ID replaces that model's whole
-spec, so a `label`-only entry for Clef-omni also drops its audio and video. A
+listing adds. On a constructor they are added to the constructor's models, and
+an entry with a known model's bare ID replaces that model's whole spec, as in
+Go, so a `label`-only entry for Clef-omni also drops its audio and video. A
 full name for a model the constructor already defines
-(`typesafe/jev-1.13.0` on `SystemOne.typeSafe()`) is a configuration error.
-Genkit's registry keeps the first listing for the life of the process, so a
-listing that fails (logged as a warning) lists the known models alone until the
-app restarts; Go retries it after a minute.
+(`typesafe/jev-1.13.0` on `SystemOne.typeSafe()`) is a configuration error, as
+Go panics on it. Unlike Go, where the caller owns the map and can delete a
+preset model, the constructor's models are always kept. A listing contributes
+at most 1000 IDs of at most 256 characters. Genkit's registry keeps the first
+listing for the life of the process, so a listing that fails (logged as a
+warning) lists the known models alone until the app restarts; Go retries it
+after a minute.
 
 `httpClient` and `headers` are the escape hatches to the transport; the key's
-`Authorization` header replaces one given in `headers`.
+`Authorization` header replaces one given in `headers`, whatever its case. A
+header name that is not an HTTP token, a header the transport owns (`Host`,
+`Content-Length`, `Transfer-Encoding`, `Connection`, `Keep-Alive`, `Upgrade`,
+`Expect`), or a header value or key with a control byte other than the tab or
+a character past 0xFF is `FAILED_PRECONDITION` when the plugin is built, and
+the error names the header, never its value. Go sends such a request and gets
+a transport error.
 `SystemOneOptions(extra: {...})` merges fields into the request body that the
 plugin does not model, such as a gateway's `session_id` or `trace`; it cannot
 replace a field the request builds itself. A config field of the wrong type is
@@ -480,8 +495,13 @@ client; the HTTP request itself is aborted only on a client that supports
 A 3xx is `FAILED_PRECONDITION` and not retried: no redirect is followed, so
 the key's handling never depends on the transport's redirect rules. That holds
 on native platforms; in a browser, `BrowserClient` follows or refuses a
-redirect by the browser's rules. A response over 8 MiB is refused with
-`INTERNAL` rather than cut.
+redirect by the browser's rules. A response over 8 MiB fails with `INTERNAL`,
+saying so; Go cuts it at 8 MiB and then fails to parse it, also `INTERNAL`.
+
+A base URL must be http or https with a host, and no user info, query, or
+fragment: the paths are joined to it as text, so a query would swallow them.
+It is checked when the plugin is built, with `FAILED_PRECONDITION`, and never
+quoted; Go finds out at the first request.
 
 Error statuses map onto Genkit's: 402 is `RESOURCE_EXHAUSTED`, 408, 504, and
 Cloudflare's 524 are `DEADLINE_EXCEEDED`, 501 and 505 are `UNIMPLEMENTED`, 500
@@ -492,8 +512,8 @@ failed request resolves `generate` with `finishReason: failed` and the error on
 `result.error`, rather than throwing.
 
 A `route` that throws a `GenkitException` is reported as it is, anything else
-as `UNKNOWN` under the provider's name, as in Go; a route that returns no body
-is `INVALID_ARGUMENT`. A route sees a state parsed with `stateJSON` as an
+as `UNKNOWN` under the provider's name, where Go returns a route's error
+unchanged; a route that returns no body is `INVALID_ARGUMENT`. A route sees a state parsed with `stateJSON` as an
 opaque value that is sent as the JSON text it was given.
 
 Genkit Go and JS validate a model's output against its schema in the generate
@@ -503,8 +523,7 @@ answer is projected onto: the answer is there, its kind's field is present and
 of its type, a choice is one of the question's options (in the enum format
 too), and a noul, a confidence, and the probability of every declared option or
 level are finite numbers from 0 to 1. A field sent as null is malformed. A
-failed check fails the call with `INTERNAL` (Genkit JS reports the same answer
-as `INVALID_ARGUMENT`, from its schema validator). A score outside the rubric is
+failed check fails the call with `INTERNAL`. A score outside the rubric is
 clamped, as Go clamps it. A missing `confidence` reads as 0, as Go decodes it.
 
 Probabilities exist only for what the question declares: a key for an option
@@ -524,8 +543,8 @@ description; core's `generate` lets a parse error of the typed output escape
 as that exception rather than as a failed response.
 
 A plugin with a missing key, account, or base URL fails when it is built, with
-`FAILED_PRECONDITION`; Go panics in `Init`. So does a base URL that is not an
-http or https URL with a host, which Go finds out only at the first request.
+`FAILED_PRECONDITION`; Go panics in `Init`. So do a bad base URL and a header
+or key HTTP cannot carry, as above.
 
 When the plugin makes its own HTTP client, `close()` closes it; a client you
 pass is yours to close.

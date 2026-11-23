@@ -233,8 +233,9 @@ final class DecideClient {
       } on GenkitException {
         rethrow;
       } catch (e) {
-        // As Go reports a route error with no status: under the endpoint's
-        // name, as UNKNOWN.
+        // Unlike Go, which returns a route's error unchanged, an error with
+        // no Genkit status is reported under the endpoint's name as UNKNOWN,
+        // so it reads as this plugin's, as an unwrap error does.
         throw GenkitException(
           '${endpoint.name}: $e',
           status: StatusCode.unknown,

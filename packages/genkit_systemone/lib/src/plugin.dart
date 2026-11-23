@@ -329,7 +329,8 @@ final class SystemOne extends GenkitPlugin {
   );
 
   /// A local Ollama server, which serves the decision models it has pulled,
-  /// such as Clef, and takes no key.
+  /// such as Clef. It needs no key; an [apiKey], if given, is sent as a
+  /// bearer token, for an authenticating proxy in front of it.
   ///
   /// Its models are `ollama-decisions/<name>` by Ollama's name, such as
   /// `ollama-decisions/clef`. The name is not `ollama`, which the plugin for

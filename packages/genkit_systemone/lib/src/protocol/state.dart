@@ -127,8 +127,6 @@ BuiltState buildState(
   return (state: records, media: b.media);
 }
 
-/// Reads the state out of messages and documents, and collects the media it
-/// meets on the way.
 /// What a part, message, or document that contributes nothing to the state
 /// yields, told apart from a value.
 const Object nothing = _Nothing();
@@ -137,6 +135,8 @@ final class _Nothing {
   const _Nothing();
 }
 
+/// Reads the state out of messages and documents, and collects the media it
+/// meets on the way.
 final class _StateBuilder {
   _StateBuilder(this.reads);
 

@@ -27,14 +27,14 @@
 // Thresholds live in code next to the questions. The model returns
 // probabilities; what to do at 0.6 is the application's decision.
 //
-// Run it with an OpenRouter key:
+// With an OpenRouter key, run one triage from the command line:
 //
 //   export OPENROUTER_API_KEY=...
-//   dart run example/example.dart
+//   dart run example/example.dart "I was charged twice, refund it today."
 //
-// Or with the Dev UI, to call the flows from a browser and read a trace of
-// every run, with the question set on the model request and the full
-// distributions on the response:
+// Or, with no argument, under the Dev UI, to call every flow from a browser
+// and read a trace of each run, with the question set on the model request
+// and the full distributions on the response:
 //
 //   genkit start -- dart run example/example.dart
 
@@ -128,8 +128,8 @@ final class Triage {
   );
 }
 
-void main() {
-  // The plugin makes its own HTTP client here; decisions.close() closes it
+Future<void> main(List<String> args) async {
+  // The plugin makes its own HTTP client here, which decisions.close() closes
   // when the app is done with the plugin.
   final decisions = SystemOne.openRouter(); // OPENROUTER_API_KEY
   final ai = Genkit(plugins: [decisions]);
@@ -138,7 +138,7 @@ void main() {
   // the next, and SystemOneInfo.of(response).model says which one answered.
   final jev = decisions.modelRef('typesafe/jev-1.13');
 
-  ai.defineFlow(
+  final triageFlow = ai.defineFlow(
     name: 'triageFlow',
     inputSchema: .string(),
     outputSchema: .string(),
@@ -205,4 +205,10 @@ void main() {
           : 'ask the user: did you mean ${pick.choice}?';
     },
   );
+
+  if (args.isNotEmpty) {
+    print(await triageFlow(args.join(' ')));
+    decisions.close();
+    await ai.shutdown();
+  }
 }
