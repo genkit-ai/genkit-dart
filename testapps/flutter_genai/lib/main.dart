@@ -43,8 +43,8 @@ void main() {
     url: 'http://localhost:8080/openai/gpt-4o',
   );
   ai.defineRemoteModel(
-    name: 'anthropic/claude-sonnet-4-5',
-    url: 'http://localhost:8080/anthropic/claude-sonnet-4-5',
+    name: 'anthropic/claude-sonnet-5-5',
+    url: 'http://localhost:8080/anthropic/claude-sonnet-5-5',
   );
 
   runApp(MyApp(ai: ai));
@@ -134,7 +134,7 @@ class _ClientSideTabState extends State<ClientSideTab> {
             // DO NOT use this in production.
             'anthropic-dangerous-direct-browser-access': 'true',
           },
-        ).model('claude-sonnet-4-5'),
+        ).model('claude-sonnet-5-5'),
       };
 
       final stream = lite.generateStream(
@@ -259,7 +259,7 @@ class _RemoteModelTabState extends State<RemoteModelTab> {
       final modelName = switch (_selectedProvider) {
         AiProvider.google => 'googleai/gemini-flash-latest',
         AiProvider.openai => 'openai/gpt-4o',
-        AiProvider.anthropic => 'anthropic/claude-sonnet-4-5',
+        AiProvider.anthropic => 'anthropic/claude-sonnet-5-5',
       };
 
       final stream = widget.ai.generateStream(

@@ -139,10 +139,9 @@ Flow<String, Recipe, void, void> defineRecipeWithToolsFlow(Genkit ai) {
         tools: [pantry],
         outputSchema: Recipe.$schema,
         config: AnthropicOptions(
-          thinking: AnthropicThinkingConfig(
-            type: 'enabled',
-            budgetTokens: 1024,
-          ),
+          // Claude Sonnet 5.5 rejects manual (`enabled`) thinking; its
+          // default mode is adaptive.
+          thinking: AnthropicThinkingConfig(),
         ),
       );
       return response.output!;

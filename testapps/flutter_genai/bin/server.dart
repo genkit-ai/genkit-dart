@@ -55,7 +55,7 @@ void main() async {
       final model = switch (request.provider) {
         'google' => googleAI.gemini('gemini-flash-latest'),
         'openai' => openAI.model('gpt-4o'),
-        _ => anthropic.model('claude-sonnet-4-5'),
+        _ => anthropic.model('claude-sonnet-5-5'),
       };
 
       final stream = ai.generateStream(
@@ -81,13 +81,13 @@ void main() async {
   final openAiModel = openAI(apiKey: openAiApiKey).model('gpt-4o');
   final anthropicModel = anthropic(
     apiKey: anthropicApiKey,
-  ).model('claude-sonnet-4-5');
+  ).model('claude-sonnet-5-5');
 
   final router = Router();
 
   router.post('/googleai/gemini-flash-latest', shelfHandler(geminiModel));
   router.post('/openai/gpt-4o', shelfHandler(openAiModel));
-  router.post('/anthropic/claude-sonnet-4-5', shelfHandler(anthropicModel));
+  router.post('/anthropic/claude-sonnet-5-5', shelfHandler(anthropicModel));
   router.post('/serverFlow', shelfHandler(serverFlow));
   router.get('/health', (Request request) => Response.ok('OK'));
 
