@@ -14,6 +14,7 @@
 
 import 'dart:io';
 
+import 'package:anthropic_sdk_dart/anthropic_sdk_dart.dart' as sdk;
 import 'package:genkit/genkit.dart';
 import 'package:genkit_anthropic/genkit_anthropic.dart';
 import 'package:genkit_anthropic/src/known_models.dart';
@@ -123,9 +124,10 @@ void main() {
       // Any active model absent from [KnownClaudeModel] works here; swap it
       // as the catalog moves. The test asserts that premise rather than
       // trusting it, so a name that quietly became curated fails loudly
-      // instead of exercising the curated path. Every generally available
-      // model is curated now, so this is a limited-availability Mythos model:
-      // the API key's organization needs Mythos access for this test.
+      // instead of exercising the curated path. Mythos models are limited to
+      // verified organizations, so the test skips when the key cannot see the
+      // model. The API returns the same 404 for a retired or mistyped id, so a
+      // skip on a Mythos-enabled key means this name needs swapping.
       const uncuratedModel = 'claude-mythos-5-2';
 
       test('sends an uncurated model the schema natively', () async {
@@ -134,6 +136,14 @@ void main() {
           isNull,
           reason: '$uncuratedModel is curated now; pick another name',
         );
+
+        try {
+          await plugin!.client.models.retrieve(uncuratedModel);
+        } on sdk.ApiException catch (e) {
+          if (e.statusCode != 404) rethrow;
+          markTestSkipped('$uncuratedModel is not available to this API key');
+          return;
+        }
 
         final response = await ai.generate(
           model: anthropic.model(uncuratedModel),
