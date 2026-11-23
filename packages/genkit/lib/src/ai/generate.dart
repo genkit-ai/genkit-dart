@@ -794,7 +794,7 @@ Future<GenerateResult> runGenerateAction(
       return _runGenerateAction(registry, options, ctx, middleware: middleware);
     },
     input: options,
-    actionType: ActionType.util.value,
+    actionType: ActionType.util,
   );
 }
 

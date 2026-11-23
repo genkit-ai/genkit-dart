@@ -1669,6 +1669,8 @@ package:genkit/plugin.dart:
   TraceStartCallback (see above)
 package:genkit/telemetry.dart:
   configureInstrumentation (function: void Function(Instrumentation))
+  runInNewSpan (function: Future<T> Function<T>(String, Future<T> Function(SpanContext), {ActionType? actionType, Map<String, Object?>? attributes, Object? input}))
+  ActionType (see above)
   DisposableInstrumentation (class extends Object, abstract, interface):
     dispose (method: void Function())
   Instrumentation (class extends Object, abstract, interface):
