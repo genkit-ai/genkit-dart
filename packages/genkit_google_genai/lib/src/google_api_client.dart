@@ -45,11 +45,14 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
   @override
   final bool? store;
 
+  final bool interactions;
+
   GoogleGenAiPluginImpl({
     this.apiKey,
     this.baseUrl,
     this.httpClient,
     this.store,
+    this.interactions = true,
   });
 
   @override
@@ -60,10 +63,10 @@ class GoogleGenAiPluginImpl extends CommonGoogleGenPlugin {
 
   /// Known models pinned to generateContent stay there; every other name
   /// (newer, unlisted, `-latest` aliases) uses the Interactions API, as in
-  /// the JS plugin.
+  /// the JS plugin, unless [interactions] is false.
   @override
   bool usesInteractions(String modelName) =>
-      knownGeminiInteractions[modelName] ?? true;
+      interactions && (knownGeminiInteractions[modelName] ?? true);
 
   /// Routes Lyria and Antigravity names to their own models (as the JS
   /// googleAI resolver does); everything else is a Gemini model.

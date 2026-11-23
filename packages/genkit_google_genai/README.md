@@ -218,9 +218,9 @@ Newer Gemini models are called through Google's **Interactions API**
 
 ### Model routing
 
-Gemini and Gemma models use the Interactions API, including the `-latest`
-aliases and any model not listed below. Only these older models still use
-`generateContent`, until they are retired:
+By default, Gemini and Gemma models use the Interactions API, including the
+`-latest` aliases and any model not listed below. These models still use
+`generateContent`:
 
 - `gemini-3.5-flash`
 - `gemini-3.1-flash-lite`
@@ -238,6 +238,27 @@ aliases and any model not listed below. Only these older models still use
 - `gemini-3.1-flash-tts-preview`
 - `gemma-4-26b-a4b-it`
 - `gemma-4-31b-it`
+
+### Opting out of the Interactions API for Gemini and Gemma
+
+Set `interactions: false` to use `generateContent` and
+`streamGenerateContent` for Gemini and Gemma. This works around Interactions
+CORS restrictions in browsers and supports proxies that only serve
+`generateContent`.
+
+```dart
+final ai = Genkit(plugins: [googleAI(interactions: false)]);
+
+final response = await ai.generate(
+  model: googleAI.gemini('gemini-flash-latest'),
+  prompt: 'Hello',
+);
+```
+
+The model must be one the server supports through `generateContent`.
+Features that only exist on the Interactions API, such as Gemini Omni video
+generation, are not available in this mode. Lyria and Antigravity are
+Interactions-only models and keep using that API.
 
 ### Standard Genkit output vs. `response.raw`
 

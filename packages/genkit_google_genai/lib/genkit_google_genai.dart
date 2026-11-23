@@ -44,11 +44,24 @@ class GoogleGenAiPluginHandle {
   /// generateContent models it sets whether the server logs requests for the
   /// API key's project; not set, it isn't sent and the project's logging
   /// setting applies.
-  GenkitPlugin call({String? apiKey, String? baseUrl, bool? store}) {
+  ///
+  /// [interactions] defaults to true, which uses the Interactions API for
+  /// newer and unlisted Gemini and Gemma models. Set it to false to use
+  /// `generateContent` and `streamGenerateContent` for Gemini and Gemma,
+  /// for example from a browser or through a generateContent-only proxy.
+  /// The server must support these methods for the model you call.
+  /// Lyria and Antigravity always use the Interactions API.
+  GenkitPlugin call({
+    String? apiKey,
+    String? baseUrl,
+    bool? store,
+    bool interactions = true,
+  }) {
     return GoogleGenAiPluginImpl(
       apiKey: apiKey,
       baseUrl: baseUrl,
       store: store,
+      interactions: interactions,
     );
   }
 
