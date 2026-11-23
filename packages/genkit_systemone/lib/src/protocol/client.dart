@@ -458,11 +458,20 @@ final class DecideClient {
     }
     final abort = Completer<void>();
     final req = http.AbortableRequest(method, uri, abortTrigger: abort.future)
-      // A redirect would carry the bearer token to wherever it points, so
-      // none is followed: a 3xx is an error like any other.
+      // No redirect is followed, so the key's handling never depends on the
+      // transport's redirect rules; a 3xx is reported below.
       ..followRedirects = false;
-    req.headers.addAll(headers);
-    if (apiKey.isNotEmpty) req.headers['Authorization'] = 'Bearer $apiKey';
+    // Built outside the transport's try, so a header HTTP cannot carry is
+    // never reported as an unavailable server. The plugin checks them when
+    // it is built; this is the backstop for a client built another way.
+    try {
+      req.headers.addAll(buildHeaders(headers, apiKey));
+    } on HeaderException catch (e) {
+      throw GenkitException(
+        '${endpoint.name}: ${e.message}',
+        status: StatusCode.failedPrecondition,
+      );
+    }
     req.headers['Accept'] = 'application/json';
     if (payload != null) {
       req.headers['Content-Type'] = 'application/json';
@@ -571,6 +580,60 @@ final class DecideClient {
     final jitter = delay * (_random.nextDouble() * 0.25);
     return delay - jitter;
   }
+}
+
+/// A header HTTP cannot carry. Its message names the header only: the value,
+/// a key's included, is never quoted.
+final class HeaderException implements Exception {
+  HeaderException(this.header);
+
+  final String? header;
+
+  String get message =>
+      '${header == null ? 'a header' : 'the $header header'} cannot be sent: '
+      'its name or value is not valid HTTP';
+
+  @override
+  String toString() => 'HeaderException: $message';
+}
+
+/// Headers the transport owns, which a caller's headers cannot set.
+const _transportHeaders = {
+  'connection',
+  'transfer-encoding',
+  'keep-alive',
+  'upgrade',
+  'expect',
+  'content-length',
+  'host',
+};
+
+final _token = RegExp(r"^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$");
+
+/// Control bytes but the horizontal tab, and anything a header cannot hold.
+final _badValue = RegExp(r'[\x00-\x08\x0a-\x1f\x7f]|[^\x00-\xff]');
+
+/// The headers of one request: [headers], then the key's `Authorization`,
+/// which replaces one given there whatever its case. A name that is not an
+/// HTTP token, a transport header, or a value with a control byte other than
+/// the tab or a character past 0xFF is a [HeaderException] naming the header
+/// and never the value.
+Map<String, String> buildHeaders(Map<String, String> headers, String apiKey) {
+  final out = <String, String>{};
+  for (final MapEntry(key: name, value: value) in headers.entries) {
+    if (!_token.hasMatch(name)) throw HeaderException(null);
+    if (_transportHeaders.contains(name.toLowerCase()) ||
+        _badValue.hasMatch(value)) {
+      throw HeaderException(name);
+    }
+    if (apiKey.isNotEmpty && name.toLowerCase() == 'authorization') continue;
+    out[name] = value;
+  }
+  if (apiKey.isNotEmpty) {
+    if (_badValue.hasMatch(apiKey)) throw HeaderException('Authorization');
+    out['Authorization'] = 'Bearer $apiKey';
+  }
+  return out;
 }
 
 /// A usage counter, or null when the server sent none or not a number:

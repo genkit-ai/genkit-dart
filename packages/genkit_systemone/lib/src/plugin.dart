@@ -542,6 +542,17 @@ final class SystemOne extends GenkitPlugin {
       _models[id] = value;
     }
 
+    // The headers and the key go on every request, so one HTTP cannot carry
+    // fails here rather than at every call, and is named without its value.
+    try {
+      buildHeaders({...?headers}, key);
+    } on HeaderException catch (e) {
+      throw GenkitException(
+        '$provider: ${e.message}',
+        status: StatusCode.failedPrecondition,
+      );
+    }
+
     _client = DecideClient(
       httpClient: httpClient ?? http.Client(),
       // As in Go, the 30-second bound is the plugin's own client's; a client
