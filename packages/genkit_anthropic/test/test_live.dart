@@ -81,7 +81,7 @@ void main() {
           outputSchema: .string(),
           fn: (input, _) async {
             final response = await ai.generate(
-              model: anthropic.model('claude-sonnet-4-5'),
+              model: anthropic.model('claude-sonnet-4-6'),
               prompt: 'Say hello to $input',
               config: AnthropicOptions(temperature: 0),
             );
@@ -95,7 +95,7 @@ void main() {
 
       test('should stream text', () async {
         final response = ai.generateStream(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt: 'Count to 5',
         );
 
@@ -110,7 +110,7 @@ void main() {
 
       test('should generate structured output', () async {
         final response = await ai.generate(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt: 'Generate a person named John Doe, age 30',
           outputSchema: Person.$schema,
         );
@@ -123,8 +123,10 @@ void main() {
       // Any active model absent from [KnownClaudeModel] works here; swap it
       // as the catalog moves. The test asserts that premise rather than
       // trusting it, so a name that quietly became curated fails loudly
-      // instead of exercising the curated path.
-      const uncuratedModel = 'claude-sonnet-5-5';
+      // instead of exercising the curated path. Every generally available
+      // model is curated now, so this is a limited-availability Mythos model:
+      // the API key's organization needs Mythos access for this test.
+      const uncuratedModel = 'claude-mythos-5-2';
 
       test('sends an uncurated model the schema natively', () async {
         expect(
@@ -146,7 +148,7 @@ void main() {
 
       test('should stream structured output', () async {
         final response = ai.generateStream(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt: 'Generate a person named Jane Doe, age 25',
           outputSchema: Person.$schema,
         );
@@ -163,7 +165,7 @@ void main() {
         // tool it replaced could not do this at all - Anthropic rejects a
         // pinned tool_choice alongside extended thinking.
         final response = await ai.generate(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt: 'Generate a person named John Doe, age 30',
           outputSchema: Person.$schema,
           config: AnthropicOptions(
@@ -194,7 +196,7 @@ void main() {
         );
 
         final response = await ai.generate(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt: 'Look up the age of John Doe with the tool, then return him.',
           tools: [tool],
           outputSchema: Person.$schema,
@@ -208,7 +210,7 @@ void main() {
       test('still serves structured output on the beta surface', () async {
         // The field is served on both, so naming beta must not change it.
         final response = ai.generateStream(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt: 'Generate a person named Jane Doe, age 25',
           outputSchema: Person.$schema,
           config: AnthropicOptions(apiVersion: 'beta'),
@@ -225,7 +227,7 @@ void main() {
         // prompt. The point of that choice over a concrete rewrite: `extra`
         // comes back as an object, not as a string of JSON.
         final response = await ai.generate(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt:
               'Return a record named Ada whose extra is the nested object '
               '{"city": "London"}.',
@@ -243,7 +245,7 @@ void main() {
         // close the map and leave the model able to answer only `{}`. The
         // prompt fallback is what keeps the entries.
         final response = await ai.generate(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt: 'Return a scorecard for Ada with scores maths=90, art=70.',
           outputSchema: Scorecard.$schema,
         );
@@ -263,7 +265,7 @@ void main() {
         );
 
         final response = await ai.generate(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt: 'What is 123 * 456?',
           tools: [tool],
         );
@@ -279,7 +281,7 @@ void main() {
 
       test('should support thinking', () async {
         final response = await ai.generate(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt: 'Solve this 24 game: 2, 3, 10, 10',
           config: AnthropicOptions(
             thinking: AnthropicThinkingConfig(
@@ -308,7 +310,7 @@ void main() {
         );
 
         final response = await ai.generate(
-          model: anthropic.model('claude-sonnet-4-5'),
+          model: anthropic.model('claude-sonnet-4-6'),
           prompt: 'What is 123 * 456? Use the calculator tool.',
           tools: [tool],
           config: AnthropicOptions(

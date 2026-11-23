@@ -43,11 +43,31 @@ final ai = Genkit(plugins: [anthropic(httpClient: httpClient)]);
 httpClient.close();
 ```
 
+### Models
+
+The plugin curates labels and metadata for these Claude models, and lists
+them even when model discovery is unavailable:
+
+| Family | Model ids |
+| --- | --- |
+| Fable | `claude-fable-5-2`, `claude-fable-5-1`, `claude-fable-5` |
+| Opus | `claude-opus-5-5`, `claude-opus-5`, `claude-opus-4-8`, `claude-opus-4-7`, `claude-opus-4-6`, `claude-opus-4-5` |
+| Sonnet | `claude-sonnet-5-5`, `claude-sonnet-5`, `claude-sonnet-4-6`, `claude-sonnet-4-5` (deprecated) |
+| Haiku | `claude-haiku-5-5`, `claude-haiku-4-5` |
+
+Deprecated models are listed with `stage: 'deprecated'` until Anthropic
+retires them. Anthropic's
+[model deprecations](https://platform.claude.com/docs/en/about-claude/model-deprecations)
+page has the retirement dates and recommended replacements. Dated snapshot
+ids (such as `claude-haiku-4-5-20251001`) resolve to their curated entry. Any
+other model name still works with the same capabilities, but needs an
+explicit `thinking.type` when you set `thinking` (see [Thinking](#thinking)).
+
 ### Basic Generation
 
 ```dart
 final response = await ai.generate(
-  model: anthropic.model('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-5-5'),
   prompt: 'Tell me a joke about a developer.',
 );
 print(response.text);
@@ -57,7 +77,7 @@ print(response.text);
 
 ```dart
 final stream = ai.generateStream(
-  model: anthropic.model('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-5-5'),
   prompt: 'Count to 5',
 );
 
@@ -93,7 +113,7 @@ ai.defineTool(
 );
 
 final response = await ai.generate(
-  model: anthropic.model('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-5-5'),
   prompt: 'What is 123 * 456?',
   toolNames: ['calculator'],
 );
@@ -105,7 +125,7 @@ print(response.text);
 
 ```dart
 final response = await ai.generate(
-  model: anthropic.model('claude-sonnet-5'),
+  model: anthropic.model('claude-sonnet-5-5'),
   prompt: 'Solve this 24 game: 2, 3, 10, 10',
   config: AnthropicOptions(
     // Uses the model's compatible default thinking mode.
@@ -114,14 +134,17 @@ final response = await ai.generate(
   ),
 );
 
-// The thinking content is available in the message parts
+// Thinking blocks are returned in the message parts. On Claude Opus 4.7 and
+// later, Anthropic omits the thinking text by default, so those parts can be
+// empty.
 print(response.message?.content);
 ```
 
 An omitted thinking type resolves to the model's own default: Claude 4.6 and
 newer default to `adaptive`, while Claude 4.5 models default to `enabled`,
-which uses a manual token budget. You can also select a mode explicitly with
-`AnthropicThinkingConfig(type: 'enabled', budgetTokens: 2048)`. For model names outside
+which uses a manual token budget. You can also select a mode explicitly, for
+example `AnthropicThinkingConfig(type: 'enabled', budgetTokens: 2048)` on a
+Claude 4.5 or 4.6 model; newer models reject `enabled`. For model names outside
 the curated catalog, set `thinking.type` explicitly so the plugin does not
 guess an incompatible mode.
 
@@ -137,7 +160,7 @@ abstract class $Person {
 // ... inside main ...
 
 final response = await ai.generate(
-  model: anthropic.model('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-5-5'),
   prompt: 'Generate a person named John Doe, age 30',
   outputSchema: Person.$schema,
 );
@@ -158,7 +181,7 @@ sends no schema at all, so describe the shape yourself if you still want it:
 
 ```dart
 final response = await ai.generate(
-  model: anthropic.model('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-5-5'),
   prompt: 'Generate a person named John Doe, age 30',
   outputSchema: Person.$schema,
   outputConstrained: false,
@@ -204,7 +227,7 @@ Structured output is not one of them — it is served on both surfaces:
 ```dart
 // Per request.
 final response = await ai.generate(
-  model: anthropic.model('claude-sonnet-4-5'),
+  model: anthropic.model('claude-sonnet-5-5'),
   prompt: 'Hello',
   config: AnthropicOptions(apiVersion: 'beta'),
 );

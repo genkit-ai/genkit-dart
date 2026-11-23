@@ -33,34 +33,69 @@ const claudeSupports = <String, dynamic>{
   'constrained': true,
 };
 
+/// Lifecycle stage of a curated model, in Genkit's `ModelInfo.stage`
+/// vocabulary.
+enum ClaudeModelStage {
+  /// Active: fully supported by Anthropic.
+  stable,
+
+  /// Deprecated by Anthropic: still served, with a retirement date announced.
+  /// See https://platform.claude.com/docs/en/about-claude/model-deprecations.
+  deprecated;
+
+  /// The `stage` string carried in [ModelInfo].
+  String get wireName => name;
+}
+
 /// Claude models the Anthropic plugin curates metadata for.
 ///
 /// Each value pairs a bare model [id] (no plugin prefix) with a display
-/// [label] and a default thinking mode. Curation adds labels, a stable stage
-/// and listing without discovery; capabilities are the same [claudeSupports]
-/// for every model. Other names still resolve via the plugin's
-/// `commonModelInfo` fallback.
+/// [label], a default thinking mode and a lifecycle [stage]. Curation adds
+/// labels, a stage and listing without discovery; capabilities are the same
+/// [claudeSupports] for every model. Other names still resolve via the
+/// plugin's `commonModelInfo` fallback.
+///
+/// Kept in step with Anthropic's model deprecations page by hand: deprecated
+/// models are listed with [ClaudeModelStage.deprecated], and an entry has to
+/// be removed once its model retires. Nothing removes it automatically, and
+/// curated models are listed even when discovery leaves them out.
 enum KnownClaudeModel {
+  fable52('claude-fable-5-2', 'Claude Fable 5.2', ClaudeThinkingMode.adaptive),
+  fable51('claude-fable-5-1', 'Claude Fable 5.1', ClaudeThinkingMode.adaptive),
   fable5('claude-fable-5', 'Claude Fable 5', ClaudeThinkingMode.adaptive),
+  opus55('claude-opus-5-5', 'Claude Opus 5.5', ClaudeThinkingMode.adaptive),
   opus5('claude-opus-5', 'Claude Opus 5', ClaudeThinkingMode.adaptive),
   opus48('claude-opus-4-8', 'Claude Opus 4.8', ClaudeThinkingMode.adaptive),
   opus47('claude-opus-4-7', 'Claude Opus 4.7', ClaudeThinkingMode.adaptive),
   opus46('claude-opus-4-6', 'Claude Opus 4.6', ClaudeThinkingMode.adaptive),
   opus45('claude-opus-4-5', 'Claude Opus 4.5', ClaudeThinkingMode.enabled),
+  sonnet55(
+    'claude-sonnet-5-5',
+    'Claude Sonnet 5.5',
+    ClaudeThinkingMode.adaptive,
+  ),
   sonnet5('claude-sonnet-5', 'Claude Sonnet 5', ClaudeThinkingMode.adaptive),
   sonnet46(
     'claude-sonnet-4-6',
     'Claude Sonnet 4.6',
     ClaudeThinkingMode.adaptive,
   ),
+  // Deprecated 2026-09-30, retires 2026-11-30; replacement claude-sonnet-5-5.
   sonnet45(
     'claude-sonnet-4-5',
     'Claude Sonnet 4.5',
     ClaudeThinkingMode.enabled,
+    stage: ClaudeModelStage.deprecated,
   ),
+  haiku55('claude-haiku-5-5', 'Claude Haiku 5.5', ClaudeThinkingMode.adaptive),
   haiku45('claude-haiku-4-5', 'Claude Haiku 4.5', ClaudeThinkingMode.enabled);
 
-  const KnownClaudeModel(this.id, this.label, this.defaultThinkingMode);
+  const KnownClaudeModel(
+    this.id,
+    this.label,
+    this.defaultThinkingMode, {
+    this.stage = ClaudeModelStage.stable,
+  });
 
   /// Bare model name (no plugin prefix).
   final String id;
@@ -72,9 +107,12 @@ enum KnownClaudeModel {
   /// does not select a mode explicitly.
   final ClaudeThinkingMode defaultThinkingMode;
 
+  /// The lifecycle stage this model is listed with.
+  final ClaudeModelStage stage;
+
   /// Capability metadata registered for this model.
   ModelInfo get info =>
-      ModelInfo(label: label, supports: claudeSupports, stage: 'stable');
+      ModelInfo(label: label, supports: claudeSupports, stage: stage.wireName);
 }
 
 /// Thinking modes that can be safely selected by default for curated models.
