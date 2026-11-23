@@ -18,6 +18,7 @@ library;
 
 import 'dart:convert';
 
+import 'package:genkit_systemone/genkit_systemone.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 
@@ -128,7 +129,14 @@ final class FakeServer {
   }
 }
 
-/// A config reader over a fixed environment, so a test does not depend on
+/// Builds a plugin over a fixed environment, so a test does not depend on
 /// the developer's shell.
-String? Function(String) env(Map<String, String> vars) =>
-    (name) => vars[name];
+T withEnv<T>(Map<String, String> vars, T Function() build) {
+  final saved = SystemOne.environment;
+  SystemOne.environment = (name) => vars[name];
+  try {
+    return build();
+  } finally {
+    SystemOne.environment = saved;
+  }
+}

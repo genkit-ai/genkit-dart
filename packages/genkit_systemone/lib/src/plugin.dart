@@ -213,7 +213,6 @@ final class SystemOne extends GenkitPlugin {
          route: route,
          unwrap: unwrap,
          preset: const _Preset(),
-         configVar: getConfigVar,
        );
 
   /// TypeSafe AI's own API, which serves jev, the first System One model.
@@ -229,8 +228,7 @@ final class SystemOne extends GenkitPlugin {
   /// configuration error, as Go panics on it. Every constructor takes the
   /// settings of [SystemOne.new] that its server does not fix, [provider]
   /// included, each replacing the constructor's default when given, as a
-  /// field set on Go's struct does. [configVar] reads the environment; tests
-  /// pass their own.
+  /// field set on Go's struct does.
   factory SystemOne.typeSafe({
     String? provider,
     String? apiKey,
@@ -245,7 +243,6 @@ final class SystemOne extends GenkitPlugin {
     MediaSupport? video,
     SystemOneRoute? route,
     SystemOneUnwrap? unwrap,
-    String? Function(String name) configVar = getConfigVar,
   }) => SystemOne._(
     provider: provider ?? 'typesafe',
     baseUrl: baseUrl,
@@ -270,7 +267,6 @@ final class SystemOne extends GenkitPlugin {
       baseUrl: 'https://api.typesafe.ai',
       baseUrlEnv: 'TYPESAFE_BASE_URL',
     ),
-    configVar: configVar,
   );
 
   /// OpenRouter's Decisions API, which serves several vendors' decision
@@ -304,7 +300,6 @@ final class SystemOne extends GenkitPlugin {
     MediaSupport? video,
     SystemOneRoute? route,
     SystemOneUnwrap? unwrap,
-    String? Function(String name) configVar = getConfigVar,
   }) => SystemOne._(
     provider: provider ?? 'openrouter-decisions',
     baseUrl: baseUrl,
@@ -331,7 +326,6 @@ final class SystemOne extends GenkitPlugin {
       apiKeyEnv: 'OPENROUTER_API_KEY',
       baseUrl: 'https://openrouter.ai',
     ),
-    configVar: configVar,
   );
 
   /// A local Ollama server, which serves the decision models it has pulled,
@@ -376,7 +370,6 @@ final class SystemOne extends GenkitPlugin {
     httpClient: httpClient,
     headers: headers,
     preset: const _Preset(label: 'Ollama', baseUrl: 'http://localhost:11434'),
-    configVar: getConfigVar,
   );
 
   /// Cloudflare Workers AI for one account.
@@ -388,8 +381,8 @@ final class SystemOne extends GenkitPlugin {
   /// `cloudflare-decisions/@cf/cloudflare/clef`,
   /// `cloudflare-decisions/@cf/cloudflare/clef-flash`,
   /// `cloudflare-decisions/@cf/cloudflare/clef-omni`, and
-  /// `cloudflare-decisions/typesafe/jev`. The API token comes from [apiToken]
-  /// or `CLOUDFLARE_API_TOKEN`, and the account ID from [accountId] or
+  /// `cloudflare-decisions/typesafe/jev`. The key, which Cloudflare calls an
+  /// API token, comes from [apiKey] or `CLOUDFLARE_API_TOKEN`, and the account ID from [accountId] or
   /// `CLOUDFLARE_ACCOUNT_ID`. A [baseUrl] with no `{account}` segment, such
   /// as a proxy's, needs no account ID.
   ///
@@ -398,7 +391,7 @@ final class SystemOne extends GenkitPlugin {
   factory SystemOne.workersAI({
     String? provider,
     String? accountId,
-    String? apiToken,
+    String? apiKey,
     String? baseUrl,
     Map<String, ModelSpec> models = const {},
     http.Client? httpClient,
@@ -410,13 +403,12 @@ final class SystemOne extends GenkitPlugin {
     MediaSupport? video,
     SystemOneRoute? route,
     SystemOneUnwrap? unwrap,
-    String? Function(String name) configVar = getConfigVar,
   }) => SystemOne._(
     provider: provider ?? 'cloudflare-decisions',
     baseUrl: baseUrl,
     path: path ?? '/ai/run',
     modelsPath: modelsPath ?? '',
-    apiKey: apiToken,
+    apiKey: apiKey,
     route: route ?? workersAIRoute,
     unwrap: unwrap ?? unwrapWorkersAI,
     images: images ?? MediaSupport.supported,
@@ -441,7 +433,6 @@ final class SystemOne extends GenkitPlugin {
       account: accountId ?? '',
       accountEnv: 'CLOUDFLARE_ACCOUNT_ID',
     ),
-    configVar: configVar,
   );
 
   SystemOne._({
@@ -460,7 +451,6 @@ final class SystemOne extends GenkitPlugin {
     SystemOneRoute? route,
     SystemOneUnwrap? unwrap,
     required _Preset preset,
-    required String? Function(String name) configVar,
   }) : _provider = provider,
        _preset = preset,
        _ownsClient = httpClient == null,
@@ -475,7 +465,7 @@ final class SystemOne extends GenkitPlugin {
     String setting(String? given, String env) {
       if (given != null && given.isNotEmpty) return given;
       if (env.isEmpty) return '';
-      return configVar(env)?.trim() ?? '';
+      return environment(env)?.trim() ?? '';
     }
 
     final key = preset.apiKeyEnv.isEmpty
@@ -590,6 +580,12 @@ final class SystemOne extends GenkitPlugin {
   final Map<String, ModelSpec> _models = {};
 
   late final DecideClient _client;
+
+  /// Reads an environment variable for the constructors that read a key, a
+  /// base URL, or an account from one. A test replaces it, so a run does
+  /// not depend on the developer's shell; apps leave it alone.
+  @visibleForTesting
+  static String? Function(String name) environment = getConfigVar;
 
   @override
   String get name => _provider;

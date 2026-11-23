@@ -33,10 +33,9 @@ Genkit genkitWith(GenkitPlugin plugin) {
   return ai;
 }
 
-SystemOne typeSafe(FakeServer server) => SystemOne.typeSafe(
-  httpClient: server.client,
-  configVar: env({'TYPESAFE_API_KEY': 'ts-key'}),
-);
+SystemOne typeSafe(FakeServer server) => withEnv({
+  'TYPESAFE_API_KEY': 'ts-key',
+}, () => SystemOne.typeSafe(httpClient: server.client));
 
 /// A generate call whose model failed: generate resolves it, with the
 /// failure on the result, rather than throwing.
@@ -289,7 +288,7 @@ void main() {
   group('servers', () {
     test('TypeSafe needs a key, and reads its base URL too', () {
       expect(
-        () => SystemOne.typeSafe(configVar: env({})),
+        () => withEnv({}, SystemOne.typeSafe),
         throwsA(
           isA<GenkitException>().having(
             (e) => e.message,
@@ -299,13 +298,10 @@ void main() {
         ),
       );
       final server = FakeServer();
-      final plugin = SystemOne.typeSafe(
-        httpClient: server.client,
-        configVar: env({
-          'TYPESAFE_API_KEY': 'k',
-          'TYPESAFE_BASE_URL': 'https://proxy.test/',
-        }),
-      );
+      final plugin = withEnv({
+        'TYPESAFE_API_KEY': 'k',
+        'TYPESAFE_BASE_URL': 'https://proxy.test/',
+      }, () => SystemOne.typeSafe(httpClient: server.client));
       expect(plugin.name, 'typesafe');
       return genkitWith(plugin)
           .generate(
@@ -325,10 +321,9 @@ void main() {
       final server = FakeServer(
         usage: {'input_tokens': 10, 'output_tokens': 2, 'cost': 0.0004},
       );
-      final plugin = SystemOne.openRouter(
-        httpClient: server.client,
-        configVar: env({'OPENROUTER_API_KEY': 'or-key'}),
-      );
+      final plugin = withEnv({
+        'OPENROUTER_API_KEY': 'or-key',
+      }, () => SystemOne.openRouter(httpClient: server.client));
       final ai = genkitWith(plugin);
       final result = await ai.generate(
         model: plugin.modelRef('liquid/d1'),
@@ -343,10 +338,9 @@ void main() {
 
     test('OpenRouter refuses media before sending it', () async {
       final server = FakeServer();
-      final plugin = SystemOne.openRouter(
-        httpClient: server.client,
-        configVar: env({'OPENROUTER_API_KEY': 'k'}),
-      );
+      final plugin = withEnv({
+        'OPENROUTER_API_KEY': 'k',
+      }, () => SystemOne.openRouter(httpClient: server.client));
       final ai = genkitWith(plugin);
       expect(
         await ai.generate(
@@ -395,15 +389,13 @@ void main() {
     });
 
     group('Workers AI', () {
-      SystemOne workersAI(FakeServer server, {String? accountId}) =>
-          SystemOne.workersAI(
-            accountId: accountId,
-            httpClient: server.client,
-            configVar: env({
-              'CLOUDFLARE_API_TOKEN': 'cf',
-              'CLOUDFLARE_ACCOUNT_ID': 'from-env',
-            }),
-          );
+      SystemOne workersAI(FakeServer server, {String? accountId}) => withEnv(
+        {'CLOUDFLARE_API_TOKEN': 'cf', 'CLOUDFLARE_ACCOUNT_ID': 'from-env'},
+        () => SystemOne.workersAI(
+          accountId: accountId,
+          httpClient: server.client,
+        ),
+      );
 
       test('runs its own models by path, in the result envelope', () async {
         final server = FakeServer(
@@ -519,9 +511,7 @@ void main() {
 
       test('needs an account unless the base URL has no account segment', () {
         expect(
-          () => SystemOne.workersAI(
-            configVar: env({'CLOUDFLARE_API_TOKEN': 'cf'}),
-          ),
+          () => withEnv({'CLOUDFLARE_API_TOKEN': 'cf'}, SystemOne.workersAI),
           throwsA(
             isA<GenkitException>().having(
               (e) => e.message,
@@ -531,9 +521,11 @@ void main() {
           ),
         );
         expect(
-          SystemOne.workersAI(
-            baseUrl: 'https://ai-proxy.test/cloudflare',
-            configVar: env({'CLOUDFLARE_API_TOKEN': 'cf'}),
+          withEnv(
+            {'CLOUDFLARE_API_TOKEN': 'cf'},
+            () => SystemOne.workersAI(
+              baseUrl: 'https://ai-proxy.test/cloudflare',
+            ),
           ).name,
           'cloudflare-decisions',
         );
@@ -705,11 +697,13 @@ void main() {
     group('preset models, as in Go', () {
       test('an entry with a known ID replaces its whole spec', () async {
         final server = FakeServer();
-        final plugin = SystemOne.workersAI(
-          accountId: 'a',
-          httpClient: server.client,
-          configVar: env({'CLOUDFLARE_API_TOKEN': 'cf'}),
-          models: {'@cf/cloudflare/clef-omni': ModelSpec(label: 'Omni')},
+        final plugin = withEnv(
+          {'CLOUDFLARE_API_TOKEN': 'cf'},
+          () => SystemOne.workersAI(
+            accountId: 'a',
+            httpClient: server.client,
+            models: {'@cf/cloudflare/clef-omni': ModelSpec(label: 'Omni')},
+          ),
         );
         final result = await genkitWith(plugin).generate(
           model: plugin.modelRef('@cf/cloudflare/clef-omni'),
@@ -732,10 +726,12 @@ void main() {
       });
 
       test('a new entry is added beside the preset models', () async {
-        final plugin = SystemOne.typeSafe(
-          httpClient: FakeServer().client,
-          configVar: env({'TYPESAFE_API_KEY': 'k'}),
-          models: {'typesafe/jev-1.14.0': ModelSpec(label: 'jev next')},
+        final plugin = withEnv(
+          {'TYPESAFE_API_KEY': 'k'},
+          () => SystemOne.typeSafe(
+            httpClient: FakeServer().client,
+            models: {'typesafe/jev-1.14.0': ModelSpec(label: 'jev next')},
+          ),
         );
         final names = (await plugin.list()).map((a) => a.name);
         expect(
@@ -750,9 +746,11 @@ void main() {
 
       test('a full name for a preset model is refused', () {
         expect(
-          () => SystemOne.typeSafe(
-            configVar: env({'TYPESAFE_API_KEY': 'k'}),
-            models: {'typesafe/jev-1.13.0': ModelSpec(label: 'x')},
+          () => withEnv(
+            {'TYPESAFE_API_KEY': 'k'},
+            () => SystemOne.typeSafe(
+              models: {'typesafe/jev-1.13.0': ModelSpec(label: 'x')},
+            ),
           ),
           throwsA(
             isA<GenkitException>()
@@ -828,10 +826,12 @@ void main() {
 
     test('falls back to the known models when the listing fails', () async {
       final server = FakeServer();
-      final plugin = SystemOne.openRouter(
-        httpClient: server.client,
-        configVar: env({'OPENROUTER_API_KEY': 'k'}),
-        models: {'~liquid/d1-latest': ModelSpec(label: 'd1, latest')},
+      final plugin = withEnv(
+        {'OPENROUTER_API_KEY': 'k'},
+        () => SystemOne.openRouter(
+          httpClient: server.client,
+          models: {'~liquid/d1-latest': ModelSpec(label: 'd1, latest')},
+        ),
       );
       final listed = await plugin.list();
       expect(server.listings, ['/api/v1/models?output_modalities=decisions']);
@@ -892,5 +892,17 @@ void main() {
     expect(hasText(<Object?>['', '']), isTrue);
     expect(hasText({'ticket': 'x'}), isTrue);
     expect(hasText(<String, Object?>{}), isFalse);
+  });
+
+  test('TypeSafe and Workers AI take a provider name', () {
+    final typeSafe = SystemOne.typeSafe(provider: 'jev-eu', apiKey: 'k');
+    expect(typeSafe.name, 'jev-eu');
+    expect(typeSafe.modelRef('jev-1.13.0').name, 'jev-eu/jev-1.13.0');
+    final cf = SystemOne.workersAI(
+      provider: 'cf-eu',
+      accountId: 'a',
+      apiKey: 'k',
+    );
+    expect(cf.name, 'cf-eu');
   });
 }

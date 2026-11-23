@@ -37,10 +37,9 @@ import 'test_types.dart';
     ),
   );
   return (
-    SystemOne.typeSafe(
-      httpClient: server.client,
-      configVar: env({'TYPESAFE_API_KEY': 'k'}),
-    ),
+    withEnv({
+      'TYPESAFE_API_KEY': 'k',
+    }, () => SystemOne.typeSafe(httpClient: server.client)),
     server,
   );
 }
