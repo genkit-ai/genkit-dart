@@ -14,8 +14,16 @@
 
 import 'dart:io';
 
-const licenseHeader = '''
-// Copyright 2025 Google LLC
+import 'package:path/path.dart' as p;
+
+final _copyrightYearPattern = RegExp(
+  r'^// Copyright (\d{4})\b',
+  multiLine: true,
+);
+
+String buildLicenseHeader(int year) =>
+    '''
+// Copyright $year Google LLC
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -30,6 +38,14 @@ const licenseHeader = '''
 // limitations under the License.
 
 ''';
+
+int? extractCopyrightYear(String content) {
+  final checkLimit = content.length > 1000 ? 1000 : content.length;
+  final match = _copyrightYearPattern.firstMatch(
+    content.substring(0, checkLimit),
+  );
+  return match != null ? int.tryParse(match.group(1)!) : null;
+}
 
 void main(List<String> args) async {
   final checkMode = args.contains('--check');
@@ -67,10 +83,11 @@ Future<Stats> processDirectory(Directory dir, bool checkMode) async {
 
   await for (final entity in dir.list(recursive: true, followLinks: false)) {
     if (entity is File) {
-      if (!_shouldProcess(entity.path)) continue;
+      final relPath = p.relative(entity.path, from: dir.path);
+      if (!_shouldProcess(relPath)) continue;
 
       stats.checked++;
-      final needsHeader = await _processFile(entity, checkMode);
+      final needsHeader = await _processFile(dir, entity, checkMode);
       if (needsHeader) {
         stats.modified++;
       } else {
@@ -82,23 +99,32 @@ Future<Stats> processDirectory(Directory dir, bool checkMode) async {
   return stats;
 }
 
-bool _shouldProcess(String path) {
-  if (!path.endsWith('.dart')) return false;
-  // Exclude hidden files and directories
-  if (path.contains('/.')) return false;
-  // Exclude generated files (optional, but usually good practice to exclude .g.dart or .freezed.dart if the header shouldn't be there,
-  // but often licenses are applied there too. Let's include them for now unless they are typically excluded.
-  // Actually, generated files often have "Do not edit" comments. Let's apply to all .dart files as requested "all files (.dart mainly)".)
-
-  // Exclude build directories or package cache if any (unlikely in recursive list from root unless ignored)
-  // .gitignore is respected by developer but Directory.list lists everything.
-  // We should probably check if it's in a hidden directory like .dart_tool
-  if (path.contains('.dart_tool/')) return false;
+bool _shouldProcess(String relPath) {
+  if (!relPath.endsWith('.dart')) return false;
+  final posixPath = relPath.replaceAll(r'\', '/');
+  // Exclude hidden files and directories (such as .git and .dart_tool)
+  if (posixPath.startsWith('.') || posixPath.contains('/.')) return false;
 
   return true;
 }
 
-Future<bool> _processFile(File file, bool checkMode) async {
+Future<int?> _gitHeadCopyrightYear(Directory baseDir, File file) async {
+  final relPath = p
+      .relative(file.path, from: baseDir.path)
+      .replaceAll(r'\', '/');
+  try {
+    final result = await Process.run('git', [
+      'show',
+      'HEAD:./$relPath',
+    ], workingDirectory: baseDir.path);
+    if (result.exitCode != 0) return null;
+    return extractCopyrightYear(result.stdout as String);
+  } on ProcessException {
+    return null;
+  }
+}
+
+Future<bool> _processFile(Directory baseDir, File file, bool checkMode) async {
   try {
     final content = await file.readAsString();
 
@@ -139,12 +165,15 @@ Future<bool> _processFile(File file, bool checkMode) async {
       return true;
     }
 
+    final year =
+        await _gitHeadCopyrightYear(baseDir, file) ?? DateTime.now().year;
+
     // Apply header
     final sb = StringBuffer();
     if (hasShebang && shebangLine != null) {
       sb.write(shebangLine);
     }
-    sb.write(licenseHeader);
+    sb.write(buildLicenseHeader(year));
     sb.write(contentToCheck);
 
     await file.writeAsString(sb.toString());
