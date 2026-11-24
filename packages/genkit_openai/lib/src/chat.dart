@@ -18,6 +18,8 @@ import 'package:genkit/plugin.dart';
 import 'package:openai_dart/openai_dart.dart';
 import 'package:schemantic/schemantic.dart';
 
+import 'schema_root.dart';
+
 part 'chat.g.dart';
 
 /// Chat-specific options for OpenAI chat models.
@@ -122,6 +124,7 @@ ResponseFormat? buildOpenAIResponseFormat({
   Map<String, dynamic>? schema,
   bool? jsonMode,
   bool supportsJsonSchema = true,
+  bool wrapRoot = false,
 }) {
   if (isJsonStructuredOutput(format, contentType)) {
     if (schema == null || !supportsJsonSchema) {
@@ -130,9 +133,13 @@ ResponseFormat? buildOpenAIResponseFormat({
 
     // Flattened because OpenAI needs `type` at the top level, so `$ref`/
     // `$defs` have to be resolved away first.
+    final flat = schema.flatten();
     return ResponseFormat.jsonSchema(
       name: 'output',
-      schema: schema.flatten(),
+      // A host that takes only object roots gets any other root wrapped, and
+      // the reply is unwrapped. The caller decides with [needsRootWrapper],
+      // so the request and the unwrapping cannot disagree.
+      schema: wrapRoot ? wrapSchemaRoot(flat) : flat,
       // Strict mode demands `additionalProperties: false` on every object and
       // every property listed in `required`. Genkit schemas are not authored
       // that way - an optional field is simply absent from `required` - so
@@ -157,6 +164,23 @@ ResponseFormat? buildOpenAIResponseFormat({
 
   return null;
 }
+
+/// Whether the request's schema goes out wrapped in an object, so the reply
+/// has to be unwrapped: the host takes `json_schema` only with an object
+/// root, the output is JSON with a schema, and the schema's root is not an
+/// object. Its answer is [buildOpenAIResponseFormat]'s `wrapRoot`.
+bool needsRootWrapper({
+  String? format,
+  String? contentType,
+  Map<String, dynamic>? schema,
+  bool supportsJsonSchema = true,
+  bool objectSchemaRoot = false,
+}) =>
+    objectSchemaRoot &&
+    supportsJsonSchema &&
+    schema != null &&
+    isJsonStructuredOutput(format, contentType) &&
+    !hasObjectRoot(schema.flatten());
 
 /// The JSON instruction a `json_object`-only host needs in the prompt.
 ///

@@ -193,6 +193,14 @@ final class OpenAIProvider {
   /// carries it.
   final bool supportsJsonSchema;
 
+  /// Whether the host takes a `json_schema` response format only when its
+  /// root is `type: "object"`.
+  ///
+  /// OpenAI answers any other root (an array, enum or scalar) with a 400. For
+  /// such a host the schema goes out wrapped as the `value` property of an
+  /// object, and the reply is unwrapped before Genkit parses it.
+  final bool objectSchemaRoot;
+
   const OpenAIProvider({
     required this.defaultNamespace,
     required this.defaultBaseUrl,
@@ -213,6 +221,7 @@ final class OpenAIProvider {
     this.rewriteEmbeddingBody,
     this.usesLegacyMaxTokens = false,
     this.supportsJsonSchema = true,
+    this.objectSchemaRoot = false,
     this.acceptsFileParts = true,
     this.servesModel = _servesAnyModel,
     this.chatFromListing,
@@ -238,6 +247,7 @@ final openAIProvider = OpenAIProvider(
   embedderIds: knownEmbedderModels,
   speechIds: knownSpeechModels,
   transcriptionIds: knownTranscriptionModels,
+  objectSchemaRoot: true,
 );
 
 /// DeepSeek, which speaks the same protocol with a few differences the plugin
