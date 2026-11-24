@@ -500,19 +500,62 @@ void main() {
     );
 
     test(r'looks at the root after $refs are resolved', () {
-      const refToObject = {
-        r'$ref': r'#/$defs/Person',
-        r'$defs': {
-          'Person': {'type': 'object'},
-        },
-      };
+      bool wraps(Map<String, dynamic> schema) => needsRootWrapper(
+        format: 'json',
+        schema: schema,
+        objectSchemaRoot: true,
+      );
+      const person = {'type': 'object'};
+      // Flattening inlines the definition, so none of these sends a $ref.
       expect(
-        needsRootWrapper(
-          format: 'json',
-          schema: refToObject,
-          objectSchemaRoot: true,
-        ),
+        wraps({
+          r'$ref': r'#/$defs/Person',
+          r'$defs': {'Person': person},
+        }),
         isFalse,
+      );
+      expect(
+        wraps({
+          r'$ref': '#/definitions/Person',
+          'definitions': {'Person': person},
+        }),
+        isFalse,
+      );
+      expect(
+        wraps({
+          r'$ref': r'#/$defs/Person',
+          'description': 'A person',
+          r'$defs': {'Person': person},
+        }),
+        isFalse,
+      );
+      expect(
+        wraps({
+          r'$ref': r'#/$defs/A',
+          r'$defs': {
+            'A': {r'$ref': r'#/$defs/Person'},
+            'Person': person,
+          },
+        }),
+        isFalse,
+      );
+      expect(
+        wraps({
+          r'$ref': r'#/$defs/Color',
+          r'$defs': {
+            'Color': {
+              'type': 'string',
+              'enum': ['red'],
+            },
+          },
+        }),
+        isTrue,
+      );
+      expect(
+        wraps({
+          'type': ['object', 'null'],
+        }),
+        isTrue,
       );
     });
   });
