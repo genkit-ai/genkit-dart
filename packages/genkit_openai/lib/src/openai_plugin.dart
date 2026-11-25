@@ -930,8 +930,6 @@ class OpenAIPlugin extends GenkitPlugin {
     ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
     bool unwrapRoot,
   ) async {
-    // A wrapped reply streams as `{"value": ...}`; the unwrapper turns it
-    // back into the caller's value as it arrives.
     final unwrapper = unwrapRoot ? WrapperStreamUnwrapper() : null;
     void sendText(String text) {
       if (text.isEmpty) return;

@@ -187,6 +187,25 @@ void main() {
       expect(unwrapText('[1,2]'), '[1,2]');
       expect(unwrapText('{"other":1}'), '{"other":1}');
       expect(unwrapText('not json'), 'not json');
+      expect(unwrapText('```json\n[1,2]\n```'), '```json\n[1,2]\n```');
+    });
+
+    test('leaves an object with other keys beside value alone', () {
+      expect(unwrapText('{"value":1,"other":2}'), '{"value":1,"other":2}');
+    });
+
+    test('unwraps a fenced reply', () {
+      expect(unwrapText('```json\n{"value":[1,2]}\n```'), '[1,2]');
+      expect(unwrapText('```\n{"value": "red"}\n```'), '"red"');
+    });
+
+    test('unwraps a cut-off reply as far as it goes', () {
+      expect(unwrapText('{"value":[{"name":"a"},{"na'), '[{"name":"a"},{"na');
+    });
+
+    test('keeps the value as sent rather than re-encoding it', () {
+      expect(unwrapText('{"value":1e400}'), '1e400');
+      expect(unwrapText('{\n  "value": [1, 2]\n}'), '[1, 2]');
     });
   });
 
@@ -367,6 +386,7 @@ void main() {
 
       expect(_sentSchema(captured.single), wrapSchemaRoot(_arraySchema));
       expect(streamed.toString(), '[{"name":"a"},{"name":"b"}]');
+      expect(response.text, streamed.toString());
       expect(response.output, [
         {'name': 'a'},
         {'name': 'b'},

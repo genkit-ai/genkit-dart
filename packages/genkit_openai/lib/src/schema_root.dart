@@ -45,18 +45,31 @@ Map<String, dynamic> wrapSchemaRoot(Map<String, dynamic> schema) {
   };
 }
 
+/// A reply in a markdown code fence; the closing fence may be cut off.
+final _fenced = RegExp(r'^\s*```(?:json)?\s*([\s\S]*?)\s*(?:```\s*)?$');
+
 /// Returns the wrapped value's JSON from [text], or [text] unchanged when it
 /// isn't a wrapper object (a host that ignored the schema may reply with the
-/// bare value).
+/// bare value, or with an object that merely has a `value` key).
+///
+/// The wrapper is stripped as text, as [WrapperStreamUnwrapper] does while
+/// streaming, so a reply cut off mid-value is unwrapped as far as it goes and
+/// the value is never re-encoded.
 String unwrapText(String text) {
-  final Object? decoded;
+  final body = _fenced.firstMatch(text)?.group(1) ?? text;
   try {
-    decoded = jsonDecode(text);
+    final decoded = jsonDecode(body);
+    if (decoded is! Map ||
+        decoded.length != 1 ||
+        !decoded.containsKey(wrapperKey)) {
+      return text;
+    }
   } on FormatException {
-    return text;
+    // Incomplete, such as a reply cut off by maxTokens.
   }
-  if (decoded is! Map || !decoded.containsKey(wrapperKey)) return text;
-  return jsonEncode(decoded[wrapperKey]);
+  final unwrapper = WrapperStreamUnwrapper();
+  final unwrapped = unwrapper.push(body) + unwrapper.flush();
+  return unwrapped == body ? text : unwrapped;
 }
 
 /// Replaces the text of a wrapped reply with the wrapped value. Text beside

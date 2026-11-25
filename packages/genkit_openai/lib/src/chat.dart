@@ -136,9 +136,6 @@ ResponseFormat? buildOpenAIResponseFormat({
     final flat = schema.flatten();
     return ResponseFormat.jsonSchema(
       name: 'output',
-      // A host that takes only object roots gets any other root wrapped, and
-      // the reply is unwrapped. The caller decides with [needsRootWrapper],
-      // so the request and the unwrapping cannot disagree.
       schema: wrapRoot ? wrapSchemaRoot(flat) : flat,
       // Strict mode demands `additionalProperties: false` on every object and
       // every property listed in `required`. Genkit schemas are not authored
