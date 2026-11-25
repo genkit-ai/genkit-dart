@@ -734,7 +734,11 @@ OpenAI rejects `json_object` unless the conversation also asks for JSON, so
 options 2 and 3 need the prompt to say so. Option 1 does not.
 
 The plugin sends `strict: false`. Schemas are flattened (`$ref`/`$defs`
-resolved) but otherwise unmodified. Strict mode is off because it requires
+resolved) but otherwise unmodified, with one exception: OpenAI only accepts a
+schema whose root is an object, so for `openAI()` a list, enum or scalar
+schema is sent as the `value` property of an object, and the reply is
+unwrapped before Genkit parses it. `output` and the streamed text are the
+caller's value either way. Strict mode is off because it requires
 every property to appear in `required` and `additionalProperties: false` on
 every object — which rejects ordinary schemas that have optional fields.
 

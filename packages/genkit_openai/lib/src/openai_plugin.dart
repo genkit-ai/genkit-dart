@@ -30,6 +30,7 @@ import 'embed.dart' as embed;
 // the public surface.
 import 'known_embedders.dart' show compatEmbedderInfo, embedderInfoFor;
 import 'provider.dart';
+import 'schema_root.dart';
 import 'speech.dart' as speech;
 import 'transcription.dart' as transcription;
 import 'utils.dart';
@@ -742,6 +743,13 @@ class OpenAIPlugin extends GenkitPlugin {
             }
           }
 
+          final unwrapRoot = chat.needsRootWrapper(
+            format: modelRequest.output?.format,
+            contentType: modelRequest.output?.contentType,
+            schema: modelRequest.output?.schema,
+            supportsJsonSchema: provider.supportsJsonSchema,
+            objectSchemaRoot: provider.objectSchemaRoot,
+          );
           final request = sdk.ChatCompletionCreateRequest(
             model: wireModel,
             messages: messages,
@@ -773,14 +781,15 @@ class OpenAIPlugin extends GenkitPlugin {
               schema: modelRequest.output?.schema,
               jsonMode: options.jsonMode,
               supportsJsonSchema: provider.supportsJsonSchema,
+              wrapRoot: unwrapRoot,
             ),
             reasoningEffort: reasoningEffort,
             verbosity: verbosity,
           );
           if (ctx.streamingRequested) {
-            return await _handleStreaming(client, request, ctx);
+            return await _handleStreaming(client, request, ctx, unwrapRoot);
           } else {
-            return await _handleNonStreaming(client, request);
+            return await _handleNonStreaming(client, request, unwrapRoot);
           }
         } catch (e, stackTrace) {
           Error.throwWithStackTrace(
@@ -919,7 +928,16 @@ class OpenAIPlugin extends GenkitPlugin {
     sdk.OpenAIClient client,
     sdk.ChatCompletionCreateRequest request,
     ActionFnArg<ModelResponseChunk, ModelRequest, void> ctx,
+    bool unwrapRoot,
   ) async {
+    final unwrapper = unwrapRoot ? WrapperStreamUnwrapper() : null;
+    void sendText(String text) {
+      if (text.isEmpty) return;
+      ctx.sendChunk(
+        ModelResponseChunk(index: 0, content: [TextPart(text: text)]),
+      );
+    }
+
     final streamRequest = request.copyWith(
       streamOptions: const sdk.StreamOptions(includeUsage: true),
     );
@@ -944,13 +962,27 @@ class OpenAIPlugin extends GenkitPlugin {
           ctx.sendChunk(ModelResponseChunk(index: 0, content: reasoning));
         }
 
+        // Text before a tool call is a preamble, not the output, so it is
+        // sent as it streamed.
+        if (unwrapper != null && (delta?.toolCalls?.isNotEmpty ?? false)) {
+          sendText(unwrapper.passThrough());
+        }
+
         final textDelta = chunk.textDelta;
         if (textDelta != null) {
-          ctx.sendChunk(
-            ModelResponseChunk(index: 0, content: [TextPart(text: textDelta)]),
-          );
+          if (unwrapper != null) {
+            sendText(unwrapper.push(textDelta));
+          } else {
+            ctx.sendChunk(
+              ModelResponseChunk(
+                index: 0,
+                content: [TextPart(text: textDelta)],
+              ),
+            );
+          }
         }
       }
+      if (unwrapper != null) sendText(unwrapper.flush());
     } catch (e, stackTrace) {
       if (e is GenkitException) rethrow;
       throw GenkitException(
@@ -962,11 +994,12 @@ class OpenAIPlugin extends GenkitPlugin {
 
     final response = accumulator.toChatCompletion();
     final choice = response.choices.first;
-    final message = GenkitConverter.fromOpenAIAssistantMessage(
+    var message = GenkitConverter.fromOpenAIAssistantMessage(
       choice.message,
       reasoningSource: provider.reasoningSource,
       streamed: true,
     );
+    if (unwrapRoot) message = unwrapMessage(message);
 
     return ModelResponse(
       finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.value),
@@ -980,6 +1013,7 @@ class OpenAIPlugin extends GenkitPlugin {
   Future<ModelResponse> _handleNonStreaming(
     sdk.OpenAIClient client,
     sdk.ChatCompletionCreateRequest request,
+    bool unwrapRoot,
   ) async {
     final response = await client.chat.completions.create(request);
 
@@ -988,10 +1022,11 @@ class OpenAIPlugin extends GenkitPlugin {
     }
 
     final choice = response.choices.first;
-    final message = GenkitConverter.fromOpenAIAssistantMessage(
+    var message = GenkitConverter.fromOpenAIAssistantMessage(
       choice.message,
       reasoningSource: provider.reasoningSource,
     );
+    if (unwrapRoot) message = unwrapMessage(message);
 
     return ModelResponse(
       finishReason: GenkitConverter.mapFinishReason(choice.finishReason?.value),
