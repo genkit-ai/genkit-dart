@@ -63,7 +63,7 @@ void main() {
         expect(action, isNotNull);
         final info = modelInfoOf(action!);
         expect(info['label'], model.label);
-        expect(info['stage'], 'stable');
+        expect(info['stage'], model.stage.wireName);
         expect(
           (info['supports'] as Map).cast<String, dynamic>(),
           model.info.supports,
@@ -183,11 +183,11 @@ void main() {
   });
 
   group('KnownClaudeModel', () {
-    test('info carries the label, stable stage and supports', () {
+    test('info carries the label, stage and supports', () {
       for (final model in KnownClaudeModel.values) {
         final info = model.info;
         expect(info.label, model.label);
-        expect(info.stage, 'stable');
+        expect(info.stage, model.stage.wireName);
         expect(info.supports, {
           'multiturn': true,
           'media': true,
@@ -197,6 +197,31 @@ void main() {
           'output': ['text', 'json'],
           'constrained': true,
         });
+      }
+    });
+
+    test('claude-sonnet-4-5 is the only deprecated model', () {
+      expect(
+        [
+          for (final model in KnownClaudeModel.values)
+            if (model.stage != ClaudeModelStage.stable) model.id,
+        ],
+        ['claude-sonnet-4-5'],
+      );
+      expect(KnownClaudeModel.sonnet45.info.stage, 'deprecated');
+    });
+
+    test('only the Claude 4.5 models default to manual thinking', () {
+      // Every model since the 4.6 generation rejects or deprecates
+      // `enabled` + `budget_tokens`, so they default to adaptive.
+      for (final model in KnownClaudeModel.values) {
+        expect(
+          model.defaultThinkingMode,
+          model.id.endsWith('-4-5')
+              ? ClaudeThinkingMode.enabled
+              : ClaudeThinkingMode.adaptive,
+          reason: model.id,
+        );
       }
     });
 
@@ -232,15 +257,20 @@ void main() {
       expect(
         AnthropicPluginImpl(apiKey: 'k').knownModelIds,
         unorderedEquals([
+          'claude-fable-5-2',
+          'claude-fable-5-1',
           'claude-fable-5',
+          'claude-opus-5-5',
           'claude-opus-5',
           'claude-opus-4-8',
           'claude-opus-4-7',
           'claude-opus-4-6',
           'claude-opus-4-5',
+          'claude-sonnet-5-5',
           'claude-sonnet-5',
           'claude-sonnet-4-6',
           'claude-sonnet-4-5',
+          'claude-haiku-5-5',
           'claude-haiku-4-5',
         ]),
       );

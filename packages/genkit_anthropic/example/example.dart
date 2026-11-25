@@ -31,7 +31,7 @@ void main(List<String> args) {
     outputSchema: .string(),
     fn: (input, context) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-5-5'),
         prompt: input,
       );
       return response.text;
@@ -46,7 +46,7 @@ void main(List<String> args) {
     streamSchema: .string(),
     fn: (input, ctx) async {
       final stream = ai.generateStream(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-5-5'),
         prompt: input,
       );
 
@@ -74,7 +74,7 @@ void main(List<String> args) {
     outputSchema: .string(),
     fn: (prompt, context) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-5-5'),
         prompt: prompt,
         toolNames: ['calculator'],
       );
@@ -82,7 +82,7 @@ void main(List<String> args) {
     },
   );
 
-  // --- Thinking Flow (Claude 3.7+) ---
+  // --- Thinking Flow ---
   ai.defineFlow(
     name: 'thinking',
     inputSchema: .string(defaultValue: 'Solve this 24 game: 2, 3, 10, 10'),
@@ -90,16 +90,17 @@ void main(List<String> args) {
     streamSchema: ModelResponseChunk.$schema,
     fn: (prompt, ctx) async {
       final response = await ai.generate(
-        // Assuming a model that supports thinking is available or aliased
-        model: anthropic.model('claude-sonnet-4-5'),
+        // Claude Sonnet 4.6 returns summarized thinking text by default.
+        model: anthropic.model('claude-sonnet-4-6'),
         prompt: prompt,
         onChunk: (chunk) => ctx.sendChunk(chunk.modelChunk),
         config: AnthropicOptions(
-          thinking: AnthropicThinkingConfig(budgetTokens: 2048),
+          // Thinking counts towards maxTokens.
+          maxTokens: 16000,
+          thinking: AnthropicThinkingConfig(),
         ),
       );
-      // The reasoning reasoning is in response.message.content
-      // Here we just return the text response
+      // Thinking blocks are in response.message.content.
       return response.message!;
     },
   );
@@ -114,7 +115,7 @@ void main(List<String> args) {
     streamSchema: Person.$schema,
     fn: (prompt, ctx) async {
       final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-4-5'),
+        model: anthropic.model('claude-sonnet-5-5'),
         prompt: prompt,
         outputSchema: Person.$schema,
         onChunk: (chunk) {

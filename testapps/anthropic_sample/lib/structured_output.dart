@@ -75,23 +75,6 @@ Flow<String, Recipe, void, void> defineRecipeFlow(Genkit ai) {
   );
 }
 
-/// A model name the plugin doesn't curate still gets the native path.
-Flow<String, Recipe, void, void> defineUncuratedModelFlow(Genkit ai) {
-  return ai.defineFlow(
-    name: 'recipeUncuratedModel',
-    inputSchema: .string(defaultValue: 'shakshuka'),
-    outputSchema: Recipe.$schema,
-    fn: (dish, _) async {
-      final response = await ai.generate(
-        model: anthropic.model('claude-sonnet-5-5'),
-        prompt: 'Write a short recipe for $dish.',
-        outputSchema: Recipe.$schema,
-      );
-      return response.output!;
-    },
-  );
-}
-
 /// Streams partial output as the JSON arrives.
 Flow<String, Recipe, Recipe, void> defineStreamedRecipeFlow(Genkit ai) {
   return ai.defineFlow(
@@ -139,10 +122,9 @@ Flow<String, Recipe, void, void> defineRecipeWithToolsFlow(Genkit ai) {
         tools: [pantry],
         outputSchema: Recipe.$schema,
         config: AnthropicOptions(
-          thinking: AnthropicThinkingConfig(
-            type: 'enabled',
-            budgetTokens: 1024,
-          ),
+          // Claude Sonnet 5.5 rejects manual (`enabled`) thinking; its
+          // default mode is adaptive.
+          thinking: AnthropicThinkingConfig(),
         ),
       );
       return response.output!;
@@ -190,7 +172,6 @@ void main() {
   );
 
   defineRecipeFlow(ai);
-  defineUncuratedModelFlow(ai);
   defineStreamedRecipeFlow(ai);
   defineRecipeWithToolsFlow(ai);
   defineScorecardFlow(ai);
